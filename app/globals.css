@@ -1,26 +1,17 @@
-@import "tailwindcss";
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  @apply bg-coc-stone text-gray-200;
+  background-image: url("https://i.imgur.com/2s4n9oJ.jpeg");
+  background-repeat: repeat;
+  background-size: 500px;
+  background-attachment: fixed;
 }
+
+h1, h2, h3, h4, h5, h6 {
+  @apply font-supercell text-coc-gold;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+}
+
