@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Inter, Uncial_Antiqua } from "next/font/google";
 import "./globals.css";
-import Header from "@/app/components/layout/Header"; // Impor Header
-import Footer from "@/app/components/layout/Footer"; // Impor Footer
+import Header from "@/app/components/layout/Header";
+import Footer from "@/app/components/layout/Footer";
+import { AuthProvider } from "@/app/context/AuthContext";
 
 // Konfigurasi font
 const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
@@ -26,11 +27,13 @@ export default function RootLayout({
   return (
     <html lang="id">
       <body className={`${inter.variable} ${uncialAntiqua.variable} font-sans flex flex-col min-h-screen`}>
-        <Header />
-        <main className="flex-grow">
-          {children}
-        </main>
-        <Footer />
+        <AuthProvider>
+          <Header />
+          <main className="flex-grow">
+            {children}
+          </main>
+          <Footer />
+        </AuthProvider>
       </body>
     </html>
   );
