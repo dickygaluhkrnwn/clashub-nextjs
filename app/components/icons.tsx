@@ -59,14 +59,14 @@ export const XIcon = (props: IconProps) => (
     </svg>
 );
 
-// Ikon Bintang Baru
+// Ikon Bintang
 export const StarIcon = (props: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
     </svg>
 );
 
-// --- Ikon Baru Ditambahkan ---
+// --- Ikon Utama ---
 
 export const TrophyIcon = (props: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -119,7 +119,6 @@ export const BookOpenIcon = (props: IconProps) => (
     </svg>
 );
 
-// --- Ikon Baru untuk Filter ---
 export const UsersCogIcon = (props: IconProps) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
     <path d="M12 12a4 4 0 1 0-4-4" />
@@ -134,7 +133,6 @@ export const UsersCogIcon = (props: IconProps) => (
   </svg>
 );
 
-// --- Ikon Baru untuk Pencarian Pemain ---
 export const UserSearchIcon = (props: IconProps) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
     <circle cx="10" cy="10" r="6" />
@@ -143,14 +141,12 @@ export const UserSearchIcon = (props: IconProps) => (
   </svg>
 );
 
-// --- Ikon Baru untuk Halaman Turnamen ---
 export const FilterIcon = (props: IconProps) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
     <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
   </svg>
 );
 
-// --- Ikon Baru untuk Menu Profil ---
 export const LogOutIcon = (props: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -164,5 +160,22 @@ export const UserCircleIcon = (props: IconProps) => (
         <circle cx="12" cy="12" r="10" />
         <circle cx="12" cy="10" r="4" />
         <path d="M12 22a8 8 0 0 0 8-8" />
+    </svg>
+);
+
+// Ikon BARU yang HILANG
+export const SaveIcon = (props: IconProps) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+        <polyline points="17 21 17 13 7 13 7 21" />
+        <polyline points="7 3 7 7 10 7" />
+    </svg>
+);
+
+export const InfoIcon = (props: IconProps) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="16" x2="12" y2="12" />
+        <line x1="12" y1="8" x2="12.01" y2="8" />
     </svg>
 );
