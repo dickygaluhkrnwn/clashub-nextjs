@@ -2,6 +2,7 @@
 import { Button } from "@/app/components/ui/Button";
 import { TeamCard, PostCard } from "@/app/components/cards";
 import { TrophyIcon, SkullIcon, PercentageIcon, CogsIcon, BookOpenIcon } from "@/app/components/icons";
+import CarouselSection from "@/app/components/layout/CarouselSection"; // <-- IMPOR BARU
 
 // Data statis untuk TeamCard. Menambahkan "as const" untuk menjaga tipe literal.
 const recommendedTeams = [
@@ -10,7 +11,7 @@ const recommendedTeams = [
   { name: "TH15 EXPERTS", tag: "#TH15PROS", rating: 4.7, vision: "Kompetitif", avgTh: 15.0, href: "/teamhub/3" },
   { name: "PHOENIX REBORN", tag: "#PHOENIX", rating: 4.7, vision: "Kompetitif", avgTh: 14.8, href: "/teamhub/4" },
   { name: "CHILL CLASHERS", tag: "#CHILL", rating: 4.3, vision: "Kasual", avgTh: 11.5, href: "/teamhub/5" },
-] as const; // <-- PERBAIKAN: Menambahkan const assertion
+] as const;
 
 // Data statis untuk PostCard, disesuaikan dengan props yang benar.
 const latestPosts = [
@@ -119,21 +120,15 @@ export default function Home() {
 
         </section>
 
-        {/* Rekomendasi Tim */}
-        <section className="mb-12">
-          <h2><CogsIcon className="inline-block mr-2 h-5 w-5"/> Rekomendasi Tim untuk Anda</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 mt-4">
-            {recommendedTeams.map(team => <TeamCard key={team.tag} {...team} />)}
-          </div>
-        </section>
+        {/* Rekomendasi Tim (MENGGUNAKAN CAROUSEL) */}
+        <CarouselSection title="Rekomendasi Tim untuk Anda" icon={<CogsIcon className="inline-block h-5 w-5"/>}>
+          {recommendedTeams.map(team => <TeamCard key={team.tag} {...team} />)}
+        </CarouselSection>
 
-        {/* Strategi Terbaru */}
-        <section>
-          <h2><BookOpenIcon className="inline-block mr-2 h-6 w-6"/> Strategi & Tips Terbaru</h2>
-           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-4">
-            {latestPosts.map(post => <PostCard key={post.title} {...post} />)}
-          </div>
-        </section>
+        {/* Strategi Terbaru (MENGGUNAKAN CAROUSEL) */}
+        <CarouselSection title="Strategi & Tips Terbaru" icon={<BookOpenIcon className="inline-block h-6 w-6"/>}>
+          {latestPosts.map(post => <PostCard key={post.title} {...post} />)}
+        </CarouselSection>
 
       </main>
     </>

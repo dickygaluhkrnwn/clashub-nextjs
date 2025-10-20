@@ -3,7 +3,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/app/components/ui/Button';
 
-// -- Tipe Data untuk Props --
+// -- Tipe Data untuk Props (Tidak ada perubahan) --
 export type TeamCardProps = {
   name: string;
   tag: string;
@@ -31,7 +31,6 @@ export type TournamentCardProps = {
     href: string;
 };
 
-// -- Tipe Data Baru untuk PlayerCard --
 export type PlayerCardProps = {
     name: string;
     tag: string;
@@ -48,20 +47,23 @@ export const TeamCard = ({ name, tag, rating, vision, avgTh, logoUrl = "/images/
   const isCompetitive = vision === 'Kompetitif';
 
   return (
-    <div className="card-stone flex flex-col justify-between h-full">
+    // PERBAIKAN: Menambahkan padding p-5 untuk ruang di dalam kartu
+    <div className="card-stone flex flex-col justify-between h-full p-5">
       <div>
+        {/* PERBAIKAN: Menambahkan margin-bottom mb-4 */}
         <div className="flex items-center gap-4 mb-4">
-          <Image src={logoUrl} alt={`${name} logo`} width={50} height={50} className="rounded-full border-2 border-coc-gold-dark" />
-          <div className="flex-grow">
-            <h4 className="text-lg font-bold text-white leading-tight">{name}</h4>
+          <Image src={logoUrl} alt={`${name} logo`} width={50} height={50} className="rounded-full border-2 border-coc-gold-dark flex-shrink-0" />
+          <div className="flex-grow min-w-0">
+            <h4 className="text-lg font-bold text-white leading-tight truncate">{name}</h4>
             <p className="text-xs text-gray-400">{tag}</p>
           </div>
-          <div className="flex items-center gap-1 text-coc-gold font-bold">
+          <div className="flex items-center gap-1 text-coc-gold font-bold flex-shrink-0">
             <StarIcon className="h-4 w-4" />
             <span>{rating.toFixed(1)}</span>
           </div>
         </div>
-        <div className="flex justify-between items-center pt-3 border-t border-coc-stone-light/30">
+        {/* PERBAIKAN: Menambahkan padding-top pt-4 */}
+        <div className="flex justify-between items-center pt-4 border-t border-coc-stone-light/30">
           <span className={`px-2 py-1 text-xs font-bold rounded-sm ${isCompetitive ? 'bg-coc-red text-white' : 'bg-coc-green text-coc-stone'}`}>
             {vision}
           </span>
@@ -70,7 +72,7 @@ export const TeamCard = ({ name, tag, rating, vision, avgTh, logoUrl = "/images/
           </p>
         </div>
       </div>
-      <Link href={href} className="mt-4">
+      <Link href={href} className="mt-5">
         <Button variant="secondary" className="w-full">Lihat Profil</Button>
       </Link>
     </div>
@@ -80,16 +82,20 @@ export const TeamCard = ({ name, tag, rating, vision, avgTh, logoUrl = "/images/
 // -- Komponen PostCard (untuk Knowledge Hub) --
 export const PostCard = ({ category, tag, title, author, stats, href }: PostCardProps) => {
     return (
-      <Link href={href} className="block group">
-        <div className="card-stone h-full flex flex-col">
+      <Link href={href} className="block group h-full">
+        {/* PERBAIKAN: Menambahkan padding p-5 */}
+        <div className="card-stone h-full flex flex-col p-5">
           <div className="flex-grow">
-            <div className="flex items-center gap-2 mb-2 text-xs">
+            {/* PERBAIKAN: Menambahkan margin-bottom mb-3 */}
+            <div className="flex items-center gap-2 mb-3 text-xs flex-wrap">
               <span className="px-2 py-1 font-bold bg-coc-red text-white rounded-sm">{category}</span>
               <span className="px-2 py-1 font-semibold bg-coc-stone-light text-coc-gold rounded-sm">{tag}</span>
             </div>
-            <h4 className="text-lg font-bold text-white group-hover:text-coc-gold transition-colors">{title}</h4>
+            {/* PERBAIKAN: Menambahkan margin-bottom mb-3 */}
+            <h4 className="text-lg font-bold text-white group-hover:text-coc-gold transition-colors mb-3">{title}</h4>
           </div>
-          <div className="mt-3 pt-3 border-t border-coc-stone-light/30 text-xs text-gray-400">
+          {/* PERBAIKAN: Menambahkan padding-top pt-3 */}
+          <div className="mt-auto pt-3 border-t border-coc-stone-light/30 text-xs text-gray-400">
             <p>Oleh: <span className="font-bold text-coc-gold-dark">{author}</span></p>
             <p>{stats}</p>
           </div>
@@ -112,14 +118,18 @@ export const TournamentCard = ({ title, status, thRequirement, prizePool, href }
     };
 
     return (
-        <div className={`card-stone flex flex-col sm:flex-row justify-between items-center p-5 gap-4 border-l-4 ${statusStyles[status]}`}>
-            <div className="flex-grow">
+        // PERBAIKAN: Menambahkan padding p-6 agar lebih lega
+        <div className={`card-stone flex flex-col sm:flex-row justify-between items-center p-6 gap-4 border-l-4 ${statusStyles[status]}`}>
+            <div className="flex-grow w-full sm:w-auto">
                 <h4 className="text-xl font-bold text-white">{title}</h4>
-                <p className="text-sm text-gray-300">Syarat: <span className="font-bold text-white">{thRequirement}</span></p>
-                <p className="text-sm text-gray-300">Hadiah: <span className="font-bold text-coc-gold">{prizePool}</span></p>
+                {/* PERBAIKAN: Menggunakan space-y-1 untuk jarak antar paragraf */}
+                <div className="text-sm text-gray-300 space-y-1 mt-2">
+                    <p>Syarat: <span className="font-bold text-white">{thRequirement}</span></p>
+                    <p>Hadiah: <span className="font-bold text-coc-gold">{prizePool}</span></p>
+                </div>
             </div>
-            <div className="flex flex-col items-center sm:items-end gap-3 w-full sm:w-auto">
-                <span className={`px-3 py-1 text-xs font-bold rounded-full ${statusBadgeStyles[status]}`}>{status}</span>
+            <div className="flex flex-col items-stretch sm:items-end gap-3 w-full sm:w-auto mt-4 sm:mt-0">
+                <span className={`px-3 py-1 text-xs font-bold rounded-full text-center ${statusBadgeStyles[status]}`}>{status}</span>
                 <Button href={href} variant="secondary" className="w-full sm:w-auto">Lihat Detail</Button>
             </div>
         </div>
@@ -138,26 +148,29 @@ export const PlayerCard = ({ name, tag, thLevel, reputation, role, avatarUrl = "
     };
     
     return (
-        <div className="card-stone flex flex-col justify-between h-full">
+        // PERBAIKAN: Menambahkan padding p-5
+        <div className="card-stone flex flex-col justify-between h-full p-5">
             <div>
+                {/* PERBAIKAN: Menambahkan margin-bottom mb-4 */}
                 <div className="flex items-center gap-4 mb-4">
-                    <Image src={avatarUrl} alt={`${name} avatar`} width={50} height={50} className="rounded-full border-2 border-coc-gold-dark" />
-                    <div className="flex-grow">
-                        <h4 className="text-lg font-bold text-white leading-tight">{name}</h4>
+                    <Image src={avatarUrl} alt={`${name} avatar`} width={50} height={50} className="rounded-full border-2 border-coc-gold-dark flex-shrink-0" />
+                    <div className="flex-grow min-w-0">
+                        <h4 className="text-lg font-bold text-white leading-tight truncate">{name}</h4>
                         <p className="text-xs text-gray-400">{tag}</p>
                     </div>
                 </div>
-                <div className="space-y-3 pt-3 border-t border-coc-stone-light/30">
-                    <div className="flex justify-between items-center">
-                        <span className="text-sm font-bold text-gray-300">Role:</span>
+                 {/* PERBAIKAN: Menambahkan padding-top pt-4 dan space-y-2 */}
+                <div className="space-y-2 pt-4 border-t border-coc-stone-light/30">
+                    <div className="flex justify-between items-center text-sm">
+                        <span className="font-bold text-gray-300">Role:</span>
                         <span className={`px-2 py-1 text-xs font-bold rounded-sm ${roleColors[role] || 'bg-gray-600'}`}>{role}</span>
                     </div>
-                     <div className="flex justify-between items-center">
-                        <span className="text-sm font-bold text-gray-300">Town Hall:</span>
+                     <div className="flex justify-between items-center text-sm">
+                        <span className="font-bold text-gray-300">Town Hall:</span>
                         <span className="font-bold text-white">TH {thLevel}</span>
                     </div>
-                    <div className="flex justify-between items-center">
-                        <span className="text-sm font-bold text-gray-300">Reputasi:</span>
+                    <div className="flex justify-between items-center text-sm">
+                        <span className="font-bold text-gray-300">Reputasi:</span>
                          <div className="flex items-center gap-1 text-coc-gold font-bold">
                             <StarIcon className="h-4 w-4" />
                             <span>{reputation.toFixed(1)}</span>
@@ -165,11 +178,11 @@ export const PlayerCard = ({ name, tag, thLevel, reputation, role, avatarUrl = "
                     </div>
                 </div>
             </div>
-            <div className="mt-4 flex gap-2">
+            {/* PERBAIKAN: Menambahkan margin-top mt-5 */}
+            <div className="mt-5 flex gap-3">
                  <Button href={href} variant="secondary" className="w-full">Lihat CV</Button>
                  <Button variant="primary" className="w-full">Invite</Button>
             </div>
         </div>
     );
 };
-

@@ -1,21 +1,85 @@
-'use client'; // Diperlukan untuk menggunakan hooks seperti usePathname dan useState
+'use client'; 
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useState } from 'react';
-import { BellIcon, SearchIcon, MenuIcon, XIcon } from '@/app/components/icons';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
+import { BellIcon, SearchIcon, MenuIcon, XIcon, LogOutIcon, UserCircleIcon } from '@/app/components/icons';
 import ThemeToggle from '@/app/components/ui/ThemeToggle';
+import { useAuth } from '@/app/context/AuthContext';
+import { auth } from '@/lib/firebase';
+import { signOut } from 'firebase/auth';
+import { Button } from '../ui/Button';
 
 const navItems = [
   { name: 'Home', href: '/' },
   { name: 'Team Hub', href: '/teamhub' },
   { name: 'Tournament', href: '/tournament' },
-  { name: 'Knowledge Hub', href: '/knowledge-hub' },
+  // { name: 'Knowledge Hub', href: '/knowledge-hub' }, // Sementara dinonaktifkan
 ];
+
+// Komponen baru untuk menu dropdown profil pengguna
+const UserProfileDropdown = () => {
+    const [isOpen, setIsOpen] = useState(false);
+    const router = useRouter();
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    const handleLogout = async () => {
+        try {
+            await signOut(auth);
+            router.push('/');
+        } catch (error) {
+            console.error("Gagal untuk logout:", error);
+        }
+    };
+
+    // Menutup dropdown ketika klik di luar area
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
+
+    return (
+        <div className="relative" ref={dropdownRef}>
+            <button 
+                onClick={() => setIsOpen(!isOpen)}
+                className="h-9 w-9 flex items-center justify-center rounded-full bg-coc-stone-light hover:ring-2 hover:ring-coc-gold transition-all"
+            >
+                <img src="/images/placeholder-avatar.png" alt="User Avatar" className="rounded-full h-8 w-8 object-cover" />
+            </button>
+            
+            {isOpen && (
+                <div className="absolute right-0 mt-2 w-48 card-stone p-2 shadow-lg rounded-md z-50">
+                    <ul className="space-y-1">
+                        <li>
+                            <Link href="/profile" onClick={() => setIsOpen(false)} className="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-300 hover:bg-coc-gold/10 hover:text-white rounded-md">
+                                <UserCircleIcon className="h-5 w-5" />
+                                <span>Profil Saya</span>
+                            </Link>
+                        </li>
+                        <li>
+                            <button onClick={handleLogout} className="flex items-center gap-3 w-full px-3 py-2 text-sm text-red-400 hover:bg-coc-red/10 hover:text-red-300 rounded-md">
+                                <LogOutIcon className="h-5 w-5" />
+                                <span>Logout</span>
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            )}
+        </div>
+    );
+};
 
 const Header = () => {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { currentUser } = useAuth(); // Mengambil status pengguna dari AuthContext
 
   return (
     <header className="sticky top-0 z-50 bg-coc-stone/80 backdrop-blur-sm border-b-2 border-coc-gold-dark/30 animate-header-glow">
@@ -62,9 +126,12 @@ const Header = () => {
           
           <div className="w-px h-6 bg-coc-gold-dark/50"></div>
 
-          <button className="h-9 w-9 flex items-center justify-center rounded-full bg-coc-stone-light hover:ring-2 hover:ring-coc-gold transition-all">
-            <img src="/images/placeholder-avatar.png" alt="User Avatar" className="rounded-full h-8 w-8 object-cover" />
-          </button>
+          {/* Render tombol login atau menu profil secara kondisional */}
+          {currentUser ? (
+            <UserProfileDropdown />
+          ) : (
+            <Button href="/auth" variant='primary' size='md'>Login</Button>
+          )}
         </div>
 
         {/* Tombol Menu Mobile */}
@@ -94,9 +161,12 @@ const Header = () => {
                     <button className="text-gray-300 hover:text-coc-gold transition-colors">
                         <SearchIcon className="h-7 w-7" />
                     </button>
-                    <button className="h-10 w-10 flex items-center justify-center rounded-full bg-coc-stone-light">
-                        <img src="/images/placeholder-avatar.png" alt="User Avatar" className="rounded-full h-9 w-9 object-cover" />
-                    </button>
+                     {/* Logika kondisional untuk mobile */}
+                    {currentUser ? (
+                        <UserProfileDropdown />
+                    ) : (
+                        <Button href="/auth" variant='primary' size='md' onClick={() => setIsMenuOpen(false)}>Login</Button>
+                    )}
                  </div>
             </div>
         )}
@@ -107,4 +177,3 @@ const Header = () => {
 };
 
 export default Header;
-
