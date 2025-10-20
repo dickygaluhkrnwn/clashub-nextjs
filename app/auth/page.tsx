@@ -9,7 +9,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword
 } from 'firebase/auth';
-import { createUserProfile } from '@/lib/firestore'; // <-- IMPOR FUNGSI BARU
+import { createUserProfile } from '@/lib/firestore'; // Import fungsi CRUD
 
 // Tipe untuk menentukan form mana yang aktif
 type FormType = 'login' | 'register';
@@ -36,6 +36,9 @@ const AuthPage = () => {
     setEmail('');
     setPassword('');
     setConfirmPassword('');
+    // BARU: Bersihkan field spesifik registrasi saat beralih
+    setPlayerTag('');
+    setThLevel('');
   };
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -44,23 +47,32 @@ const AuthPage = () => {
       setError("Password tidak cocok!");
       return;
     }
+    // BARU: Validasi Player Tag harus diawali dengan #
+    if (!playerTag.startsWith('#')) {
+        setError("Player Tag harus diawali dengan '#'.");
+        return;
+    }
+
     setIsLoading(true);
     setError(null);
     try {
-      // 1. Buat akun di Firebase Auth dan dapatkan kredensialnya
+      // 1. Buat akun di Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
-      // 2. TUGAS 3.1: Panggil createUserProfile untuk menyimpan data awal ke Firestore
+      // 2. Panggil createUserProfile untuk menyimpan data awal ke Firestore
       await createUserProfile(userCredential.user.uid, {
         email: email,
         playerTag: playerTag,
-        thLevel: parseInt(thLevel, 10), // Pastikan TH Level disimpan sebagai angka
+        thLevel: parseInt(thLevel, 10), 
+        // Menggunakan Player Tag sebagai displayName awal yang lebih relevan
+        displayName: playerTag,
       });
       
       router.push('/'); // Redirect ke halaman utama setelah berhasil
     } catch (error: any) {
-      // Tangani error, misalnya email sudah digunakan
-      setError(error.message); 
+      console.error("Registrasi Gagal:", error.message);
+      // Peningkatan UX: Beri pesan error yang lebih mudah dipahami
+      setError("Registrasi gagal. Pastikan format email dan password benar. Kode Error: " + error.code); 
     } finally {
       setIsLoading(false);
     }
@@ -181,6 +193,7 @@ const AuthPage = () => {
               <option value="11">Town Hall 11</option>
               <option value="10">Town Hall 10</option>
               <option value="9">Town Hall 9</option>
+              {/* Tambahkan opsi lain sesuai kebutuhan */}
           </select>
           <Button type="submit" variant="primary" className="w-full !mt-6" disabled={isLoading}>
             {isLoading ? 'Loading...' : 'Daftar Sekarang'}

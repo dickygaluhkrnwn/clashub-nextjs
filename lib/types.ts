@@ -16,32 +16,34 @@ export interface UserProfile {
   thLevel: number; // Level Town Hall
   // Tambahan field dari prototipe untuk melengkapi profil
   bio?: string;
-  // DIPERBARUI: Menggunakan role resmi dari dalam game
+  // Role di dalam tim (jika tergabung). 'Free Agent' jika tidak tergabung.
   role?: 'Leader' | 'Co-Leader' | 'Elder' | 'Member' | 'Free Agent';
-  playStyle?: 'Attacker Utama' | 'Base Builder' | 'Donatur' | 'Strategist'; // <-- Mengganti role lama menjadi playStyle
+  // Gaya bermain favorit pengguna (sebagai bagian dari CV)
+  playStyle?: 'Attacker Utama' | 'Base Builder' | 'Donatur' | 'Strategist'; 
   activeHours?: string; // Contoh: "20:00 - 23:00 WIB"
-  reputation?: number; // Reputasi rata-rata
+  reputation?: number; // Reputasi komitmen rata-rata
+  // teamId dan teamName bisa ditambahkan di Sprint 4
 }
 
 /**
  * @interface Team
  * Mendefinisikan struktur data untuk sebuah tim/klan.
- * Berdasarkan props dari TeamCardProps.
  */
 export interface Team {
   id: string; // ID dokumen dari Firestore
   name: string;
   tag: string;
-  rating: number;
-  vision: 'Kompetitif' | 'Kasual';
-  avgTh: number;
+  rating: number; // Reputasi Tim
+  vision: 'Kompetitif' | 'Kasual'; // Visi Tim
+  avgTh: number; // Rata-rata Level TH anggota
   logoUrl?: string;
+  href: string; // Path ke profil tim
 }
 
 /**
  * @interface Player
- * Mendefinisikan struktur data untuk seorang pemain yang ditampilkan di Team Hub.
- * Berdasarkan props dari PlayerCardProps.
+ * Mendefinisikan struktur data untuk seorang pemain yang ditampilkan di Team Hub (pencarian pemain).
+ * Ini pada dasarnya adalah sub-set dari UserProfile.
  */
 export interface Player {
     id: string; // ID dokumen dari Firestore (sama dengan uid)
@@ -51,12 +53,12 @@ export interface Player {
     reputation: number;
     role: 'Leader' | 'Co-Leader' | 'Elder' | 'Member' | 'Free Agent';
     avatarUrl?: string;
+    href: string; // Path ke profil pemain
 }
 
 /**
  * @interface Tournament
  * Mendefinisikan struktur data untuk sebuah turnamen.
- * Berdasarkan props dari TournamentCardProps.
  */
 export interface Tournament {
     id: string; // ID dokumen dari Firestore
@@ -64,5 +66,7 @@ export interface Tournament {
     status: 'Akan Datang' | 'Live' | 'Selesai';
     thRequirement: string;
     prizePool: string;
+    href: string; // Path ke detail turnamen
 }
 
+// Catatan: Interface Post akan ditambahkan di Tugas 3.4

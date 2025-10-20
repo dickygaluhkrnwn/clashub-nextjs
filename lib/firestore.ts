@@ -1,6 +1,5 @@
 // File: lib/firestore.ts
 // Deskripsi: Berisi semua fungsi utilitas untuk berinteraksi dengan Firebase Firestore.
-// Ini adalah satu-satunya tempat di mana kita akan menulis kode query database secara langsung.
 
 import { firestore } from './firebase'; // Impor instance firestore kita
 import {
@@ -16,6 +15,11 @@ import {
 // Impor tipe data yang sudah kita definisikan
 import { UserProfile, Team, Player, Tournament } from './types';
 
+
+// Helper Type untuk memastikan data dari Firestore memiliki ID dan semua field T
+type FirestoreDocument<T> = T & { id: string };
+
+
 /**
  * @function createUserProfile
  * Membuat dokumen profil pengguna baru di koleksi 'users' saat registrasi.
@@ -24,18 +28,24 @@ import { UserProfile, Team, Player, Tournament } from './types';
  */
 export const createUserProfile = async (uid: string, data: Partial<UserProfile>): Promise<void> => {
   const userRef = doc(firestore, 'users', uid);
+  
+  // Menentukan data awal lengkap untuk dokumen Firestore
   const profileData: UserProfile = {
     uid: uid,
     email: data.email || null,
-    displayName: data.displayName || data.email?.split('@')[0] || 'New Player',
+    // Menggunakan PlayerTag sebagai DisplayName awal jika tidak ada
+    displayName: data.playerTag || data.email?.split('@')[0] || 'New Player', 
     playerTag: data.playerTag || '',
-    thLevel: data.thLevel || 0,
-    bio: '',
-    role: 'Free Agent',
-    activeHours: '',
-    reputation: 0,
-    ...data,
+    thLevel: data.thLevel || 1, // Default ke TH 1 jika tidak ada
+    bio: 'Ini adalah E-Sports CV baru saya di Clashub!',
+    role: 'Free Agent', // Default role untuk pengguna baru
+    playStyle: 'Attacker Utama', // Default play style
+    activeHours: 'Belum diatur',
+    reputation: 5.0, // Reputasi awal sempurna
+    ...data, // Menimpa nilai default jika ada di data input
   };
+  
+  // Menggunakan setDoc untuk membuat dokumen dengan ID Auth pengguna
   await setDoc(userRef, profileData);
 };
 
@@ -61,7 +71,9 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
   const docSnap = await getDoc(userRef);
 
   if (docSnap.exists()) {
-    return docSnap.data() as UserProfile;
+    // Perbaikan Type Safety: Menggunakan Type Assertion ganda
+    const data = docSnap.data() as UserProfile;
+    return { ...data, uid: docSnap.id }; // Mengembalikan UserProfile lengkap dengan UID
   } else {
     console.log('No such user profile!');
     return null;
@@ -74,20 +86,22 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
  * @param collectionName - Nama koleksi di Firestore.
  * @returns Array berisi data dokumen.
  */
-async function getCollectionData<T>(collectionName: string): Promise<T[]> {
+// Tipe generik T sekarang harus berupa objek yang diperluas dengan 'id: string'
+async function getCollectionData<T>(collectionName: string): Promise<FirestoreDocument<T>[]> {
     const colRef = collection(firestore, collectionName);
     const snapshot = await getDocs(colRef);
+    
     return snapshot.docs.map((doc: DocumentData) => ({
       id: doc.id,
       ...doc.data(),
-    })) as T[];
+    })) as FirestoreDocument<T>[]; // Type Assertion untuk menjamin struktur
 }
 
 /**
  * @function getTeams
  * Mengambil semua data tim dari koleksi 'teams'.
  */
-export const getTeams = async (): Promise<Team[]> => {
+export const getTeams = async (): Promise<FirestoreDocument<Team>[]> => {
     return getCollectionData<Team>('teams');
 };
 
@@ -95,7 +109,7 @@ export const getTeams = async (): Promise<Team[]> => {
  * @function getPlayers
  * Mengambil semua data pemain (profil pengguna) dari koleksi 'users'.
  */
-export const getPlayers = async (): Promise<Player[]> => {
+export const getPlayers = async (): Promise<FirestoreDocument<Player>[]> => {
     return getCollectionData<Player>('users');
 };
 
@@ -103,6 +117,6 @@ export const getPlayers = async (): Promise<Player[]> => {
  * @function getTournaments
  * Mengambil semua data turnamen dari koleksi 'tournaments'.
  */
-export const getTournaments = async (): Promise<Tournament[]> => {
+export const getTournaments = async (): Promise<FirestoreDocument<Tournament>[]> => {
     return getCollectionData<Tournament>('tournaments');
 };
