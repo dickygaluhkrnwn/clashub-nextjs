@@ -2,27 +2,28 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation'; // <-- BARU: Untuk redirect
+import { useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/Button';
-import { auth } from '@/lib/firebase'; // <-- BARU: Impor auth dari Firebase config
+import { auth } from '@/lib/firebase';
 import { 
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword
-} from 'firebase/auth'; // <-- BARU: Impor fungsi-fungsi auth
+} from 'firebase/auth';
+import { createUserProfile } from '@/lib/firestore'; // <-- IMPOR FUNGSI BARU
 
 // Tipe untuk menentukan form mana yang aktif
 type FormType = 'login' | 'register';
 
 const AuthPage = () => {
   const [activeForm, setActiveForm] = useState<FormType>('login');
-  const router = useRouter(); // <-- BARU: Inisialisasi router
+  const router = useRouter();
   
   // State untuk input form
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [playerTag, setPlayerTag] = useState('');
-  const [thLevel, setThLevel] = useState('');
+  const [thLevel, setThLevel] = useState(''); 
   
   // State untuk loading dan pesan error
   const [error, setError] = useState<string | null>(null);
@@ -46,11 +47,20 @@ const AuthPage = () => {
     setIsLoading(true);
     setError(null);
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      // TODO: Simpan playerTag dan thLevel ke Firestore (ini akan dilakukan di Sprint 3)
+      // 1. Buat akun di Firebase Auth dan dapatkan kredensialnya
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // 2. TUGAS 3.1: Panggil createUserProfile untuk menyimpan data awal ke Firestore
+      await createUserProfile(userCredential.user.uid, {
+        email: email,
+        playerTag: playerTag,
+        thLevel: parseInt(thLevel, 10), // Pastikan TH Level disimpan sebagai angka
+      });
+      
       router.push('/'); // Redirect ke halaman utama setelah berhasil
     } catch (error: any) {
-      setError(error.message);
+      // Tangani error, misalnya email sudah digunakan
+      setError(error.message); 
     } finally {
       setIsLoading(false);
     }
@@ -152,7 +162,7 @@ const AuthPage = () => {
             type="text" 
             placeholder="Player Tag ID (Contoh: #P9Y8Q2V)"
             value={playerTag}
-            onChange={(e) => setPlayerTag(e.target.value)} 
+            onChange={(e) => setPlayerTag(e.target.value.toUpperCase())} // Mengubah ke UPPERCASE
             required 
             className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-4 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold" 
           />
@@ -166,7 +176,11 @@ const AuthPage = () => {
               <option value="16">Town Hall 16</option>
               <option value="15">Town Hall 15</option>
               <option value="14">Town Hall 14</option>
-              {/* Tambahkan TH lain jika perlu */}
+              <option value="13">Town Hall 13</option>
+              <option value="12">Town Hall 12</option>
+              <option value="11">Town Hall 11</option>
+              <option value="10">Town Hall 10</option>
+              <option value="9">Town Hall 9</option>
           </select>
           <Button type="submit" variant="primary" className="w-full !mt-6" disabled={isLoading}>
             {isLoading ? 'Loading...' : 'Daftar Sekarang'}
@@ -178,4 +192,3 @@ const AuthPage = () => {
 };
 
 export default AuthPage;
-
