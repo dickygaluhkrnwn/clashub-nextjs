@@ -1,18 +1,18 @@
-'use client';
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image'; // Import Image dari next/image
+import Image from 'next/image';
 import { Button } from '@/app/components/ui/Button';
 import { UserProfile } from '@/lib/types';
-import { getUserProfile, updateUserProfile, uploadProfileImage } from '@/lib/firestore'; // Import uploadProfileImage
-import { UserCircleIcon, SaveIcon, XIcon, InfoIcon, CogsIcon } from '@/app/components/icons';
+import { getUserProfile, updateUserProfile, uploadProfileImage } from '@/lib/firestore';
+// Import ikon yang sudah diperbarui, termasuk yang baru
+import { UserCircleIcon, SaveIcon, XIcon, InfoIcon, CogsIcon, GlobeIcon } from '@/app/components/icons'; 
+import { DiscordIcon } from '@/app/components/icons'; // Impor DiscordIcon
 
 // Opsi statis untuk dropdown.
 const thOptions = [16, 15, 14, 13, 12, 11, 10, 9];
 const playStyleOptions: Exclude<UserProfile['playStyle'], null | undefined>[] = ['Attacker Utama', 'Base Builder', 'Donatur', 'Strategist'];
 
-// Tipe data khusus untuk state form
+// Tipe data khusus untuk state form (Sekarang aman karena UserProfile di lib/types.ts sudah diperbarui)
 type ProfileFormData = Omit<Partial<UserProfile>, 'playStyle'> & {
     playStyle?: UserProfile['playStyle'] | '';
 };
@@ -29,7 +29,7 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
     // State untuk file upload
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string>('/images/placeholder-avatar.png');
-    const [uploadProgress, setUploadProgress] = useState<number | null>(null); // State untuk progress upload (jika dibutuhkan)
+    const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
     // State untuk input form
     const [formData, setFormData] = useState<ProfileFormData>({
@@ -39,7 +39,9 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
         bio: '',
         playStyle: '', 
         activeHours: '',
-        avatarUrl: '/images/placeholder-avatar.png', // Tambahkan avatarUrl ke state form
+        avatarUrl: '/images/placeholder-avatar.png',
+        discordId: '', // Field baru
+        website: '', // Field baru
     });
     
     const [isSaving, setIsSaving] = useState(false);
@@ -105,7 +107,9 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
                             bio: profile.bio || '',
                             playStyle: profile.playStyle || '', 
                             activeHours: profile.activeHours || '',
-                            avatarUrl: profile.avatarUrl || '/images/placeholder-avatar.png', // Muat URL avatar
+                            avatarUrl: profile.avatarUrl || '/images/placeholder-avatar.png',
+                            discordId: profile.discordId || '', // Memuat field baru
+                            website: profile.website || '', // Memuat field baru
                         });
                         // Atur pratinjau awal ke URL avatar yang sudah ada
                         setPreviewUrl(profile.avatarUrl || '/images/placeholder-avatar.png'); 
@@ -147,8 +151,6 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
             // 1. Unggah Gambar jika ada file yang dipilih
             if (selectedFile) {
                 setUploadProgress(0); // Mulai progress
-                // Kita tidak bisa menampilkan progress detail tanpa menggunakan listener di uploadBytesResumable, 
-                // tapi kita bisa menunjukkan status 'uploading' secara sederhana.
                 const newUrl = await uploadProfileImage(uid, selectedFile); 
                 finalAvatarUrl = newUrl;
                 setUploadProgress(100); // Selesai
@@ -156,9 +158,15 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
 
             // 2. Siapkan data untuk Firestore
             const updatedData: Partial<UserProfile> = {
-                ...formData,
+                // ...formData (semua field dari form)
+                displayName: formData.displayName,
+                playerTag: formData.playerTag.toUpperCase(),
+                thLevel: formData.thLevel,
+                bio: formData.bio,
                 playStyle: formData.playStyle || null,
-                playerTag: formData.playerTag.toUpperCase(), 
+                activeHours: formData.activeHours,
+                discordId: formData.discordId || null,
+                website: formData.website || null,
                 avatarUrl: finalAvatarUrl, // Sertakan URL baru (atau yang lama)
             };
 
@@ -195,7 +203,7 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
                     
                     {error && <p className="bg-coc-red/20 text-red-400 text-center text-sm p-3 rounded-md mb-4">{error}</p>}
 
-                    {/* BAGIAN BARU: Fungsionalitas Unggah Gambar Profil */}
+                    {/* BAGIAN UNGGAH GAMBAR PROFIL */}
                     <h3 className="text-xl font-supercell text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2">
                         Avatar Profil
                     </h3>
@@ -205,6 +213,7 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
                             alt="Avatar Preview" 
                             width={100} 
                             height={100} 
+                            // Pastikan ukuran dan object-fit konsisten
                             className="w-24 h-24 rounded-full border-4 border-coc-gold object-cover flex-shrink-0"
                         />
                         <div className="flex-grow space-y-3 w-full">
@@ -228,9 +237,17 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
                                     {uploadProgress === 100 ? '✅ Unggahan Selesai.' : '⏳ Sedang Mengunggah Gambar...'}
                                 </p>
                             )}
+                            {/* Tombol Hapus Gambar (Optional) */}
+                            {formData.avatarUrl && formData.avatarUrl !== '/images/placeholder-avatar.png' && (
+                                <button type="button" 
+                                        onClick={() => { setSelectedFile(null); setPreviewUrl('/images/placeholder-avatar.png'); setFormData(p => ({...p, avatarUrl: '/images/placeholder-avatar.png'})); }}
+                                        className="text-xs text-red-400 hover:text-red-500 mt-2 block">
+                                    Hapus Gambar Saat Ini
+                                </button>
+                            )}
                         </div>
                     </div>
-                    {/* AKHIR BAGIAN BARU */}
+                    {/* AKHIR BAGIAN UNGGAH GAMBAR PROFIL */}
 
 
                     {/* Bagian 1: Informasi Dasar */}
@@ -322,6 +339,39 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
                             className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-4 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold"
                         />
                     </div>
+                    
+                    {/* Bagian 3: Kontak Sosial */}
+                    <h3 className="text-xl font-supercell text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2">
+                        Kontak & Sosial
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                         <div className="form-group">
+                            <label htmlFor="discordId" className="block text-sm font-bold text-gray-300 mb-2 flex items-center gap-2">
+                                <DiscordIcon className="h-4 w-4"/> Discord ID
+                            </label>
+                            <input
+                                type="text"
+                                id="discordId"
+                                value={formData.discordId || ""}
+                                onChange={handleInputChange}
+                                placeholder="Contoh: LordZ#1234"
+                                className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-4 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold"
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label htmlFor="website" className="block text-sm font-bold text-gray-300 mb-2 flex items-center gap-2">
+                                <GlobeIcon className="h-4 w-4"/> Website/Portfolio Link
+                            </label>
+                            <input
+                                type="text"
+                                id="website"
+                                value={formData.website || ""}
+                                onChange={handleInputChange}
+                                placeholder="Link ke portofolio atau media sosial"
+                                className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-4 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold"
+                            />
+                        </div>
+                    </div>
 
                     {/* Tombol Aksi */}
                     <div className="flex flex-col sm:flex-row justify-end items-center gap-4 pt-6 border-t border-coc-gold-dark/20">
@@ -340,5 +390,4 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
     );
 };
 
-// Ubah nama fungsi yang diekspor dari EditProfilePage menjadi EditProfileClient
 export default EditProfileClient;

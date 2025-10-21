@@ -14,6 +14,12 @@ export interface UserProfile {
   displayName: string; // Nama yang bisa diganti pengguna
   playerTag: string; // Tag pemain dari dalam game
   thLevel: number; // Level Town Hall
+  
+  // --- FIELD YANG BARU DITAMBAHKAN (Sprint 4: Tugas 2.1) ---
+  avatarUrl?: string; // URL gambar profil dari Firebase Storage
+  discordId?: string | null; // ID Discord/Username
+  website?: string | null; // Link ke portfolio/website
+
   // Tambahan field dari prototipe untuk melengkapi profil
   bio?: string;
   // Role di dalam tim (jika tergabung). 'Free Agent' jika tidak tergabung.
@@ -42,7 +48,7 @@ export interface Team {
 /**
  * @interface Player
  * Mendefinisikan struktur data untuk seorang pemain yang ditampilkan di Team Hub (pencarian pemain).
- * Ini pada dasarnya adalah sub-set dari UserProfile.
+ * Karena Player adalah subset dari UserProfile, kita tambahkan field baru di sini juga.
  */
 export interface Player {
     id: string; // ID dokumen dari Firestore (sama dengan uid)
@@ -51,7 +57,9 @@ export interface Player {
     thLevel: number;
     reputation: number;
     role: 'Leader' | 'Co-Leader' | 'Elder' | 'Member' | 'Free Agent';
-    avatarUrl?: string;
+    avatarUrl?: string; // Tambahan
+    // Kita tidak perlu memasukkan semua field UserProfile di sini jika Player hanya digunakan 
+    // untuk ringkasan di Team Hub.
 }
 
 /**
@@ -67,4 +75,3 @@ export interface Tournament {
 }
 
 // Catatan: Interface Post akan ditambahkan di Tugas 3.4
-

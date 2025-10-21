@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useAuth } from '@/app/context/AuthContext';
 import { Button } from '@/app/components/ui/Button';
 import { UserProfile } from '@/lib/types';
 import { getThImage } from '@/lib/th-utils';
-import { TrophyIcon, StarIcon, InfoIcon, CogsIcon, XIcon } from '@/app/components/icons';
+// Mengganti FaDiscord dengan DiscordIcon dan menambahkan GlobeIcon
+import { TrophyIcon, StarIcon, InfoIcon, CogsIcon, XIcon, GlobeIcon, DiscordIcon } from '@/app/components/icons';
 import { PostCard } from '@/app/components/cards';
 
 // Data statis untuk Postingan Terbaru (Sesuai prototipe lama)
@@ -47,6 +48,9 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
         const validThLevel = userProfile.thLevel && !isNaN(userProfile.thLevel) && userProfile.thLevel > 0 ? userProfile.thLevel : 9;
         const thImage = getThImage(validThLevel);
         
+        // Ambil URL avatar yang dinamis
+        const avatarSrc = userProfile.avatarUrl || '/images/placeholder-avatar.png';
+
         return (
             <main className="container mx-auto p-4 md:p-8 mt-10">
                 <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -54,11 +58,12 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
                     {/* Kolom Kiri: Ringkasan Profil & Aksi */}
                     <aside className="lg:col-span-1 card-stone p-6 h-fit sticky top-28 text-center">
                         <Image 
-                            src="/images/placeholder-avatar.png" 
-                            alt="User Avatar" 
-                            width={100} 
-                            height={100} 
-                            className="w-24 h-24 rounded-full mx-auto border-4 border-coc-gold-dark mb-4"
+                            src={avatarSrc} 
+                            alt={`${userProfile.displayName} Avatar`} 
+                            // Menggunakan properti fill atau ukuran spesifik di Next/Image
+                            width={100}
+                            height={100}
+                            className="w-24 h-24 rounded-full mx-auto border-4 border-coc-gold object-cover flex-shrink-0"
                         />
                         <h1 className="text-3xl font-supercell text-white">
                             {userProfile.displayName}
@@ -79,6 +84,27 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
                                 <p className="text-sm"><span className="font-bold text-gray-300">Role Main:</span> {userProfile.playStyle || 'Belum Diatur'}</p>
                                 <p className="text-sm"><span className="font-bold text-gray-300">Jam Aktif:</span> {userProfile.activeHours || 'Belum Diatur'}</p>
                             </div>
+                            
+                            {/* BAGIAN BARU: KONTAK SOSIAL */}
+                            {(userProfile.discordId || userProfile.website) && (
+                                <div className="pt-4 border-t border-coc-gold-dark/20">
+                                    <h3 className="text-lg text-coc-gold-dark font-supercell flex items-center gap-2 mb-2">
+                                        Kontak
+                                    </h3>
+                                    {userProfile.discordId && (
+                                        <p className="text-sm text-gray-300 flex items-center gap-2">
+                                            <DiscordIcon className="h-4 w-4 text-coc-gold-dark"/> 
+                                            <span className="font-bold">{userProfile.discordId}</span>
+                                        </p>
+                                    )}
+                                    {userProfile.website && (
+                                        <a href={userProfile.website} target="_blank" rel="noopener noreferrer" className="text-sm text-coc-gold hover:underline flex items-center gap-2 mt-1">
+                                            <GlobeIcon className="h-4 w-4 text-coc-gold-dark"/> 
+                                            {userProfile.website.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0]}
+                                        </a>
+                                    )}
+                                </div>
+                            )}
 
                             <div className="pt-4 border-t border-coc-gold-dark/20 text-center">
                                 <h3 className="text-lg text-coc-gold-dark font-supercell">Reputasi Komitmen</h3>
