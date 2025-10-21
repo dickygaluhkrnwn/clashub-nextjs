@@ -66,7 +66,29 @@ export const StarIcon = (props: IconProps) => (
     </svg>
 );
 
-// --- Ikon Utama ---
+// --- IKON BARU DARI KEBUTUHAN YANG LALU ---
+
+export const ArrowLeftIcon = (props: IconProps) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path d="m12 19-7-7 7-7" />
+        <path d="M19 12H5" />
+    </svg>
+);
+
+export const ShieldIcon = (props: IconProps) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
+    </svg>
+);
+
+export const ClockIcon = (props: IconProps) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <circle cx="12" cy="12" r="10" />
+        <polyline points="12 6 12 12 16 14" />
+    </svg>
+);
+
+// --- IKON UTAMA ---
 
 export const TrophyIcon = (props: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -203,5 +225,12 @@ export const DiscordIcon = (props: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <path d="M15 10c0-1.8-1.7-3-3.8-3S7.2 8.2 7.2 10c0 1.2 0.7 2.2 1.7 2.7 0.1 0.1 0.1 0.2 0 0.3l-0.8 1.6c-0.2 0.4 0.2 0.8 0.6 0.6l2.3-1.1c0.1 0 0.2 0 0.3 0l2.3 1.1c0.4 0.2 0.8-0.2 0.6-0.6l-0.8-1.6c-0.1-0.1 0-0.2 0-0.3 1-0.5 1.7-1.5 1.7-2.7z" />
         <path d="M20 7.2c-1.3-1.3-3-2-4.8-2H8.8C7 5.2 5.3 5.9 4 7.2L2 9.5c0 0 0 0 0 0v8.2c0 1.1 0.9 2 2 2h16c1.1 0 2-0.9 2-2v-8.2c0 0 0-0.1 0-0.1L20 7.2z" />
+    </svg>
+);
+
+// BARU: Ikon Check (Tugas 2.3)
+export const CheckIcon = (props: IconProps) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <polyline points="20 6 9 17 4 12" />
     </svg>
 );

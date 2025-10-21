@@ -5,7 +5,8 @@
 // 1. Impor semua yang kita butuhkan
 const { initializeApp } = require('firebase/app');
 const { getFirestore, collection, addDoc, writeBatch, getDocs } = require('firebase/firestore');
-const { dummyTeams, dummyPlayers, dummyTournaments } = require('./seed-data');
+// Import data requests BARU
+const { dummyTeams, dummyPlayers, dummyTournaments, dummyJoinRequests } = require('./seed-data');
 
 // Kita butuh dotenv untuk membaca file .env.local
 require('dotenv').config({ path: '.env.local' });
@@ -34,23 +35,33 @@ async function seedDatabase() {
         await clearCollection('teams');
         await clearCollection('users');
         await clearCollection('tournaments');
+        // BARU: Hapus koleksi joinRequests
+        await clearCollection('joinRequests'); 
 
         // Seeding Teams
         console.log(`Menambahkan ${dummyTeams.length} tim...`);
         for (const team of dummyTeams) {
-            await addDoc(collection(firestore, 'teams'), team);
+            // Menggunakan nama tim sebagai ID untuk memudahkan debugging relasi (teamId)
+            await setDoc(doc(firestore, 'teams', team.name), team);
         }
 
         // Seeding Players (Users)
         console.log(`Menambahkan ${dummyPlayers.length} pemain...`);
         for (const player of dummyPlayers) {
-            await addDoc(collection(firestore, 'users'), player);
+            // Menggunakan UID sebagai ID dokumen (sudah dilakukan sebelumnya)
+            await setDoc(doc(firestore, 'users', player.uid), player);
         }
 
         // Seeding Tournaments
         console.log(`Menambahkan ${dummyTournaments.length} turnamen...`);
         for (const tournament of dummyTournaments) {
             await addDoc(collection(firestore, 'tournaments'), tournament);
+        }
+        
+        // BARU: Seeding Join Requests
+        console.log(`Menambahkan ${dummyJoinRequests.length} permintaan bergabung...`);
+        for (const request of dummyJoinRequests) {
+            await addDoc(collection(firestore, 'joinRequests'), request);
         }
 
         console.log('\n✅ Seeding database berhasil!');

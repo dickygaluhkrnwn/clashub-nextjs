@@ -28,7 +28,10 @@ export interface UserProfile {
   playStyle?: 'Attacker Utama' | 'Base Builder' | 'Donatur' | 'Strategist' | null; 
   activeHours?: string; // Contoh: "20:00 - 23:00 WIB"
   reputation?: number; // Reputasi komitmen rata-rata
-  // teamId dan teamName bisa ditambahkan di Sprint 4
+  
+  // --- FIELD BARU UNTUK MANAJEMEN TIM (Tugas 2.3) ---
+  teamId?: string | null; // ID tim saat ini (null jika Free Agent)
+  teamName?: string | null; // Nama tim saat ini
 }
 
 /**
@@ -43,12 +46,18 @@ export interface Team {
   vision: 'Kompetitif' | 'Kasual'; // Visi Tim
   avgTh: number; // Rata-rata Level TH anggota
   logoUrl?: string;
+  
+  // --- FIELD BARU UNTUK MANAJEMEN TIM (Tugas 2.3) ---
+  captainId: string; // UID kapten tim
+  website?: string;
+  discordId?: string; 
+  recruitingStatus: 'Open' | 'Invite Only' | 'Closed'; // Status rekrutmen
 }
 
 /**
  * @interface Player
  * Mendefinisikan struktur data untuk seorang pemain yang ditampilkan di Team Hub (pencarian pemain).
- * Karena Player adalah subset dari UserProfile, kita tambahkan field baru di sini juga.
+ * Ini adalah subset dari UserProfile.
  */
 export interface Player {
     id: string; // ID dokumen dari Firestore (sama dengan uid)
@@ -57,9 +66,10 @@ export interface Player {
     thLevel: number;
     reputation: number;
     role: 'Leader' | 'Co-Leader' | 'Elder' | 'Member' | 'Free Agent';
-    avatarUrl?: string; // Tambahan
-    // Kita tidak perlu memasukkan semua field UserProfile di sini jika Player hanya digunakan 
-    // untuk ringkasan di Team Hub.
+    avatarUrl?: string;
+    // Menambahkan field yang relevan agar data di TeamHubClient dapat diolah tanpa type error
+    displayName: string; 
+    playerTag: string;
 }
 
 /**
@@ -72,6 +82,22 @@ export interface Tournament {
     status: 'Akan Datang' | 'Live' | 'Selesai';
     thRequirement: string;
     prizePool: string;
+}
+
+/**
+ * @interface JoinRequest (BARU - Tugas 2.3)
+ * Mendefinisikan struktur data untuk permintaan bergabung ke sebuah tim.
+ */
+export interface JoinRequest {
+    id: string; // ID dokumen dari Firestore
+    teamId: string; // ID Tim yang dituju
+    teamName: string;
+    requesterId: string; // UID pemain yang mengajukan
+    requesterName: string; // Nama pemain yang mengajukan
+    requesterThLevel: number;
+    message: string;
+    status: 'pending' | 'approved' | 'rejected';
+    timestamp: Date; // Kapan permintaan dibuat
 }
 
 // Catatan: Interface Post akan ditambahkan di Tugas 3.4
