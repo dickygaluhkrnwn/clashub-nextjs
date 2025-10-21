@@ -4,17 +4,29 @@ import React from 'react';
 import { Button } from '@/app/components/ui/Button';
 import { FilterIcon } from '@/app/components/icons';
 
-const TournamentFilter = () => {
+// Definisikan props baru
+type TournamentFilterProps = {
+  // Callback untuk memberi tahu parent (TournamentClient) bahwa filter harus diterapkan
+  onApplyFilter: () => void;
+};
+
+const TournamentFilter = ({ onApplyFilter }: TournamentFilterProps) => {
 
   const handleReset = () => {
-    // Fungsi ini akan mereset semua pilihan filter ke nilai default
+    // Fungsi ini akan mereset semua pilihan filter ke nilai default (di DOM)
     const statusFilter = document.getElementById('status-filter') as HTMLSelectElement;
     const thFilter = document.getElementById('th-level-filter') as HTMLSelectElement;
     const prizeFilter = document.getElementById('prize-filter') as HTMLSelectElement;
     if (statusFilter) statusFilter.value = 'Akan Datang';
     if (thFilter) thFilter.value = 'Semua Level';
     if (prizeFilter) prizeFilter.value = 'all';
+
+    // Panggil onApplyFilter untuk memicu perubahan di parent
+    onApplyFilter();
   };
+
+  // Catatan: Di Sprint berikutnya, kita akan menggunakan useState di parent 
+  // untuk mengendalikan nilai-nilai select ini, bukan langsung manipulasi DOM.
 
   return (
     <aside className="card-stone p-6 h-fit sticky top-28">
@@ -56,7 +68,8 @@ const TournamentFilter = () => {
         
         {/* Action Buttons */}
         <div className="filter-group pt-4 border-t border-coc-gold-dark/20 space-y-3">
-          <Button variant="primary" className="w-full">Terapkan Filter</Button>
+          {/* Tambahkan onClick handler untuk memicu callback apply filter */}
+          <Button variant="primary" className="w-full" onClick={onApplyFilter}>Terapkan Filter</Button>
           <Button variant="secondary" className="w-full" onClick={handleReset}>Reset Filter</Button>
         </div>
       </div>
