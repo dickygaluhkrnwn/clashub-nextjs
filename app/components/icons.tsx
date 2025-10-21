@@ -179,3 +179,4 @@ export const InfoIcon = (props: IconProps) => (
         <line x1="12" y1="8" x2="12.01" y2="8" />
     </svg>
 );
+

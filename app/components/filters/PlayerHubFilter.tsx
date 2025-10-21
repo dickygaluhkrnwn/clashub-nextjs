@@ -1,19 +1,36 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from '@/app/components/ui/Button';
 import { UserSearchIcon } from '@/app/components/icons';
+// Impor tipe PlayerFilters dan Player dari file yang relevan
+import { PlayerFilters } from '@/app/teamhub/page';
+import { Player } from '@/lib/types';
 
-const PlayerHubFilter = () => {
-  const [reputation, setReputation] = useState(4.0);
-  const [thLevel, setThLevel] = useState(13);
+// Opsi untuk dropdown role, agar tidak di-hardcode di JSX
+const roleOptions: (Player['role'] | 'all')[] = ['all', 'Free Agent', 'Leader', 'Co-Leader', 'Elder', 'Member'];
+
+// Definisikan props untuk komponen
+type PlayerHubFilterProps = {
+  filters: PlayerFilters;
+  onFilterChange: (newFilters: PlayerFilters) => void;
+};
+
+const PlayerHubFilter = ({ filters, onFilterChange }: PlayerHubFilterProps) => {
+
+  // Fungsi generik untuk menangani semua perubahan filter
+  const handleFilterChange = <K extends keyof PlayerFilters>(key: K, value: PlayerFilters[K]) => {
+    onFilterChange({ ...filters, [key]: value });
+  };
 
   const handleReset = () => {
-    setReputation(4.0);
-    setThLevel(13);
-    const searchInput = document.getElementById('player-search-input') as HTMLInputElement;
-    if (searchInput) searchInput.value = '';
-    // Anda juga bisa mereset pilihan role jika diperlukan
+    // Reset state kembali ke nilai default di halaman induk
+    onFilterChange({
+        searchTerm: '',
+        role: 'all',
+        reputation: 3.0,
+        thLevel: 9,
+    });
   };
 
   return (
@@ -27,18 +44,28 @@ const PlayerHubFilter = () => {
         {/* Search Input */}
         <div className="filter-group">
           <label htmlFor="player-search-input" className="block text-sm font-bold text-gray-300 mb-2">Nama Pemain / Tag</label>
-          <input type="text" id="player-search-input" placeholder="Cari berdasarkan nama..." className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold" />
+          <input 
+            type="text" 
+            id="player-search-input" 
+            placeholder="Cari berdasarkan nama..." 
+            value={filters.searchTerm}
+            onChange={(e) => handleFilterChange('searchTerm', e.target.value)}
+            className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold" 
+          />
         </div>
 
         {/* Role Filter */}
         <div className="filter-group">
           <label htmlFor="role-filter" className="block text-sm font-bold text-gray-300 mb-2">Role Dicari</label>
-          <select id="role-filter" className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white focus:ring-coc-gold focus:border-coc-gold">
-            <option value="all">Semua Role</option>
-            <option value="Free Agent">Free Agent</option>
-            <option value="Leader">Leader</option>
-            <option value="Co-Leader">Co-Leader</option>
-            <option value="Elder">Elder</option>
+          <select 
+            id="role-filter" 
+            value={filters.role}
+            onChange={(e) => handleFilterChange('role', e.target.value as PlayerFilters['role'])}
+            className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white focus:ring-coc-gold focus:border-coc-gold"
+          >
+            {roleOptions.map(role => (
+                <option key={role} value={role}>{role === 'all' ? 'Semua Role' : role}</option>
+            ))}
           </select>
         </div>
         
@@ -46,23 +73,36 @@ const PlayerHubFilter = () => {
         <div className="filter-group">
             <label htmlFor="player-rating-input" className="flex justify-between text-sm font-bold text-gray-300 mb-1">
                 <span>Minimum Reputasi</span>
-                <span className="font-bold text-coc-gold">{reputation.toFixed(1)} ★</span>
+                <span className="font-bold text-coc-gold">{filters.reputation.toFixed(1)} ★</span>
             </label>
-            <input type="range" id="player-rating-input" min="3.0" max="5.0" step="0.1" value={reputation} onChange={(e) => setReputation(parseFloat(e.target.value))} className="w-full h-2 bg-coc-stone rounded-lg appearance-none cursor-pointer accent-coc-gold"/>
+            <input 
+              type="range" 
+              id="player-rating-input" 
+              min="3.0" max="5.0" step="0.1" 
+              value={filters.reputation} 
+              onChange={(e) => handleFilterChange('reputation', parseFloat(e.target.value))} 
+              className="w-full h-2 bg-coc-stone rounded-lg appearance-none cursor-pointer accent-coc-gold"
+            />
         </div>
 
         {/* TH Level Slider */}
         <div className="filter-group">
             <label htmlFor="player-th-level-input" className="flex justify-between text-sm font-bold text-gray-300 mb-1">
                 <span>Level Town Hall Minimum</span>
-                <span className="font-bold text-coc-gold">TH {thLevel}</span>
+                <span className="font-bold text-coc-gold">TH {filters.thLevel}</span>
             </label>
-            <input type="range" id="player-th-level-input" min="10" max="16" step="1" value={thLevel} onChange={(e) => setThLevel(parseInt(e.target.value))} className="w-full h-2 bg-coc-stone rounded-lg appearance-none cursor-pointer accent-coc-gold"/>
+            <input 
+              type="range" 
+              id="player-th-level-input" 
+              min="9" max="16" step="1" 
+              value={filters.thLevel} 
+              onChange={(e) => handleFilterChange('thLevel', parseInt(e.target.value))} 
+              className="w-full h-2 bg-coc-stone rounded-lg appearance-none cursor-pointer accent-coc-gold"
+            />
         </div>
 
         {/* Action Buttons */}
         <div className="filter-group pt-4 border-t border-coc-gold-dark/20 space-y-3">
-          <Button variant="primary" className="w-full">Terapkan Filter</Button>
           <Button variant="secondary" className="w-full" onClick={handleReset}>Reset Filter</Button>
         </div>
       </div>

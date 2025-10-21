@@ -1,49 +1,109 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { TeamCard, PlayerCard } from "@/app/components/cards";
 import TeamHubFilter from "@/app/components/filters/TeamHubFilter";
 import PlayerHubFilter from "@/app/components/filters/PlayerHubFilter";
 import { Button } from "@/app/components/ui/Button";
-// Impor "kamus" data dan "jembatan" kita
 import { Team, Player } from '@/lib/types';
 import { getTeams, getPlayers } from '@/lib/firestore';
 
-// Hapus data statis 'dummyTeams' dan 'dummyPlayers'
+// Definisikan tipe untuk state filter agar lebih mudah dikelola
+export type TeamFilters = {
+    searchTerm: string;
+    vision: 'Kompetitif' | 'Kasual' | 'all';
+    reputation: number;
+    thLevel: number;
+};
+
+export type PlayerFilters = {
+    searchTerm: string;
+    role: Player['role'] | 'all';
+    reputation: number;
+    thLevel: number;
+};
 
 const TeamHubPage = () => {
     const [activeTab, setActiveTab] = useState<'teams' | 'players'>('teams');
     
-    // State baru untuk menampung data dinamis dan status loading
-    const [teams, setTeams] = useState<Team[]>([]);
-    const [players, setPlayers] = useState<Player[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    // State untuk data mentah dari Firestore
+    const [allTeams, setAllTeams] = useState<Team[]>([]);
+    const [allPlayers, setAllPlayers] = useState<Player[]>([]);
+    
+    // State untuk filter yang diangkat dari komponen anak
+    const [teamFilters, setTeamFilters] = useState<TeamFilters>({
+        searchTerm: '',
+        vision: 'Kompetitif',
+        reputation: 3.0,
+        thLevel: 9,
+    });
+    const [playerFilters, setPlayerFilters] = useState<PlayerFilters>({
+        searchTerm: '',
+        role: 'all',
+        reputation: 3.0,
+        thLevel: 9,
+    });
 
-    // useEffect akan berjalan satu kali saat komponen pertama kali dimuat
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
     useEffect(() => {
-        // Buat fungsi async di dalam useEffect untuk mengambil data
-        const fetchInitialData = async () => {
-            setIsLoading(true); // Mulai loading
+        const fetchDataForTab = async () => {
+            setIsLoading(true);
+            setError(null);
             try {
-                // Ambil data tim dan pemain dari Firestore
-                const fetchedTeams = await getTeams();
-                const fetchedPlayers = await getPlayers();
-                setTeams(fetchedTeams);
-                setPlayers(fetchedPlayers);
-            } catch (error) {
-                console.error("Gagal mengambil data:", error);
-                // Di sini Anda bisa menambahkan state untuk menampilkan pesan error di UI
+                if (activeTab === 'teams' && allTeams.length === 0) {
+                    const fetchedTeams = await getTeams();
+                    setAllTeams(fetchedTeams);
+                } else if (activeTab === 'players' && allPlayers.length === 0) {
+                    const fetchedPlayers = await getPlayers();
+                    setAllPlayers(fetchedPlayers);
+                }
+            } catch (err) {
+                console.error("Gagal mengambil data:", err);
+                setError("Tidak dapat memuat data. Periksa koneksi internet Anda.");
             } finally {
-                setIsLoading(false); // Selesai loading, baik berhasil maupun gagal
+                setIsLoading(false);
             }
         };
 
-        fetchInitialData();
-    }, []); // Array kosong berarti efek ini hanya berjalan sekali
+        fetchDataForTab();
+    }, [activeTab, allTeams.length, allPlayers.length]);
+
+    // Gunakan useMemo untuk memfilter data hanya saat data atau filter berubah
+    const filteredTeams = useMemo(() => {
+        return allTeams.filter(team => {
+            const searchTermLower = teamFilters.searchTerm.toLowerCase();
+            return (
+                (team.name.toLowerCase().includes(searchTermLower) || team.tag.toLowerCase().includes(searchTermLower)) &&
+                (teamFilters.vision === 'all' || team.vision === teamFilters.vision) &&
+                team.rating >= teamFilters.reputation &&
+                team.avgTh >= teamFilters.thLevel
+            );
+        });
+    }, [allTeams, teamFilters]);
+
+    const filteredPlayers = useMemo(() => {
+        // Logika filter untuk pemain
+        return allPlayers.filter(player => {
+            // PERBAIKAN: Tambahkan pengecekan keamanan dan akses properti yang benar ('displayName')
+            // Kita menggunakan 'as any' untuk sementara agar bisa mengakses properti yang tidak ada di tipe 'Player'
+            const name = (player as any).displayName || '';
+            const tag = (player as any).playerTag || player.tag || '';
+
+            const searchTermLower = playerFilters.searchTerm.toLowerCase();
+            return (
+                (name.toLowerCase().includes(searchTermLower) || tag.toLowerCase().includes(searchTermLower)) &&
+                (playerFilters.role === 'all' || player.role === playerFilters.role) &&
+                player.reputation >= playerFilters.reputation &&
+                player.thLevel >= playerFilters.thLevel
+            );
+        });
+    }, [allPlayers, playerFilters]);
+
 
     return (
         <main className="container mx-auto p-4 md:p-8 mt-10">
-            {/* Navigasi Tab */}
             <div className="mb-8 border-b-2 border-coc-gold-dark/20 flex">
                 <button 
                     onClick={() => setActiveTab('teams')}
@@ -59,37 +119,54 @@ const TeamHubPage = () => {
 
             <section className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                 
-                {/* Kolom Filter (Dinamis) */}
                 <div className="lg:col-span-1">
-                    {activeTab === 'teams' ? <TeamHubFilter /> : <PlayerHubFilter />}
+                    {/* Mengirim state filter dan fungsi updater sebagai props */}
+                    {activeTab === 'teams' 
+                        ? <TeamHubFilter filters={teamFilters} onFilterChange={setTeamFilters} /> 
+                        : <PlayerHubFilter filters={playerFilters} onFilterChange={setPlayerFilters} />
+                    }
                 </div>
 
-                {/* Kolom Hasil Pencarian (Dinamis) */}
                 <div className="lg:col-span-3">
                     {isLoading ? (
-                        // Tampilkan pesan loading jika data sedang diambil
                         <div className="text-center py-20">
-                            <h2 className="text-2xl text-coc-gold">Memuat Data...</h2>
+                            <h2 className="text-2xl text-coc-gold animate-pulse">Memuat Data...</h2>
+                        </div>
+                    ) : error ? (
+                         <div className="text-center py-20 card-stone">
+                            <h2 className="text-2xl text-coc-red">{error}</h2>
                         </div>
                     ) : (
-                        // Tampilkan konten jika loading selesai
                         <>
                             {activeTab === 'teams' && (
                                 <div>
-                                    <h1 className="text-3xl md:text-4xl mb-6">{teams.length} Tim Ditemukan</h1>
+                                    <h1 className="text-3xl md:text-4xl mb-6">{filteredTeams.length} Tim Ditemukan</h1>
                                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                                        {/* Gunakan data 'teams' dari state untuk me-render kartu */}
-                                        {teams.map(team => <TeamCard key={team.id} {...team} href={`/team/${team.id}`} />)}
+                                        {filteredTeams.map(team => <TeamCard key={team.id} {...team} />)}
                                     </div>
                                 </div>
                             )}
 
                             {activeTab === 'players' && (
                                 <div>
-                                    <h1 className="text-3xl md:text-4xl mb-6">{players.length} Pemain Ditemukan</h1>
+                                    <h1 className="text-3xl md:text-4xl mb-6">{filteredPlayers.length} Pemain Ditemukan</h1>
                                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                                        {/* Gunakan data 'players' dari state */}
-                                        {players.map(player => <PlayerCard key={player.id} {...player} href={`/player/${player.id}`} />)}
+                                        {/* PERBAIKAN: Petakan properti yang benar ('displayName', 'playerTag') ke props 'PlayerCard' */}
+                                        {filteredPlayers.map(player => {
+                                            const playerData = player as any;
+                                            return (
+                                                <PlayerCard 
+                                                    key={playerData.id} 
+                                                    id={playerData.id}
+                                                    name={playerData.displayName} // Mapping dari displayName -> name
+                                                    tag={playerData.playerTag || playerData.tag} // Mapping dari playerTag -> tag
+                                                    thLevel={playerData.thLevel}
+                                                    reputation={playerData.reputation}
+                                                    role={playerData.role}
+                                                    avatarUrl={playerData.avatarUrl}
+                                                />
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             )}
@@ -106,3 +183,5 @@ const TeamHubPage = () => {
 };
 
 export default TeamHubPage;
+
+

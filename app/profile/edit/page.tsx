@@ -8,21 +8,26 @@ import { UserProfile } from '@/lib/types';
 import { getUserProfile, updateUserProfile } from '@/lib/firestore';
 import { UserCircleIcon, SaveIcon, XIcon, InfoIcon, CogsIcon } from '@/app/components/icons';
 
-// Opsi statis untuk dropdown
+// Opsi statis untuk dropdown. Filter null/undefined untuk rendering.
 const thOptions = [16, 15, 14, 13, 12, 11, 10, 9];
-const playStyleOptions = ['Attacker Utama', 'Base Builder', 'Donatur', 'Strategist'];
+const playStyleOptions: Exclude<UserProfile['playStyle'], null | undefined>[] = ['Attacker Utama', 'Base Builder', 'Donatur', 'Strategist'];
+
+// Tipe data khusus untuk state form, memperbolehkan string kosong untuk playStyle
+type ProfileFormData = Omit<Partial<UserProfile>, 'playStyle'> & {
+    playStyle?: UserProfile['playStyle'] | '';
+};
 
 const EditProfilePage = () => {
   const { currentUser, loading: authLoading } = useAuth();
   const router = useRouter();
 
-  // State untuk input form yang dapat diubah
-  const [formData, setFormData] = useState<Partial<UserProfile>>({
+  // State untuk input form menggunakan tipe data form yang baru
+  const [formData, setFormData] = useState<ProfileFormData>({
     displayName: '',
     playerTag: '',
     thLevel: 0,
     bio: '',
-    playStyle: undefined, 
+    playStyle: '', // Diinisialisasi sebagai string kosong
     activeHours: '',
   });
   
@@ -30,24 +35,18 @@ const EditProfilePage = () => {
   const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Handle perubahan input form
+  // Handle perubahan input form (tidak berubah)
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { id, value } = e.target;
     
-    // Perubahan ini diperlukan karena 'id' bisa berupa PlayStyle, yang tipenya ketat
-    const isPlayStyle = id === 'playStyle';
-
     setFormData(prevData => ({
         ...prevData,
-        [id]: id === 'thLevel' 
-              ? (value ? parseInt(value, 10) : 0) // Konversi TH level ke angka
-              : (isPlayStyle && value === "" ? undefined : value), // Biarkan playStyle tetap string, kecuali jika itu nilai default ""
+        [id]: id === 'thLevel' ? parseInt(value, 10) || 0 : value,
     }));
   };
 
-  // Efek untuk Route Protection dan Memuat Data Profil (Read - Tugas 3.3)
+  // Efek untuk Route Protection dan Memuat Data Profil
   useEffect(() => {
-    // 1. Route Protection
     if (!authLoading && !currentUser) {
       router.push('/auth');
       return;
@@ -60,27 +59,18 @@ const EditProfilePage = () => {
           const profile = await getUserProfile(currentUser.uid);
           
           if (profile) {
-            // Mengisi state form dengan data yang ada di Firestore (Pre-fill)
+            // Mengisi state form, mengubah null/undefined menjadi string kosong
             setFormData({
                 displayName: profile.displayName || '',
                 playerTag: profile.playerTag || '',
                 thLevel: profile.thLevel || 10, 
                 bio: profile.bio || '',
-                // playStyle: jika nilainya ada, gunakan, jika tidak gunakan undefined
-                playStyle: profile.playStyle || undefined, 
+                playStyle: profile.playStyle || '', // PERBAIKAN: null/undefined dari DB menjadi "" untuk form
                 activeHours: profile.activeHours || '',
             });
           } else {
-            // Jika profil tidak ditemukan, isi dengan data dasar
-            setFormData(prevData => ({
-                ...prevData,
-                displayName: currentUser.displayName || 'Pemain Baru',
-                playerTag: '', 
-                thLevel: 10, 
-                bio: 'Ini adalah E-Sports CV baru saya di Clashub!',
-                playStyle: undefined,
-            }));
             setError("Profil tidak ditemukan. Silakan isi E-Sports CV Anda.");
+            setFormData(prev => ({ ...prev, displayName: currentUser.displayName || '' }));
           }
         } catch (err) {
           console.error("Gagal memuat profil:", err);
@@ -88,8 +78,6 @@ const EditProfilePage = () => {
         } finally {
           setDataLoading(false);
         }
-      } else if (!authLoading) {
-        setDataLoading(false);
       }
     };
 
@@ -98,7 +86,7 @@ const EditProfilePage = () => {
     }
   }, [currentUser, authLoading, router]);
 
-  // Fungsi untuk menangani proses Submit (Update - Tugas 3.3)
+  // Fungsi untuk menangani proses Submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser || isSaving) return;
@@ -106,23 +94,16 @@ const EditProfilePage = () => {
     setIsSaving(true);
     setError(null);
 
-    // Filter data yang diupdate
+    // PERBAIKAN: Konversi string kosong kembali menjadi null sebelum dikirim ke Firestore
     const updatedData: Partial<UserProfile> = {
-        displayName: formData.displayName,
-        thLevel: formData.thLevel,
-        bio: formData.bio,
-        // PERBAIKAN UTAMA: Menggunakan 'as string' untuk mengatasi error TypeScript/ESLint
-        // Ini memberi tahu TS untuk memperlakukan playStyle sebagai string normal saat dibandingkan dengan "".
-        playStyle: (formData.playStyle as string) === "" ? undefined : formData.playStyle, 
-        activeHours: formData.activeHours,
+        ...formData,
+        playStyle: formData.playStyle || null,
     };
 
     try {
         await updateUserProfile(currentUser.uid, updatedData);
-        
-        // Catatan: Di masa depan ganti alert dengan modal/toast
         alert("E-Sports CV berhasil diperbarui!"); 
-        router.push('/profile'); // Arahkan kembali ke halaman profil
+        router.push('/profile');
     } catch (err) {
         console.error("Gagal menyimpan profil:", err);
         setError("Gagal menyimpan perubahan. Coba lagi.");
@@ -131,29 +112,18 @@ const EditProfilePage = () => {
     }
   };
 
-  // Tampilan loading/error
   if (authLoading || dataLoading) {
     return (
         <div className="flex justify-center items-center min-h-screen">
-            <p className="text-xl text-coc-gold font-supercell">Memuat Editor CV...</p>
+            <p className="text-xl text-coc-gold font-supercell animate-pulse">Memuat Editor CV...</p>
         </div>
     );
   }
 
-  // Handle kasus jika terjadi error fatal atau pengguna belum login
   if (!currentUser) {
-    return (
-        <div className="flex justify-center items-center min-h-screen">
-            <div className="card-stone p-8 max-w-md text-center">
-              <h2 className="text-2xl text-coc-red mb-4 font-supercell">Akses Ditolak</h2>
-              <p className="text-gray-400 mb-6">Anda harus login untuk mengedit profil.</p>
-              <Button onClick={() => router.push('/auth')} variant="primary">Login Sekarang</Button>
-            </div>
-        </div>
-    );
+    return null;
   }
 
-  // Tampilan utama form
   return (
     <main className="container mx-auto p-4 md:p-8 mt-10">
       <div className="max-w-4xl mx-auto">
@@ -254,7 +224,6 @@ const EditProfilePage = () => {
               />
           </div>
 
-
           {/* Tombol Aksi */}
           <div className="flex flex-col sm:flex-row justify-end items-center gap-4 pt-6 border-t border-coc-gold-dark/20">
               <Button href="/profile" variant="secondary" className="w-full sm:w-auto">
@@ -273,3 +242,4 @@ const EditProfilePage = () => {
 };
 
 export default EditProfilePage;
+

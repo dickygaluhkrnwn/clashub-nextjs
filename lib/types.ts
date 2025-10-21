@@ -19,7 +19,7 @@ export interface UserProfile {
   // Role di dalam tim (jika tergabung). 'Free Agent' jika tidak tergabung.
   role?: 'Leader' | 'Co-Leader' | 'Elder' | 'Member' | 'Free Agent';
   // Gaya bermain favorit pengguna (sebagai bagian dari CV)
-  playStyle?: 'Attacker Utama' | 'Base Builder' | 'Donatur' | 'Strategist'; 
+  playStyle?: 'Attacker Utama' | 'Base Builder' | 'Donatur' | 'Strategist' | null; 
   activeHours?: string; // Contoh: "20:00 - 23:00 WIB"
   reputation?: number; // Reputasi komitmen rata-rata
   // teamId dan teamName bisa ditambahkan di Sprint 4
@@ -37,7 +37,6 @@ export interface Team {
   vision: 'Kompetitif' | 'Kasual'; // Visi Tim
   avgTh: number; // Rata-rata Level TH anggota
   logoUrl?: string;
-  href: string; // Path ke profil tim
 }
 
 /**
@@ -53,7 +52,6 @@ export interface Player {
     reputation: number;
     role: 'Leader' | 'Co-Leader' | 'Elder' | 'Member' | 'Free Agent';
     avatarUrl?: string;
-    href: string; // Path ke profil pemain
 }
 
 /**
@@ -66,7 +64,7 @@ export interface Tournament {
     status: 'Akan Datang' | 'Live' | 'Selesai';
     thRequirement: string;
     prizePool: string;
-    href: string; // Path ke detail turnamen
 }
 
 // Catatan: Interface Post akan ditambahkan di Tugas 3.4
+

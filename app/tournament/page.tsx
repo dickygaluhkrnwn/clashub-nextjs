@@ -1,39 +1,44 @@
 'use client';
 
-import { useState, useEffect } from 'react'; // <-- IMPOR useEffect
+import { useState, useEffect } from 'react';
 import { TournamentCard } from "@/app/components/cards";
 import TournamentFilter from "@/app/components/filters/TournamentFilter";
 import { Button } from "@/app/components/ui/Button";
-import { Tournament } from '@/lib/types'; // <-- IMPOR TIPE
-import { getTournaments } from '@/lib/firestore'; // <-- IMPOR FUNGSI FETCH
+import { Tournament } from '@/lib/types';
+import { getTournaments } from '@/lib/firestore';
 
 const TournamentPage = () => {
     const [activeTab, setActiveTab] = useState<'tournaments' | 'leagues'>('tournaments');
     
-    // State baru untuk data dan status loading
     const [tournaments, setTournaments] = useState<Tournament[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    // State baru untuk menangani error
+    const [error, setError] = useState<string | null>(null);
 
-    // Efek untuk memuat data turnamen
     useEffect(() => {
         const fetchTournamentsData = async () => {
             setIsLoading(true);
+            setError(null); // Reset error setiap kali fetch dimulai
             try {
                 const fetchedTournaments = await getTournaments();
                 setTournaments(fetchedTournaments);
-            } catch (error) {
-                console.error("Failed to fetch tournaments:", error);
+            } catch (err) {
+                console.error("Failed to fetch tournaments:", err);
+                setError("Gagal memuat turnamen. Periksa koneksi Anda."); // Set pesan error
             } finally {
                 setIsLoading(false);
             }
         };
 
-        // Hanya jalankan fetch jika di tab 'tournaments' saat ini.
-        // Kita bisa mengoptimalkannya lebih lanjut di Sprint 4, tapi untuk sekarang cukup di sini.
         if (activeTab === 'tournaments') {
-            fetchTournamentsData();
+            // Caching sederhana: hanya fetch jika data belum ada
+            if (tournaments.length === 0) {
+                 fetchTournamentsData();
+            } else {
+                setIsLoading(false);
+            }
         } else {
-             setIsLoading(false); // Jika di tab 'leagues', anggap loading selesai (untuk data statis)
+             setIsLoading(false);
         }
     }, [activeTab]);
 
@@ -73,7 +78,11 @@ const TournamentPage = () => {
                             
                             {isLoading ? (
                                 <div className="text-center py-10">
-                                    <h3 className="text-xl text-coc-gold">Memuat daftar turnamen...</h3>
+                                    <h3 className="text-xl text-coc-gold animate-pulse">Memuat daftar turnamen...</h3>
+                                </div>
+                            ) : error ? (
+                                <div className="text-center py-20 card-stone p-6">
+                                    <h3 className="text-xl text-coc-red">{error}</h3>
                                 </div>
                             ) : tournaments.length === 0 ? (
                                 <div className="text-center py-10">
@@ -81,13 +90,10 @@ const TournamentPage = () => {
                                 </div>
                             ) : (
                                 <div className="space-y-6">
-                                    {/* MENGGANTI DUMMY DATA DENGAN DATA FIRESTORE */}
                                     {tournaments.map(tournament => (
                                         <TournamentCard 
                                             key={tournament.id} 
                                             {...tournament} 
-                                            // Asumsi TournamentCardProps kompatibel dengan Tournament interface
-                                            href={`/tournament/${tournament.id}`} 
                                         />
                                     ))}
                                 </div>

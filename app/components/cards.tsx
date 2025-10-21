@@ -3,15 +3,15 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/app/components/ui/Button';
 
-// -- Tipe Data untuk Props (Tidak ada perubahan) --
+// -- Tipe Data untuk Props (Telah Disesuaikan) --
 export type TeamCardProps = {
+  id: string; // ID diperlukan untuk membuat link
   name: string;
   tag: string;
   rating: number;
   vision: 'Kompetitif' | 'Kasual';
   avgTh: number;
   logoUrl?: string;
-  href: string;
 };
 
 export type PostCardProps = {
@@ -24,33 +24,31 @@ export type PostCardProps = {
   };
 
 export type TournamentCardProps = {
+    id: string; // ID diperlukan untuk membuat link
     title: string;
     status: 'Akan Datang' | 'Live' | 'Selesai';
     thRequirement: string;
     prizePool: string;
-    href: string;
 };
 
 export type PlayerCardProps = {
+    id: string; // ID diperlukan untuk membuat link
     name: string;
     tag: string;
     thLevel: number;
     reputation: number;
     role: 'Leader' | 'Co-Leader' | 'Elder' | 'Member' | 'Free Agent';
     avatarUrl?: string;
-    href: string;
 };
 
 
 // -- Komponen TeamCard --
-export const TeamCard = ({ name, tag, rating, vision, avgTh, logoUrl = "/images/clan-badge-placeholder.png", href }: TeamCardProps) => {
+export const TeamCard = ({ id, name, tag, rating, vision, avgTh, logoUrl = "/images/clan-badge-placeholder.png" }: TeamCardProps) => {
   const isCompetitive = vision === 'Kompetitif';
 
   return (
-    // PERBAIKAN: Menambahkan padding p-5 untuk ruang di dalam kartu
     <div className="card-stone flex flex-col justify-between h-full p-5">
       <div>
-        {/* PERBAIKAN: Menambahkan margin-bottom mb-4 */}
         <div className="flex items-center gap-4 mb-4">
           <Image src={logoUrl} alt={`${name} logo`} width={50} height={50} className="rounded-full border-2 border-coc-gold-dark flex-shrink-0" />
           <div className="flex-grow min-w-0">
@@ -62,7 +60,6 @@ export const TeamCard = ({ name, tag, rating, vision, avgTh, logoUrl = "/images/
             <span>{rating.toFixed(1)}</span>
           </div>
         </div>
-        {/* PERBAIKAN: Menambahkan padding-top pt-4 */}
         <div className="flex justify-between items-center pt-4 border-t border-coc-stone-light/30">
           <span className={`px-2 py-1 text-xs font-bold rounded-sm ${isCompetitive ? 'bg-coc-red text-white' : 'bg-coc-green text-coc-stone'}`}>
             {vision}
@@ -72,7 +69,7 @@ export const TeamCard = ({ name, tag, rating, vision, avgTh, logoUrl = "/images/
           </p>
         </div>
       </div>
-      <Link href={href} className="mt-5">
+      <Link href={`/team/${id}`} className="mt-5">
         <Button variant="secondary" className="w-full">Lihat Profil</Button>
       </Link>
     </div>
@@ -83,18 +80,14 @@ export const TeamCard = ({ name, tag, rating, vision, avgTh, logoUrl = "/images/
 export const PostCard = ({ category, tag, title, author, stats, href }: PostCardProps) => {
     return (
       <Link href={href} className="block group h-full">
-        {/* PERBAIKAN: Menambahkan padding p-5 */}
         <div className="card-stone h-full flex flex-col p-5">
           <div className="flex-grow">
-            {/* PERBAIKAN: Menambahkan margin-bottom mb-3 */}
             <div className="flex items-center gap-2 mb-3 text-xs flex-wrap">
               <span className="px-2 py-1 font-bold bg-coc-red text-white rounded-sm">{category}</span>
               <span className="px-2 py-1 font-semibold bg-coc-stone-light text-coc-gold rounded-sm">{tag}</span>
             </div>
-            {/* PERBAIKAN: Menambahkan margin-bottom mb-3 */}
             <h4 className="text-lg font-bold text-white group-hover:text-coc-gold transition-colors mb-3">{title}</h4>
           </div>
-          {/* PERBAIKAN: Menambahkan padding-top pt-3 */}
           <div className="mt-auto pt-3 border-t border-coc-stone-light/30 text-xs text-gray-400">
             <p>Oleh: <span className="font-bold text-coc-gold-dark">{author}</span></p>
             <p>{stats}</p>
@@ -105,7 +98,7 @@ export const PostCard = ({ category, tag, title, author, stats, href }: PostCard
   };
 
 // -- Komponen TournamentCard --
-export const TournamentCard = ({ title, status, thRequirement, prizePool, href }: TournamentCardProps) => {
+export const TournamentCard = ({ id, title, status, thRequirement, prizePool }: TournamentCardProps) => {
     const statusStyles = {
         'Akan Datang': 'border-coc-gold bg-coc-gold/10',
         'Live': 'border-coc-red bg-coc-red/10 animate-pulse',
@@ -118,11 +111,9 @@ export const TournamentCard = ({ title, status, thRequirement, prizePool, href }
     };
 
     return (
-        // PERBAIKAN: Menambahkan padding p-6 agar lebih lega
         <div className={`card-stone flex flex-col sm:flex-row justify-between items-center p-6 gap-4 border-l-4 ${statusStyles[status]}`}>
             <div className="flex-grow w-full sm:w-auto">
                 <h4 className="text-xl font-bold text-white">{title}</h4>
-                {/* PERBAIKAN: Menggunakan space-y-1 untuk jarak antar paragraf */}
                 <div className="text-sm text-gray-300 space-y-1 mt-2">
                     <p>Syarat: <span className="font-bold text-white">{thRequirement}</span></p>
                     <p>Hadiah: <span className="font-bold text-coc-gold">{prizePool}</span></p>
@@ -130,14 +121,14 @@ export const TournamentCard = ({ title, status, thRequirement, prizePool, href }
             </div>
             <div className="flex flex-col items-stretch sm:items-end gap-3 w-full sm:w-auto mt-4 sm:mt-0">
                 <span className={`px-3 py-1 text-xs font-bold rounded-full text-center ${statusBadgeStyles[status]}`}>{status}</span>
-                <Button href={href} variant="secondary" className="w-full sm:w-auto">Lihat Detail</Button>
+                <Button href={`/tournament/${id}`} variant="secondary" className="w-full sm:w-auto">Lihat Detail</Button>
             </div>
         </div>
     );
 };
 
 // -- Komponen PlayerCard (BARU) --
-export const PlayerCard = ({ name, tag, thLevel, reputation, role, avatarUrl = "/images/placeholder-avatar.png", href }: PlayerCardProps) => {
+export const PlayerCard = ({ id, name, tag, thLevel, reputation, role, avatarUrl = "/images/placeholder-avatar.png" }: PlayerCardProps) => {
     
     const roleColors: { [key: string]: string } = {
         'Leader': 'bg-coc-gold text-coc-stone',
@@ -148,10 +139,8 @@ export const PlayerCard = ({ name, tag, thLevel, reputation, role, avatarUrl = "
     };
     
     return (
-        // PERBAIKAN: Menambahkan padding p-5
         <div className="card-stone flex flex-col justify-between h-full p-5">
             <div>
-                {/* PERBAIKAN: Menambahkan margin-bottom mb-4 */}
                 <div className="flex items-center gap-4 mb-4">
                     <Image src={avatarUrl} alt={`${name} avatar`} width={50} height={50} className="rounded-full border-2 border-coc-gold-dark flex-shrink-0" />
                     <div className="flex-grow min-w-0">
@@ -159,7 +148,6 @@ export const PlayerCard = ({ name, tag, thLevel, reputation, role, avatarUrl = "
                         <p className="text-xs text-gray-400">{tag}</p>
                     </div>
                 </div>
-                 {/* PERBAIKAN: Menambahkan padding-top pt-4 dan space-y-2 */}
                 <div className="space-y-2 pt-4 border-t border-coc-stone-light/30">
                     <div className="flex justify-between items-center text-sm">
                         <span className="font-bold text-gray-300">Role:</span>
@@ -178,11 +166,11 @@ export const PlayerCard = ({ name, tag, thLevel, reputation, role, avatarUrl = "
                     </div>
                 </div>
             </div>
-            {/* PERBAIKAN: Menambahkan margin-top mt-5 */}
             <div className="mt-5 flex gap-3">
-                 <Button href={href} variant="secondary" className="w-full">Lihat CV</Button>
+                 <Button href={`/player/${id}`} variant="secondary" className="w-full">Lihat CV</Button>
                  <Button variant="primary" className="w-full">Invite</Button>
             </div>
         </div>
     );
 };
+

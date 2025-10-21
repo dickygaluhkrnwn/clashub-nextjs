@@ -1,21 +1,32 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from '@/app/components/ui/Button';
 import { UsersCogIcon } from '@/app/components/icons';
+// Impor tipe TeamFilters dari halaman induk
+import { TeamFilters } from '@/app/teamhub/page';
 
-const TeamHubFilter = () => {
-  const [vision, setVision] = useState<'competitive' | 'casual' | 'all'>('competitive');
-  const [reputation, setReputation] = useState(4.0);
-  const [thLevel, setThLevel] = useState(13);
+// Definisikan props untuk komponen
+type TeamHubFilterProps = {
+  filters: TeamFilters;
+  onFilterChange: (newFilters: TeamFilters) => void;
+};
+
+const TeamHubFilter = ({ filters, onFilterChange }: TeamHubFilterProps) => {
+
+  // Fungsi generik untuk menangani perubahan pada filter
+  const handleFilterChange = <K extends keyof TeamFilters>(key: K, value: TeamFilters[K]) => {
+    onFilterChange({ ...filters, [key]: value });
+  };
 
   const handleReset = () => {
-    setVision('competitive');
-    setReputation(4.0);
-    setThLevel(13);
-    // Juga reset input teks jika ada state untuk itu
-    const searchInput = document.getElementById('search-input') as HTMLInputElement;
-    if (searchInput) searchInput.value = '';
+    // Reset state kembali ke nilai default di halaman induk
+    onFilterChange({
+        searchTerm: '',
+        vision: 'Kompetitif',
+        reputation: 3.0,
+        thLevel: 9,
+    });
   };
 
   return (
@@ -29,7 +40,14 @@ const TeamHubFilter = () => {
         {/* Search Input */}
         <div className="filter-group">
           <label htmlFor="search-input" className="block text-sm font-bold text-gray-300 mb-2">Nama Tim / Tag</label>
-          <input type="text" id="search-input" placeholder="Cari berdasarkan nama..." className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold" />
+          <input 
+            type="text" 
+            id="search-input" 
+            placeholder="Cari berdasarkan nama..." 
+            value={filters.searchTerm}
+            onChange={(e) => handleFilterChange('searchTerm', e.target.value)}
+            className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold" 
+          />
         </div>
 
         {/* Vision Toggle */}
@@ -37,13 +55,13 @@ const TeamHubFilter = () => {
           <h3 className="text-sm font-bold text-gray-300 mb-2">Kriteria Visi</h3>
           <div className="grid grid-cols-2 bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md p-1">
             <button
-              onClick={() => setVision('competitive')}
-              className={`px-3 py-1.5 text-sm font-bold rounded transition-colors ${vision === 'competitive' ? 'bg-coc-red text-white' : 'text-gray-400 hover:bg-white/10'}`}>
+              onClick={() => handleFilterChange('vision', 'Kompetitif')}
+              className={`px-3 py-1.5 text-sm font-bold rounded transition-colors ${filters.vision === 'Kompetitif' ? 'bg-coc-red text-white' : 'text-gray-400 hover:bg-white/10'}`}>
               Kompetitif
             </button>
             <button
-              onClick={() => setVision('casual')}
-              className={`px-3 py-1.5 text-sm font-bold rounded transition-colors ${vision === 'casual' ? 'bg-coc-green text-coc-stone' : 'text-gray-400 hover:bg-white/10'}`}>
+              onClick={() => handleFilterChange('vision', 'Kasual')}
+              className={`px-3 py-1.5 text-sm font-bold rounded transition-colors ${filters.vision === 'Kasual' ? 'bg-coc-green text-coc-stone' : 'text-gray-400 hover:bg-white/10'}`}>
               Kasual
             </button>
           </div>
@@ -53,23 +71,37 @@ const TeamHubFilter = () => {
         <div className="filter-group">
             <label htmlFor="rating-input" className="flex justify-between text-sm font-bold text-gray-300 mb-1">
                 <span>Minimum Reputasi</span>
-                <span className="font-bold text-coc-gold">{reputation.toFixed(1)} ★</span>
+                <span className="font-bold text-coc-gold">{filters.reputation.toFixed(1)} ★</span>
             </label>
-            <input type="range" id="rating-input" min="3.0" max="5.0" step="0.1" value={reputation} onChange={(e) => setReputation(parseFloat(e.target.value))} className="w-full h-2 bg-coc-stone rounded-lg appearance-none cursor-pointer accent-coc-gold"/>
+            <input 
+              type="range" 
+              id="rating-input" 
+              min="3.0" max="5.0" step="0.1" 
+              value={filters.reputation} 
+              onChange={(e) => handleFilterChange('reputation', parseFloat(e.target.value))} 
+              className="w-full h-2 bg-coc-stone rounded-lg appearance-none cursor-pointer accent-coc-gold"
+            />
         </div>
 
         {/* TH Level Slider */}
         <div className="filter-group">
             <label htmlFor="th-level-input" className="flex justify-between text-sm font-bold text-gray-300 mb-1">
                 <span>Level Town Hall Minimum</span>
-                <span className="font-bold text-coc-gold">TH {thLevel}</span>
+                <span className="font-bold text-coc-gold">TH {filters.thLevel}</span>
             </label>
-            <input type="range" id="th-level-input" min="10" max="16" step="1" value={thLevel} onChange={(e) => setThLevel(parseInt(e.target.value))} className="w-full h-2 bg-coc-stone rounded-lg appearance-none cursor-pointer accent-coc-gold"/>
+            <input 
+              type="range" 
+              id="th-level-input" 
+              min="9" max="16" step="1" 
+              value={filters.thLevel} 
+              onChange={(e) => handleFilterChange('thLevel', parseInt(e.target.value))} 
+              className="w-full h-2 bg-coc-stone rounded-lg appearance-none cursor-pointer accent-coc-gold"
+            />
         </div>
 
         {/* Action Buttons */}
         <div className="filter-group pt-4 border-t border-coc-gold-dark/20 space-y-3">
-          <Button variant="primary" className="w-full">Terapkan Filter</Button>
+          {/* Tombol Terapkan Filter dihapus karena filter sekarang diterapkan secara real-time */}
           <Button variant="secondary" className="w-full" onClick={handleReset}>Reset Filter</Button>
         </div>
       </div>
