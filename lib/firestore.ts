@@ -1,7 +1,7 @@
 // File: lib/firestore.ts
 // Deskripsi: Berisi semua fungsi utilitas untuk berinteraksi dengan Firebase Firestore.
 
-import { firestore } from './firebase'; // Impor instance firestore kita
+import { firestore, storage } from './firebase'; // Impor instance firestore & storage kita
 import {
   doc,
   setDoc,
@@ -11,6 +11,12 @@ import {
   getDocs,
   DocumentData,
 } from 'firebase/firestore';
+import { 
+  ref, 
+  uploadBytes, 
+  getDownloadURL, 
+  StorageReference 
+} from "firebase/storage"; // Impor fungsi Storage
 
 // Impor tipe data yang sudah kita definisikan
 import { UserProfile, Team, Player, Tournament } from './types';
@@ -19,6 +25,26 @@ import { UserProfile, Team, Player, Tournament } from './types';
 // Helper Type untuk memastikan data dari Firestore memiliki ID dan semua field T
 type FirestoreDocument<T> = T & { id: string };
 
+
+/**
+ * @function uploadProfileImage
+ * Mengunggah file gambar ke Firebase Storage (path: users/{uid}/avatar.jpg).
+ * @param uid - ID unik pengguna.
+ * @param file - File Blob atau File yang akan diunggah.
+ * @returns URL publik dari gambar yang diunggah.
+ */
+export const uploadProfileImage = async (uid: string, file: File | Blob): Promise<string> => {
+    // Tentukan path penyimpanan: users/USER_UID/avatar.jpg
+    const storageRef: StorageReference = ref(storage, `users/${uid}/avatar.jpg`);
+    
+    // Unggah file. Kami menggunakan 'avatar.jpg' sebagai nama tetap.
+    const snapshot = await uploadBytes(storageRef, file);
+    
+    // Dapatkan URL publik dari file yang diunggah
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    
+    return downloadURL;
+};
 
 /**
  * @function createUserProfile
@@ -42,6 +68,7 @@ export const createUserProfile = async (uid: string, data: Partial<UserProfile>)
     playStyle: 'Attacker Utama', // Default play style
     activeHours: 'Belum diatur',
     reputation: 5.0, // Reputasi awal sempurna
+    avatarUrl: '/images/placeholder-avatar.png', // Default URL Avatar
     ...data, // Menimpa nilai default jika ada di data input
   };
   

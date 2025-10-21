@@ -3,30 +3,43 @@
 import React from 'react';
 import { Button } from '@/app/components/ui/Button';
 import { FilterIcon } from '@/app/components/icons';
+import { Tournament } from '@/lib/types'; // Import Tournament untuk tipe status
 
-// Definisikan props baru
+// --- DEFINISI TIPE BARU UNTUK FILTER TURNAMEN ---
+// Kita ekspor tipe ini agar bisa digunakan oleh TournamentClient.tsx
+export interface TournamentFilters {
+  // Status turnamen. 'Semua Status' adalah opsi default.
+  status: Tournament['status'] | 'Semua Status'; 
+  // Persyaratan TH. Harus sesuai dengan format string di data Tournament.
+  thLevel: 'Semua Level' | 'TH 15 - 16' | 'TH 13 - 14';
+  // Hadiah. Menggunakan nilai value dari <option>
+  prize: 'all' | 'cash' | 'item';
+}
+
+// Definisikan props untuk komponen, kini menerima state dan handler dari parent
 type TournamentFilterProps = {
-  // Callback untuk memberi tahu parent (TournamentClient) bahwa filter harus diterapkan
-  onApplyFilter: () => void;
+  filters: TournamentFilters;
+  onFilterChange: (newFilters: TournamentFilters) => void;
 };
 
-const TournamentFilter = ({ onApplyFilter }: TournamentFilterProps) => {
+const TournamentFilter = ({ filters, onFilterChange }: TournamentFilterProps) => {
 
-  const handleReset = () => {
-    // Fungsi ini akan mereset semua pilihan filter ke nilai default (di DOM)
-    const statusFilter = document.getElementById('status-filter') as HTMLSelectElement;
-    const thFilter = document.getElementById('th-level-filter') as HTMLSelectElement;
-    const prizeFilter = document.getElementById('prize-filter') as HTMLSelectElement;
-    if (statusFilter) statusFilter.value = 'Akan Datang';
-    if (thFilter) thFilter.value = 'Semua Level';
-    if (prizeFilter) prizeFilter.value = 'all';
-
-    // Panggil onApplyFilter untuk memicu perubahan di parent
-    onApplyFilter();
+  // Fungsi generik untuk menangani semua perubahan filter
+  const handleFilterChange = (key: keyof TournamentFilters, value: string) => {
+    // Pastikan nilai dikonversi ke tipe yang benar jika diperlukan
+    onFilterChange({ ...filters, [key]: value as any });
   };
 
-  // Catatan: Di Sprint berikutnya, kita akan menggunakan useState di parent 
-  // untuk mengendalikan nilai-nilai select ini, bukan langsung manipulasi DOM.
+  const handleReset = () => {
+    // Reset state kembali ke nilai default
+    onFilterChange({
+      status: 'Semua Status',
+      thLevel: 'Semua Level',
+      prize: 'all',
+    });
+  };
+
+  // Tombol "Terapkan Filter" dihapus karena perubahan sekarang terjadi real-time di parent.
 
   return (
     <aside className="card-stone p-6 h-fit sticky top-28">
@@ -36,30 +49,47 @@ const TournamentFilter = ({ onApplyFilter }: TournamentFilterProps) => {
       </h2>
 
       <div className="space-y-6">
-        {/* Status Filter */}
+        {/* Status Filter (CONTROLLED) */}
         <div className="filter-group">
           <label htmlFor="status-filter" className="block text-sm font-bold text-gray-300 mb-2">Status</label>
-          <select id="status-filter" className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white focus:ring-coc-gold focus:border-coc-gold">
+          <select 
+            id="status-filter" 
+            value={filters.status}
+            onChange={(e) => handleFilterChange('status', e.target.value)}
+            className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white focus:ring-coc-gold focus:border-coc-gold"
+          >
+            <option>Semua Status</option>
             <option>Akan Datang</option>
-            <option>Sedang Berlangsung</option>
+            <option>Live</option>
             <option>Selesai</option>
           </select>
         </div>
 
-        {/* TH Level Filter */}
+        {/* TH Level Filter (CONTROLLED) */}
         <div className="filter-group">
           <label htmlFor="th-level-filter" className="block text-sm font-bold text-gray-300 mb-2">Level TH</label>
-          <select id="th-level-filter" className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white focus:ring-coc-gold focus:border-coc-gold">
+          <select 
+            id="th-level-filter" 
+            value={filters.thLevel}
+            onChange={(e) => handleFilterChange('thLevel', e.target.value)}
+            className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white focus:ring-coc-gold focus:border-coc-gold"
+          >
             <option>Semua Level</option>
             <option>TH 15 - 16</option>
             <option>TH 13 - 14</option>
+            <option>TH 10 - 12</option> {/* Tambahkan opsi umum */}
           </select>
         </div>
 
-        {/* Prize Filter */}
+        {/* Prize Filter (CONTROLLED) */}
         <div className="filter-group">
           <label htmlFor="prize-filter" className="block text-sm font-bold text-gray-300 mb-2">Hadiah</label>
-          <select id="prize-filter" className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white focus:ring-coc-gold focus:border-coc-gold">
+          <select 
+            id="prize-filter" 
+            value={filters.prize}
+            onChange={(e) => handleFilterChange('prize', e.target.value)}
+            className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white focus:ring-coc-gold focus:border-coc-gold"
+          >
             <option value="all">Semua Hadiah</option>
             <option value="cash">Uang Tunai</option>
             <option value="item">In-Game Item</option>
@@ -68,8 +98,6 @@ const TournamentFilter = ({ onApplyFilter }: TournamentFilterProps) => {
         
         {/* Action Buttons */}
         <div className="filter-group pt-4 border-t border-coc-gold-dark/20 space-y-3">
-          {/* Tambahkan onClick handler untuk memicu callback apply filter */}
-          <Button variant="primary" className="w-full" onClick={onApplyFilter}>Terapkan Filter</Button>
           <Button variant="secondary" className="w-full" onClick={handleReset}>Reset Filter</Button>
         </div>
       </div>

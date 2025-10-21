@@ -6,9 +6,10 @@ import TeamHubFilter from "@/app/components/filters/TeamHubFilter";
 import PlayerHubFilter from "@/app/components/filters/PlayerHubFilter";
 import { Button } from "@/app/components/ui/Button";
 import { Team, Player } from '@/lib/types';
-import { getPlayers } from '@/lib/firestore'; // Dipertahankan untuk fetch data pemain saat tab di-switch
+// Hapus impor getPlayers, karena fetching sekarang dilakukan di Server Component
+// import { getPlayers } from '@/lib/firestore'; 
 
-// Definisikan tipe untuk state filter agar lebih mudah dikelola (Dipindahkan dari page.tsx)
+// Definisikan tipe untuk state filter agar lebih mudah dikelola
 export type TeamFilters = {
     searchTerm: string;
     vision: 'Kompetitif' | 'Kasual' | 'all';
@@ -26,17 +27,16 @@ export type PlayerFilters = {
 // Definisikan Props untuk Client Component
 interface TeamHubClientProps {
     initialTeams: Team[];
-    initialPlayers: Player[];
+    initialPlayers: Player[]; // Sekarang dijamin berisi data dari SSR
 }
 
 
 const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => {
     const [activeTab, setActiveTab] = useState<'teams' | 'players'>('teams');
     
-    // Data dimuat dari props
+    // Data tim dan pemain sekarang langsung dimuat dari props, tanpa lazy-load
     const [allTeams] = useState<Team[]>(initialTeams);
-    // Data pemain juga dimuat dari props, namun kita siapkan state untuk load-on-demand
-    const [allPlayers, setAllPlayers] = useState<Player[]>(initialPlayers);
+    const [allPlayers] = useState<Player[]>(initialPlayers); 
     
     const [teamFilters, setTeamFilters] = useState<TeamFilters>({
         searchTerm: '',
@@ -51,37 +51,15 @@ const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => 
         thLevel: 9,
     });
 
-    const [isLoading, setIsLoading] = useState(false);
-    // Error hanya akan muncul jika fetching data player on-demand gagal
-    const [error, setError] = useState<string | null>(null);
+    // Hapus isLoading dan error state yang terkait dengan fetching data awal.
+    const isLoading = false;
+    const error = null;
 
-    // EFEK BARU: Handle lazy load data player jika tab diganti
-    useEffect(() => {
-        const fetchPlayersOnDemand = async () => {
-            if (activeTab === 'players' && allPlayers.length === 0) {
-                setIsLoading(true);
-                setError(null);
-                try {
-                    const fetchedPlayers = await getPlayers();
-                    setAllPlayers(fetchedPlayers);
-                } catch (err) {
-                    console.error("Gagal mengambil data pemain:", err);
-                    setError("Tidak dapat memuat data pemain. Coba refresh.");
-                } finally {
-                    setIsLoading(false);
-                }
-            }
-        };
-
-        // Jika tab 'teams' dimuat, kita tidak perlu fetching karena data sudah di SSR.
-        // Jika tab 'players' yang aktif dan belum ada data, kita fetch.
-        if (activeTab === 'players') {
-            fetchPlayersOnDemand();
-        }
-    }, [activeTab, allPlayers.length]);
+    // Hapus EFEK BARU: Handle lazy load data player jika tab diganti
+    // useEffect(() => { ... logika fetchPlayersOnDemand dihapus ... }, [activeTab, allPlayers.length]);
 
 
-    // Logika Filtering - Tetap di Client Component menggunakan useMemo (sesuai kebutuhan Anda)
+    // Logika Filtering - Tetap di Client Component menggunakan useMemo
     const filteredTeams = useMemo(() => {
         return allTeams.filter(team => {
             const searchTermLower = teamFilters.searchTerm.toLowerCase();

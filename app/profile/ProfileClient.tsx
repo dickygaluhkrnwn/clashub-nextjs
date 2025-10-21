@@ -19,34 +19,20 @@ const recentPosts = [
 // Definisikan Props untuk Client Component
 interface ProfileClientProps {
     // Data profil yang sudah di-fetch di server (SSR)
-    userProfile: UserProfile | null;
+    initialProfile: UserProfile | null;
     serverError: string | null;
 }
 
 
-const ProfileClient = ({ userProfile: initialProfile, serverError }: ProfileClientProps) => {
-    const { currentUser, loading: authLoading } = useAuth();
+const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
+    const { currentUser, loading: authLoading } = useAuth(); // Tetap butuh untuk Logout/interaksi klien
     const router = useRouter();
 
-    // Gunakan initialProfile dari props, tidak perlu lagi fetch di useEffect
-    const [userProfile, setUserProfile] = useState<UserProfile | null>(initialProfile);
-    const [error, setError] = useState<string | null>(serverError);
-    // Kita asumsikan data sudah di-fetch, jadi hanya perlu loading saat Auth sedang cek
-    const [dataLoading, setDataLoading] = useState(false); 
-
-    // EFEK UNTUK ROUTE PROTECTION (Tetap di client karena butuh useAuth())
-    useEffect(() => {
-        // Jika autentikasi selesai dan tidak ada user, redirect ke login
-        if (!authLoading && !currentUser) {
-            router.push('/auth');
-        }
-        // Jika sudah login tetapi server gagal memuat profil, kita tampilkan error
-        if (!authLoading && currentUser && !initialProfile && !serverError) {
-             setError("Gagal memuat profil, pastikan data E-Sports CV Anda sudah lengkap.");
-        }
-    }, [currentUser, authLoading, router, initialProfile, serverError]);
+    // State untuk menyimpan data profil dan error (hanya untuk feedback UX)
+    const [userProfile] = useState<UserProfile | null>(initialProfile);
+    const [error] = useState<string | null>(serverError);
     
-    // Jika masih dalam proses pengecekan Auth, tampilkan loading.
+    // Logika loading hanya untuk AuthContext checking di Header, bukan untuk fetching data.
     if (authLoading) {
         return (
             <div className="flex justify-center items-center min-h-screen">
@@ -55,7 +41,7 @@ const ProfileClient = ({ userProfile: initialProfile, serverError }: ProfileClie
         );
     }
     
-    // Tampilan Profil Utama
+    // Tampilan Profil Utama (currentUser akan ada karena Server Component sudah melakukan redirect jika tidak ada)
     if (currentUser && userProfile) {
         // Fallback TH level jika data tidak valid
         const validThLevel = userProfile.thLevel && !isNaN(userProfile.thLevel) && userProfile.thLevel > 0 ? userProfile.thLevel : 9;
@@ -169,14 +155,31 @@ const ProfileClient = ({ userProfile: initialProfile, serverError }: ProfileClie
             <div className="card-stone p-8 max-w-md text-center">
               <h2 className="text-2xl text-coc-red mb-4">Error Memuat Profil</h2>
               <p className="text-gray-400 mb-6">{error}</p>
-              <Button onClick={() => router.push('/')} variant="secondary">
-                 <XIcon className="inline h-5 w-5 mr-2"/> Kembali ke Home
+              <Button href="/profile/edit" variant="primary">
+                 <XIcon className="inline h-5 w-5 mr-2"/> Lengkapi CV Anda
               </Button>
             </div>
           </div>
         );
       }
     
+      // Jika sessionUser ada tapi profileData null (perlu ke edit)
+      if (currentUser && !userProfile) {
+        return (
+            <div className="flex justify-center items-center min-h-screen">
+                <div className="card-stone p-8 max-w-md text-center">
+                    <h2 className="text-2xl text-coc-gold mb-4">Profil Belum Ditemukan</h2>
+                    <p className="text-gray-400 mb-6">
+                        {serverError || "Sepertinya Anda baru mendaftar. Mohon lengkapi E-Sports CV Anda terlebih dahulu."}
+                    </p>
+                    <Button href="/profile/edit" variant="primary">
+                        <XIcon className="inline h-5 w-5 mr-2"/> Mulai Edit CV
+                    </Button>
+                </div>
+            </div>
+        );
+      }
+
       return null;
 };
 
