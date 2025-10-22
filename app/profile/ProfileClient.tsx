@@ -95,7 +95,10 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
     if (currentUser && userProfile) {
         const validThLevel = userProfile.thLevel && !isNaN(userProfile.thLevel) && userProfile.thLevel > 0 ? userProfile.thLevel : 9;
         const thImage = getThImage(validThLevel);
-        const avatarSrc = userProfile.avatarUrl || '/images/placeholder-avatar.png';
+        
+        // PERBAIKAN UTAMA: Mengambil avatarUrl yang sudah tersimpan
+        const avatarSrc = userProfile.avatarUrl || '/images/placeholder-avatar.png'; 
+        
         const displayWebsite = cleanUrlDisplay(userProfile.website);
 
         return (
@@ -104,7 +107,7 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
                     {/* Kolom Kiri: Ringkasan Profil & Aksi */}
                     <aside className="lg:col-span-1 card-stone p-6 h-fit sticky top-28 text-center">
                         <Image
-                            src={avatarSrc}
+                            src={avatarSrc} // Menggunakan avatarSrc yang sudah dimuat dari state/Firestore
                             alt={`${userProfile.displayName} Avatar`}
                             width={100}
                             height={100}

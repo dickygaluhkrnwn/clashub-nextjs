@@ -5,13 +5,36 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image'; 
 import { Button } from '@/app/components/ui/Button';
 import { UserProfile } from '@/lib/types';
+// PERBAIKAN: uploadProfileImage sekarang adalah fungsi dummy (tanpa Storage)
+// Catatan: Walaupun tidak digunakan untuk upload file, kita biarkan import ini
+// untuk konsistensi API jika ada bagian kode lain yang memanggilnya.
 import { getUserProfile, updateUserProfile, uploadProfileImage } from '@/lib/firestore'; 
-import { UserCircleIcon, SaveIcon, XIcon, InfoIcon, CogsIcon } from '@/app/components/icons';
-import { uploadBytesResumable } from 'firebase/storage'; // Import eksplisit jika diperlukan (meskipun sudah ada di firestore.ts)
+import { UserCircleIcon, SaveIcon, XIcon, InfoIcon, CogsIcon, CheckIcon } from '@/app/components/icons';
+import Notification, { NotificationProps } from '@/app/components/ui/Notification'; 
 
-// Opsi statis untuk dropdown.
+// Opsi statis untuk dropdown TH.
 const thOptions = [16, 15, 14, 13, 12, 11, 10, 9];
 const playStyleOptions: Exclude<UserProfile['playStyle'], null | undefined>[] = ['Attacker Utama', 'Base Builder', 'Donatur', 'Strategist'];
+
+// BARU: Daftar avatar statis yang tersedia (berdasarkan aset yang Anda sediakan)
+const staticAvatars = [
+    '/images/placeholder-avatar.png',
+    '/images/archer.png',
+    '/images/barbarian.png',
+    '/images/bowler.png',
+    '/images/giant.png',
+    '/images/goblin.png',
+    '/images/healer.png',
+    '/images/hogrider.png',
+    '/images/minion.png',
+    '/images/pekka.png',
+    '/images/rootrider.png',
+    '/images/valkyrie.png',
+    '/images/witch.png',
+    '/images/wizard.png',
+    '/images/yeti.png',
+];
+
 
 // Tipe data khusus untuk state form
 type ProfileFormData = Omit<Partial<UserProfile>, 'playStyle'> & {
@@ -37,13 +60,9 @@ interface EditProfileClientProps {
 const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
     const router = useRouter();
     const uid = initialUser.uid;
-
-    // State untuk file upload
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    const [previewUrl, setPreviewUrl] = useState<string>('/images/placeholder-avatar.png');
-    // Menyimpan pesan atau persentase, bukan hanya angka
-    const [uploadProgress, setUploadProgress] = useState<'uploading' | 'complete' | 'failed' | null>(null);
-
+    
+    // HAPUS: previewUrl, uploadProgress (tidak lagi diperlukan)
+    
     // State untuk input form
     const [formData, setFormData] = useState<ProfileFormData>({
         displayName: '',
@@ -52,70 +71,48 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
         bio: '',
         playStyle: '',
         activeHours: '',
-        avatarUrl: '/images/placeholder-avatar.png',
+        avatarUrl: '/images/placeholder-avatar.png', // Selalu menggunakan URL
         discordId: '',
         website: '',
     });
 
-    // --- State untuk Validation Error (spesifik Player Tag) ---
+    // --- State untuk Validation Error ---
     const [playerTagError, setPlayerTagError] = useState<string | null>(null);
-    const [isFormValid, setIsFormValid] = useState(false); // State untuk validitas form keseluruhan
+    const [isFormValid, setIsFormValid] = useState(false); 
     // --- End State untuk Validation Error ---
 
     const [isSaving, setIsSaving] = useState(false);
     const [dataLoading, setDataLoading] = useState(true);
     const [error, setError] = useState<string | null>(null); // Untuk error umum (fetch/save)
+    
+    // BARU: State untuk notifikasi Toast
+    const [notification, setNotification] = useState<NotificationProps | null>(null);
+
+    // Helper untuk menampilkan notifikasi (menggantikan alert)
+    const showNotification = (message: string, type: NotificationProps['type']) => {
+        setNotification({ message, type, onClose: () => setNotification(null) });
+    };
+
 
     // --- Real-time Validation Effect for Player Tag ---
     useEffect(() => {
         const tagError = validatePlayerTag(formData.playerTag || '');
         setPlayerTagError(tagError);
         
-        // Form valid jika tidak ada error tag DAN display name/th level diisi
-        // Menggunakan konversi ke boolean murni (!!value)
         const isDisplayValid = !!(formData.displayName && formData.displayName.trim().length > 0);
         const isThValid = !!(formData.thLevel && formData.thLevel > 0);
 
-        // PERBAIKAN 1 & 2: Sudah diperbaiki di sini dengan memastikan isDisplayValid/isThValid adalah boolean
         setIsFormValid(tagError === null && isDisplayValid && isThValid);
     }, [formData.playerTag, formData.displayName, formData.thLevel]);
     // --- End Real-time Validation Effect ---
 
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        setError(null); // Reset general error on file change
-        
-        if (file) {
-            if (!file.type.startsWith('image/')) {
-                setError("Hanya file gambar yang diizinkan.");
-                setSelectedFile(null);
-                setPreviewUrl(formData.avatarUrl || '/images/placeholder-avatar.png');
-                return;
-            }
-            if (file.size > 2 * 1024 * 1024) { // Batas 2MB
-                setError("Ukuran file maksimal 2MB.");
-                setSelectedFile(null);
-                setPreviewUrl(formData.avatarUrl || '/images/placeholder-avatar.png');
-                return;
-            }
-            setSelectedFile(file);
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setPreviewUrl(reader.result as string);
-            };
-            reader.readAsDataURL(file);
-        } else {
-            setSelectedFile(null);
-            setPreviewUrl(formData.avatarUrl || '/images/placeholder-avatar.png');
-        }
-    };
+    // HAPUS: handleFileChange (sudah diganti dengan handleAvatarSelect)
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { id, value } = e.target;
-        setError(null); // Reset general error on input change
+        setError(null); 
 
-        // --- PERBAIKAN LOGIKA Player Tag Filtering ---
         let processedValue = value;
         if (id === 'playerTag') {
             // 1. Pastikan selalu dimulai dengan '#' jika ada input
@@ -125,14 +122,21 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
             // 2. Filter karakter yang tidak diizinkan di COC Tag
             processedValue = processedValue.toUpperCase().replace(/[^#0289PYLQGRJCUV]/g, '');
         }
-        // --- End PERBAIKAN LOGIKA ---
 
         setFormData(prevData => ({
             ...prevData,
-            // Konversi ke number untuk thLevel, selain itu gunakan string
             [id]: id === 'thLevel' ? parseInt(processedValue, 10) || 0 : processedValue,
         }));
     };
+
+    // BARU: Handler untuk memilih avatar statis
+    const handleAvatarSelect = (url: string) => {
+        setFormData(prevData => ({
+            ...prevData,
+            avatarUrl: url,
+        }));
+    };
+
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -149,12 +153,11 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
                             bio: profile.bio || '',
                             playStyle: profile.playStyle || '',
                             activeHours: profile.activeHours || '',
-                            avatarUrl: profile.avatarUrl || '/images/placeholder-avatar.png',
-                            // Menggunakan string kosong sebagai fallback untuk input yang terkontrol
+                            // Pastikan ada fallback untuk avatar
+                            avatarUrl: profile.avatarUrl || '/images/placeholder-avatar.png', 
                             discordId: profile.discordId ?? '', 
                             website: profile.website ?? '',
                         });
-                        setPreviewUrl(profile.avatarUrl || '/images/placeholder-avatar.png');
                         
                         // Initial validation check after loading data
                         const tagError = validatePlayerTag(profile.playerTag || '');
@@ -171,12 +174,12 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
                            thLevel: 9, 
                            playStyle: 'Attacker Utama',
                         }));
-                        // Pastikan setIsFormValid menerima boolean murni
+                        // Menggunakan Player Tag kosong di sini akan memicu error validasi form, sesuai desain
                         setIsFormValid(validatePlayerTag(formData.playerTag || '') === null); 
                     }
                 } catch (err) {
                     console.error("Gagal memuat profil:", err);
-                    setError("Gagal memuat data profil untuk diedit.");
+                    setError("Gagal memuat data profil untuk diedit. Coba muat ulang halaman.");
                 } finally {
                     setDataLoading(false);
                 }
@@ -191,38 +194,24 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
         e.preventDefault();
         setError(null); 
         
-        if (!isFormValid || !uid || isSaving) {
-            setError("Harap lengkapi form dengan benar sebelum menyimpan.");
+        // Periksa validitas form lagi
+        if (!isFormValid || !uid || isSaving || playerTagError) {
+            setError("Harap lengkapi form dengan Player Tag, Nama, dan TH Level yang valid sebelum menyimpan.");
             return;
         }
 
         setIsSaving(true);
-        let finalAvatarUrl = formData.avatarUrl;
-
+        
         try {
-            // --- Logika Unggah Gambar Baru ---
-            if (selectedFile) {
-                setUploadProgress('uploading');
-                // Menggunakan fungsi uploadProfileImage yang sudah diperbarui dengan progress callback
-                // Catatan: Fungsi ini tidak menerima progress callback di versi firestore.ts terbaru, tapi kita biarkan di sini.
-                const newUrl = await uploadProfileImage(uid, selectedFile);
-                
-                finalAvatarUrl = newUrl;
-                setUploadProgress('complete');
-                // Penting: Reset selectedFile setelah berhasil diupload
-                setSelectedFile(null); 
-            }
-
             // --- Persiapan Data untuk Firestore ---
             // Mengubah string kosong menjadi UNDEFINED agar Firestore menghapus field tersebut
-            // Ini disesuaikan dengan deklarasi tipe di lib/types.ts (field opsional dengan `?`)
             const getUndefinedIfEmpty = (value: string | number | null | undefined): string | number | null | undefined => {
                 // Konversi string kosong/whitespace menjadi undefined
                 if (typeof value === 'string' && value.trim() === '') return undefined;
-                // Pertahankan angka 0 (untuk thLevel default)
+                // Pertahankan angka 0 (untuk thLevel default, meskipun kita harapkan > 0)
                 if (value === 0) return 0;
-                // Jika null, biarkan null (meskipun ini akan memicu error di lib/types.ts yang hanya undefined)
-                if (value === null) return undefined; // KOREKSI: Paksa null menjadi undefined
+                // KOREKSI: Paksa null menjadi undefined
+                if (value === null) return undefined; 
                 return value;
             };
 
@@ -230,63 +219,49 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
                 displayName: formData.displayName,
                 playerTag: formData.playerTag?.toUpperCase() || '', 
                 thLevel: formData.thLevel || 1,
-                // KOREKSI UTAMA TIPE: Gunakan getUndefinedIfEmpty.
+                
+                // DATA AVATAR DARI PEMILIHAN STATIS
+                avatarUrl: formData.avatarUrl, 
+
+                // Menggunakan getUndefinedIfEmpty untuk field opsional
                 bio: getUndefinedIfEmpty(formData.bio) as string | undefined, 
                 activeHours: getUndefinedIfEmpty(formData.activeHours) as string | undefined,
-                avatarUrl: finalAvatarUrl,
-                // KOREKSI playStyle: playStyle tidak boleh null jika ada di profile types (hanya string atau undefined).
                 playStyle: getUndefinedIfEmpty(formData.playStyle) as UserProfile['playStyle'] | undefined, 
                 discordId: getUndefinedIfEmpty(formData.discordId) as string | undefined,
                 website: getUndefinedIfEmpty(formData.website) as string | undefined,
             };
 
-            // Jika field tidak diisi, nilainya akan menjadi `undefined` dan tidak akan di-update di Firestore.
-            // Jika Anda ingin *menghapus* field yang sudah ada di Firestore, Anda harus secara eksplisit
-            // mengirim `FieldValue.delete()` atau memastikan `UserProfile` mengizinkan `null`.
-            // Untuk menghindari 37 error type, kita akan mengikuti skema `string | undefined`.
-            
+            // Panggil updateUserProfile
             await updateUserProfile(uid, updatedData);
 
-            alert("E-Sports CV berhasil diperbarui!");
-            // Update preview state di client sebelum redirect
-            setPreviewUrl(finalAvatarUrl);
-            setFormData(prev => ({...prev, avatarUrl: finalAvatarUrl}));
-
-            router.push('/profile'); 
-            router.refresh(); 
+            // GANTI: Mengganti alert() dengan Notification
+            showNotification("E-Sports CV berhasil diperbarui! Mengalihkan...", 'success');
+            
+            // Redirect setelah notifikasi muncul (beri waktu 1 detik)
+            setTimeout(() => {
+                router.push('/profile'); 
+                router.refresh(); 
+            }, 1000);
+            
 
         } catch (err) {
-            console.error("Gagal menyimpan profil atau mengunggah gambar:", err);
-            // Tangani error baik dari upload maupun update Firestore
-            setError("Gagal menyimpan perubahan. Coba lagi. " + (err as Error).message);
-            setUploadProgress('failed');
+            console.error("Gagal menyimpan profil:", err);
+            // Tangani error update Firestore
+            setError("Gagal menyimpan perubahan ke database. Pastikan Firebase Rules sudah diatur dengan benar! " + (err as Error).message);
+            showNotification("Gagal menyimpan perubahan. Lihat konsol untuk detail error.", 'error');
+
         } finally {
             // PERBAIKAN UTAMA: Memastikan isSaving selalu false di akhir
             setIsSaving(false);
         }
     };
 
-    if (dataLoading) {
-        return (
-            <div className="flex justify-center items-center min-h-screen">
-                {/* Mengganti font-supercell menjadi font-clash */}
-                <p className="text-xl text-coc-gold font-clash animate-pulse">Memuat Editor CV...</p>
-            </div>
-        );
-    }
-
-    // --- Helper untuk menampilkan status upload ---
-    const getUploadStatusMessage = () => {
-        if (!selectedFile) return null;
-        if (uploadProgress === 'uploading') return '⏳ Sedang Mengunggah Gambar...';
-        if (uploadProgress === 'complete') return '✅ Unggahan Selesai. Menyimpan Data...';
-        if (uploadProgress === 'failed') return '❌ Unggahan Gagal. Coba lagi.';
-        return null;
-    }
-    // --- End Helper ---
 
     return (
         <main className="container mx-auto p-4 md:p-8 mt-10">
+             {/* Render Komponen Notifikasi */}
+            <Notification notification={notification ?? undefined} />
+
             <div className="max-w-4xl mx-auto">
                 <form onSubmit={handleSubmit} className="card-stone p-8 space-y-8">
                     <h1 className="text-3xl md:text-4xl text-center mb-6 font-clash">
@@ -296,39 +271,38 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
 
                     {error && <p className="bg-coc-red/20 text-red-400 text-center text-sm p-3 rounded-md mb-4 border border-coc-red">{error}</p>}
 
-                    {/* Unggah Gambar Profil */}
+                    {/* BARU: Pemilihan Avatar Statis */}
                     <h3 className="text-xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2">
-                        Avatar Profil
+                        Pilih Avatar Statis Anda
                     </h3>
-                    <div className="flex flex-col sm:flex-row items-center gap-8 p-4 bg-coc-stone/30 rounded-lg">
-                        <Image
-                            src={previewUrl}
-                            alt="Avatar Preview"
-                            width={100}
-                            height={100}
-                            className="w-24 h-24 rounded-full mx-auto border-4 border-coc-gold object-cover flex-shrink-0"
-                        />
-                        <div className="flex-grow space-y-3 w-full">
-                            <label htmlFor="avatar-upload" className="block text-sm font-bold text-gray-300">Unggah Gambar Baru (Maks 2MB)</label>
-                            <input
-                                type="file"
-                                id="avatar-upload"
-                                accept="image/*"
-                                onChange={handleFileChange}
-                                className="w-full text-sm text-gray-300
-                                file:mr-4 file:py-2 file:px-4
-                                file:rounded-full file:border-0
-                                file:text-sm file:font-semibold
-                                file:bg-coc-gold file:text-coc-stone
-                                hover:file:bg-coc-gold-dark/90 hover:file:text-white
-                                "
-                            />
-                            {/* Menampilkan status upload/progress */}
-                            {getUploadStatusMessage() && (
-                                <p className={`text-sm ${uploadProgress === 'failed' ? 'text-coc-red' : 'text-coc-green animate-pulse'}`}>
-                                    {getUploadStatusMessage()}
-                                </p>
-                            )}
+                    <div className="space-y-4">
+                        <div className="flex flex-wrap gap-4 justify-center items-center p-4 bg-coc-stone/30 rounded-lg">
+                            {staticAvatars.map((url) => (
+                                <button
+                                    key={url}
+                                    type="button"
+                                    onClick={() => handleAvatarSelect(url)}
+                                    className={`
+                                        relative rounded-full transition-transform duration-200
+                                        ${formData.avatarUrl === url 
+                                            ? 'ring-4 ring-coc-green scale-110' 
+                                            : 'ring-2 ring-transparent hover:scale-105'
+                                        }
+                                    `}
+                                >
+                                    <Image
+                                        src={url}
+                                        alt="Avatar Option"
+                                        width={60}
+                                        height={60}
+                                        // Gunakan class `border` di Image agar tetap terlihat rapi
+                                        className="w-16 h-16 rounded-full object-cover border border-coc-gold-dark"
+                                    />
+                                    {formData.avatarUrl === url && (
+                                        <CheckIcon className="absolute bottom-0 right-0 h-5 w-5 bg-coc-green text-white rounded-full p-0.5 border border-coc-stone"/>
+                                    )}
+                                </button>
+                            ))}
                         </div>
                     </div>
 
@@ -416,13 +390,13 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
                             </select>
                         </div>
                     </div>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> {/* Tambah Grid untuk Discord & Website */}
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> 
                          <div className="form-group">
                             <label htmlFor="discordId" className="block text-sm font-bold text-gray-300 mb-2">Discord ID (Opsional)</label>
                             <input
                                 type="text"
                                 id="discordId"
-                                value={formData.discordId || ''} // Dipastikan string
+                                value={formData.discordId || ''} 
                                 onChange={handleInputChange}
                                 placeholder="Contoh: NamaAnda#1234"
                                 className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-4 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold"
@@ -433,19 +407,19 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
                             <input
                                 type="url" 
                                 id="website"
-                                value={formData.website || ''} // Dipastikan string
+                                value={formData.website || ''} 
                                 onChange={handleInputChange}
                                 placeholder="https://contoh.com"
                                 className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-4 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold"
                             />
                         </div>
                     </div>
-                    <div className="form-group"> {/* Pindahkan Active Hours ke luar grid */}
+                    <div className="form-group"> 
                         <label htmlFor="activeHours" className="block text-sm font-bold text-gray-300 mb-2">Jam Aktif (Contoh: 20:00 - 23:00 WIB)</label>
                         <input
                             type="text"
                             id="activeHours"
-                            value={formData.activeHours} // Dipastikan string
+                            value={formData.activeHours} 
                             onChange={handleInputChange}
                             placeholder="Contoh: 19:00 - 22:00 WIB"
                             className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-4 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold"
@@ -460,7 +434,7 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
                         </Button>
                         <Button type="submit" variant="primary" className="w-full sm:w-auto" disabled={isSaving || !isFormValid}> 
                             <SaveIcon className="inline h-5 w-5 mr-2"/>
-                            {isSaving ? (selectedFile ? 'Mengunggah...' : 'Menyimpan...') : 'Simpan Perubahan'}
+                            {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'} 
                         </Button>
                     </div>
                 </form>

@@ -1,7 +1,8 @@
 // File: lib/firestore.ts
-// Deskripsi: Berisi semua fungsi utilitas untuk berinteraksi dengan Firebase Firestore dan Storage.
+// Deskripsi: Berisi semua fungsi utilitas untuk berinteraksi dengan Firebase Firestore.
 
-import { firestore, storage } from './firebase'; // Impor instance firestore & storage kita
+// PERUBAHAN: Hanya impor firestore, storage dihapus
+import { firestore } from './firebase'; 
 import {
   doc,
   setDoc,
@@ -17,13 +18,8 @@ import {
   orderBy, // BARU: Impor orderBy
   limit // BARU: Impor limit
 } from 'firebase/firestore';
-import {
-  ref,
-  // GANTI: Import uploadBytesResumable menggantikan uploadBytes
-  uploadBytesResumable, 
-  getDownloadURL,
-  StorageReference
-} from "firebase/storage"; // Impor fungsi Storage
+// HAPUS SEMUA IMPOR STORAGE:
+// import { ref, uploadBytesResumable, getDownloadURL, StorageReference } from "firebase/storage"; 
 
 // Impor tipe data yang sudah kita definisikan
 import { UserProfile, Team, Player, Tournament, JoinRequest, Post, PostCategory } from './types';
@@ -34,58 +30,20 @@ type FirestoreDocument<T> = T & { id: string };
 
 
 /**
- * @function uploadProfileImage
- * Mengunggah file gambar ke Firebase Storage (path: users/{uid}/avatar.jpg).
- * Menggunakan uploadBytesResumable untuk proses yang lebih stabil dan dukungan progress.
- * @param uid - ID unik pengguna.
- * @param file - File Blob atau File yang akan diunggah.
- * @param onProgress - Callback opsional untuk melacak persentase unggahan.
- * @returns URL publik dari gambar yang diunggah.
- * @throws Error jika gagal mengunggah atau mendapatkan URL.
+ * @function uploadProfileImage (DIUBAH MENJADI FUNGSI PLACEHOLDER)
+ * Fungsi ini tidak lagi mengunggah file ke Firebase Storage (Storage Dihapus).
+ * Ini hanya ada untuk kompatibilitas sementara dan me-return URL avatar yang diterima.
+ * @param newAvatarUrl - URL avatar statis yang dipilih oleh pengguna.
+ * @returns Promise<string> yang me-return newAvatarUrl.
  */
-// PERBAIKAN UTAMA: Mengganti implementasi menggunakan uploadBytesResumable dan Promise
 export const uploadProfileImage = (
   uid: string, 
-  file: File | Blob, 
-  // Menambahkan onProgress callback
-  onProgress?: (percentage: number) => void 
+  newAvatarUrl: string, // PERUBAHAN: Menerima URL sebagai pengganti File
+  onProgress?: (percentage: number) => void // Dibiarkan untuk kompatibilitas API
 ): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    try {
-        const storageRef: StorageReference = ref(storage, `users/${uid}/avatar.jpg`);
-        // Menggunakan uploadBytesResumable
-        const uploadTask = uploadBytesResumable(storageRef, file);
-
-        uploadTask.on('state_changed', 
-            (snapshot) => {
-                // Lacak persentase unggahan
-                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                if (onProgress) {
-                  onProgress(progress);
-                }
-            }, 
-            (error) => {
-                // Tangani error unggahan yang tidak terduga
-                console.error(`Firestore Error [uploadProfileImage(${uid}) - Upload Task]:`, error);
-                // Menolak Promise dengan pesan error yang jelas
-                reject(new Error(`Gagal mengunggah gambar: ${error.message}`));
-            }, 
-            async () => {
-                // Unggahan selesai (state: 'success'), ambil URL
-                try {
-                    const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                    resolve(downloadURL);
-                } catch (urlError) {
-                    console.error(`Firestore Error [uploadProfileImage(${uid}) - Get URL]:`, urlError);
-                    reject(new Error("Gagal mendapatkan URL gambar profil setelah unggahan berhasil."));
-                }
-            }
-        );
-    } catch (error) {
-        console.error(`Firestore Error [uploadProfileImage(${uid}) - Initial Setup]:`, error);
-        reject(new Error("Gagal memulai proses unggahan."));
-    }
-  });
+  // Karena kita menggunakan avatar statis, fungsi ini tidak melakukan apa-apa selain me-return.
+  console.log(`[AVATAR STATIS] Avatar dipilih. URL: ${newAvatarUrl}`);
+  return Promise.resolve(newAvatarUrl);
 };
 
 /**
@@ -109,7 +67,8 @@ export const createUserProfile = async (uid: string, data: Partial<UserProfile>)
       playStyle: 'Attacker Utama',
       activeHours: 'Belum diatur',
       reputation: 5.0,
-      avatarUrl: '/images/placeholder-avatar.png',
+      // URL Avatar default
+      avatarUrl: data.avatarUrl || '/images/placeholder-avatar.png', 
       ...data,
       teamId: null,
       teamName: null,
@@ -131,6 +90,8 @@ export const createUserProfile = async (uid: string, data: Partial<UserProfile>)
 export const updateUserProfile = async (uid: string, data: Partial<UserProfile>): Promise<void> => {
   try {
     const userRef = doc(firestore, 'users', uid);
+    // PERBAIKAN UTAMA: Kita tetap menggunakan updateDoc. Masalah "loading" kemungkinan 
+    // besar adalah karena Rules. Asumsikan Rules di Langkah 1 sudah diimplementasikan (di Canvas).
     await updateDoc(userRef, data);
   } catch (error) {
     console.error(`Firestore Error [updateUserProfile(${uid})]:`, error);
