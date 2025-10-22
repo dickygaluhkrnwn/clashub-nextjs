@@ -34,7 +34,17 @@ export async function getSessionUser(): Promise<ServerUser | null> {
     if (dummyToken && dummyToken.includes('logged_in')) {
         // 2. Ekstrak UID dari nilai token (format: 'logged_in_UID_ANDA')
         const tokenValue = dummyToken.split('=')[1];
-        const uid = tokenValue.split('_')[1]; // Mengambil bagian setelah 'logged_in_'
+        
+        // --- PERBAIKAN KRITIS DIMULAI DI SINI ---
+        const parts = tokenValue.split('_');
+        // Cookie format: logged_in_uid_anda
+        // parts[0] = 'logged'
+        // parts[1] = 'in'
+        // parts[2] dan seterusnya adalah UID
+        
+        // Kita ambil semua bagian dari index 2 ke belakang dan gabungkan dengan underscore
+        const uid = parts.slice(2).join('_'); // <-- PERBAIKAN
+        // --- PERBAIKAN KRITIS SELESAI DI SINI ---
         
         if (uid) {
             // Karena ini simulasi, kita mengisi email dan displayName dengan nilai dummy.

@@ -93,13 +93,13 @@ export const createUserProfile = async (uid: string, data: Partial<UserProfile>)
 export const updateUserProfile = async (uid: string, data: Partial<UserProfile>): Promise<void> => {
   try {
     const userRef = doc(firestore, 'users', uid);
-    // PERBAIKAN: Gunakan `setDoc(..., {merge: true})` untuk memastikan Firestore menerima data 
-    // parsial (Partial<UserProfile>) tanpa memengaruhi field yang tidak ada di `data` (seperti role/reputation).
-    // Walaupun `updateDoc` juga melakukan hal yang sama, `setDoc(..., {merge: true})` lebih eksplisit.
+    // PERBAIKAN: setDoc dengan merge: true sudah benar. Ini memungkinkan 
+    // pengiriman Partial<UserProfile> tanpa menimpa field sensitif (role, reputation).
     await setDoc(userRef, data, { merge: true });
   } catch (error) {
     // RE-THROW ERROR TANPA MENUTUPNYA, AGAR DETAIL ERROR FIREBASE MUNCUL DI CONSOLE SERVER
     console.error(`Firestore Error [updateUserProfile(${uid})]:`, error);
+    // PERBAIKAN: Biarkan pesan error apa adanya untuk debugging yang lebih mudah
     throw new Error(`Gagal memperbarui profil pengguna. Detail: ${error}`); // Re-throw error
   }
 };

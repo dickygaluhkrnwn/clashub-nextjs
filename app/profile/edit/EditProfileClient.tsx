@@ -38,7 +38,7 @@ const staticAvatars = [
 
 // Tipe data khusus untuk state form
 type ProfileFormData = Omit<Partial<UserProfile>, 'playStyle'> & {
-    // PERBAIKAN UTAMA: playStyle sekarang bisa berupa string kosong "" (selain nilai valid dari UserProfile)
+    // playStyle sekarang bisa berupa string kosong "" (selain nilai valid dari UserProfile)
     playStyle?: UserProfile['playStyle'] | '' | null;
 };
 
@@ -57,6 +57,66 @@ interface EditProfileClientProps {
     // Menerima UID yang sudah diverifikasi dari Server Component
     initialUser: { uid: string };
 }
+
+/**
+ * @function sanitizeData
+ * Menghapus properti dari objek yang memiliki nilai null, undefined, atau string kosong, 
+ * SEMENTARA MENGHINDARI pengiriman field sensitif yang TIDAK BOLEH DIUBAH.
+ * @param data Data mentah dari form.
+ * @returns Data yang sudah dibersihkan dan siap dikirim.
+ */
+const sanitizeData = (data: ProfileFormData): Partial<UserProfile> => {
+    const cleanData: Partial<UserProfile> = {};
+    
+    // Daftar field yang hanya boleh diubah pengguna dari form ini.
+    const updatableFields = [
+        'displayName', 'playerTag', 'thLevel', 'avatarUrl', 
+        'discordId', 'website', 'bio', 'activeHours', 'playStyle'
+    ];
+
+    for (const key of updatableFields) {
+        const value = (data as any)[key];
+        
+        let cleanedValue = value;
+
+        if (typeof value === 'string') {
+            // Jika string kosong atau hanya spasi, ubah menjadi null (kecuali playerTag/displayName yang harus divalidasi tidak kosong)
+            if (value.trim() === '') {
+                 cleanedValue = null;
+            }
+        } else if (key === 'thLevel') {
+            // Pastikan thLevel adalah number
+            cleanedValue = Number(value) || 0;
+        }
+
+        // Khusus playStyle, string kosong ('') di select harus dikirim sebagai null
+        if (key === 'playStyle' && value === '') {
+            cleanedValue = null;
+        }
+
+        // Hanya sertakan dalam payload jika nilainya bukan null/undefined (untuk field opsional)
+        // ATAU jika itu field wajib (yang sudah divalidasi di form, seperti displayName, playerTag).
+        // Kita hanya mengirim field yang benar-benar kita inginkan agar Firestore melakukan update minimal.
+
+        if (cleanedValue !== null && cleanedValue !== undefined) {
+             (cleanData as any)[key] = cleanedValue;
+        } else if (key === 'avatarUrl') {
+             // Avatar harus string, jika kosong set default placeholder.
+             (cleanData as any)[key] = '/images/placeholder-avatar.png';
+        } else if (cleanedValue === null) {
+            // Untuk field opsional yang diizinkan null, kirim null untuk membersihkan nilai lama.
+            (cleanData as any)[key] = null;
+        }
+    }
+    
+    // TIDAK PERLU MENGIRIM UID, EMAIL, ROLE, REPUTATION, teamId, teamName.
+    // Karena Rules sudah mengecek (resource.data.get("uid", resource.data.uid) == resource.data.uid)
+    // Jika kita tidak mengirimnya, Firestore SDK juga tidak akan mencoba mengupdatenya
+    // dan Rule hasNoSensitiveChanges akan lolos.
+    
+    return cleanData;
+};
+
 
 const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
     const router = useRouter();
@@ -138,9 +198,6 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
         }));
     };
 
-    // HAPUS HELPER LAMA YANG MENGKONVERSI STRING KOSONG KE UNDEFINED
-    // const getUndefinedIfEmpty = ...
-
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -210,24 +267,8 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
         
         try {
             // --- Persiapan Data untuk Firestore ---
-            // PERBAIKAN UTAMA: Hanya kirim field yang ada dalam `updatableUserFields`
-            
-            const updatedData: Partial<UserProfile> = {
-                displayName: formData.displayName,
-                playerTag: formData.playerTag?.toUpperCase() || '', 
-                thLevel: formData.thLevel || 1,
-                
-                // DATA AVATAR DARI PEMILIHAN STATIS
-                avatarUrl: formData.avatarUrl, 
-
-                // MENGHINDARI KONVERSI KE UNDEFINED di CLIENT, kirim string kosong atau nilai
-                bio: formData.bio || '', 
-                activeHours: formData.activeHours || '',
-                // playStyle dikirim apa adanya, termasuk string kosong jika tidak dipilih.
-                playStyle: formData.playStyle as UserProfile['playStyle'] | null | undefined, 
-                discordId: formData.discordId || '', 
-                website: formData.website || '',
-            };
+            // BARU: Lakukan sanitasi data sebelum dikirim
+            const updatedData = sanitizeData(formData);
             
             // Panggil updateUserProfile
             await updateUserProfile(uid, updatedData);
