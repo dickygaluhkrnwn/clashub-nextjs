@@ -100,4 +100,35 @@ export interface JoinRequest {
     timestamp: Date; // Kapan permintaan dibuat
 }
 
-// Catatan: Interface Post akan ditambahkan di Tugas 3.4
+// --- DATA BARU UNTUK KNOWLEDGE HUB (Tugas 3.1) ---
+
+/**
+ * @type PostCategory
+ * Daftar kategori yang tersedia di Knowledge Hub.
+ */
+export type PostCategory = 
+  | 'Semua Diskusi' 
+  | 'Strategi Serangan' 
+  | 'Base Building' 
+  | 'Manajemen Tim' 
+  | 'Berita Komunitas'
+  | 'Diskusi Umum';
+
+/**
+ * @interface Post
+ * Mendefinisikan struktur data untuk postingan/artikel di Knowledge Hub.
+ */
+export interface Post {
+    id: string;
+    title: string;
+    content: string; // Isi lengkap postingan
+    category: PostCategory;
+    tags: string[]; // Contoh: ['TH16', 'Hybrid', 'CWL']
+    authorId: string;
+    authorName: string;
+    authorAvatarUrl?: string;
+    createdAt: Date; // Menggunakan Date agar mudah diolah di frontend
+    updatedAt?: Date;
+    likes: number;
+    replies: number;
+}

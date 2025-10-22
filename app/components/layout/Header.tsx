@@ -14,7 +14,7 @@ const navItems = [
   { name: 'Home', href: '/' },
   { name: 'Team Hub', href: '/teamhub' },
   { name: 'Tournament', href: '/tournament' },
-  // { name: 'Knowledge Hub', href: '/knowledge-hub' }, // Sementara dinonaktifkan
+  { name: 'Knowledge Hub', href: '/knowledge-hub' }, // Sekarang AKTIF
 ];
 
 // Komponen baru untuk menu dropdown profil pengguna

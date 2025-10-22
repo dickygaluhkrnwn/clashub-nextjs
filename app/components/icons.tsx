@@ -234,3 +234,19 @@ export const CheckIcon = (props: IconProps) => (
         <polyline points="20 6 9 17 4 12" />
     </svg>
 );
+
+// BARU: Ikon Edit (Tugas 3.2)
+export const EditIcon = (props: IconProps) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+    </svg>
+);
+// BARU: Ikon Sort (Tugas 3.1)
+export const SortAscIcon = (props: IconProps) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path d="m3 12 4-4 4 4"/>
+        <path d="M7 8v13"/>
+        <path d="M20 16H8"/>
+        <path d="M16 4H8"/>
+    </svg>
+);

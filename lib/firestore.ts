@@ -13,7 +13,9 @@ import {
   query, // Impor query
   where, // Impor where
   addDoc, // Impor addDoc
-  Timestamp // Impor Timestamp
+  Timestamp, // Impor Timestamp
+  orderBy, // BARU: Impor orderBy
+  limit // BARU: Impor limit
 } from 'firebase/firestore';
 import { 
   ref, 
@@ -23,7 +25,7 @@ import {
 } from "firebase/storage"; // Impor fungsi Storage
 
 // Impor tipe data yang sudah kita definisikan
-import { UserProfile, Team, Player, Tournament, JoinRequest } from './types';
+import { UserProfile, Team, Player, Tournament, JoinRequest, Post, PostCategory } from './types';
 
 
 // Helper Type untuk memastikan data dari Firestore memiliki ID dan semua field T
@@ -287,4 +289,71 @@ export const updateMemberRole = async (
         teamName: teamName,
         role: newRole,
     });
+};
+
+// --- FUNGSI SPESIFIK KNOWLEDGE HUB (Tugas 3.1) ---
+
+/**
+ * @function getPosts (BARU)
+ * Mengambil postingan dari koleksi 'posts' dengan opsi filter dan sort.
+ * @param category - Kategori untuk difilter.
+ * @param sortBy - Kolom untuk mengurutkan ('createdAt' atau 'likes').
+ * @param sortOrder - Urutan ('desc' atau 'asc').
+ * @returns Array Post.
+ */
+export const getPosts = async (
+    category: PostCategory | 'all', 
+    sortBy: 'createdAt' | 'likes' = 'createdAt', 
+    sortOrder: 'desc' | 'asc' = 'desc'
+): Promise<FirestoreDocument<Post>[]> => {
+    const postsRef = collection(firestore, 'posts');
+    let q = query(postsRef);
+
+    // 1. Filter berdasarkan Kategori
+    // Pastikan untuk tidak memfilter jika kategori adalah 'Semua Diskusi' atau 'all'
+    if (category && category !== 'Semua Diskusi' && category !== 'all') {
+        q = query(q, where('category', '==', category));
+    }
+    
+    // 2. Sortir berdasarkan kolom yang diminta
+    // PERINGATAN: Firestore Querying dengan orderBy('likes', 'desc') akan memerlukan index kustom.
+    // Untuk pengembangan awal, kita akan urutkan berdasarkan 'createdAt' (default untuk feed).
+    // Untuk 'likes' (trending), kita akan membiarkan logika sorting di sisi klien/server utils
+    // untuk menghindari keharusan membuat index komposit yang kompleks di awal.
+    
+    // Kita akan tetap menggunakan orderBy di sini sebagai best practice, dan mengasumsikan
+    // bahwa 'createdAt' adalah yang paling sering digunakan, dan kita akan memproses likes/replies di app/server-utils.
+    
+    // Namun, sesuai instruksi, kita akan menggunakan orderBy di sini (kita harus berasumsi 
+    // index yang diperlukan sudah di-setup atau kita akan menanganinya di server-utils jika gagal).
+    if (sortBy === 'createdAt') {
+        q = query(q, orderBy('createdAt', sortOrder));
+    } else if (sortBy === 'likes') {
+        // Mengurutkan berdasarkan likes (simulasi trending)
+        q = query(q, orderBy('likes', sortOrder));
+    }
+    
+    // Batasi hasil untuk performa
+    q = query(q, limit(50)); 
+
+    try {
+        const snapshot = await getDocs(q);
+
+        return snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                // Pastikan tipe data tanggal dikonversi dengan benar
+                createdAt: (data.createdAt as Timestamp).toDate(),
+                updatedAt: data.updatedAt ? (data.updatedAt as Timestamp).toDate() : undefined,
+            } as FirestoreDocument<Post>;
+        });
+
+    } catch (error) {
+        // Log the error for debugging
+        console.error("Firestore Error: Failed to fetch posts:", error);
+        // Mengembalikan array kosong jika terjadi kesalahan
+        return []; 
+    }
 };
