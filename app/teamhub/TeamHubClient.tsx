@@ -1,15 +1,15 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+// Impor React (diperlukan untuk useState)
+import React, { useState, useMemo, useEffect } from 'react';
 import { TeamCard, PlayerCard } from "@/app/components/cards";
 import TeamHubFilter from "@/app/components/filters/TeamHubFilter";
 import PlayerHubFilter from "@/app/components/filters/PlayerHubFilter";
 import { Button } from "@/app/components/ui/Button";
-import { Team, Player } from '@/lib/types';
-// Hapus impor getPlayers, karena fetching sekarang dilakukan di Server Component
-// import { getPlayers } from '@/lib/firestore'; 
+import { Team, Player, UserProfile } from '@/lib/types';
+// Impor ikon untuk loading (opsional)
+import { CogsIcon } from '@/app/components/icons';
 
-// Definisikan tipe untuk state filter agar lebih mudah dikelola
 export type TeamFilters = {
     searchTerm: string;
     vision: 'Kompetitif' | 'Kasual' | 'all';
@@ -24,20 +24,20 @@ export type PlayerFilters = {
     thLevel: number;
 };
 
-// Definisikan Props untuk Client Component
 interface TeamHubClientProps {
     initialTeams: Team[];
-    initialPlayers: Player[]; // Sekarang dijamin berisi data dari SSR
+    initialPlayers: Player[];
 }
 
 
 const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => {
     const [activeTab, setActiveTab] = useState<'teams' | 'players'>('teams');
-    
-    // Data tim dan pemain sekarang langsung dimuat dari props, tanpa lazy-load
     const [allTeams] = useState<Team[]>(initialTeams);
-    const [allPlayers] = useState<Player[]>(initialPlayers); 
-    
+    const [allPlayers] = useState<Player[]>(initialPlayers);
+
+    // BARU: State untuk loading filter
+    const [isFiltering, setIsFiltering] = useState(false);
+
     const [teamFilters, setTeamFilters] = useState<TeamFilters>({
         searchTerm: '',
         vision: 'Kompetitif',
@@ -51,15 +51,27 @@ const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => 
         thLevel: 9,
     });
 
-    // Hapus isLoading dan error state yang terkait dengan fetching data awal.
     const isLoading = false;
     const error = null;
 
-    // Hapus EFEK BARU: Handle lazy load data player jika tab diganti
-    // useEffect(() => { ... logika fetchPlayersOnDemand dihapus ... }, [activeTab, allPlayers.length]);
+    // BARU: Handler filter yang diperbarui untuk Team
+    const handleTeamFilterChange = (newFilters: TeamFilters) => {
+        setIsFiltering(true);
+        setTimeout(() => {
+            setTeamFilters(newFilters);
+            setIsFiltering(false);
+        }, 50); // Delay singkat untuk UX
+    };
 
+    // BARU: Handler filter yang diperbarui untuk Player
+    const handlePlayerFilterChange = (newFilters: PlayerFilters) => {
+        setIsFiltering(true);
+        setTimeout(() => {
+            setPlayerFilters(newFilters);
+            setIsFiltering(false);
+        }, 50); // Delay singkat untuk UX
+    };
 
-    // Logika Filtering - Tetap di Client Component menggunakan useMemo
     const filteredTeams = useMemo(() => {
         return allTeams.filter(team => {
             const searchTermLower = teamFilters.searchTerm.toLowerCase();
@@ -74,16 +86,14 @@ const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => 
 
     const filteredPlayers = useMemo(() => {
         return allPlayers.filter(player => {
-            // Kita harus menggunakan Player Tag dari DB, yang telah kita perbaiki di Server Component.
-            // Data dari Firestore (users) seharusnya memiliki displayName dan playerTag.
-            const name = (player as any).displayName || player.name || '';
-            const tag = (player as any).playerTag || player.tag || '';
+            const name = player.displayName || player.name || '';
+            const tag = player.playerTag || player.tag || '';
 
             const searchTermLower = playerFilters.searchTerm.toLowerCase();
             return (
                 (name.toLowerCase().includes(searchTermLower) || tag.toLowerCase().includes(searchTermLower)) &&
                 (playerFilters.role === 'all' || player.role === playerFilters.role) &&
-                player.reputation >= playerFilters.reputation &&
+                (player.reputation ?? 0) >= playerFilters.reputation &&
                 player.thLevel >= playerFilters.thLevel
             );
         });
@@ -93,20 +103,20 @@ const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => 
     return (
         <>
             <div className="mb-8 border-b-2 border-coc-gold-dark/20 flex">
-                <button 
+                <button
                     onClick={() => {
                         setActiveTab('teams');
-                        // Opsional: reset filter pemain saat beralih ke tim
-                        setPlayerFilters({ searchTerm: '', role: 'all', reputation: 3.0, thLevel: 9 });
+                        // Reset filter lawan saat ganti tab
+                        handlePlayerFilterChange({ searchTerm: '', role: 'all', reputation: 3.0, thLevel: 9 });
                     }}
                     className={`px-6 py-3 font-supercell text-lg transition-colors ${activeTab === 'teams' ? 'text-coc-gold border-b-2 border-coc-gold' : 'text-gray-400 hover:text-white'}`}>
                     Cari Tim
                 </button>
-                <button 
+                <button
                     onClick={() => {
                         setActiveTab('players');
-                        // Opsional: reset filter tim saat beralih ke pemain
-                        setTeamFilters({ searchTerm: '', vision: 'Kompetitif', reputation: 3.0, thLevel: 9 });
+                         // Reset filter lawan saat ganti tab
+                        handleTeamFilterChange({ searchTerm: '', vision: 'Kompetitif', reputation: 3.0, thLevel: 9 });
                     }}
                     className={`px-6 py-3 font-supercell text-lg transition-colors ${activeTab === 'players' ? 'text-coc-gold border-b-2 border-coc-gold' : 'text-gray-400 hover:text-white'}`}>
                     Cari Pemain
@@ -114,21 +124,29 @@ const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => 
             </div>
 
             <section className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                
+
                 <div className="lg:col-span-1">
-                    {activeTab === 'teams' 
-                        ? <TeamHubFilter filters={teamFilters} onFilterChange={setTeamFilters} /> 
-                        : <PlayerHubFilter filters={playerFilters} onFilterChange={setPlayerFilters} />
+                    {activeTab === 'teams'
+                        // BARU: Gunakan handler filter baru
+                        ? <TeamHubFilter filters={teamFilters} onFilterChange={handleTeamFilterChange} />
+                        : <PlayerHubFilter filters={playerFilters} onFilterChange={handlePlayerFilterChange} />
                     }
                 </div>
 
                 <div className="lg:col-span-3">
-                    {isLoading ? (
+                    {/* BARU: Tampilkan loading state saat memfilter */}
+                    {isFiltering ? (
+                        <div className="text-center py-20">
+                           <CogsIcon className="h-10 w-10 text-coc-gold animate-spin mx-auto mb-4" />
+                           <h2 className="text-xl text-coc-gold">Memfilter...</h2>
+                       </div>
+                    ) : isLoading ? (
+                        // Loading awal (jika diperlukan lagi nanti)
                         <div className="text-center py-20">
                             <h2 className="text-2xl text-coc-gold animate-pulse">Memuat Data...</h2>
                         </div>
                     ) : error ? (
-                         <div className="text-center py-20 card-stone p-6">
+                        <div className="text-center py-20 card-stone p-6">
                             <h2 className="text-2xl text-coc-red">{error}</h2>
                         </div>
                     ) : (
@@ -136,37 +154,43 @@ const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => 
                             {activeTab === 'teams' && (
                                 <div>
                                     <h1 className="text-3xl md:text-4xl mb-6">{filteredTeams.length} Tim Ditemukan</h1>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                                        {filteredTeams.map(team => <TeamCard key={team.id} {...team} />)}
-                                    </div>
+                                    {filteredTeams.length === 0 ? (
+                                         <p className="text-gray-400 text-center py-10">Tidak ada tim yang cocok dengan filter Anda.</p>
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                            {filteredTeams.map(team => <TeamCard key={team.id} {...team} />)}
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
                             {activeTab === 'players' && (
                                 <div>
                                     <h1 className="text-3xl md:text-4xl mb-6">{filteredPlayers.length} Pemain Ditemukan</h1>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                                        {filteredPlayers.map(player => {
-                                            const playerData = player as any;
-                                            return (
-                                                <PlayerCard 
-                                                    key={playerData.id} 
-                                                    id={playerData.id}
-                                                    name={playerData.displayName || playerData.name} // DisplayName atau Fallback
-                                                    tag={playerData.playerTag || playerData.tag} 
-                                                    thLevel={playerData.thLevel}
-                                                    reputation={playerData.reputation}
-                                                    role={playerData.role}
-                                                    avatarUrl={playerData.avatarUrl}
+                                     {filteredPlayers.length === 0 ? (
+                                         <p className="text-gray-400 text-center py-10">Tidak ada pemain yang cocok dengan filter Anda.</p>
+                                     ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                            {filteredPlayers.map(player => (
+                                                <PlayerCard
+                                                    key={player.id}
+                                                    id={player.id}
+                                                    name={player.displayName || player.name}
+                                                    tag={player.playerTag || player.tag}
+                                                    thLevel={player.thLevel}
+                                                    reputation={player.reputation ?? 0}
+                                                    role={player.role}
+                                                    avatarUrl={player.avatarUrl}
                                                 />
-                                            );
-                                        })}
-                                    </div>
+                                            ))}
+                                        </div>
+                                     )}
                                 </div>
                             )}
-                            
+
                             <div className="text-center mt-10">
-                                <Button variant="secondary" size="lg" disabled={isLoading}>Muat Lebih Banyak</Button>
+                                {/* Tombol Muat Lebih Banyak tetap disabled sementara */}
+                                <Button variant="secondary" size="lg" disabled={true}>Muat Lebih Banyak</Button>
                             </div>
                         </>
                     )}
@@ -177,3 +201,4 @@ const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => 
 };
 
 export default TeamHubClient;
+

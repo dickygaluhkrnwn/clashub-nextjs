@@ -17,11 +17,11 @@ import {
   orderBy, // BARU: Impor orderBy
   limit // BARU: Impor limit
 } from 'firebase/firestore';
-import { 
-  ref, 
-  uploadBytes, 
-  getDownloadURL, 
-  StorageReference 
+import {
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  StorageReference
 } from "firebase/storage"; // Impor fungsi Storage
 
 // Impor tipe data yang sudah kita definisikan
@@ -38,18 +38,18 @@ type FirestoreDocument<T> = T & { id: string };
  * @param uid - ID unik pengguna.
  * @param file - File Blob atau File yang akan diunggah.
  * @returns URL publik dari gambar yang diunggah.
+ * @throws Error jika gagal mengunggah atau mendapatkan URL.
  */
 export const uploadProfileImage = async (uid: string, file: File | Blob): Promise<string> => {
-    // Tentukan path penyimpanan: users/USER_UID/avatar.jpg
+  try {
     const storageRef: StorageReference = ref(storage, `users/${uid}/avatar.jpg`);
-    
-    // Unggah file. Kami menggunakan 'avatar.jpg' sebagai nama tetap.
     const snapshot = await uploadBytes(storageRef, file);
-    
-    // Dapatkan URL publik dari file yang diunggah
     const downloadURL = await getDownloadURL(snapshot.ref);
-    
     return downloadURL;
+  } catch (error) {
+    console.error(`Firestore Error [uploadProfileImage(${uid})]:`, error);
+    throw new Error("Gagal mengunggah gambar profil."); // Re-throw error
+  }
 };
 
 /**
@@ -57,31 +57,32 @@ export const uploadProfileImage = async (uid: string, file: File | Blob): Promis
  * Membuat dokumen profil pengguna baru di koleksi 'users' saat registrasi.
  * @param uid - ID unik pengguna dari Firebase Authentication.
  * @param data - Data awal profil, seperti email, playerTag, dan thLevel.
+ * @throws Error jika gagal membuat profil.
  */
 export const createUserProfile = async (uid: string, data: Partial<UserProfile>): Promise<void> => {
-  const userRef = doc(firestore, 'users', uid);
-  
-  // Menentukan data awal lengkap untuk dokumen Firestore
-  const profileData: UserProfile = {
-    uid: uid,
-    email: data.email || null,
-    // Menggunakan PlayerTag sebagai DisplayName awal jika tidak ada
-    displayName: data.playerTag || data.email?.split('@')[0] || 'New Player', 
-    playerTag: data.playerTag || '',
-    thLevel: data.thLevel || 1, // Default ke TH 1 jika tidak ada
-    bio: 'Ini adalah E-Sports CV baru saya di Clashub!',
-    role: 'Free Agent', // Default role untuk pengguna baru
-    playStyle: 'Attacker Utama', // Default play style
-    activeHours: 'Belum diatur',
-    reputation: 5.0, // Reputasi awal sempurna
-    avatarUrl: '/images/placeholder-avatar.png', // Default URL Avatar
-    ...data, // Menimpa nilai default jika ada di data input
-    teamId: null, // BARU: Default teamId ke null
-    teamName: null, // BARU: Default teamName ke null
-  };
-  
-  // Menggunakan setDoc untuk membuat dokumen dengan ID Auth pengguna
-  await setDoc(userRef, profileData);
+  try {
+    const userRef = doc(firestore, 'users', uid);
+    const profileData: UserProfile = {
+      uid: uid,
+      email: data.email || null,
+      displayName: data.playerTag || data.email?.split('@')[0] || 'New Player',
+      playerTag: data.playerTag || '',
+      thLevel: data.thLevel || 1,
+      bio: 'Ini adalah E-Sports CV baru saya di Clashub!',
+      role: 'Free Agent',
+      playStyle: 'Attacker Utama',
+      activeHours: 'Belum diatur',
+      reputation: 5.0,
+      avatarUrl: '/images/placeholder-avatar.png',
+      ...data,
+      teamId: null,
+      teamName: null,
+    };
+    await setDoc(userRef, profileData);
+  } catch (error) {
+    console.error(`Firestore Error [createUserProfile(${uid})]:`, error);
+    throw new Error("Gagal membuat profil pengguna baru di database."); // Re-throw error
+  }
 };
 
 /**
@@ -89,28 +90,39 @@ export const createUserProfile = async (uid: string, data: Partial<UserProfile>)
  * Memperbarui data profil pengguna yang ada di Firestore.
  * @param uid - ID unik pengguna.
  * @param data - Data profil yang ingin diperbarui.
+ * @throws Error jika gagal memperbarui profil.
  */
 export const updateUserProfile = async (uid: string, data: Partial<UserProfile>): Promise<void> => {
-  const userRef = doc(firestore, 'users', uid);
-  await updateDoc(userRef, data);
+  try {
+    const userRef = doc(firestore, 'users', uid);
+    await updateDoc(userRef, data);
+  } catch (error) {
+    console.error(`Firestore Error [updateUserProfile(${uid})]:`, error);
+    throw new Error("Gagal memperbarui profil pengguna."); // Re-throw error
+  }
 };
 
 /**
  * @function getUserProfile
  * Mengambil data profil seorang pengguna dari Firestore.
  * @param uid - ID unik pengguna.
- * @returns Object UserProfile jika ada, atau null jika tidak ditemukan.
+ * @returns Object UserProfile jika ada, atau null jika tidak ditemukan atau error.
  */
 export const getUserProfile = async (uid: string): Promise<UserProfile | null> => {
-  const userRef = doc(firestore, 'users', uid);
-  const docSnap = await getDoc(userRef);
+  try {
+    const userRef = doc(firestore, 'users', uid);
+    const docSnap = await getDoc(userRef);
 
-  if (docSnap.exists()) {
-    const data = docSnap.data() as UserProfile;
-    return { ...data, uid: docSnap.id }; 
-  } else {
-    console.log('No such user profile!');
-    return null;
+    if (docSnap.exists()) {
+      const data = docSnap.data() as UserProfile;
+      return { ...data, uid: docSnap.id };
+    } else {
+      console.log(`Firestore Info [getUserProfile(${uid})]: No such user profile!`);
+      return null;
+    }
+  } catch (error) {
+    console.error(`Firestore Error [getUserProfile(${uid})]:`, error);
+    return null; // Return null on error for fetching single doc
   }
 };
 
@@ -119,66 +131,81 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
  * Fungsi generik untuk mengambil dokumen tunggal dari sebuah koleksi.
  * @param collectionName - Nama koleksi di Firestore.
  * @param id - ID dokumen.
- * @returns Dokumen jika ada, atau null.
+ * @returns Dokumen jika ada, atau null jika tidak ditemukan atau error.
  */
 async function getDocumentById<T>(collectionName: string, id: string): Promise<FirestoreDocument<T> | null> {
+  try {
     const docRef = doc(firestore, collectionName, id);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
-        const data = docSnap.data() as T;
-        return { ...data, id: docSnap.id } as FirestoreDocument<T>;
+      const data = docSnap.data() as T;
+      return { ...data, id: docSnap.id } as FirestoreDocument<T>;
     }
+    console.log(`Firestore Info [getDocumentById(${collectionName}, ${id})]: Document not found.`);
     return null;
+  } catch (error) {
+    console.error(`Firestore Error [getDocumentById(${collectionName}, ${id})]:`, error);
+    return null; // Return null on error
+  }
 }
 
 /**
  * @function getCollectionData
  * Fungsi generik untuk mengambil semua dokumen dari sebuah koleksi (tanpa query).
  * @param collectionName - Nama koleksi di Firestore.
- * @returns Array berisi data dokumen.
+ * @returns Array berisi data dokumen, atau array kosong jika error.
  */
 async function getCollectionData<T>(collectionName: string): Promise<FirestoreDocument<T>[]> {
+  try {
     const colRef = collection(firestore, collectionName);
     const snapshot = await getDocs(colRef);
-    
+
     return snapshot.docs.map((doc: DocumentData) => ({
       id: doc.id,
       ...doc.data(),
-    })) as FirestoreDocument<T>[]; 
+    })) as FirestoreDocument<T>[];
+  } catch (error) {
+    console.error(`Firestore Error [getCollectionData(${collectionName})]:`, error);
+    return []; // Return empty array on error
+  }
 }
 
 // --- FUNGSI SPESIFIK TIM ---
 
 /**
  * @function getTeamById
- * Mengambil data tim tunggal dari koleksi 'teams'.
+ * Mengambil data tim tunggal dari koleksi 'teams'. (Menggunakan helper getDocumentById)
  */
 export const getTeamById = async (teamId: string): Promise<FirestoreDocument<Team> | null> => {
+    // Error handling sudah ada di getDocumentById
     return getDocumentById<Team>('teams', teamId);
 };
 
 /**
  * @function getTeams
- * Mengambil semua data tim dari koleksi 'teams'.
+ * Mengambil semua data tim dari koleksi 'teams'. (Menggunakan helper getCollectionData)
  */
 export const getTeams = async (): Promise<FirestoreDocument<Team>[]> => {
+    // Error handling sudah ada di getCollectionData
     return getCollectionData<Team>('teams');
 };
 
 /**
  * @function getPlayers
- * Mengambil semua data pemain (profil pengguna) dari koleksi 'users'.
+ * Mengambil semua data pemain (profil pengguna) dari koleksi 'users'. (Menggunakan helper getCollectionData)
  */
 export const getPlayers = async (): Promise<FirestoreDocument<Player>[]> => {
+    // Error handling sudah ada di getCollectionData
     return getCollectionData<Player>('users');
 };
 
 /**
  * @function getTournaments
- * Mengambil semua data turnamen dari koleksi 'tournaments'.
+ * Mengambil semua data turnamen dari koleksi 'tournaments'. (Menggunakan helper getCollectionData)
  */
 export const getTournaments = async (): Promise<FirestoreDocument<Tournament>[]> => {
+    // Error handling sudah ada di getCollectionData
     return getCollectionData<Tournament>('tournaments');
 };
 
@@ -186,15 +213,15 @@ export const getTournaments = async (): Promise<FirestoreDocument<Tournament>[]>
  * @function getTeamMembers
  * Mengambil semua UserProfile yang teamId-nya cocok.
  * @param teamId - ID Tim.
- * @returns Array UserProfile (anggota tim).
+ * @returns Array UserProfile (anggota tim), atau array kosong jika error.
  */
 export const getTeamMembers = async (teamId: string): Promise<UserProfile[]> => {
+  try {
     const usersRef = collection(firestore, 'users');
-    // Query untuk mencari semua pengguna di tim ini yang statusnya bukan 'Free Agent'
     const q = query(
         usersRef,
         where('teamId', '==', teamId),
-        where('role', '!=', 'Free Agent') 
+        where('role', '!=', 'Free Agent')
     );
     const snapshot = await getDocs(q);
 
@@ -202,6 +229,10 @@ export const getTeamMembers = async (teamId: string): Promise<UserProfile[]> => 
         uid: doc.id,
         ...doc.data(),
     })) as UserProfile[];
+  } catch (error) {
+    console.error(`Firestore Error [getTeamMembers(${teamId})]:`, error);
+    return []; // Return empty array on error
+  }
 };
 
 
@@ -210,16 +241,16 @@ export const getTeamMembers = async (teamId: string): Promise<UserProfile[]> => 
 /**
  * @function sendJoinRequest
  * Mengirim permintaan bergabung ke sebuah tim.
+ * @throws Error jika gagal mengirim permintaan.
  */
 export const sendJoinRequest = async (
-    teamId: string, 
-    teamName: string, 
-    requesterProfile: UserProfile, 
+    teamId: string,
+    teamName: string,
+    requesterProfile: UserProfile,
     message: string = ''
 ): Promise<void> => {
-    
+  try {
     const requestsRef = collection(firestore, 'joinRequests');
-    
     const requestData: Omit<JoinRequest, 'id'> = {
         teamId,
         teamName,
@@ -228,33 +259,39 @@ export const sendJoinRequest = async (
         requesterThLevel: requesterProfile.thLevel,
         message,
         status: 'pending',
-        timestamp: Timestamp.now().toDate(), // Menggunakan Firebase Timestamp
+        timestamp: Timestamp.now().toDate(), // Tetap gunakan toDate() agar sesuai tipe
     };
-
     await addDoc(requestsRef, requestData);
+  } catch (error) {
+    console.error(`Firestore Error [sendJoinRequest(${teamId}, ${requesterProfile.uid})]:`, error);
+    throw new Error("Gagal mengirim permintaan bergabung."); // Re-throw error
+  }
 };
 
 /**
  * @function getJoinRequests
  * Mengambil semua permintaan bergabung yang PENDING untuk tim tertentu.
+ * @returns Array JoinRequest, atau array kosong jika error.
  */
 export const getJoinRequests = async (teamId: string): Promise<FirestoreDocument<JoinRequest>[]> => {
+  try {
     const requestsRef = collection(firestore, 'joinRequests');
-    
     const q = query(
         requestsRef,
         where('teamId', '==', teamId),
         where('status', '==', 'pending')
     );
-    
     const snapshot = await getDocs(q);
 
     return snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        // Memastikan tipe data timestamp
-        timestamp: (doc.data().timestamp as Timestamp).toDate() 
+        timestamp: (doc.data().timestamp as Timestamp).toDate()
     })) as FirestoreDocument<JoinRequest>[];
+  } catch (error) {
+    console.error(`Firestore Error [getJoinRequests(${teamId})]:`, error);
+    return []; // Return empty array on error
+  }
 };
 
 
@@ -263,10 +300,16 @@ export const getJoinRequests = async (teamId: string): Promise<FirestoreDocument
  * Memperbarui status permintaan (Approve/Reject).
  * @param requestId - ID dokumen permintaan.
  * @param newStatus - Status baru ('approved' atau 'rejected').
+ * @throws Error jika gagal memperbarui status.
  */
 export const updateJoinRequestStatus = async (requestId: string, newStatus: 'approved' | 'rejected'): Promise<void> => {
+  try {
     const requestRef = doc(firestore, 'joinRequests', requestId);
     await updateDoc(requestRef, { status: newStatus });
+  } catch (error) {
+    console.error(`Firestore Error [updateJoinRequestStatus(${requestId}, ${newStatus})]:`, error);
+    throw new Error("Gagal memperbarui status permintaan bergabung."); // Re-throw error
+  }
 };
 
 /**
@@ -276,19 +319,25 @@ export const updateJoinRequestStatus = async (requestId: string, newStatus: 'app
  * @param teamId - ID Tim baru/saat ini.
  * @param teamName - Nama Tim baru/saat ini.
  * @param newRole - Peran baru pengguna.
+ * @throws Error jika gagal memperbarui peran.
  */
 export const updateMemberRole = async (
-    uid: string, 
-    teamId: string | null, 
-    teamName: string | null, 
+    uid: string,
+    teamId: string | null,
+    teamName: string | null,
     newRole: UserProfile['role']
 ): Promise<void> => {
+  try {
     const userRef = doc(firestore, 'users', uid);
     await updateDoc(userRef, {
         teamId: teamId,
         teamName: teamName,
         role: newRole,
     });
+  } catch (error) {
+    console.error(`Firestore Error [updateMemberRole(${uid}, ${newRole})]:`, error);
+    throw new Error("Gagal memperbarui peran anggota."); // Re-throw error
+  }
 };
 
 // --- FUNGSI SPESIFIK KNOWLEDGE HUB (Tugas 3.1 & 3.2) ---
@@ -298,18 +347,24 @@ export const updateMemberRole = async (
  * Mengambil data postingan tunggal dari koleksi 'posts'.
  */
 export const getPostById = async (postId: string): Promise<FirestoreDocument<Post> | null> => {
-    const post = await getDocumentById<Post>('posts', postId);
-    
-    if (post) {
-        // Konversi Timestamp di dalam objek Post jika ada, karena getDocumentById tidak melakukan konversi tipe Date
-        const data = post as any;
-        return {
-            ...post,
-            createdAt: (data.createdAt as Timestamp).toDate(),
-            updatedAt: data.updatedAt ? (data.updatedAt as Timestamp).toDate() : undefined,
-        } as FirestoreDocument<Post>;
+  // getDocumentById sudah memiliki try...catch
+  const post = await getDocumentById<Post>('posts', postId);
+
+  if (post) {
+    try {
+      // Tambahkan try-catch terpisah untuk konversi timestamp yang lebih spesifik
+      const data = post as any;
+      return {
+        ...post,
+        createdAt: (data.createdAt as Timestamp).toDate(),
+        updatedAt: data.updatedAt ? (data.updatedAt as Timestamp).toDate() : undefined,
+      } as FirestoreDocument<Post>;
+    } catch (conversionError) {
+      console.error(`Firestore Error [getPostById(${postId}) - Timestamp Conversion]:`, conversionError);
+      return null; // Gagal konversi tanggal dianggap data tidak valid
     }
-    return null;
+  }
+  return null;
 };
 
 /**
@@ -318,16 +373,18 @@ export const getPostById = async (postId: string): Promise<FirestoreDocument<Pos
  * @param data - Data postingan dari form.
  * @param authorProfile - Profil pengguna yang membuat postingan.
  * @returns ID dokumen postingan yang baru dibuat.
+ * @throws Error jika gagal membuat postingan.
  */
 export const createPost = async (
-    data: { 
-        title: string, 
-        content: string, 
-        category: PostCategory, 
-        tags: string[], 
+    data: {
+        title: string,
+        content: string,
+        category: PostCategory,
+        tags: string[],
     },
     authorProfile: UserProfile
 ): Promise<string> => {
+  try {
     const postsRef = collection(firestore, 'posts');
     const now = Timestamp.now();
 
@@ -339,14 +396,18 @@ export const createPost = async (
         authorId: authorProfile.uid,
         authorName: authorProfile.displayName,
         authorAvatarUrl: authorProfile.avatarUrl || '/images/placeholder-avatar.png',
-        likes: 0, // Inisialisasi
-        replies: 0, // Inisialisasi
+        likes: 0,
+        replies: 0,
         createdAt: now,
         updatedAt: now,
     };
 
     const docRef = await addDoc(postsRef, newPostData);
     return docRef.id;
+  } catch (error) {
+    console.error(`Firestore Error [createPost(author: ${authorProfile.uid})]:`, error);
+    throw new Error("Gagal membuat postingan baru."); // Re-throw error
+  }
 };
 
 /**
@@ -355,51 +416,51 @@ export const createPost = async (
  * @param category - Kategori untuk difilter.
  * @param sortBy - Kolom untuk mengurutkan ('createdAt' atau 'likes').
  * @param sortOrder - Urutan ('desc' atau 'asc').
- * @returns Array Post.
+ * @returns Array Post, atau array kosong jika error.
  */
 export const getPosts = async (
-    category: PostCategory | 'all', 
-    sortBy: 'createdAt' | 'likes' = 'createdAt', 
+    category: PostCategory | 'all',
+    sortBy: 'createdAt' | 'likes' = 'createdAt',
     sortOrder: 'desc' | 'asc' = 'desc'
 ): Promise<FirestoreDocument<Post>[]> => {
+    // try...catch sudah ada di sini, kita hanya perlu memastikan logging-nya informatif
     const postsRef = collection(firestore, 'posts');
     let q = query(postsRef);
 
-    // 1. Filter berdasarkan Kategori
-    // Pastikan untuk tidak memfilter jika kategori adalah 'Semua Diskusi' atau 'all'
     if (category && category !== 'Semua Diskusi' && category !== 'all') {
         q = query(q, where('category', '==', category));
     }
-    
-    // 2. Sortir berdasarkan kolom yang diminta
+
     if (sortBy === 'createdAt') {
         q = query(q, orderBy('createdAt', sortOrder));
     } else if (sortBy === 'likes') {
-        // Mengurutkan berdasarkan likes (simulasi trending)
         q = query(q, orderBy('likes', sortOrder));
     }
-    
-    // Batasi hasil untuk performa
-    q = query(q, limit(50)); 
+
+    q = query(q, limit(50));
 
     try {
         const snapshot = await getDocs(q);
 
         return snapshot.docs.map(doc => {
             const data = doc.data();
-            return {
-                id: doc.id,
-                ...data,
-                // Pastikan tipe data tanggal dikonversi dengan benar
-                createdAt: (data.createdAt as Timestamp).toDate(),
-                updatedAt: data.updatedAt ? (data.updatedAt as Timestamp).toDate() : undefined,
-            } as FirestoreDocument<Post>;
-        });
+            try {
+              // Tambahkan try-catch di dalam map untuk konversi timestamp
+              return {
+                  id: doc.id,
+                  ...data,
+                  createdAt: (data.createdAt as Timestamp).toDate(),
+                  updatedAt: data.updatedAt ? (data.updatedAt as Timestamp).toDate() : undefined,
+              } as FirestoreDocument<Post>;
+            } catch (conversionError) {
+               console.error(`Firestore Error [getPosts - Timestamp Conversion for doc ${doc.id}]:`, conversionError);
+               return null; // Tandai dokumen ini sebagai tidak valid
+            }
+        }).filter(post => post !== null) as FirestoreDocument<Post>[]; // Filter dokumen yang gagal konversi
 
     } catch (error) {
-        // Log the error for debugging
-        console.error("Firestore Error: Failed to fetch posts:", error);
-        // Mengembalikan array kosong jika terjadi kesalahan
-        return []; 
+        // Logging error yang lebih informatif
+        console.error(`Firestore Error [getPosts(category: ${category}, sortBy: ${sortBy})]:`, error);
+        return []; // Return empty array on error
     }
 };

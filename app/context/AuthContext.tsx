@@ -2,56 +2,66 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
-import { app } from '@/lib/firebase'; // Impor instance aplikasi Firebase
+import { app } from '@/lib/firebase';
+// Import tipe ServerUser
+import { ServerUser } from '@/lib/server-auth';
 
-// Inisialisasi Firebase Auth
 const auth = getAuth(app);
 
-// Tipe untuk nilai yang akan disediakan oleh konteks
 interface AuthContextType {
-  currentUser: User | null;
+  currentUser: User | ServerUser | null; // Tipe bisa User dari Firebase atau ServerUser dari server
   loading: boolean;
 }
 
-// Membuat konteks dengan nilai default
-const AuthContext = createContext<AuthContextType>({ 
+const AuthContext = createContext<AuthContextType>({
     currentUser: null,
-    loading: true 
+    loading: true
 });
 
-// Komponen Provider yang akan "membungkus" aplikasi kita
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+// Tambahkan prop initialServerUser
+interface AuthProviderProps {
+    children: ReactNode;
+    initialServerUser: ServerUser | null; // Terima data dari server
+}
+
+export function AuthProvider({ children, initialServerUser }: AuthProviderProps) {
+  // Gunakan initialServerUser sebagai state awal jika ada
+  // Casting `initialServerUser as User` aman di sini karena kita hanya butuh info dasar (uid, dll) untuk render awal
+  const [currentUser, setCurrentUser] = useState<User | ServerUser | null>(initialServerUser);
+  // Jika server sudah memberikan user, kita anggap tidak loading lagi di awal
+  const [loading, setLoading] = useState(!initialServerUser);
 
   useEffect(() => {
-    // onAuthStateChanged adalah listener dari Firebase
-    // yang akan berjalan setiap kali status login pengguna berubah.
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      // Update state dengan object User dari Firebase saat listener berjalan
       setCurrentUser(user);
-      setLoading(false);
+      // Hanya set loading false jika listener *pertama kali* berjalan
+      if (loading) {
+          setLoading(false);
+      }
     });
 
-    // Membersihkan listener saat komponen tidak lagi digunakan
+    // Membersihkan listener
     return unsubscribe;
+  // Hapus `loading` dari dependency array agar setLoading(false) hanya dipanggil sekali oleh listener
   }, []);
 
   const value = {
     currentUser,
-    loading,
+    // Loading state sekarang hanya true jika initialServerUser null DAN listener belum berjalan
+    loading: loading && !currentUser,
   };
 
-  // Kita tidak akan merender children sampai status autentikasi selesai dicek
-  // untuk menghindari "kedipan" UI.
+  // Logika render children diubah sedikit:
+  // Render children jika kita punya initialServerUser ATAU jika client-side loading sudah selesai
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {/* Tampilkan children jika ada user dari server ATAU jika loading client sudah selesai */}
+      {(initialServerUser || !loading) && children}
     </AuthContext.Provider>
   );
 }
 
-// Custom hook untuk mempermudah penggunaan konteks di komponen lain
 export const useAuth = () => {
   return useContext(AuthContext);
 };
-
