@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react'; // Import useEffect
+import { useState, useEffect, ReactNode } from 'react'; // Import ReactNode
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/Button';
@@ -9,7 +9,8 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword
 } from 'firebase/auth';
-import { createUserProfile } from '@/lib/firestore'; // Import fungsi CRUD
+import { createUserProfile } from '@/lib/firestore';
+import ThemeToggle from '@/app/components/ui/ThemeToggle'; // Import ThemeToggle
 
 // Tipe untuk menentukan form mana yang aktif
 type FormType = 'login' | 'register';
@@ -25,7 +26,6 @@ const validateEmail = (email: string): string | null => {
 const validatePassword = (password: string): string | null => {
   if (!password) return "Password wajib diisi.";
   if (password.length < 6) return "Password minimal 6 karakter.";
-  // Tambahkan validasi lain jika perlu (misal: huruf besar, angka)
   return null;
 };
 
@@ -37,11 +37,22 @@ const validateConfirmPassword = (password: string, confirm: string): string | nu
 
 const validatePlayerTag = (tag: string): string | null => {
   if (!tag) return "Player Tag wajib diisi.";
+  // Player Tag COC hanya terdiri dari huruf C, G, J, L, P, Q, R, U, V, Y, dan 0, 2, 8, 9
   const tagRegex = /^#[0289PYLQGRJCUV]{4,}$/; // # + min 4 karakter (total min 5)
-  if (!tagRegex.test(tag)) return "Format Player Tag tidak valid (Contoh: #P9Y8Q2V). Hanya boleh 0289PYLQGRJCUV.";
+  if (!tagRegex.test(tag)) return "Format Player Tag tidak valid (Contoh: #P9Y8Q2V).";
   return null;
 };
 // --- End Validation Utilities ---
+
+// --- Inline Component: FormGroup (untuk tampilan error yang konsisten) ---
+const FormGroup: React.FC<{ children: ReactNode, error?: string | null }> = ({ children, error }) => (
+    <div className="space-y-1">
+        {children}
+        {error && <p className="text-xs text-coc-red-dark mt-1 font-sans">{error}</p>}
+    </div>
+);
+// --- End Inline Component ---
+
 
 const AuthPage = () => {
   const [activeForm, setActiveForm] = useState<FormType>('login');
@@ -60,8 +71,8 @@ const AuthPage = () => {
     password: null,
     confirmPassword: null,
     playerTag: null,
-    thLevel: null, // Tambahkan jika perlu validasi thLevel
-    general: null, // Untuk error umum (login/register fail)
+    thLevel: null,
+    general: null,
   });
   const [isRegisterFormValid, setIsRegisterFormValid] = useState(false);
   // --- End State untuk Validation Errors ---
@@ -76,15 +87,16 @@ const AuthPage = () => {
       const passwordError = validatePassword(password);
       const confirmPasswordError = validateConfirmPassword(password, confirmPassword);
       const playerTagError = validatePlayerTag(playerTag);
-      const thLevelError = !thLevel ? "Town Hall wajib dipilih." : null; // Validasi TH
+      const thLevelError = !thLevel ? "Town Hall wajib dipilih." : null;
 
+      // Catat error ke state
       setFormErrors({
         email: emailError,
         password: passwordError,
         confirmPassword: confirmPasswordError,
         playerTag: playerTagError,
         thLevel: thLevelError,
-        general: null // Reset general error on input change
+        general: null
       });
 
       // Cek apakah semua field valid
@@ -100,13 +112,14 @@ const AuthPage = () => {
         setFormErrors({
             email: null, password: null, confirmPassword: null, playerTag: null, thLevel: null, general: null
         });
-        setIsRegisterFormValid(false); // Login form validity is checked on submit
+        setIsRegisterFormValid(false);
     }
   }, [email, password, confirmPassword, playerTag, thLevel, activeForm]);
   // --- End Real-time Validation Effect ---
 
 
   const handleCookieSync = async (uid: string) => {
+    // Fungsi ini tidak berubah (simulasi sync cookie)
     await fetch('/api/login', {
       method: 'POST',
       headers: {
@@ -126,30 +139,28 @@ const AuthPage = () => {
     setConfirmPassword('');
     setPlayerTag('');
     setThLevel('');
-    setIsRegisterFormValid(false); // Reset validitas
+    setIsRegisterFormValid(false);
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Jalankan validasi sekali lagi sebelum submit (meskipun sudah real-time)
-    // dan cek isRegisterFormValid state
+    
     if (!isRegisterFormValid) {
-       // PERBAIKAN: Gunakan functional update yang benar
        setFormErrors(currentErrors => ({ ...currentErrors, general: "Harap perbaiki error pada form." }));
-       // Trigger re-check if user somehow bypassed useEffect check
-       const emailError = validateEmail(email);
-       const passwordError = validatePassword(password);
-       const confirmPasswordError = validateConfirmPassword(password, confirmPassword);
-       const playerTagError = validatePlayerTag(playerTag);
-       const thLevelError = !thLevel ? "Town Hall wajib dipilih." : null;
-        // PERBAIKAN: Gunakan functional update yang benar (ambil general error dari state sebelumnya)
-       setFormErrors(currentErrors => ({ email: emailError, password: passwordError, confirmPassword: confirmPasswordError, playerTag: playerTagError, thLevel: thLevelError, general: currentErrors.general }));
+       // Re-check validation state explicitly (good practice)
+       setFormErrors(currentErrors => ({ 
+           email: validateEmail(email), 
+           password: validatePassword(password), 
+           confirmPassword: validateConfirmPassword(password, confirmPassword), 
+           playerTag: validatePlayerTag(playerTag), 
+           thLevel: !thLevel ? "Town Hall wajib dipilih." : null, 
+           general: currentErrors.general 
+       }));
        return;
     }
 
     setIsLoading(true);
-     // PERBAIKAN: Gunakan functional update yang benar
-    setFormErrors(currentErrors => ({ ...currentErrors, general: null })); // Clear general error
+    setFormErrors(currentErrors => ({ ...currentErrors, general: null }));
 
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -166,8 +177,15 @@ const AuthPage = () => {
       router.push('/');
     } catch (error: any) {
       console.error("Registrasi Gagal:", error.message);
-       // PERBAIKAN: Gunakan functional update yang benar
-      setFormErrors(currentErrors => ({ ...currentErrors, general: "Registrasi gagal. Cek kembali data Anda. Error: " + error.code }));
+      // Pengecekan error spesifik Firebase yang umum
+      let displayError = "Registrasi gagal. Cek kembali data Anda.";
+      if (error.code === 'auth/email-already-in-use') {
+         displayError = 'Email sudah terdaftar. Silakan login atau gunakan email lain.';
+      } else if (error.code === 'auth/invalid-email') {
+         displayError = 'Format email tidak valid.';
+      }
+
+      setFormErrors(currentErrors => ({ ...currentErrors, general: displayError }));
     } finally {
       setIsLoading(false);
     }
@@ -175,9 +193,24 @@ const AuthPage = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Jalankan validasi dasar sebelum memanggil Firebase (hanya untuk email/password)
+    const emailError = validateEmail(email);
+    const passwordError = validatePassword(password);
+    
+    if (emailError || passwordError) {
+         setFormErrors(currentErrors => ({ 
+           ...currentErrors, 
+           email: emailError, 
+           password: passwordError, 
+           general: "Email atau password tidak valid." 
+        }));
+        return;
+    }
+
     setIsLoading(true);
-     // PERBAIKAN: Gunakan functional update yang benar
-    setFormErrors(currentErrors => ({ ...currentErrors, general: null })); // Clear general error
+    setFormErrors(currentErrors => ({ ...currentErrors, general: null }));
+    
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const uid = userCredential.user.uid;
@@ -185,151 +218,156 @@ const AuthPage = () => {
       await handleCookieSync(uid);
       router.push('/');
     } catch (error: any) {
-        // PERBAIKAN: Gunakan functional update yang benar
        setFormErrors(currentErrors => ({ ...currentErrors, general: "Email atau password salah." }));
     } finally {
       setIsLoading(false);
     }
   };
 
+  const inputClasses = (hasError: boolean) => (
+      `w-full bg-coc-stone/50 border rounded-md px-4 py-2 text-white placeholder-gray-500 focus:ring-1 focus:ring-coc-gold focus:border-coc-gold transition-colors ${
+          hasError 
+              ? 'border-coc-red focus:border-coc-red' // Gaya error: border merah
+              : 'border-coc-gold-dark/50' // Gaya default: border emas gelap
+      }`
+  );
+  
+  // Opsi TH Level (diambil dari th-utils atau di-hardcode)
+  const thLevelOptions = [16, 15, 14, 13, 12, 11, 10, 9];
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-stone-pattern bg-cover p-4">
-      <div className="w-full max-w-md card-stone p-8">
-        <Link href="/" className="font-supercell text-4xl text-coc-gold block text-center mb-6" style={{ textShadow: '2px 2px 5px rgba(0,0,0,0.8)' }}>
+      {/* Kontainer Auth Utama (card-stone) */}
+      <div className="relative w-full max-w-md card-stone p-8">
+        
+        {/* Tambahkan ThemeToggle di sudut (seperti prototipe HTML) */}
+        <div className="absolute top-4 right-4">
+            <ThemeToggle />
+        </div>
+        
+        {/* Logo Clashub */}
+        <Link href="/" className="font-clash text-4xl text-coc-gold block text-center mb-6" style={{ textShadow: '2px 2px 5px rgba(0,0,0,0.8)' }}>
           CLASHUB
         </Link>
 
         {/* Tab Switcher */}
-        <div className="flex border-b-2 border-coc-gold-dark/20 mb-6">
+        <div className="flex border-b-2 border-coc-gold-dark/20 mb-6 font-clash">
           <button
             onClick={() => switchForm('login')}
-            className={`flex-1 pb-2 font-bold transition-colors ${activeForm === 'login' ? 'text-coc-gold border-b-2 border-coc-gold' : 'text-gray-400 hover:text-white'}`}
+            className={`flex-1 pb-2 text-lg transition-colors ${activeForm === 'login' ? 'text-coc-gold border-b-2 border-coc-gold' : 'text-gray-400 hover:text-white'}`}
           >
             LOGIN
           </button>
           <button
             onClick={() => switchForm('register')}
-            className={`flex-1 pb-2 font-bold transition-colors ${activeForm === 'register' ? 'text-coc-gold border-b-2 border-coc-gold' : 'text-gray-400 hover:text-white'}`}
+            className={`flex-1 pb-2 text-lg transition-colors ${activeForm === 'register' ? 'text-coc-gold border-b-2 border-coc-gold' : 'text-gray-400 hover:text-white'}`}
           >
             DAFTAR AKUN
           </button>
         </div>
 
         {/* General Error Message */}
-        {formErrors.general && <p className="bg-coc-red/20 text-red-400 text-center text-sm p-3 rounded-md mb-4">{formErrors.general}</p>}
+        {formErrors.general && <p className="bg-coc-red/20 text-coc-red-dark text-center text-sm p-3 rounded-md mb-4 font-sans border border-coc-red">{formErrors.general}</p>}
 
         {/* Login Form */}
-        <form onSubmit={handleLogin} className={activeForm === 'login' ? 'space-y-4' : 'hidden'}>
-          <div> {/* Wrapper for input + error */}
+        <form onSubmit={handleLogin} className={activeForm === 'login' ? 'space-y-5' : 'hidden'}>
+          
+          <FormGroup error={formErrors.email}>
               <input
                 type="email"
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className={`w-full bg-coc-stone/50 border rounded-md px-4 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold ${formErrors.email ? 'border-coc-red' : 'border-coc-gold-dark/50'}`} // Conditional border
+                className={inputClasses(!!formErrors.email)}
               />
-              {/* Login doesn't need real-time validation display, error shown generally */}
-          </div>
-           <div> {/* Wrapper for input + error */}
+          </FormGroup>
+          
+          <FormGroup error={formErrors.password}>
               <input
                 type="password"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className={`w-full bg-coc-stone/50 border rounded-md px-4 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold ${formErrors.password ? 'border-coc-red' : 'border-coc-gold-dark/50'}`} // Conditional border
+                className={inputClasses(!!formErrors.password)}
               />
-              {/* Login doesn't need real-time validation display, error shown generally */}
-           </div>
-          <Link href="#" className="block text-right text-sm text-gray-400 hover:text-coc-gold">Lupa Password?</Link>
-          <Button type="submit" variant="primary" className="w-full !mt-6" disabled={isLoading}>
+           </FormGroup>
+          
+          <Link href="#" className="block text-right text-sm text-gray-400 hover:text-coc-gold font-sans -mt-2">Lupa Password?</Link>
+          
+          <Button type="submit" variant="primary" className="w-full !mt-6" size="lg" disabled={isLoading}>
             {isLoading ? 'Memproses...' : 'Login'}
           </Button>
         </form>
 
         {/* Register Form */}
-        <form onSubmit={handleRegister} className={activeForm === 'register' ? 'space-y-4' : 'hidden'}>
-           <div> {/* Wrapper for input + error */}
+        <form onSubmit={handleRegister} className={activeForm === 'register' ? 'space-y-5' : 'hidden'}>
+           
+           <FormGroup error={formErrors.email}>
               <input
                 type="email"
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className={`w-full bg-coc-stone/50 border rounded-md px-4 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold ${formErrors.email ? 'border-coc-red' : 'border-coc-gold-dark/50'}`}
-                aria-invalid={!!formErrors.email}
-                aria-describedby="email-error"
+                className={inputClasses(!!formErrors.email)}
               />
-              {formErrors.email && <p id="email-error" className="text-xs text-red-400 mt-1">{formErrors.email}</p>}
-           </div>
-           <div> {/* Wrapper for input + error */}
+           </FormGroup>
+           
+           <FormGroup error={formErrors.password}>
               <input
                 type="password"
                 placeholder="Password (minimal 6 karakter)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className={`w-full bg-coc-stone/50 border rounded-md px-4 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold ${formErrors.password ? 'border-coc-red' : 'border-coc-gold-dark/50'}`}
-                aria-invalid={!!formErrors.password}
-                aria-describedby="password-error"
+                className={inputClasses(!!formErrors.password)}
               />
-              {formErrors.password && <p id="password-error" className="text-xs text-red-400 mt-1">{formErrors.password}</p>}
-           </div>
-           <div> {/* Wrapper for input + error */}
+           </FormGroup>
+           
+           <FormGroup error={formErrors.confirmPassword}>
               <input
                 type="password"
                 placeholder="Konfirmasi Password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                className={`w-full bg-coc-stone/50 border rounded-md px-4 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold ${formErrors.confirmPassword ? 'border-coc-red' : 'border-coc-gold-dark/50'}`}
-                aria-invalid={!!formErrors.confirmPassword}
-                aria-describedby="confirmPassword-error"
+                className={inputClasses(!!formErrors.confirmPassword)}
               />
-              {formErrors.confirmPassword && <p id="confirmPassword-error" className="text-xs text-red-400 mt-1">{formErrors.confirmPassword}</p>}
-           </div>
+           </FormGroup>
 
-          <h3 className="text-coc-gold-dark text-center font-bold pt-4">Integrasi Clash of Clans</h3>
-           <div> {/* Wrapper for input + error */}
+          {/* Integrasi COC - Menggunakan font-clash */}
+          <h3 className="text-coc-gold-dark text-center font-clash pt-4 text-xl border-t border-coc-gold-dark/20">Integrasi Clash of Clans</h3>
+           
+           <FormGroup error={formErrors.playerTag}>
               <input
                 type="text"
                 placeholder="Player Tag ID (Contoh: #P9Y8Q2V)"
                 value={playerTag}
-                onChange={(e) => setPlayerTag(e.target.value.toUpperCase().replace(/[^#0289PYLQGRJCUV]/g, ''))} // Auto uppercase & filter chars
+                // Memastikan Player Tag di-filter dan di-uppercase
+                onChange={(e) => setPlayerTag(e.target.value.toUpperCase().replace(/[^#0289PYLQGRJCUV]/g, ''))}
                 required
-                maxLength={15} // Max length typical tag
-                className={`w-full bg-coc-stone/50 border rounded-md px-4 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold ${formErrors.playerTag ? 'border-coc-red' : 'border-coc-gold-dark/50'}`}
-                aria-invalid={!!formErrors.playerTag}
-                aria-describedby="playerTag-error"
+                maxLength={15}
+                className={inputClasses(!!formErrors.playerTag)}
               />
-              {formErrors.playerTag && <p id="playerTag-error" className="text-xs text-red-400 mt-1">{formErrors.playerTag}</p>}
-           </div>
-           <div> {/* Wrapper for select + error */}
+           </FormGroup>
+           
+           <FormGroup error={formErrors.thLevel}>
               <select
                 required
                 value={thLevel}
                 onChange={(e) => setThLevel(e.target.value)}
-                className={`w-full bg-coc-stone/50 border rounded-md px-3 py-2 text-white focus:ring-coc-gold focus:border-coc-gold ${formErrors.thLevel ? 'border-coc-red' : 'border-coc-gold-dark/50'}`}
-                aria-invalid={!!formErrors.thLevel}
-                aria-describedby="thLevel-error"
+                className={`w-full bg-coc-stone/50 border rounded-md px-3 py-2 text-white focus:ring-1 focus:ring-coc-gold focus:border-coc-gold font-sans ${thLevel === '' ? 'text-gray-500' : 'text-white'} ${formErrors.thLevel ? 'border-coc-red' : 'border-coc-gold-dark/50'}`}
               >
-                  <option value="">-- Pilih Level Town Hall Anda --</option>
-                  <option value="16">Town Hall 16</option>
-                  <option value="15">Town Hall 15</option>
-                  <option value="14">Town Hall 14</option>
-                  <option value="13">Town Hall 13</option>
-                  <option value="12">Town Hall 12</option>
-                  <option value="11">Town Hall 11</option>
-                  <option value="10">Town Hall 10</option>
-                  <option value="9">Town Hall 9</option>
-                  {/* Tambahkan opsi lain sesuai kebutuhan */}
+                  <option value="" disabled>-- Pilih Level Town Hall Anda --</option>
+                  {thLevelOptions.map(th => (
+                      <option key={th} value={th} className="text-white">Town Hall {th}</option>
+                  ))}
               </select>
-               {formErrors.thLevel && <p id="thLevel-error" className="text-xs text-red-400 mt-1">{formErrors.thLevel}</p>}
-           </div>
+           </FormGroup>
 
-          <Button type="submit" variant="primary" className="w-full !mt-6" disabled={isLoading || !isRegisterFormValid}>
+          <Button type="submit" variant="primary" className="w-full !mt-6" size="lg" disabled={isLoading || !isRegisterFormValid}>
             {isLoading ? 'Memproses...' : 'Daftar Sekarang'}
           </Button>
         </form>
@@ -339,4 +377,3 @@ const AuthPage = () => {
 };
 
 export default AuthPage;
-
