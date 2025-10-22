@@ -30,12 +30,12 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
     // State profile tetap menggunakan initialProfile
     const [userProfile] = useState<UserProfile | null>(initialProfile);
 
-    // Helper untuk membersihkan URL (dipindahkan dari EditProfileClient)
-    const cleanUrlDisplay = (url: string | null | undefined): string => {
-        if (!url) return '';
-        // Menghapus http(s):// dan www.
-        return url.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
-    };
+    // Helper untuk membersihkan URL (dipindahkan dari EditProfileClient)
+    const cleanUrlDisplay = (url: string | null | undefined): string => {
+        if (!url) return '';
+        // Menghapus http(s):// dan www.
+        return url.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
+    };
 
     // --- 1. Handle Loading Auth Awal ---
     if (authLoading) {
@@ -48,11 +48,11 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
     }
 
     // --- 2. Periksa apakah error adalah 'Profil belum ditemukan' atau 'Fatal Error' ---
-    // Logika ini menggantikan skenario 2 dan 3 yang lama.
+    // Logika ini menggantikan skenario 2 dan 3 yang lama.
 
-    // Kasus A: Profil TIDAK ditemukan (InitialProfile null) DAN ada pesan error
-    // Pesan error di sini berasal dari Server Component yang mengatakan "Profil belum ditemukan. Silakan lengkapi data Anda."
-    const isMissingProfile = !userProfile && error && error.includes('Profil E-Sports CV Anda belum ditemukan');
+    // Kasus A: Profil TIDAK ditemukan (InitialProfile null) DAN ada pesan error
+    // Pesan error di sini berasal dari Server Component yang mengatakan "Profil belum ditemukan. Silakan lengkapi data Anda."
+    const isMissingProfile = !userProfile && error && error.includes('Profil E-Sports CV Anda belum ditemukan');
 
     if (isMissingProfile) {
         return (
@@ -71,10 +71,10 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
             </div>
         );
     }
-    
-    // Kasus B: Fatal Error (InitialProfile null dan pesan error bukan missing profile)
-    // Ini menangani kasus "Coba Lagi" yang Anda lihat.
-    if (!userProfile && error) {
+    
+    // Kasus B: Fatal Error (InitialProfile null dan pesan error bukan missing profile)
+    // Ini menangani kasus "Coba Lagi" yang Anda lihat.
+    if (!userProfile && error) {
         return (
           <div className="flex justify-center items-center min-h-screen">
             <div className="card-stone p-8 max-w-md text-center rounded-lg">
@@ -91,12 +91,12 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
     }
 
     // --- 3. Tampilkan Profil Jika Semua OK ---
-    // (Juga mencakup kasus di mana serverError adalah null karena profil ditemukan)
+    // (Juga mencakup kasus di mana serverError adalah null karena profil ditemukan)
     if (currentUser && userProfile) {
         const validThLevel = userProfile.thLevel && !isNaN(userProfile.thLevel) && userProfile.thLevel > 0 ? userProfile.thLevel : 9;
         const thImage = getThImage(validThLevel);
         const avatarSrc = userProfile.avatarUrl || '/images/placeholder-avatar.png';
-        const displayWebsite = cleanUrlDisplay(userProfile.website);
+        const displayWebsite = cleanUrlDisplay(userProfile.website);
 
         return (
             <main className="container mx-auto p-4 md:p-8 mt-10">
@@ -223,7 +223,7 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
     }
 
     // Fallback jika tidak ada kondisi yang cocok (seharusnya tidak terjadi jika logic benar)
-    // Jika auth sudah selesai tapi tidak ada currentUser (seharusnya sudah redirect di server component)
+    // Jika auth sudah selesai tapi tidak ada currentUser (seharusnya sudah redirect di server component)
     return null; 
 };
 

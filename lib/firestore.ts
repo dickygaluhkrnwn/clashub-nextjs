@@ -1,5 +1,5 @@
 // File: lib/firestore.ts
-// Deskripsi: Berisi semua fungsi utilitas untuk berinteraksi dengan Firebase Firestore.
+// Deskripsi: Berisi semua fungsi utilitas untuk berinteraksi dengan Firebase Firestore dan Storage.
 
 import { firestore, storage } from './firebase'; // Impor instance firestore & storage kita
 import {
@@ -19,7 +19,8 @@ import {
 } from 'firebase/firestore';
 import {
   ref,
-  uploadBytes,
+  // GANTI: Import uploadBytesResumable menggantikan uploadBytes
+  uploadBytesResumable, 
   getDownloadURL,
   StorageReference
 } from "firebase/storage"; // Impor fungsi Storage
@@ -35,21 +36,56 @@ type FirestoreDocument<T> = T & { id: string };
 /**
  * @function uploadProfileImage
  * Mengunggah file gambar ke Firebase Storage (path: users/{uid}/avatar.jpg).
+ * Menggunakan uploadBytesResumable untuk proses yang lebih stabil dan dukungan progress.
  * @param uid - ID unik pengguna.
  * @param file - File Blob atau File yang akan diunggah.
+ * @param onProgress - Callback opsional untuk melacak persentase unggahan.
  * @returns URL publik dari gambar yang diunggah.
  * @throws Error jika gagal mengunggah atau mendapatkan URL.
  */
-export const uploadProfileImage = async (uid: string, file: File | Blob): Promise<string> => {
-  try {
-    const storageRef: StorageReference = ref(storage, `users/${uid}/avatar.jpg`);
-    const snapshot = await uploadBytes(storageRef, file);
-    const downloadURL = await getDownloadURL(snapshot.ref);
-    return downloadURL;
-  } catch (error) {
-    console.error(`Firestore Error [uploadProfileImage(${uid})]:`, error);
-    throw new Error("Gagal mengunggah gambar profil."); // Re-throw error
-  }
+// PERBAIKAN UTAMA: Mengganti implementasi menggunakan uploadBytesResumable dan Promise
+export const uploadProfileImage = (
+  uid: string, 
+  file: File | Blob, 
+  // Menambahkan onProgress callback
+  onProgress?: (percentage: number) => void 
+): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    try {
+        const storageRef: StorageReference = ref(storage, `users/${uid}/avatar.jpg`);
+        // Menggunakan uploadBytesResumable
+        const uploadTask = uploadBytesResumable(storageRef, file);
+
+        uploadTask.on('state_changed', 
+            (snapshot) => {
+                // Lacak persentase unggahan
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                if (onProgress) {
+                  onProgress(progress);
+                }
+            }, 
+            (error) => {
+                // Tangani error unggahan yang tidak terduga
+                console.error(`Firestore Error [uploadProfileImage(${uid}) - Upload Task]:`, error);
+                // Menolak Promise dengan pesan error yang jelas
+                reject(new Error(`Gagal mengunggah gambar: ${error.message}`));
+            }, 
+            async () => {
+                // Unggahan selesai (state: 'success'), ambil URL
+                try {
+                    const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                    resolve(downloadURL);
+                } catch (urlError) {
+                    console.error(`Firestore Error [uploadProfileImage(${uid}) - Get URL]:`, urlError);
+                    reject(new Error("Gagal mendapatkan URL gambar profil setelah unggahan berhasil."));
+                }
+            }
+        );
+    } catch (error) {
+        console.error(`Firestore Error [uploadProfileImage(${uid}) - Initial Setup]:`, error);
+        reject(new Error("Gagal memulai proses unggahan."));
+    }
+  });
 };
 
 /**
