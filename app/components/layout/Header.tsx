@@ -25,10 +25,20 @@ const UserProfileDropdown = () => {
 
     const handleLogout = async () => {
         try {
+            // 1. Panggil Firebase signOut
             await signOut(auth);
+            
+            // 2. Panggil API untuk menghapus cookie sesi di sisi server
+            await fetch('/api/logout', { method: 'POST' });
+
+            // 3. Arahkan pengguna kembali
             router.push('/');
         } catch (error) {
             console.error("Gagal untuk logout:", error);
+            // Tambahkan umpan balik ke pengguna
+            alert("Gagal melakukan logout. Silakan coba lagi.");
+        } finally {
+            setIsOpen(false); // Pastikan dropdown tertutup
         }
     };
 

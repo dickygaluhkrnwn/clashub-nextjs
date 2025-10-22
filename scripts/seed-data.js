@@ -1,6 +1,12 @@
 // File: scripts/seed-data.js
 // Deskripsi: Berisi data contoh (mock data) untuk mengisi database Firestore.
 
+// Menggunakan tanggal saat ini untuk simulasi
+const now = new Date();
+const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
 // Data contoh untuk koleksi 'teams'
 const dummyTeams = [
     // Kapten: uid_lordz (Anggota tetap di bawah) | Status: Open
@@ -56,9 +62,59 @@ const dummyTournaments = [
     { title: "Liga Komunitas Musim 2", status: 'Selesai', thRequirement: "Semua Level", prizePool: "Rp 2.500.000" },
 ];
 
-// --- DATA BARU: Join Requests (Tugas 2.3) ---
-// Kita harus memastikan UID War Legends (uid_lordz) cocok dengan captainId di atas.
-// Kita akan menggunakan ID tim yang sudah kita buat (War Legends: "War Legends")
+// --- DATA BARU: Postingan Knowledge Hub (Tugas 3.2) ---
+const dummyPosts = [
+    {
+        title: "Perubahan Meta: Strategi Hydrid Apa yang Cocok Setelah Update?",
+        content: "Setelah update minor kemarin, Giant Arrow dan Dragon Rider mendapatkan buff yang signifikan, mengubah META serangan di TH 16.\n\nSaya menemukan bahwa Hybrid dengan 4 Naga dan 8 Hog Rider memberikan hasil yang sangat konsisten jika dijalankan dengan timing yang tepat.\n\nBerikut rincian komposisi pasukan yang saya gunakan:\n- 4 Dragon Rider\n- 8 Hog Rider & 15 Bowler\n- Spell: 4 Freeze, 3 Rage, 1 Clone\n\nVideo demonstrasi di sini: https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        category: "Strategi Serangan",
+        tags: ["TH16", "Hybrid", "CWL"],
+        authorId: "uid_lordz",
+        authorName: "Lord Z",
+        createdAt: oneDayAgo,
+        updatedAt: oneDayAgo,
+        likes: 120,
+        replies: 45,
+    },
+    {
+        title: "Panduan Base Anti 3 Bintang di CWL Champion League",
+        content: "Base ini dirancang khusus untuk melawan meta serangan 'Root Rider' dan 'Super Archer Blimp'. Fokus utamanya adalah memisahkan kompartemen Town Hall dan menempatkan jebakan tornado di jalur yang tidak terduga.\n\nLink Base: https://link.clashofclans.com/en?action=OpenLayout&id=TH15-66778899",
+        category: "Base Building",
+        tags: ["BaseBuilding", "Tutorial", "TH15"],
+        authorId: "uid_xena",
+        authorName: "Xena",
+        createdAt: threeDaysAgo,
+        updatedAt: threeDaysAgo,
+        likes: 250,
+        replies: 72,
+    },
+    {
+        title: "Alat Apa yang Kalian Gunakan Untuk Tracking Kehadiran War?",
+        content: "Tim kami sering kesulitan melacak siapa saja yang absen saat war. Menggunakan spreadsheet manual terasa merepotkan. Apakah ada bot Discord atau aplikasi pihak ketiga yang direkomendasikan untuk otomatisasi tracking kehadiran dan performa war?\n\nKami mencari solusi yang bisa:\n- Mengirim pengingat otomatis sebelum war.\n- Mencatat siapa yang melakukan serangan dan siapa yang tidak.\n- Memberikan rekap performa setelah war selesai.",
+        category: "Manajemen Tim",
+        tags: ["ManajemenTim", "Komitmen", "Tools"],
+        authorId: "uid_ghost",
+        authorName: "Ghost",
+        createdAt: oneWeekAgo,
+        updatedAt: oneWeekAgo,
+        likes: 30,
+        replies: 15,
+    },
+    {
+        title: "Diskusi Umum: Kapan TH 17 Rilis?",
+        content: "Menurut rumor, TH 17 akan dirilis pada Q1 2026. Apakah ada yang punya bocoran atau informasi lebih lanjut tentang hero equipment baru?",
+        category: "Diskusi Umum",
+        tags: ["Rumor", "TH17", "Update"],
+        authorId: "uid_lordz",
+        authorName: "Lord Z",
+        createdAt: now,
+        updatedAt: now,
+        likes: 50,
+        replies: 10,
+    }
+];
+
+// --- DATA JOIN REQUESTS ---
 const dummyJoinRequests = [
     { 
         teamId: "War Legends", 
@@ -97,5 +153,6 @@ module.exports = {
     dummyTeams,
     dummyPlayers,
     dummyTournaments,
-    dummyJoinRequests
+    dummyJoinRequests,
+    dummyPosts, // BARU: Ekspor Postingan
 };

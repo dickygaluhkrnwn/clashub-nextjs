@@ -116,7 +116,7 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
 
 /**
  * @function getDocumentById
- * Fungsi generik untuk mengambil dokumen tunggal dari sebuah koleksi. (BARU)
+ * Fungsi generik untuk mengambil dokumen tunggal dari sebuah koleksi.
  * @param collectionName - Nama koleksi di Firestore.
  * @param id - ID dokumen.
  * @returns Dokumen jika ada, atau null.
@@ -151,7 +151,7 @@ async function getCollectionData<T>(collectionName: string): Promise<FirestoreDo
 // --- FUNGSI SPESIFIK TIM ---
 
 /**
- * @function getTeamById (BARU)
+ * @function getTeamById
  * Mengambil data tim tunggal dari koleksi 'teams'.
  */
 export const getTeamById = async (teamId: string): Promise<FirestoreDocument<Team> | null> => {
@@ -183,7 +183,7 @@ export const getTournaments = async (): Promise<FirestoreDocument<Tournament>[]>
 };
 
 /**
- * @function getTeamMembers (BARU)
+ * @function getTeamMembers
  * Mengambil semua UserProfile yang teamId-nya cocok.
  * @param teamId - ID Tim.
  * @returns Array UserProfile (anggota tim).
@@ -208,7 +208,7 @@ export const getTeamMembers = async (teamId: string): Promise<UserProfile[]> => 
 // --- FUNGSI JOIN REQUEST (Tugas 2.3) ---
 
 /**
- * @function sendJoinRequest (BARU)
+ * @function sendJoinRequest
  * Mengirim permintaan bergabung ke sebuah tim.
  */
 export const sendJoinRequest = async (
@@ -235,7 +235,7 @@ export const sendJoinRequest = async (
 };
 
 /**
- * @function getJoinRequests (BARU)
+ * @function getJoinRequests
  * Mengambil semua permintaan bergabung yang PENDING untuk tim tertentu.
  */
 export const getJoinRequests = async (teamId: string): Promise<FirestoreDocument<JoinRequest>[]> => {
@@ -259,7 +259,7 @@ export const getJoinRequests = async (teamId: string): Promise<FirestoreDocument
 
 
 /**
- * @function updateJoinRequestStatus (BARU)
+ * @function updateJoinRequestStatus
  * Memperbarui status permintaan (Approve/Reject).
  * @param requestId - ID dokumen permintaan.
  * @param newStatus - Status baru ('approved' atau 'rejected').
@@ -270,7 +270,7 @@ export const updateJoinRequestStatus = async (requestId: string, newStatus: 'app
 };
 
 /**
- * @function updateMemberRole (BARU)
+ * @function updateMemberRole
  * Mengubah peran anggota tim (digunakan saat Approval dan Manajemen Roster).
  * @param uid - UID pengguna yang perannya diubah.
  * @param teamId - ID Tim baru/saat ini.
@@ -291,10 +291,66 @@ export const updateMemberRole = async (
     });
 };
 
-// --- FUNGSI SPESIFIK KNOWLEDGE HUB (Tugas 3.1) ---
+// --- FUNGSI SPESIFIK KNOWLEDGE HUB (Tugas 3.1 & 3.2) ---
 
 /**
- * @function getPosts (BARU)
+ * @function getPostById (BARU - Tugas 3.2)
+ * Mengambil data postingan tunggal dari koleksi 'posts'.
+ */
+export const getPostById = async (postId: string): Promise<FirestoreDocument<Post> | null> => {
+    const post = await getDocumentById<Post>('posts', postId);
+    
+    if (post) {
+        // Konversi Timestamp di dalam objek Post jika ada, karena getDocumentById tidak melakukan konversi tipe Date
+        const data = post as any;
+        return {
+            ...post,
+            createdAt: (data.createdAt as Timestamp).toDate(),
+            updatedAt: data.updatedAt ? (data.updatedAt as Timestamp).toDate() : undefined,
+        } as FirestoreDocument<Post>;
+    }
+    return null;
+};
+
+/**
+ * @function createPost (BARU - Tugas 3.2)
+ * Membuat postingan baru di koleksi 'posts'.
+ * @param data - Data postingan dari form.
+ * @param authorProfile - Profil pengguna yang membuat postingan.
+ * @returns ID dokumen postingan yang baru dibuat.
+ */
+export const createPost = async (
+    data: { 
+        title: string, 
+        content: string, 
+        category: PostCategory, 
+        tags: string[], 
+    },
+    authorProfile: UserProfile
+): Promise<string> => {
+    const postsRef = collection(firestore, 'posts');
+    const now = Timestamp.now();
+
+    const newPostData: Omit<Post, 'id' | 'createdAt' | 'updatedAt'> & { createdAt: Timestamp, updatedAt: Timestamp } = {
+        title: data.title,
+        content: data.content,
+        category: data.category,
+        tags: data.tags,
+        authorId: authorProfile.uid,
+        authorName: authorProfile.displayName,
+        authorAvatarUrl: authorProfile.avatarUrl || '/images/placeholder-avatar.png',
+        likes: 0, // Inisialisasi
+        replies: 0, // Inisialisasi
+        createdAt: now,
+        updatedAt: now,
+    };
+
+    const docRef = await addDoc(postsRef, newPostData);
+    return docRef.id;
+};
+
+/**
+ * @function getPosts (Tugas 3.1)
  * Mengambil postingan dari koleksi 'posts' dengan opsi filter dan sort.
  * @param category - Kategori untuk difilter.
  * @param sortBy - Kolom untuk mengurutkan ('createdAt' atau 'likes').
@@ -316,16 +372,6 @@ export const getPosts = async (
     }
     
     // 2. Sortir berdasarkan kolom yang diminta
-    // PERINGATAN: Firestore Querying dengan orderBy('likes', 'desc') akan memerlukan index kustom.
-    // Untuk pengembangan awal, kita akan urutkan berdasarkan 'createdAt' (default untuk feed).
-    // Untuk 'likes' (trending), kita akan membiarkan logika sorting di sisi klien/server utils
-    // untuk menghindari keharusan membuat index komposit yang kompleks di awal.
-    
-    // Kita akan tetap menggunakan orderBy di sini sebagai best practice, dan mengasumsikan
-    // bahwa 'createdAt' adalah yang paling sering digunakan, dan kita akan memproses likes/replies di app/server-utils.
-    
-    // Namun, sesuai instruksi, kita akan menggunakan orderBy di sini (kita harus berasumsi 
-    // index yang diperlukan sudah di-setup atau kita akan menanganinya di server-utils jika gagal).
     if (sortBy === 'createdAt') {
         q = query(q, orderBy('createdAt', sortOrder));
     } else if (sortBy === 'likes') {

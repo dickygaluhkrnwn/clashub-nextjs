@@ -28,6 +28,23 @@ const AuthPage = () => {
   // State untuk loading dan pesan error
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  
+  /**
+   * @function handleCookieSync
+   * Memanggil API Route Handler untuk menyetel cookie sesi di browser.
+   * Ini memastikan Server Component mengenali pengguna yang login.
+   * @param uid - ID Pengguna dari Firebase Auth.
+   */
+  const handleCookieSync = async (uid: string) => {
+    await fetch('/api/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ uid }),
+    });
+  };
+
 
   // Fungsi untuk membersihkan state saat ganti tab
   const switchForm = (formType: FormType) => {
@@ -58,15 +75,19 @@ const AuthPage = () => {
     try {
       // 1. Buat akun di Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const uid = userCredential.user.uid;
       
       // 2. Panggil createUserProfile untuk menyimpan data awal ke Firestore
-      await createUserProfile(userCredential.user.uid, {
+      await createUserProfile(uid, {
         email: email,
         playerTag: playerTag,
         thLevel: parseInt(thLevel, 10), 
         // Menggunakan Player Tag sebagai displayName awal yang lebih relevan
         displayName: playerTag,
       });
+      
+      // 3. Sinkronisasi Cookie Sesi untuk SSR
+      await handleCookieSync(uid);
       
       router.push('/'); // Redirect ke halaman utama setelah berhasil
     } catch (error: any) {
@@ -83,7 +104,12 @@ const AuthPage = () => {
     setIsLoading(true);
     setError(null);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const uid = userCredential.user.uid;
+      
+      // Sinkronisasi Cookie Sesi untuk SSR
+      await handleCookieSync(uid);
+      
       router.push('/'); // Redirect ke halaman utama setelah berhasil
     } catch (error: any) {
       setError("Email atau password salah.");

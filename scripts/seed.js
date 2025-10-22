@@ -4,9 +4,10 @@
 
 // 1. Impor semua yang kita butuhkan
 const { initializeApp } = require('firebase/app');
-const { getFirestore, collection, addDoc, writeBatch, getDocs } = require('firebase/firestore');
+// BARU: Tambahkan doc dan setDoc ke impor
+const { getFirestore, collection, addDoc, writeBatch, getDocs, doc, setDoc } = require('firebase/firestore');
 // Import data requests BARU
-const { dummyTeams, dummyPlayers, dummyTournaments, dummyJoinRequests } = require('./seed-data');
+const { dummyTeams, dummyPlayers, dummyTournaments, dummyJoinRequests, dummyPosts } = require('./seed-data');
 
 // Kita butuh dotenv untuk membaca file .env.local
 require('dotenv').config({ path: '.env.local' });
@@ -35,20 +36,21 @@ async function seedDatabase() {
         await clearCollection('teams');
         await clearCollection('users');
         await clearCollection('tournaments');
-        // BARU: Hapus koleksi joinRequests
         await clearCollection('joinRequests'); 
+        await clearCollection('posts'); // BARU: Hapus koleksi posts
 
         // Seeding Teams
         console.log(`Menambahkan ${dummyTeams.length} tim...`);
         for (const team of dummyTeams) {
             // Menggunakan nama tim sebagai ID untuk memudahkan debugging relasi (teamId)
-            await setDoc(doc(firestore, 'teams', team.name), team);
+            // Diperbaiki: Menggunakan setDoc untuk konsistensi dengan getDoc/doc
+            await setDoc(doc(firestore, 'teams', team.name), team); 
         }
 
         // Seeding Players (Users)
         console.log(`Menambahkan ${dummyPlayers.length} pemain...`);
         for (const player of dummyPlayers) {
-            // Menggunakan UID sebagai ID dokumen (sudah dilakukan sebelumnya)
+            // Menggunakan UID sebagai ID dokumen
             await setDoc(doc(firestore, 'users', player.uid), player);
         }
 
@@ -58,10 +60,17 @@ async function seedDatabase() {
             await addDoc(collection(firestore, 'tournaments'), tournament);
         }
         
-        // BARU: Seeding Join Requests
+        // Seeding Join Requests
         console.log(`Menambahkan ${dummyJoinRequests.length} permintaan bergabung...`);
         for (const request of dummyJoinRequests) {
             await addDoc(collection(firestore, 'joinRequests'), request);
+        }
+
+        // BARU: Seeding Posts
+        console.log(`Menambahkan ${dummyPosts.length} postingan ke Knowledge Hub...`);
+        for (const post of dummyPosts) {
+            // Menggunakan addDoc agar Firestore menghasilkan ID unik
+            await addDoc(collection(firestore, 'posts'), post);
         }
 
         console.log('\n✅ Seeding database berhasil!');
