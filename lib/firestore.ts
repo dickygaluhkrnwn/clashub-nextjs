@@ -114,6 +114,7 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
     const docSnap = await getDoc(userRef);
 
     if (docSnap.exists()) {
+      // Kita asumsikan data sesuai UserProfile, tapi bisa ditambahkan validasi skema jika perlu
       const data = docSnap.data() as UserProfile;
       return { ...data, uid: docSnap.id };
     } else {
@@ -139,6 +140,7 @@ async function getDocumentById<T>(collectionName: string, id: string): Promise<F
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
+       // Asumsikan data cocok dengan T. Validasi skema bisa ditambahkan di sini.
       const data = docSnap.data() as T;
       return { ...data, id: docSnap.id } as FirestoreDocument<T>;
     }
@@ -161,6 +163,7 @@ async function getCollectionData<T>(collectionName: string): Promise<FirestoreDo
     const colRef = collection(firestore, collectionName);
     const snapshot = await getDocs(colRef);
 
+    // Asumsikan data cocok dengan T. Bisa ditambahkan validasi per item jika perlu.
     return snapshot.docs.map((doc: DocumentData) => ({
       id: doc.id,
       ...doc.data(),
@@ -225,6 +228,7 @@ export const getTeamMembers = async (teamId: string): Promise<UserProfile[]> => 
     );
     const snapshot = await getDocs(q);
 
+    // Asumsikan data cocok UserProfile
     return snapshot.docs.map(doc => ({
         uid: doc.id,
         ...doc.data(),
@@ -251,7 +255,8 @@ export const sendJoinRequest = async (
 ): Promise<void> => {
   try {
     const requestsRef = collection(firestore, 'joinRequests');
-    const requestData: Omit<JoinRequest, 'id'> = {
+    // Konversi Date ke Timestamp Firestore saat menyimpan
+    const requestData: Omit<JoinRequest, 'id' | 'timestamp'> & { timestamp: Timestamp } = {
         teamId,
         teamName,
         requesterId: requesterProfile.uid,
@@ -259,7 +264,7 @@ export const sendJoinRequest = async (
         requesterThLevel: requesterProfile.thLevel,
         message,
         status: 'pending',
-        timestamp: Timestamp.now().toDate(), // Tetap gunakan toDate() agar sesuai tipe
+        timestamp: Timestamp.now(), // Gunakan Timestamp Firestore
     };
     await addDoc(requestsRef, requestData);
   } catch (error) {
@@ -280,14 +285,19 @@ export const getJoinRequests = async (teamId: string): Promise<FirestoreDocument
         requestsRef,
         where('teamId', '==', teamId),
         where('status', '==', 'pending')
+        // orderBy('timestamp', 'desc') // Bisa ditambahkan jika perlu urutan
     );
     const snapshot = await getDocs(q);
 
-    return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        timestamp: (doc.data().timestamp as Timestamp).toDate()
-    })) as FirestoreDocument<JoinRequest>[];
+    return snapshot.docs.map(doc => {
+         const data = doc.data();
+         // Konversi Timestamp ke Date saat mengambil data
+         return {
+            id: doc.id,
+            ...data,
+            timestamp: (data.timestamp as Timestamp).toDate() // Konversi di sini
+         } as FirestoreDocument<JoinRequest>;
+    });
   } catch (error) {
     console.error(`Firestore Error [getJoinRequests(${teamId})]:`, error);
     return []; // Return empty array on error
@@ -352,13 +362,24 @@ export const getPostById = async (postId: string): Promise<FirestoreDocument<Pos
 
   if (post) {
     try {
-      // Tambahkan try-catch terpisah untuk konversi timestamp yang lebih spesifik
-      const data = post as any;
+      // PERBAIKAN: Hindari 'as any'. Lakukan type assertion spesifik ke Timestamp.
+      const createdAtTimestamp = post.createdAt as unknown as Timestamp;
+      const updatedAtTimestamp = post.updatedAt ? post.updatedAt as unknown as Timestamp : undefined;
+
+      // Pastikan konversi hanya dilakukan jika memang Timestamp
+      if (!(createdAtTimestamp instanceof Timestamp)) {
+          throw new Error('createdAt field is not a valid Firestore Timestamp.');
+      }
+       if (updatedAtTimestamp && !(updatedAtTimestamp instanceof Timestamp)) {
+           throw new Error('updatedAt field is not a valid Firestore Timestamp.');
+       }
+
       return {
         ...post,
-        createdAt: (data.createdAt as Timestamp).toDate(),
-        updatedAt: data.updatedAt ? (data.updatedAt as Timestamp).toDate() : undefined,
-      } as FirestoreDocument<Post>;
+        // Lakukan konversi setelah memastikan tipe
+        createdAt: createdAtTimestamp.toDate(),
+        updatedAt: updatedAtTimestamp ? updatedAtTimestamp.toDate() : undefined,
+      }; // Tipe FirestoreDocument<Post> sudah benar
     } catch (conversionError) {
       console.error(`Firestore Error [getPostById(${postId}) - Timestamp Conversion]:`, conversionError);
       return null; // Gagal konversi tanggal dianggap data tidak valid
@@ -386,9 +407,10 @@ export const createPost = async (
 ): Promise<string> => {
   try {
     const postsRef = collection(firestore, 'posts');
-    const now = Timestamp.now();
+    const now = Timestamp.now(); // Gunakan Timestamp Firestore
 
-    const newPostData: Omit<Post, 'id' | 'createdAt' | 'updatedAt'> & { createdAt: Timestamp, updatedAt: Timestamp } = {
+    // Tipe data sudah benar, Omit createdAt/updatedAt dari Post, lalu tambahkan sebagai Timestamp
+     const newPostData: Omit<Post, 'id' | 'createdAt' | 'updatedAt'> & { createdAt: Timestamp, updatedAt: Timestamp } = {
         title: data.title,
         content: data.content,
         category: data.category,
@@ -399,7 +421,7 @@ export const createPost = async (
         likes: 0,
         replies: 0,
         createdAt: now,
-        updatedAt: now,
+        updatedAt: now, // Simpan sebagai Timestamp
     };
 
     const docRef = await addDoc(postsRef, newPostData);
@@ -420,10 +442,9 @@ export const createPost = async (
  */
 export const getPosts = async (
     category: PostCategory | 'all',
-    sortBy: 'createdAt' | 'likes' = 'createdAt',
+    sortBy: 'createdAt' | 'likes' = 'createdAt', // Tetap bisa sort by likes jika index ada
     sortOrder: 'desc' | 'asc' = 'desc'
 ): Promise<FirestoreDocument<Post>[]> => {
-    // try...catch sudah ada di sini, kita hanya perlu memastikan logging-nya informatif
     const postsRef = collection(firestore, 'posts');
     let q = query(postsRef);
 
@@ -431,35 +452,50 @@ export const getPosts = async (
         q = query(q, where('category', '==', category));
     }
 
-    if (sortBy === 'createdAt') {
-        q = query(q, orderBy('createdAt', sortOrder));
-    } else if (sortBy === 'likes') {
-        q = query(q, orderBy('likes', sortOrder));
-    }
+    // Terapkan orderBy berdasarkan sortBy
+    q = query(q, orderBy(sortBy, sortOrder));
 
-    q = query(q, limit(50));
+
+    q = query(q, limit(50)); // Batasi jumlah hasil
 
     try {
         const snapshot = await getDocs(q);
 
-        return snapshot.docs.map(doc => {
+        const posts: FirestoreDocument<Post>[] = [];
+        snapshot.docs.forEach(doc => {
             const data = doc.data();
             try {
-              // Tambahkan try-catch di dalam map untuk konversi timestamp
-              return {
+              // PERBAIKAN: Lakukan type assertion spesifik ke Timestamp
+              const createdAtTimestamp = data.createdAt as Timestamp;
+              const updatedAtTimestamp = data.updatedAt ? data.updatedAt as Timestamp : undefined;
+
+              // Validasi dasar tipe Timestamp sebelum konversi
+              if (!(createdAtTimestamp instanceof Timestamp)) {
+                  console.error(`Invalid createdAt type for doc ${doc.id}:`, data.createdAt);
+                  return; // Lewati dokumen ini jika createdAt tidak valid
+              }
+               if (updatedAtTimestamp && !(updatedAtTimestamp instanceof Timestamp)) {
+                   console.error(`Invalid updatedAt type for doc ${doc.id}:`, data.updatedAt);
+                   // updatedAt opsional, jadi mungkin set ke undefined
+                   data.updatedAt = undefined;
+               }
+
+              posts.push({
                   id: doc.id,
                   ...data,
-                  createdAt: (data.createdAt as Timestamp).toDate(),
-                  updatedAt: data.updatedAt ? (data.updatedAt as Timestamp).toDate() : undefined,
-              } as FirestoreDocument<Post>;
+                  // Konversi setelah validasi
+                  createdAt: createdAtTimestamp.toDate(),
+                  updatedAt: updatedAtTimestamp ? updatedAtTimestamp.toDate() : undefined,
+              } as FirestoreDocument<Post>); // Pastikan casting di akhir
+
             } catch (conversionError) {
                console.error(`Firestore Error [getPosts - Timestamp Conversion for doc ${doc.id}]:`, conversionError);
-               return null; // Tandai dokumen ini sebagai tidak valid
+               // Jangan tambahkan post ini jika konversi gagal
             }
-        }).filter(post => post !== null) as FirestoreDocument<Post>[]; // Filter dokumen yang gagal konversi
+        });
+        return posts;
 
     } catch (error) {
-        // Logging error yang lebih informatif
         console.error(`Firestore Error [getPosts(category: ${category}, sortBy: ${sortBy})]:`, error);
         return []; // Return empty array on error
     }

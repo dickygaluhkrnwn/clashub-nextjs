@@ -12,7 +12,7 @@ import { CogsIcon } from '@/app/components/icons';
 
 export type TeamFilters = {
     searchTerm: string;
-    vision: 'Kompetitif' | 'Kasual' | 'all';
+    vision: 'Kompetitif' | 'Kasual' | 'all'; // Tambahkan 'all' jika diperlukan filter reset
     reputation: number;
     thLevel: number;
 };
@@ -29,18 +29,24 @@ interface TeamHubClientProps {
     initialPlayers: Player[];
 }
 
+// --- Konstanta Pagination ---
+const ITEMS_PER_LOAD = 6; // Tampilkan 6 item per halaman/klik
 
 const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => {
     const [activeTab, setActiveTab] = useState<'teams' | 'players'>('teams');
     const [allTeams] = useState<Team[]>(initialTeams);
     const [allPlayers] = useState<Player[]>(initialPlayers);
 
-    // BARU: State untuk loading filter
     const [isFiltering, setIsFiltering] = useState(false);
+
+    // --- State Pagination ---
+    const [visibleTeamsCount, setVisibleTeamsCount] = useState(ITEMS_PER_LOAD);
+    const [visiblePlayersCount, setVisiblePlayersCount] = useState(ITEMS_PER_LOAD);
+    // --- End State Pagination ---
 
     const [teamFilters, setTeamFilters] = useState<TeamFilters>({
         searchTerm: '',
-        vision: 'Kompetitif',
+        vision: 'Kompetitif', // Default kompetitif
         reputation: 3.0,
         thLevel: 9,
     });
@@ -51,33 +57,18 @@ const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => 
         thLevel: 9,
     });
 
-    const isLoading = false;
-    const error = null;
+    const isLoading = false; // Asumsi data awal sudah dari server
+    const error = null; // Asumsi tidak ada error awal
 
-    // BARU: Handler filter yang diperbarui untuk Team
-    const handleTeamFilterChange = (newFilters: TeamFilters) => {
-        setIsFiltering(true);
-        setTimeout(() => {
-            setTeamFilters(newFilters);
-            setIsFiltering(false);
-        }, 50); // Delay singkat untuk UX
-    };
-
-    // BARU: Handler filter yang diperbarui untuk Player
-    const handlePlayerFilterChange = (newFilters: PlayerFilters) => {
-        setIsFiltering(true);
-        setTimeout(() => {
-            setPlayerFilters(newFilters);
-            setIsFiltering(false);
-        }, 50); // Delay singkat untuk UX
-    };
-
-    const filteredTeams = useMemo(() => {
+    // Fungsi filter (tidak berubah, hanya memfilter semua data)
+     const filteredTeams = useMemo(() => {
         return allTeams.filter(team => {
             const searchTermLower = teamFilters.searchTerm.toLowerCase();
+            // Pastikan vision filter 'all' berfungsi
+            const visionMatch = teamFilters.vision === 'all' || team.vision === teamFilters.vision;
             return (
                 (team.name.toLowerCase().includes(searchTermLower) || team.tag.toLowerCase().includes(searchTermLower)) &&
-                (teamFilters.vision === 'all' || team.vision === teamFilters.vision) &&
+                visionMatch &&
                 team.rating >= teamFilters.reputation &&
                 team.avgTh >= teamFilters.thLevel
             );
@@ -99,26 +90,68 @@ const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => 
         });
     }, [allPlayers, playerFilters]);
 
+    // Handler filter diperbarui untuk mereset pagination
+    const handleTeamFilterChange = (newFilters: TeamFilters) => {
+        setIsFiltering(true);
+        setVisibleTeamsCount(ITEMS_PER_LOAD); // Reset pagination saat filter berubah
+        setTimeout(() => {
+            setTeamFilters(newFilters);
+            setIsFiltering(false);
+        }, 50);
+    };
+
+    const handlePlayerFilterChange = (newFilters: PlayerFilters) => {
+        setIsFiltering(true);
+        setVisiblePlayersCount(ITEMS_PER_LOAD); // Reset pagination saat filter berubah
+        setTimeout(() => {
+            setPlayerFilters(newFilters);
+            setIsFiltering(false);
+        }, 50);
+    };
+
+    // --- Fungsi Load More ---
+    const handleLoadMoreTeams = () => {
+        setVisibleTeamsCount(prevCount => prevCount + ITEMS_PER_LOAD);
+    };
+
+    const handleLoadMorePlayers = () => {
+        setVisiblePlayersCount(prevCount => prevCount + ITEMS_PER_LOAD);
+    };
+    // --- End Fungsi Load More ---
+
+
+    // --- Logika untuk menampilkan item sesuai pagination ---
+    const teamsToShow = useMemo(() => filteredTeams.slice(0, visibleTeamsCount), [filteredTeams, visibleTeamsCount]);
+    const playersToShow = useMemo(() => filteredPlayers.slice(0, visiblePlayersCount), [filteredPlayers, visiblePlayersCount]);
+    // --- End Logika ---
+
+    // --- Logika untuk menampilkan tombol Load More ---
+    const showLoadMoreTeams = visibleTeamsCount < filteredTeams.length;
+    const showLoadMorePlayers = visiblePlayersCount < filteredPlayers.length;
+    // --- End Logika ---
+
 
     return (
         <>
-            <div className="mb-8 border-b-2 border-coc-gold-dark/20 flex">
+            <div className="mb-8 border-b-2 border-coc-gold-dark/20 flex overflow-x-auto custom-scrollbar">
                 <button
                     onClick={() => {
                         setActiveTab('teams');
-                        // Reset filter lawan saat ganti tab
+                        // Reset filter & pagination lawan saat ganti tab
                         handlePlayerFilterChange({ searchTerm: '', role: 'all', reputation: 3.0, thLevel: 9 });
+                        setVisiblePlayersCount(ITEMS_PER_LOAD);
                     }}
-                    className={`px-6 py-3 font-supercell text-lg transition-colors ${activeTab === 'teams' ? 'text-coc-gold border-b-2 border-coc-gold' : 'text-gray-400 hover:text-white'}`}>
+                    className={`px-6 py-3 font-supercell text-lg whitespace-nowrap transition-colors ${activeTab === 'teams' ? 'text-coc-gold border-b-2 border-coc-gold' : 'text-gray-400 hover:text-white'}`}>
                     Cari Tim
                 </button>
                 <button
                     onClick={() => {
                         setActiveTab('players');
-                         // Reset filter lawan saat ganti tab
-                        handleTeamFilterChange({ searchTerm: '', vision: 'Kompetitif', reputation: 3.0, thLevel: 9 });
+                         // Reset filter & pagination lawan saat ganti tab
+                        handleTeamFilterChange({ searchTerm: '', vision: 'all', reputation: 3.0, thLevel: 9 }); // Default vision ke 'all' saat reset
+                        setVisibleTeamsCount(ITEMS_PER_LOAD);
                     }}
-                    className={`px-6 py-3 font-supercell text-lg transition-colors ${activeTab === 'players' ? 'text-coc-gold border-b-2 border-coc-gold' : 'text-gray-400 hover:text-white'}`}>
+                    className={`px-6 py-3 font-supercell text-lg whitespace-nowrap transition-colors ${activeTab === 'players' ? 'text-coc-gold border-b-2 border-coc-gold' : 'text-gray-400 hover:text-white'}`}>
                     Cari Pemain
                 </button>
             </div>
@@ -127,21 +160,18 @@ const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => 
 
                 <div className="lg:col-span-1">
                     {activeTab === 'teams'
-                        // BARU: Gunakan handler filter baru
                         ? <TeamHubFilter filters={teamFilters} onFilterChange={handleTeamFilterChange} />
                         : <PlayerHubFilter filters={playerFilters} onFilterChange={handlePlayerFilterChange} />
                     }
                 </div>
 
                 <div className="lg:col-span-3">
-                    {/* BARU: Tampilkan loading state saat memfilter */}
                     {isFiltering ? (
                         <div className="text-center py-20">
                            <CogsIcon className="h-10 w-10 text-coc-gold animate-spin mx-auto mb-4" />
                            <h2 className="text-xl text-coc-gold">Memfilter...</h2>
                        </div>
                     ) : isLoading ? (
-                        // Loading awal (jika diperlukan lagi nanti)
                         <div className="text-center py-20">
                             <h2 className="text-2xl text-coc-gold animate-pulse">Memuat Data...</h2>
                         </div>
@@ -154,24 +184,34 @@ const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => 
                             {activeTab === 'teams' && (
                                 <div>
                                     <h1 className="text-3xl md:text-4xl mb-6">{filteredTeams.length} Tim Ditemukan</h1>
-                                    {filteredTeams.length === 0 ? (
-                                         <p className="text-gray-400 text-center py-10">Tidak ada tim yang cocok dengan filter Anda.</p>
+                                    {teamsToShow.length === 0 ? (
+                                         <p className="text-gray-400 text-center py-10 card-stone">Tidak ada tim yang cocok dengan filter Anda.</p>
                                     ) : (
                                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                                            {filteredTeams.map(team => <TeamCard key={team.id} {...team} />)}
+                                            {/* Render teamsToShow */}
+                                            {teamsToShow.map(team => <TeamCard key={team.id} {...team} />)}
                                         </div>
                                     )}
+                                     {/* Tombol Load More Teams */}
+                                     {showLoadMoreTeams && (
+                                        <div className="text-center mt-10">
+                                            <Button variant="secondary" size="lg" onClick={handleLoadMoreTeams} disabled={isFiltering}>
+                                                Muat Lebih Banyak Tim
+                                            </Button>
+                                        </div>
+                                     )}
                                 </div>
                             )}
 
                             {activeTab === 'players' && (
                                 <div>
                                     <h1 className="text-3xl md:text-4xl mb-6">{filteredPlayers.length} Pemain Ditemukan</h1>
-                                     {filteredPlayers.length === 0 ? (
-                                         <p className="text-gray-400 text-center py-10">Tidak ada pemain yang cocok dengan filter Anda.</p>
+                                     {playersToShow.length === 0 ? (
+                                         <p className="text-gray-400 text-center py-10 card-stone">Tidak ada pemain yang cocok dengan filter Anda.</p>
                                      ) : (
                                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                                            {filteredPlayers.map(player => (
+                                             {/* Render playersToShow */}
+                                            {playersToShow.map(player => (
                                                 <PlayerCard
                                                     key={player.id}
                                                     id={player.id}
@@ -185,13 +225,16 @@ const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => 
                                             ))}
                                         </div>
                                      )}
+                                      {/* Tombol Load More Players */}
+                                     {showLoadMorePlayers && (
+                                        <div className="text-center mt-10">
+                                            <Button variant="secondary" size="lg" onClick={handleLoadMorePlayers} disabled={isFiltering}>
+                                                Muat Lebih Banyak Pemain
+                                            </Button>
+                                        </div>
+                                     )}
                                 </div>
                             )}
-
-                            <div className="text-center mt-10">
-                                {/* Tombol Muat Lebih Banyak tetap disabled sementara */}
-                                <Button variant="secondary" size="lg" disabled={true}>Muat Lebih Banyak</Button>
-                            </div>
                         </>
                     )}
                 </div>
@@ -201,4 +244,3 @@ const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => 
 };
 
 export default TeamHubClient;
-

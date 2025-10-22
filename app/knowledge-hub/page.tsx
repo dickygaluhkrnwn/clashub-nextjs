@@ -26,26 +26,20 @@ interface KnowledgeHubPageProps {
 const KnowledgeHubPage = async ({ searchParams }: KnowledgeHubPageProps) => {
     let initialPosts: Post[] = [];
     let error: string | null = null;
-    
-    // 1. Parse URL Search Params
+
+    // 1. Parse URL Search Params (Hanya untuk meneruskan nilai awal ke Client)
     const { category: activeCategory, sortBy: activeSortBy } = parseSearchParams(searchParams);
-    
+
     // 2. Tentukan kriteria fetch untuk Firestore
-    // Note: Firestore hanya bisa sort berdasarkan satu field. Kita akan sort by createdAt
-    // di Firestore, dan biarkan sorting 'trending' (likes+replies) dilakukan di Client/Utils.
-    const firestoreSortBy: 'createdAt' | 'likes' = activeSortBy === 'trending' ? 'likes' : 'createdAt';
-    const firestoreSortOrder: 'desc' | 'asc' = 'desc';
+    // PERUBAHAN: Selalu urutkan berdasarkan 'createdAt' (terbaru) dari Firestore.
+    // Client akan menangani sorting 'trending' jika diperlukan.
+    const firestoreSortBy: 'createdAt' = 'createdAt'; // Selalu 'createdAt'
+    const firestoreSortOrder: 'desc' = 'desc'; // Selalu 'desc' (terbaru dulu)
 
     // 3. Ambil data Postingan dari sisi Server (SSR)
     try {
-        // PENTING: Kita fetch semua postingan yang cocok dengan kategori di server.
-        // Sorting "trending" akan dilakukan di ClientComponent untuk menghindari
-        // index query yang kompleks di Firestore.
+        // Mengambil postingan berdasarkan kategori (jika ada) dan selalu diurutkan berdasarkan createdAt
         initialPosts = await getPosts(activeCategory as PostCategory | 'all', firestoreSortBy, firestoreSortOrder);
-
-        // Jika fetching berdasarkan likes/trending, kita perlu melakukan sorting ulang 
-        // di server-utils (sebelum diteruskan ke klien) jika logika sorting kompleks.
-        // Untuk saat ini, kita mengandalkan `getPosts` di `firestore.ts` dan client sorting.
 
     } catch (err) {
         console.error("Error fetching posts on server:", err);
@@ -55,10 +49,10 @@ const KnowledgeHubPage = async ({ searchParams }: KnowledgeHubPageProps) => {
     // 4. Meneruskan data ke Client Component
     return (
         <main className="container mx-auto p-4 md:p-8 mt-10">
-            <KnowledgeHubClient 
-                initialPosts={initialPosts} 
+            <KnowledgeHubClient
+                initialPosts={initialPosts}
                 initialCategory={activeCategory} // Nilai kategori dari URL
-                initialSortBy={activeSortBy} // Nilai sorting dari URL
+                initialSortBy={activeSortBy} // Nilai sorting dari URL (untuk UI awal)
                 error={error}
             />
         </main>

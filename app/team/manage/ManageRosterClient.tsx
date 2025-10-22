@@ -6,10 +6,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/Button';
 import { Team, UserProfile, JoinRequest } from '@/lib/types';
-// PERBAIKAN 1: Import CheckIcon
-import { ArrowLeftIcon, CheckIcon, XIcon, UserIcon, CogsIcon, ClockIcon } from '@/app/components/icons'; 
-// PERBAIKAN 2: Tambahkan getUserProfile ke impor Firestore
-import { updateJoinRequestStatus, updateMemberRole, getUserProfile } from '@/lib/firestore'; // Import fungsi aksi
+import { ArrowLeftIcon, CheckIcon, XIcon, UserIcon, CogsIcon, ClockIcon, AlertTriangleIcon } from '@/app/components/icons';
+import { updateJoinRequestStatus, updateMemberRole, getUserProfile } from '@/lib/firestore';
+// Corrected import path assuming Notification.tsx is in app/components/ui/
+import Notification, { NotificationProps, ConfirmationProps } from '@/app/components/ui/Notification';
 
 interface ManageRosterData {
     team: Team;
@@ -25,58 +25,59 @@ interface ManageRosterClientProps {
 const ManageRosterClient = ({ initialData, currentUserUid }: ManageRosterClientProps) => {
     const router = useRouter();
     const { team: initialTeam, requests: initialRequests, members: initialMembers } = initialData;
-    
+
     const [team] = useState(initialTeam);
     const [pendingRequests, setPendingRequests] = useState(initialRequests);
     const [activeMembers, setActiveMembers] = useState(initialMembers);
-    const [isProcessing, setIsProcessing] = useState<string | null>(null); 
-    const [roleUpdateLoading, setRoleUpdateLoading] = useState<string | null>(null); 
+    const [isProcessing, setIsProcessing] = useState<string | null>(null);
+    const [roleUpdateLoading, setRoleUpdateLoading] = useState<string | null>(null);
 
-    
+    // --- State untuk Notifikasi ---
+    const [notification, setNotification] = useState<NotificationProps | null>(null);
+    const [confirmation, setConfirmation] = useState<ConfirmationProps | null>(null);
+
+    // Fungsi helper untuk menampilkan notifikasi
+    const showNotification = (message: string, type: NotificationProps['type']) => {
+        setNotification({ message, type, onClose: () => setNotification(null) });
+    };
+
     /**
      * @function handleProcessRequest
      * Menangani persetujuan atau penolakan permintaan bergabung.
-     * @param request - Data permintaan.
-     * @param action - 'approved' atau 'rejected' (sesuai tipe Firestore).
      */
     const handleProcessRequest = async (request: JoinRequest, action: 'approved' | 'rejected') => {
         setIsProcessing(request.id);
-        
+
         try {
-            // 1. Update status permintaan di Firestore
             await updateJoinRequestStatus(request.id, action);
 
             if (action === 'approved') {
-                // 2. Update profil pengguna (jadikan member) di Firestore
                 await updateMemberRole(
-                    request.requesterId, 
-                    team.id, 
-                    team.name, 
-                    'Member' // Default role anggota baru
+                    request.requesterId,
+                    team.id,
+                    team.name,
+                    'Member'
                 );
-                
-                // 3. AMBIL PROFIL LENGKAP untuk update UI
+
                 const newMemberProfile = await getUserProfile(request.requesterId);
 
                 if (newMemberProfile) {
-                    // 4. Update daftar anggota aktif di UI dengan data profil LENGKAP
                     setActiveMembers(prev => [...prev, newMemberProfile]);
-                    alert(`Pemain ${request.requesterName} berhasil disetujui sebagai anggota.`);
+                    showNotification(`Pemain ${request.requesterName} berhasil disetujui sebagai anggota.`, 'success');
                 } else {
-                    // Jika gagal mengambil profil, tetap lanjutkan proses hapus request
                     console.warn(`[WARNING] Profil lengkap untuk ${request.requesterName} tidak ditemukan setelah persetujuan.`);
-                    alert(`Pemain ${request.requesterName} berhasil disetujui, namun data di UI mungkin tidak lengkap. Refresh halaman diperlukan.`);
+                    showNotification(`Pemain ${request.requesterName} disetujui, tapi refresh mungkin diperlukan.`, 'warning');
                 }
             } else {
-                 alert(`Permintaan dari ${request.requesterName} berhasil ditolak.`);
+                 showNotification(`Permintaan dari ${request.requesterName} berhasil ditolak.`, 'info');
             }
-            
-            // 5. Hapus permintaan dari daftar pending
+
             setPendingRequests(prev => prev.filter(req => req.id !== request.id));
-            
+
         } catch (error) {
             console.error(`Gagal memproses permintaan (${action}):`, error);
-            alert(`Gagal memproses permintaan. Silakan coba lagi.`);
+            const errorMessage = (error instanceof Error) ? error.message : "Terjadi kesalahan tidak dikenal.";
+            showNotification(`Gagal memproses permintaan ${request.requesterName}. ${errorMessage}`, 'error');
         } finally {
             setIsProcessing(null);
         }
@@ -87,64 +88,75 @@ const ManageRosterClient = ({ initialData, currentUserUid }: ManageRosterClientP
      * Menangani perubahan peran anggota (Kapten/Co-Leader/Member)
      */
     const handleChangeRole = async (member: UserProfile, newRole: UserProfile['role']) => {
-        // Periksa apakah peran baru adalah "Leader" dan Kapten sedang mencoba merubah peran sendiri
-        // Karena Leader tidak boleh diubah melalui dropdown ini (perlu logic transfer kepemilikan)
-        if (newRole === 'Leader' && member.role === 'Leader') return; 
-
+        if (newRole === 'Leader' && member.role === 'Leader') return;
         if (!member.teamId || member.role === newRole) return;
-        
+
         setRoleUpdateLoading(member.uid);
         try {
             await updateMemberRole(member.uid, team.id, team.name, newRole);
 
-            // Update UI secara optimis
-            setActiveMembers(prev => prev.map(m => 
+            setActiveMembers(prev => prev.map(m =>
                 m.uid === member.uid ? { ...m, role: newRole } : m
             ));
-            
-            alert(`Peran ${member.displayName} berhasil diubah menjadi ${newRole}.`);
+
+            showNotification(`Peran ${member.displayName} berhasil diubah menjadi ${newRole}.`, 'success');
         } catch (error) {
             console.error("Gagal mengubah peran:", error);
-            alert("Gagal mengubah peran. Pastikan koneksi Anda stabil.");
+            const errorMessage = (error instanceof Error) ? error.message : "Pastikan koneksi Anda stabil.";
+            showNotification(`Gagal mengubah peran ${member.displayName}. ${errorMessage}`, 'error');
         } finally {
             setRoleUpdateLoading(null);
         }
     };
 
     /**
-     * @function handleKickMember
-     * Menangani pengeluaran anggota dari tim.
+     * @function handleKickMember (Dipanggil setelah konfirmasi)
+     * Logika inti untuk mengeluarkan anggota.
      */
-    const handleKickMember = async (member: UserProfile) => {
-        // Kapten tidak boleh mengeluarkan dirinya sendiri
-        if (member.uid === currentUserUid) {
-            alert("Kapten tidak dapat mengeluarkan dirinya sendiri. Anda harus mentransfer kepemimpinan terlebih dahulu.");
-            return;
-        }
-
-        if (!window.confirm(`Anda yakin ingin mengeluarkan ${member.displayName} dari tim? Tindakan ini tidak dapat dibatalkan.`)) {
-            return;
-        }
-
+    const executeKickMember = async (member: UserProfile) => {
         setRoleUpdateLoading(member.uid);
         try {
-            // Role di set ke Free Agent, teamId/teamName di set null
-            await updateMemberRole(member.uid, null, null, 'Free Agent'); 
-
-            // Hapus dari daftar anggota aktif di UI
+            await updateMemberRole(member.uid, null, null, 'Free Agent');
             setActiveMembers(prev => prev.filter(m => m.uid !== member.uid));
-            
-            alert(`${member.displayName} berhasil dikeluarkan dari tim.`);
+            showNotification(`${member.displayName} berhasil dikeluarkan dari tim.`, 'success');
         } catch (error) {
             console.error("Gagal mengeluarkan anggota:", error);
-            alert("Gagal mengeluarkan anggota. Silakan coba lagi.");
+            const errorMessage = (error instanceof Error) ? error.message : "Silakan coba lagi.";
+            showNotification(`Gagal mengeluarkan ${member.displayName}. ${errorMessage}`, 'error');
         } finally {
             setRoleUpdateLoading(null);
         }
     };
 
+    /**
+     * @function requestKickConfirmation
+     * Menampilkan dialog konfirmasi sebelum mengeluarkan anggota.
+     */
+    const requestKickConfirmation = (member: UserProfile) => {
+         // Kapten tidak boleh mengeluarkan dirinya sendiri
+        if (member.uid === currentUserUid) {
+            showNotification("Kapten tidak dapat mengeluarkan dirinya sendiri. Transfer kepemimpinan terlebih dahulu.", 'warning');
+            return;
+        }
+
+        setConfirmation({
+            message: `Anda yakin ingin mengeluarkan ${member.displayName} dari tim? Tindakan ini tidak dapat dibatalkan.`,
+            confirmText: 'Ya, Keluarkan',
+            cancelText: 'Batal',
+            onConfirm: () => {
+                setConfirmation(null); // Tutup dialog konfirmasi
+                executeKickMember(member); // Jalankan aksi kick
+            },
+            onCancel: () => setConfirmation(null) // Tutup dialog jika dibatalkan
+        });
+    };
+
+
     return (
         <main className="container mx-auto p-4 md:p-8 mt-10">
+            {/* --- Render Komponen Notifikasi & Konfirmasi --- */}
+            <Notification notification={notification ?? undefined} confirmation={confirmation ?? undefined} />
+
             {/* Header Manajemen */}
             <header className="flex justify-between items-center flex-wrap gap-4 mb-6 card-stone p-6">
                 <h1 className="text-3xl md:text-4xl text-white font-supercell m-0 flex items-center gap-3">
@@ -158,10 +170,10 @@ const ManageRosterClient = ({ initialData, currentUserUid }: ManageRosterClientP
             </header>
 
             <section className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                
+
                 {/* Kolom Kiri: Permintaan Bergabung & Anggota Aktif */}
                 <div className="lg:col-span-3 space-y-8">
-                    
+
                     {/* Permintaan Bergabung */}
                     <div className="card-stone p-6">
                         <h2 className="text-2xl font-supercell border-l-4 border-coc-gold pl-3 mb-6 flex items-center gap-2">
@@ -180,21 +192,22 @@ const ManageRosterClient = ({ initialData, currentUserUid }: ManageRosterClientP
                                             </div>
                                             <div className="flex-grow min-w-[200px]">
                                                 <Link href={`/player/${request.requesterId}`} className="font-bold text-white hover:text-coc-gold transition-colors text-lg">{request.requesterName}</Link>
-                                                <p className="text-xs text-gray-400">TH {request.requesterThLevel} | Reputasi: 4.5 ★</p>
+                                                {/* Note: Fetching reputation here might be needed for display */}
+                                                <p className="text-xs text-gray-400">TH {request.requesterThLevel} | Reputasi: ? ★</p>
                                                 <p className="text-sm text-gray-300 mt-1 italic">Pesan: {request.message || 'Tidak ada pesan.'}</p>
                                             </div>
                                             <div className="flex gap-2">
-                                                <Button 
-                                                    onClick={() => handleProcessRequest(request, 'approved')} 
-                                                    variant="primary" 
-                                                    size="sm" 
+                                                <Button
+                                                    onClick={() => handleProcessRequest(request, 'approved')}
+                                                    variant="primary"
+                                                    size="sm"
                                                     disabled={isCurrentProcessing}
                                                 >
                                                     <CheckIcon className="h-4 w-4 mr-1"/> {isCurrentProcessing ? 'Memproses' : 'Terima'}
                                                 </Button>
-                                                <Button 
-                                                    onClick={() => handleProcessRequest(request, 'rejected')} 
-                                                    variant="secondary" 
+                                                <Button
+                                                    onClick={() => handleProcessRequest(request, 'rejected')}
+                                                    variant="secondary"
                                                     size="sm"
                                                     disabled={isCurrentProcessing}
                                                 >
@@ -207,13 +220,13 @@ const ManageRosterClient = ({ initialData, currentUserUid }: ManageRosterClientP
                             )}
                         </div>
                     </div>
-                    
+
                     {/* Anggota Aktif */}
                     <div className="card-stone p-6">
                         <h2 className="text-2xl font-supercell border-l-4 border-coc-gold pl-3 mb-6 flex items-center gap-2">
                             Anggota Aktif ({activeMembers.length}/50)
                         </h2>
-                        
+
                         <div className="space-y-4">
                             {activeMembers.map((member) => {
                                 const isLoading = roleUpdateLoading === member.uid;
@@ -231,22 +244,22 @@ const ManageRosterClient = ({ initialData, currentUserUid }: ManageRosterClientP
                                             <select
                                                 value={member.role || 'Member'}
                                                 onChange={(e) => handleChangeRole(member, e.target.value as UserProfile['role'])}
-                                                disabled={isLoading || member.uid === currentUserUid || member.role === 'Leader'}
+                                                disabled={isLoading || member.uid === currentUserUid || member.role === 'Leader'} // Leader cannot be changed here
                                                 className="bg-coc-stone/70 border border-coc-gold-dark/50 rounded-md px-3 py-1.5 text-sm text-white disabled:opacity-50"
                                             >
-                                                <option value="Leader" disabled>Kapten</option>
+                                                <option value="Leader" disabled>Kapten</option> {/* Always disabled */}
                                                 <option value="Co-Leader">Co-Leader</option>
                                                 <option value="Elder">Elder</option>
                                                 <option value="Member">Member</option>
                                             </select>
-                                            
-                                            {/* Tombol Kick (Disabled jika Kapten mencoba mengeluarkan dirinya sendiri atau sedang loading) */}
-                                            <Button 
-                                                variant="secondary" 
-                                                size="sm" 
+
+                                            {/* Tombol Kick (Sekarang memanggil konfirmasi) */}
+                                            <Button
+                                                variant="secondary"
+                                                size="sm"
                                                 className="bg-coc-red/70 border-coc-red text-white hover:bg-coc-red/90"
-                                                onClick={() => handleKickMember(member)}
-                                                disabled={member.uid === currentUserUid || isLoading || member.role === 'Leader'}
+                                                onClick={() => requestKickConfirmation(member)} // Call confirmation function
+                                                disabled={member.uid === currentUserUid || isLoading || member.role === 'Leader'} // Leader cannot be kicked
                                             >
                                                 {isLoading ? '...' : <XIcon className="h-4 w-4"/>}
                                             </Button>
@@ -269,9 +282,9 @@ const ManageRosterClient = ({ initialData, currentUserUid }: ManageRosterClientP
                             <select
                                 id="recruiting-status"
                                 value={team.recruitingStatus}
-                                onChange={(e) => { 
-                                    // ASUMSI: Fungsi untuk update status rekrutmen akan memanggil fungsi di firestore.ts
-                                    alert(`Status diubah menjadi: ${e.target.value}. Implementasi penyimpanan ke Firestore akan dilakukan.`);
+                                onChange={(e) => {
+                                    // TODO: Implement saving to Firestore
+                                    showNotification(`Status diubah menjadi: ${e.target.value}. Penyimpanan belum diimplementasikan.`, 'info');
                                 }}
                                 className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white focus:ring-coc-gold focus:border-coc-gold"
                             >
@@ -280,10 +293,12 @@ const ManageRosterClient = ({ initialData, currentUserUid }: ManageRosterClientP
                                 <option value="Closed">Tutup</option>
                             </select>
                         </div>
-                        {/* Contoh tombol simpan untuk pengaturan lain */}
-                        <Button variant="primary" className="w-full">Simpan Pengaturan Lain</Button>
+                        {/* Example save button for other settings */}
+                        <Button variant="primary" className="w-full" onClick={(e) => { e.preventDefault(); showNotification('Penyimpanan pengaturan lain belum diimplementasikan.', 'info'); }}>
+                            Simpan Pengaturan Lain
+                        </Button>
                     </form>
-                    
+
                     <h3 className="text-xl text-coc-gold-dark font-supercell border-b border-coc-gold-dark/30 pb-2 mt-6">
                         <ClockIcon className='h-5 w-5'/> Jadwal Tim
                     </h3>
