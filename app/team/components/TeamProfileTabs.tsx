@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/app/components/ui/Button';
-// PERBAIKAN: Hapus getRankColor dari impor (jika ada)
 import { Team, UserProfile } from '@/lib/types';
 import { StarIcon, ShieldIcon, UserIcon, TrophyIcon } from '@/app/components/icons'; 
 
@@ -46,6 +45,7 @@ const TeamProfileTabs: React.FC<TeamProfileTabsProps> = ({ team, members, compet
     return (
         <div className="space-y-6">
             {/* Navigasi Tombol */}
+            {/* Navigasi tombol tab ini tidak dibungkus card agar border-b bisa terlihat di bawah card utama */}
             <div className="flex border-b-2 border-coc-gold-dark/20 overflow-x-auto custom-scrollbar">
                 <button 
                     onClick={() => setActiveTab('visi')}
@@ -70,9 +70,12 @@ const TeamProfileTabs: React.FC<TeamProfileTabsProps> = ({ team, members, compet
                 </button>
             </div>
 
+            {/* --- Konten Tab Dibungkus dalam Card untuk Styling yang Konsisten --- */}
+            
             {/* Content: Visi & Aturan */}
             {activeTab === 'visi' && (
-                <div className="space-y-6">
+                // PERBAIKAN: Tambahkan wrapper card-stone di sini
+                <div className="card-stone p-6 space-y-6">
                     {/* Menggunakan font-clash */}
                     <h3 className="text-xl text-coc-gold-dark font-clash border-b border-coc-gold-dark/30 pb-2">Visi Tim</h3>
                     <p className="text-gray-300">
@@ -97,7 +100,8 @@ const TeamProfileTabs: React.FC<TeamProfileTabsProps> = ({ team, members, compet
             
             {/* Content: Riwayat Kompetisi */}
             {activeTab === 'riwayat' && (
-                <div className="space-y-6">
+                // PERBAIKAN: Tambahkan wrapper card-stone di sini
+                <div className="card-stone p-6 space-y-6">
                     {/* Menggunakan font-clash */}
                     <h3 className="text-xl text-coc-gold-dark font-clash border-b border-coc-gold-dark/30 pb-2">Riwayat Turnamen Resmi</h3>
                     <div className="overflow-x-auto">
@@ -134,7 +138,8 @@ const TeamProfileTabs: React.FC<TeamProfileTabsProps> = ({ team, members, compet
 
             {/* Content: Anggota Tim */}
             {activeTab === 'anggota' && (
-                <div className="space-y-6">
+                // PERBAIKAN: Tambahkan wrapper card-stone di sini
+                <div className="card-stone p-6 space-y-6">
                     {/* Menggunakan font-clash */}
                     <h3 className="text-xl text-coc-gold-dark font-clash border-b border-coc-gold-dark/30 pb-2">Daftar Roster ({members.length}/50)</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

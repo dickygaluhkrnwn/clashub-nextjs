@@ -215,6 +215,8 @@ export const getTournaments = async (): Promise<FirestoreDocument<Tournament>[]>
 /**
  * @function getTeamMembers
  * Mengambil semua UserProfile yang teamId-nya cocok.
+ * PERBAIKAN UTAMA: Hapus where('role', '!=', 'Free Agent') untuk menghindari Composite Index Error.
+ * Pemfilteran Free Agent akan dilakukan di sisi aplikasi (Client/Server Component).
  * @param teamId - ID Tim.
  * @returns Array UserProfile (anggota tim), atau array kosong jika error.
  */
@@ -223,8 +225,8 @@ export const getTeamMembers = async (teamId: string): Promise<UserProfile[]> => 
     const usersRef = collection(firestore, 'users');
     const q = query(
         usersRef,
-        where('teamId', '==', teamId),
-        where('role', '!=', 'Free Agent')
+        where('teamId', '==', teamId)
+        // HAPUS: where('role', '!=', 'Free Agent')
     );
     const snapshot = await getDocs(q);
 
