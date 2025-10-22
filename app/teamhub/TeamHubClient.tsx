@@ -66,8 +66,13 @@ const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => 
             const searchTermLower = teamFilters.searchTerm.toLowerCase();
             // Pastikan vision filter 'all' berfungsi
             const visionMatch = teamFilters.vision === 'all' || team.vision === teamFilters.vision;
+            
+            // PERBAIKAN UTAMA: Tambahkan fallback string kosong (?? '') untuk menghindari error toLowerCase() pada null/undefined
+            const teamName = team.name ?? '';
+            const teamTag = team.tag ?? '';
+
             return (
-                (team.name.toLowerCase().includes(searchTermLower) || team.tag.toLowerCase().includes(searchTermLower)) &&
+                (teamName.toLowerCase().includes(searchTermLower) || teamTag.toLowerCase().includes(searchTermLower)) &&
                 visionMatch &&
                 team.rating >= teamFilters.reputation &&
                 team.avgTh >= teamFilters.thLevel
@@ -201,7 +206,7 @@ const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => 
                                     ) : (
                                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                                             {/* Render teamsToShow */}
-                                            {teamsToShow.map(team => <TeamCard key={team.id} {...team} />)}
+                                            {teamsToShow.map(team => <TeamCard key={team.id} id={team.id} name={team.name} tag={team.tag} rating={team.rating} vision={team.vision} avgTh={team.avgTh} logoUrl={team.logoUrl} />)}
                                         </div>
                                     )}
                                      {/* Tombol Load More Teams */}

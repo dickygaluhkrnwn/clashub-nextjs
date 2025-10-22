@@ -42,9 +42,8 @@ async function seedDatabase() {
         // Seeding Teams
         console.log(`Menambahkan ${dummyTeams.length} tim...`);
         for (const team of dummyTeams) {
-            // Menggunakan nama tim sebagai ID untuk memudahkan debugging relasi (teamId)
-            // Diperbaiki: Menggunakan setDoc untuk konsistensi dengan getDoc/doc
-            await setDoc(doc(firestore, 'teams', team.name), team); 
+            // PERBAIKAN: Menggunakan 'team.id' (yang sudah ada dan valid) sebagai ID dokumen
+            await setDoc(doc(firestore, 'teams', team.id), team); 
         }
 
         // Seeding Players (Users)

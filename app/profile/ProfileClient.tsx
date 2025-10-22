@@ -47,9 +47,34 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
         );
     }
 
-    // --- 2. Handle Error dari Server (Fetch Gagal Total) ---
-    // Kondisi ini menampilkan "Coba Lagi" (yang Anda lihat). Ini hanya terjadi jika data Firestore GAGAL di-fetch.
-    if (error && !initialProfile) { 
+    // --- 2. Periksa apakah error adalah 'Profil belum ditemukan' atau 'Fatal Error' ---
+    // Logika ini menggantikan skenario 2 dan 3 yang lama.
+
+    // Kasus A: Profil TIDAK ditemukan (InitialProfile null) DAN ada pesan error
+    // Pesan error di sini berasal dari Server Component yang mengatakan "Profil belum ditemukan. Silakan lengkapi data Anda."
+    const isMissingProfile = !userProfile && error && error.includes('Profil E-Sports CV Anda belum ditemukan');
+
+    if (isMissingProfile) {
+        return (
+            <div className="flex justify-center items-center min-h-screen">
+                <div className="card-stone p-8 max-w-md text-center rounded-lg">
+                    <InfoIcon className="h-12 w-12 text-coc-gold mx-auto mb-4"/>
+                    {/* PERBAIKAN FONT */}
+                    <h2 className="text-2xl text-coc-gold font-clash mb-4">Profil Belum Lengkap</h2>
+                    <p className="text-gray-400 mb-6">
+                        {error}
+                    </p>
+                    <Button href="/profile/edit" variant="primary">
+                        <XIcon className="inline h-5 w-5 mr-2"/> Mulai Edit CV
+                    </Button>
+                </div>
+            </div>
+        );
+    }
+    
+    // Kasus B: Fatal Error (InitialProfile null dan pesan error bukan missing profile)
+    // Ini menangani kasus "Coba Lagi" yang Anda lihat.
+    if (!userProfile && error) {
         return (
           <div className="flex justify-center items-center min-h-screen">
             <div className="card-stone p-8 max-w-md text-center rounded-lg">
@@ -65,27 +90,8 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
         );
     }
 
-    // --- 3. Handle Kasus Profil Belum Ada (Fetch Berhasil, Data Null) ---
-    // Kondisi ini terjadi jika pengguna baru mendaftar dan dokumen 'users' belum lengkap.
-    if (!error && currentUser && !userProfile) {
-        return (
-            <div className="flex justify-center items-center min-h-screen">
-                <div className="card-stone p-8 max-w-md text-center rounded-lg">
-                    <InfoIcon className="h-12 w-12 text-coc-gold mx-auto mb-4"/>
-                    {/* PERBAIKAN FONT */}
-                    <h2 className="text-2xl text-coc-gold font-clash mb-4">Profil Belum Lengkap</h2>
-                    <p className="text-gray-400 mb-6">
-                        {serverError || "Sepertinya Anda baru mendaftar atau profil Anda belum ada. Mohon lengkapi E-Sports CV Anda."}
-                    </p>
-                    <Button href="/profile/edit" variant="primary">
-                        <XIcon className="inline h-5 w-5 mr-2"/> Mulai Edit CV
-                    </Button>
-                </div>
-            </div>
-        );
-    }
-
-    // --- 4. Tampilkan Profil Jika Semua OK ---
+    // --- 3. Tampilkan Profil Jika Semua OK ---
+    // (Juga mencakup kasus di mana serverError adalah null karena profil ditemukan)
     if (currentUser && userProfile) {
         const validThLevel = userProfile.thLevel && !isNaN(userProfile.thLevel) && userProfile.thLevel > 0 ? userProfile.thLevel : 9;
         const thImage = getThImage(validThLevel);
@@ -217,7 +223,8 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
     }
 
     // Fallback jika tidak ada kondisi yang cocok (seharusnya tidak terjadi jika logic benar)
-    return null;
+    // Jika auth sudah selesai tapi tidak ada currentUser (seharusnya sudah redirect di server component)
+    return null; 
 };
 
 export default ProfileClient;

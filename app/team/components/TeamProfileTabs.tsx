@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/app/components/ui/Button';
+// PERBAIKAN: Hapus getRankColor dari impor (jika ada)
 import { Team, UserProfile } from '@/lib/types';
 import { StarIcon, ShieldIcon, UserIcon, TrophyIcon } from '@/app/components/icons'; 
 
@@ -18,14 +19,26 @@ interface TeamProfileTabsProps {
     team: Team;
     members: UserProfile[];
     competitionHistory: CompetitionHistoryItem[];
-    getRankColor: (rank: string) => string;
+    // PERBAIKAN: Hapus getRankColor dari props
+    // getRankColor: (rank: string) => string; 
 }
+
+/**
+ * @function getRankColor (Dipindahkan ke sini sebagai helper lokal)
+ * Menentukan kelas warna Tailwind berdasarkan peringkat kompetisi.
+ */
+const getRankColor = (rank: string) => {
+    if (rank.includes('Juara')) return 'text-coc-gold';
+    return 'text-gray-400';
+};
+
 
 /**
  * @component TeamProfileTabs (Client Component)
  * Menangani tab navigasi dan konten tab menggunakan useState.
  */
-const TeamProfileTabs: React.FC<TeamProfileTabsProps> = ({ team, members, competitionHistory, getRankColor }) => {
+// PERBAIKAN: Hapus getRankColor dari destrukturisasi props
+const TeamProfileTabs: React.FC<TeamProfileTabsProps> = ({ team, members, competitionHistory }) => {
     // State untuk mengontrol tab yang aktif
     const [activeTab, setActiveTab] = useState<'visi' | 'riwayat' | 'anggota'>('visi'); 
     const isCompetitive = team.vision === 'Kompetitif';
@@ -100,6 +113,7 @@ const TeamProfileTabs: React.FC<TeamProfileTabsProps> = ({ team, members, compet
                             <tbody>
                                 {competitionHistory.map((item, index) => (
                                     <tr key={index} className='border-b border-coc-gold-dark/10 hover:bg-coc-stone/50 transition-colors text-sm'>
+                                        {/* PERBAIKAN: Menggunakan fungsi getRankColor lokal */}
                                         <td className="p-3 font-bold">{item.tournament}</td>
                                         <td className={`p-3 font-bold ${getRankColor(item.rank)}`}>{item.rank}</td>
                                         <td className="p-3 text-gray-400">{item.date}</td>

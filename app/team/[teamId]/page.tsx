@@ -9,8 +9,6 @@ import { getTeamById, getTeamMembers } from '@/lib/firestore';
 import { ArrowLeftIcon, StarIcon, ShieldIcon, UserIcon, GlobeIcon, DiscordIcon, ClockIcon, TrophyIcon } from '@/app/components/icons'; 
 // PERBAIKAN: Import komponen Client Component yang baru
 import TeamProfileTabs from '../components/TeamProfileTabs'; 
-// PERBAIKAN: Hapus impor React dan useState yang menyebabkan error
-// import React, { useState } from 'react'; 
 
 // Definisikan tipe untuk parameter rute dinamis
 interface TeamDetailPageProps {
@@ -24,7 +22,8 @@ interface TeamDetailPageProps {
  * Membuat metadata dinamis untuk SEO di sisi Server.
  */
 export async function generateMetadata({ params }: TeamDetailPageProps): Promise<Metadata> {
-    const teamId = params.teamId;
+    // PERBAIKAN: Decode teamId untuk memastikan spasi dan karakter lain benar
+    const teamId = decodeURIComponent(params.teamId);
     const team = await getTeamById(teamId); 
 
     if (!team) {
@@ -42,7 +41,8 @@ export async function generateMetadata({ params }: TeamDetailPageProps): Promise
  * Menampilkan detail lengkap profil tim.
  */
 const TeamDetailPage = async ({ params }: TeamDetailPageProps) => {
-    const teamId = params.teamId;
+    // PERBAIKAN: Decode teamId untuk memastikan spasi dan karakter lain benar
+    const teamId = decodeURIComponent(params.teamId);
 
     // Mengambil data tim dan anggota secara paralel
     const [team, members] = await Promise.all([
@@ -72,10 +72,11 @@ const TeamDetailPage = async ({ params }: TeamDetailPageProps) => {
         time: "20:00 WIB (Persiapan)",
     };
 
-    const getRankColor = (rank: string) => {
-        if (rank.includes('Juara')) return 'text-coc-gold';
-        return 'text-gray-400';
-    };
+    // Hapus getRankColor dari sini, karena akan dipindahkan ke TeamProfileTabs.tsx
+    // const getRankColor = (rank: string) => {
+    //     if (rank.includes('Juara')) return 'text-coc-gold';
+    //     return 'text-gray-400';
+    // };
 
     return (
         <main className="container mx-auto p-4 md:p-8 mt-10">
@@ -170,7 +171,7 @@ const TeamDetailPage = async ({ params }: TeamDetailPageProps) => {
                             team={team} 
                             members={members} 
                             competitionHistory={competitionHistory}
-                            getRankColor={getRankColor}
+                            // HAPUS PROP getRankColor
                         />
                     </div>
                 </section>
@@ -180,27 +181,3 @@ const TeamDetailPage = async ({ params }: TeamDetailPageProps) => {
 };
 
 export default TeamDetailPage;
-
-// PERBAIKAN: Hapus definisi komponen TeamProfileTabs yang lama dan bermasalah
-/*
-interface TeamProfileTabsProps {
-    team: Team;
-    members: UserProfile[];
-    competitionHistory: { tournament: string, rank: string, date: string, prize: string }[];
-    getRankColor: (rank: string) => string;
-}
-
-const TeamProfileTabs = ({ team, members, competitionHistory, getRankColor }: TeamProfileTabsProps) => {
-    'use client';
-    const [activeTab, setActiveTab] = useState<'visi' | 'riwayat' | 'anggota'>('visi'); 
-    const isCompetitive = team.vision === 'Kompetitif';
-
-    return (
-        <div className="space-y-6">
-            ... (konten tab yang bermasalah)
-        </div>
-    );
-};
-*/
-// PERBAIKAN: Hapus impor React dan useState yang lama di bagian bawah file ini.
-// import React, { useState } from 'react'; 
