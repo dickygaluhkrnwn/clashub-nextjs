@@ -14,8 +14,9 @@ const TeamHubPage = async () => {
     let initialTeams: Team[] = [];
     let initialPlayers: Player[] = [];
     let teamsError: string | null = null;
-    let playersError: string | null = null;
-    
+    // playersError tidak digunakan di logic error, bisa dihapus jika mau
+    // let playersError: string | null = null;
+
     // Menggunakan Promise.all untuk mengambil semua data secara paralel
     try {
         const [teams, players] = await Promise.all([
@@ -27,15 +28,17 @@ const TeamHubPage = async () => {
         initialPlayers = players;
     } catch (err) {
         console.error("Error fetching data on server:", err);
+        // Error message bisa lebih generik karena fetch dilakukan bersamaan
         teamsError = "Gagal memuat daftar tim atau pemain. Silakan coba lagi.";
     }
-    
-    // Jika ada error fatal, kita tampilkan pesan error yang di-render oleh server
+
+    // Jika ada error fatal, tampilkan pesan error yang di-render oleh server
     if (teamsError) {
         return (
              <main className="container mx-auto p-4 md:p-8 mt-10">
                 <div className="text-center py-20 card-stone p-6 max-w-lg mx-auto">
-                    <h1 className="text-3xl text-coc-red font-supercell mb-4">Kesalahan Server</h1>
+                    {/* Menggunakan font-clash untuk judul error */}
+                    <h1 className="text-3xl text-coc-red font-clash mb-4">Kesalahan Server</h1>
                     <h2 className="text-xl text-gray-300">{teamsError}</h2>
                     <p className="text-sm text-gray-500 mt-4">Data tim dan pemain tidak dapat dimuat saat ini. Coba lagi dalam beberapa saat.</p>
                 </div>
@@ -43,12 +46,11 @@ const TeamHubPage = async () => {
         );
     }
 
-
     // Meneruskan data yang sudah di-fetch ke Client Component
     return (
         <main className="container mx-auto p-4 md:p-8 mt-10">
-            <TeamHubClient 
-                initialTeams={initialTeams} 
+            <TeamHubClient
+                initialTeams={initialTeams}
                 initialPlayers={initialPlayers} // Data pemain sekarang sudah dimuat di sini!
             />
         </main>

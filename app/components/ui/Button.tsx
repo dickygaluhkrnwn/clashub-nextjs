@@ -33,14 +33,14 @@ export const Button = React.forwardRef<
   HTMLButtonElement | HTMLAnchorElement,
   ButtonProps
 >(({ variant = 'primary', size = 'md', children, className = '', ...props }, ref) => {
-  
-  // Kumpulan kelas dasar dan varian yang diambil dari globals.css
-  const baseClasses = "inline-block font-bold rounded-md transition-all duration-200 uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed";
-  
+
+  // Menambahkan font-clash ke kelas dasar, kecuali untuk varian 'link'
+  const baseClasses = `inline-block ${variant !== 'link' ? 'font-clash' : 'font-sans'} rounded-md transition-all duration-200 uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed`;
+
   const variantClasses = {
-    primary: 'btn-3d-gold',
-    secondary: 'btn-3d-stone',
-    link: 'btn-link',
+    primary: 'btn-3d-gold', // Kelas dari globals.css
+    secondary: 'btn-3d-stone', // Kelas dari globals.css
+    link: 'btn-link font-bold', // Kelas dari globals.css + font-bold
   };
 
   const sizeClasses = {
@@ -72,4 +72,3 @@ export const Button = React.forwardRef<
 });
 
 Button.displayName = 'Button';
-

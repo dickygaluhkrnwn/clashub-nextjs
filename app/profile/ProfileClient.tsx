@@ -34,7 +34,8 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
     if (authLoading) {
         return (
             <div className="flex justify-center items-center min-h-screen">
-                <h1 className="text-3xl text-coc-gold font-supercell animate-pulse">Memuat Sesi Pengguna...</h1>
+                {/* Ganti font-supercell menjadi font-clash */}
+                <h1 className="text-3xl text-coc-gold font-clash animate-pulse">Memuat Sesi Pengguna...</h1>
             </div>
         );
     }
@@ -44,8 +45,9 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
     if (error && !initialProfile) { // Kondisi spesifik untuk error fetch (initialProfile akan null)
         return (
           <div className="flex justify-center items-center min-h-screen">
-            <div className="card-stone p-8 max-w-md text-center">
+            <div className="card-stone p-8 max-w-md text-center rounded-lg">
               <AlertTriangleIcon className="h-12 w-12 text-coc-red mx-auto mb-4"/>
+              {/* Judul h2 akan otomatis menggunakan font-clash dari globals.css */}
               <h2 className="text-2xl text-coc-red mb-4">Error Memuat Profil</h2>
               <p className="text-gray-400 mb-6">{error}</p>
               {/* Tombol refresh mungkin lebih cocok daripada edit jika fetch gagal */}
@@ -62,8 +64,9 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
     if (!error && currentUser && !userProfile) {
         return (
             <div className="flex justify-center items-center min-h-screen">
-                <div className="card-stone p-8 max-w-md text-center">
+                <div className="card-stone p-8 max-w-md text-center rounded-lg">
                     <InfoIcon className="h-12 w-12 text-coc-gold mx-auto mb-4"/>
+                    {/* Judul h2 akan otomatis menggunakan font-clash dari globals.css */}
                     <h2 className="text-2xl text-coc-gold mb-4">Profil Belum Lengkap</h2>
                     <p className="text-gray-400 mb-6">
                         {serverError || "Sepertinya Anda baru mendaftar atau profil Anda belum ada. Mohon lengkapi E-Sports CV Anda."}
@@ -94,7 +97,8 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
                             height={100}
                             className="w-24 h-24 rounded-full mx-auto border-4 border-coc-gold object-cover flex-shrink-0"
                         />
-                        <h1 className="text-3xl font-supercell text-white mt-4">
+                        {/* Ganti font-supercell menjadi font-clash */}
+                        <h1 className="text-3xl font-clash text-white mt-4">
                             {userProfile.displayName}
                         </h1>
                         <p className="text-sm text-gray-400 mb-4">
@@ -103,19 +107,22 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
 
                         <div className="space-y-6 text-left">
                             <div className="pt-4 border-t border-coc-gold-dark/20">
-                                <h3 className="text-lg text-coc-gold-dark font-supercell flex items-center gap-2 mb-2"><InfoIcon className="h-5 w-5"/> Bio & Visi</h3>
+                                {/* Ganti font-supercell menjadi font-clash */}
+                                <h3 className="text-lg text-coc-gold-dark font-clash flex items-center gap-2 mb-2"><InfoIcon className="h-5 w-5"/> Bio & Visi</h3>
                                 <p className="text-sm text-gray-300">{userProfile.bio || 'Belum ada bio.'}</p>
                             </div>
 
                             <div className="pt-4 border-t border-coc-gold-dark/20">
-                                <h3 className="text-lg text-coc-gold-dark font-supercell flex items-center gap-2 mb-2"><CogsIcon className="h-5 w-5"/> Preferensi</h3>
+                                 {/* Ganti font-supercell menjadi font-clash */}
+                                <h3 className="text-lg text-coc-gold-dark font-clash flex items-center gap-2 mb-2"><CogsIcon className="h-5 w-5"/> Preferensi</h3>
                                 <p className="text-sm"><span className="font-bold text-gray-300">Role Main:</span> {userProfile.playStyle || 'Belum Diatur'}</p>
                                 <p className="text-sm"><span className="font-bold text-gray-300">Jam Aktif:</span> {userProfile.activeHours || 'Belum Diatur'}</p>
                             </div>
 
                             {(userProfile.discordId || userProfile.website) && (
                                 <div className="pt-4 border-t border-coc-gold-dark/20">
-                                    <h3 className="text-lg text-coc-gold-dark font-supercell flex items-center gap-2 mb-2">
+                                     {/* Ganti font-supercell menjadi font-clash */}
+                                    <h3 className="text-lg text-coc-gold-dark font-clash flex items-center gap-2 mb-2">
                                         Kontak
                                     </h3>
                                     {userProfile.discordId && (
@@ -134,8 +141,10 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
                             )}
 
                             <div className="pt-4 border-t border-coc-gold-dark/20 text-center">
-                                <h3 className="text-lg text-coc-gold-dark font-supercell">Reputasi Komitmen</h3>
-                                <p className="text-4xl font-supercell text-coc-gold my-1">
+                                 {/* Ganti font-supercell menjadi font-clash */}
+                                <h3 className="text-lg text-coc-gold-dark font-clash">Reputasi Komitmen</h3>
+                                 {/* Ganti font-supercell menjadi font-clash */}
+                                <p className="text-4xl font-clash text-coc-gold my-1">
                                     {userProfile.reputation ? userProfile.reputation.toFixed(1) : '5.0'} <StarIcon className="inline h-7 w-7" />
                                 </p>
                                 <p className="text-xs text-gray-400">(Berdasarkan ulasan mantan tim)</p>
@@ -152,6 +161,7 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
                     {/* Kolom Kanan: Detail CV */}
                     <section className="lg:col-span-2 space-y-8">
                         <div className="card-stone p-6">
+                             {/* Judul h2 akan otomatis menggunakan font-clash */}
                             <h2 className="mb-6 flex items-center gap-2">
                                 <TrophyIcon className="h-6 w-6" /> Status Permainan
                             </h2>
@@ -165,10 +175,12 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
                                 />
                                 <div className="flex-grow grid grid-cols-2 gap-4 text-center w-full">
                                     <div className="bg-coc-stone/50 p-4 rounded-lg border border-coc-gold-dark/30">
+                                         {/* Judul h4 akan otomatis menggunakan font-clash */}
                                         <h4 className="text-3xl text-coc-gold">{validThLevel}</h4>
                                         <p className="text-xs uppercase text-gray-400">Level Town Hall</p>
                                     </div>
                                     <div className="bg-coc-stone/50 p-4 rounded-lg border border-coc-gold-dark/30">
+                                         {/* Judul h4 akan otomatis menggunakan font-clash */}
                                         <h4 className="text-3xl text-coc-gold">5200+</h4> {/* Data statis */}
                                         <p className="text-xs uppercase text-gray-400">Trofi Saat Ini</p>
                                     </div>
@@ -176,6 +188,7 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
                             </div>
                         </div>
                         <div className="card-stone p-6">
+                             {/* Judul h2 akan otomatis menggunakan font-clash */}
                             <h2 className="mb-4">Aktivitas Terbaru</h2>
                             <div className="space-y-4">
                                 {recentPosts.map((post) => (
@@ -184,6 +197,7 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
                             </div>
                         </div>
                         <div className="card-stone p-6">
+                             {/* Judul h2 akan otomatis menggunakan font-clash */}
                             <h2 className="mb-4">Riwayat Tim</h2>
                             <p className="text-gray-400 text-sm">Riwayat Tim akan muncul di sini.</p>
                         </div>

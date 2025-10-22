@@ -1,4 +1,4 @@
-'use client'; 
+'use client';
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -27,7 +27,7 @@ const UserProfileDropdown = () => {
         try {
             // 1. Panggil Firebase signOut
             await signOut(auth);
-            
+
             // 2. Panggil API untuk menghapus cookie sesi di sisi server
             await fetch('/api/logout', { method: 'POST' });
 
@@ -57,13 +57,13 @@ const UserProfileDropdown = () => {
 
     return (
         <div className="relative" ref={dropdownRef}>
-            <button 
+            <button
                 onClick={() => setIsOpen(!isOpen)}
                 className="h-9 w-9 flex items-center justify-center rounded-full bg-coc-stone-light hover:ring-2 hover:ring-coc-gold transition-all"
             >
                 <img src="/images/placeholder-avatar.png" alt="User Avatar" className="rounded-full h-8 w-8 object-cover" />
             </button>
-            
+
             {isOpen && (
                 <div className="absolute right-0 mt-2 w-48 card-stone p-2 shadow-lg rounded-md z-50">
                     <ul className="space-y-1">
@@ -94,8 +94,8 @@ const Header = () => {
   return (
     <header className="sticky top-0 z-50 bg-coc-stone/80 backdrop-blur-sm border-b-2 border-coc-gold-dark/30 animate-header-glow">
       <div className="container mx-auto flex items-center justify-between p-4">
-        {/* Logo */}
-        <Link href="/" className="font-supercell text-3xl text-coc-gold z-20" style={{ textShadow: '2px 2px 5px rgba(0,0,0,0.8)' }}>
+        {/* Logo - Menerapkan font-clash */}
+        <Link href="/" className="font-clash text-3xl text-coc-gold z-20" style={{ textShadow: '2px 2px 5px rgba(0,0,0,0.8)' }}>
           CLASHUB
         </Link>
 
@@ -124,7 +124,7 @@ const Header = () => {
           <button className="text-gray-300 hover:text-coc-gold transition-colors">
             <SearchIcon className="h-6 w-6" />
           </button>
-          
+
           <div className="relative">
             <button className="text-gray-300 hover:text-coc-gold transition-colors">
               <BellIcon className="h-6 w-6" />
@@ -133,7 +133,7 @@ const Header = () => {
               </span>
             </button>
           </div>
-          
+
           <div className="w-px h-6 bg-coc-gold-dark/50"></div>
 
           {/* Render tombol login atau menu profil secara kondisional */}

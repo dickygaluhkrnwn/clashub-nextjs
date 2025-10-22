@@ -77,6 +77,7 @@ const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => 
 
     const filteredPlayers = useMemo(() => {
         return allPlayers.filter(player => {
+            // Menggunakan nullish coalescing untuk fallback jika displayName/name null
             const name = player.displayName || player.name || '';
             const tag = player.playerTag || player.tag || '';
 
@@ -97,7 +98,7 @@ const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => 
         setTimeout(() => {
             setTeamFilters(newFilters);
             setIsFiltering(false);
-        }, 50);
+        }, 50); // Delay singkat untuk UX
     };
 
     const handlePlayerFilterChange = (newFilters: PlayerFilters) => {
@@ -106,7 +107,7 @@ const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => 
         setTimeout(() => {
             setPlayerFilters(newFilters);
             setIsFiltering(false);
-        }, 50);
+        }, 50); // Delay singkat untuk UX
     };
 
     // --- Fungsi Load More ---
@@ -133,6 +134,7 @@ const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => 
 
     return (
         <>
+            {/* Navigasi Tab */}
             <div className="mb-8 border-b-2 border-coc-gold-dark/20 flex overflow-x-auto custom-scrollbar">
                 <button
                     onClick={() => {
@@ -141,7 +143,8 @@ const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => 
                         handlePlayerFilterChange({ searchTerm: '', role: 'all', reputation: 3.0, thLevel: 9 });
                         setVisiblePlayersCount(ITEMS_PER_LOAD);
                     }}
-                    className={`px-6 py-3 font-supercell text-lg whitespace-nowrap transition-colors ${activeTab === 'teams' ? 'text-coc-gold border-b-2 border-coc-gold' : 'text-gray-400 hover:text-white'}`}>
+                    // Menggunakan font-clash untuk tombol tab
+                    className={`px-6 py-3 font-clash text-lg whitespace-nowrap transition-colors ${activeTab === 'teams' ? 'text-coc-gold border-b-2 border-coc-gold' : 'text-gray-400 hover:text-white'}`}>
                     Cari Tim
                 </button>
                 <button
@@ -151,13 +154,16 @@ const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => 
                         handleTeamFilterChange({ searchTerm: '', vision: 'all', reputation: 3.0, thLevel: 9 }); // Default vision ke 'all' saat reset
                         setVisibleTeamsCount(ITEMS_PER_LOAD);
                     }}
-                    className={`px-6 py-3 font-supercell text-lg whitespace-nowrap transition-colors ${activeTab === 'players' ? 'text-coc-gold border-b-2 border-coc-gold' : 'text-gray-400 hover:text-white'}`}>
+                     // Menggunakan font-clash untuk tombol tab
+                    className={`px-6 py-3 font-clash text-lg whitespace-nowrap transition-colors ${activeTab === 'players' ? 'text-coc-gold border-b-2 border-coc-gold' : 'text-gray-400 hover:text-white'}`}>
                     Cari Pemain
                 </button>
             </div>
 
+            {/* Layout Utama: Filter + Hasil */}
             <section className="grid grid-cols-1 lg:grid-cols-4 gap-8">
 
+                {/* Kolom Filter (Sidebar) */}
                 <div className="lg:col-span-1">
                     {activeTab === 'teams'
                         ? <TeamHubFilter filters={teamFilters} onFilterChange={handleTeamFilterChange} />
@@ -165,27 +171,33 @@ const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => 
                     }
                 </div>
 
+                {/* Kolom Hasil Pencarian */}
                 <div className="lg:col-span-3">
+                    {/* State Loading/Filtering */}
                     {isFiltering ? (
-                        <div className="text-center py-20">
+                        <div className="text-center py-20 card-stone rounded-lg">
                            <CogsIcon className="h-10 w-10 text-coc-gold animate-spin mx-auto mb-4" />
-                           <h2 className="text-xl text-coc-gold">Memfilter...</h2>
+                           {/* Menggunakan font-clash untuk teks loading */}
+                           <h2 className="text-xl font-clash text-coc-gold">Memfilter...</h2>
                        </div>
-                    ) : isLoading ? (
-                        <div className="text-center py-20">
-                            <h2 className="text-2xl text-coc-gold animate-pulse">Memuat Data...</h2>
+                    ) : isLoading ? ( // isLoading saat ini selalu false karena data dari server
+                        <div className="text-center py-20 card-stone rounded-lg">
+                             {/* Menggunakan font-clash untuk teks loading */}
+                            <h2 className="text-2xl font-clash text-coc-gold animate-pulse">Memuat Data...</h2>
                         </div>
-                    ) : error ? (
-                        <div className="text-center py-20 card-stone p-6">
+                    ) : error ? ( // error saat ini selalu null karena ditangani di server
+                        <div className="text-center py-20 card-stone p-6 rounded-lg">
                             <h2 className="text-2xl text-coc-red">{error}</h2>
                         </div>
                     ) : (
+                        // Konten Hasil
                         <>
                             {activeTab === 'teams' && (
                                 <div>
+                                    {/* Judul akan otomatis font-clash */}
                                     <h1 className="text-3xl md:text-4xl mb-6">{filteredTeams.length} Tim Ditemukan</h1>
                                     {teamsToShow.length === 0 ? (
-                                         <p className="text-gray-400 text-center py-10 card-stone">Tidak ada tim yang cocok dengan filter Anda.</p>
+                                         <p className="text-gray-400 text-center py-10 card-stone rounded-lg">Tidak ada tim yang cocok dengan filter Anda.</p>
                                     ) : (
                                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                                             {/* Render teamsToShow */}
@@ -205,9 +217,10 @@ const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => 
 
                             {activeTab === 'players' && (
                                 <div>
+                                     {/* Judul akan otomatis font-clash */}
                                     <h1 className="text-3xl md:text-4xl mb-6">{filteredPlayers.length} Pemain Ditemukan</h1>
                                      {playersToShow.length === 0 ? (
-                                         <p className="text-gray-400 text-center py-10 card-stone">Tidak ada pemain yang cocok dengan filter Anda.</p>
+                                         <p className="text-gray-400 text-center py-10 card-stone rounded-lg">Tidak ada pemain yang cocok dengan filter Anda.</p>
                                      ) : (
                                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                                              {/* Render playersToShow */}
@@ -215,10 +228,11 @@ const TeamHubClient = ({ initialTeams, initialPlayers }: TeamHubClientProps) => 
                                                 <PlayerCard
                                                     key={player.id}
                                                     id={player.id}
-                                                    name={player.displayName || player.name}
-                                                    tag={player.playerTag || player.tag}
+                                                    // Menggunakan nullish coalescing untuk fallback
+                                                    name={player.displayName || player.name || 'Nama Tidak Diketahui'}
+                                                    tag={player.playerTag || player.tag || '#?????'}
                                                     thLevel={player.thLevel}
-                                                    reputation={player.reputation ?? 0}
+                                                    reputation={player.reputation ?? 0} // Default reputasi 0 jika null
                                                     role={player.role}
                                                     avatarUrl={player.avatarUrl}
                                                 />

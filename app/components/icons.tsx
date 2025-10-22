@@ -59,14 +59,14 @@ export const XIcon = (props: IconProps) => (
     </svg>
 );
 
-// Ikon Bintang
+// Ikon Bintang (filled style)
 export const StarIcon = (props: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
     </svg>
 );
 
-// --- IKON YANG SUDAH ADA ---
+// --- IKON YANG SUDAH ADA DARI SEBELUMNYA ---
 
 export const ArrowLeftIcon = (props: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -88,7 +88,7 @@ export const ClockIcon = (props: IconProps) => (
     </svg>
 );
 
-// --- IKON UTAMA ---
+// --- IKON UTAMA LAINNYA ---
 
 export const TrophyIcon = (props: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -185,7 +185,7 @@ export const UserCircleIcon = (props: IconProps) => (
     </svg>
 );
 
-// Ikon BARU yang HILANG
+// Ikon BARU yang HILANG sebelumnya
 export const SaveIcon = (props: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
@@ -212,16 +212,15 @@ export const GlobeIcon = (props: IconProps) => (
     </svg>
 );
 
-export const LinkIcon = (props: IconProps) => ( // Ini adalah ikon alternatif untuk tautan
+export const LinkIcon = (props: IconProps) => ( // Alternatif untuk tautan
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
         <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
     </svg>
 );
 
-// Menggunakan ikon Lucide standar sebagai pengganti FaDiscord untuk menghindari instalasi library eksternal
+// Placeholder Discord Icon (menggunakan ikon chat sederhana)
 export const DiscordIcon = (props: IconProps) => (
-    // Ikon sederhana untuk komunikasi atau chat
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <path d="M15 10c0-1.8-1.7-3-3.8-3S7.2 8.2 7.2 10c0 1.2 0.7 2.2 1.7 2.7 0.1 0.1 0.1 0.2 0 0.3l-0.8 1.6c-0.2 0.4 0.2 0.8 0.6 0.6l2.3-1.1c0.1 0 0.2 0 0.3 0l2.3 1.1c0.4 0.2 0.8-0.2 0.6-0.6l-0.8-1.6c-0.1-0.1 0-0.2 0-0.3 1-0.5 1.7-1.5 1.7-2.7z" />
         <path d="M20 7.2c-1.3-1.3-3-2-4.8-2H8.8C7 5.2 5.3 5.9 4 7.2L2 9.5c0 0 0 0 0 0v8.2c0 1.1 0.9 2 2 2h16c1.1 0 2-0.9 2-2v-8.2c0 0 0-0.1 0-0.1L20 7.2z" />
@@ -251,7 +250,7 @@ export const SortAscIcon = (props: IconProps) => (
     </svg>
 );
 
-// BARU: Ikon PaperPlane (ditambahkan berdasarkan instruksi sebelumnya)
+// BARU: Ikon PaperPlane
 export const PaperPlaneIcon = (props: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <path d="m22 2-7 20-4-9-9-4 20-7Z"/>

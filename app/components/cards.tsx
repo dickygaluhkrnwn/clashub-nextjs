@@ -52,7 +52,8 @@ export const TeamCard = ({ id, name, tag, rating, vision, avgTh, logoUrl = "/ima
         <div className="flex items-center gap-4 mb-4">
           <Image src={logoUrl} alt={`${name} logo`} width={50} height={50} className="rounded-full border-2 border-coc-gold-dark flex-shrink-0" />
           <div className="flex-grow min-w-0">
-            <h4 className="text-lg font-bold text-white leading-tight truncate">{name}</h4>
+            {/* Menambahkan font-clash */}
+            <h4 className="font-clash text-lg text-white leading-tight truncate">{name}</h4>
             <p className="text-xs text-gray-400">{tag}</p>
           </div>
           <div className="flex items-center gap-1 text-coc-gold font-bold flex-shrink-0">
@@ -86,7 +87,8 @@ export const PostCard = ({ category, tag, title, author, stats, href }: PostCard
               <span className="px-2 py-1 font-bold bg-coc-red text-white rounded-sm">{category}</span>
               <span className="px-2 py-1 font-semibold bg-coc-stone-light text-coc-gold rounded-sm">{tag}</span>
             </div>
-            <h4 className="text-lg font-bold text-white group-hover:text-coc-gold transition-colors mb-3">{title}</h4>
+            {/* Menambahkan font-clash */}
+            <h4 className="font-clash text-lg text-white group-hover:text-coc-gold transition-colors mb-3">{title}</h4>
           </div>
           <div className="mt-auto pt-3 border-t border-coc-stone-light/30 text-xs text-gray-400">
             <p>Oleh: <span className="font-bold text-coc-gold-dark">{author}</span></p>
@@ -113,7 +115,8 @@ export const TournamentCard = ({ id, title, status, thRequirement, prizePool }: 
     return (
         <div className={`card-stone flex flex-col sm:flex-row justify-between items-center p-6 gap-4 border-l-4 ${statusStyles[status]}`}>
             <div className="flex-grow w-full sm:w-auto">
-                <h4 className="text-xl font-bold text-white">{title}</h4>
+                {/* Menambahkan font-clash */}
+                <h4 className="font-clash text-xl text-white">{title}</h4>
                 <div className="text-sm text-gray-300 space-y-1 mt-2">
                     <p>Syarat: <span className="font-bold text-white">{thRequirement}</span></p>
                     <p>Hadiah: <span className="font-bold text-coc-gold">{prizePool}</span></p>
@@ -129,7 +132,7 @@ export const TournamentCard = ({ id, title, status, thRequirement, prizePool }: 
 
 // -- Komponen PlayerCard (BARU) --
 export const PlayerCard = ({ id, name, tag, thLevel, reputation, role, avatarUrl = "/images/placeholder-avatar.png" }: PlayerCardProps) => {
-    
+
     const roleColors: { [key: string]: string } = {
         'Leader': 'bg-coc-gold text-coc-stone',
         'Co-Leader': 'bg-gray-400 text-coc-stone',
@@ -137,14 +140,15 @@ export const PlayerCard = ({ id, name, tag, thLevel, reputation, role, avatarUrl
         'Member': 'bg-coc-stone-light border border-sky-400/50 text-sky-300',
         'Free Agent': 'bg-coc-green text-coc-stone'
     };
-    
+
     return (
         <div className="card-stone flex flex-col justify-between h-full p-5">
             <div>
                 <div className="flex items-center gap-4 mb-4">
                     <Image src={avatarUrl} alt={`${name} avatar`} width={50} height={50} className="rounded-full border-2 border-coc-gold-dark flex-shrink-0" />
                     <div className="flex-grow min-w-0">
-                        <h4 className="text-lg font-bold text-white leading-tight truncate">{name}</h4>
+                        {/* Menambahkan font-clash */}
+                        <h4 className="font-clash text-lg text-white leading-tight truncate">{name}</h4>
                         <p className="text-xs text-gray-400">{tag}</p>
                     </div>
                 </div>
@@ -173,4 +177,3 @@ export const PlayerCard = ({ id, name, tag, thLevel, reputation, role, avatarUrl
         </div>
     );
 };
-

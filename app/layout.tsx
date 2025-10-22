@@ -1,39 +1,50 @@
 import type { Metadata } from "next";
-import { Inter, Uncial_Antiqua } from "next/font/google";
+import { Inter } from "next/font/google";
+import localFont from 'next/font/local'; // Import localFont
 import "./globals.css";
 import Header from "@/app/components/layout/Header";
 import Footer from "@/app/components/layout/Footer";
 import { AuthProvider } from "@/app/context/AuthContext";
-// Import getSessionUser dan tipe ServerUser
 import { getSessionUser, ServerUser } from "@/lib/server-auth";
 
-// Konfigurasi font
+// Konfigurasi font Inter (Tetap)
 const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
-const uncialAntiqua = Uncial_Antiqua({
-  subsets: ["latin"],
-  weight: "400",
-  variable: '--font-uncial-antiqua',
+
+// --- Konfigurasi Font Clash Lokal ---
+// Font Bold sebagai font display utama
+const clashFontBold = localFont({
+  src: './fonts/Clash_Bold.otf',
+  display: 'swap',
+  variable: '--font-clash', // Variabel CSS utama untuk display/header
 });
 
-// Metadata untuk SEO
+// Font Regular (jika diperlukan secara spesifik)
+const clashFontRegular = localFont({
+  src: './fonts/Clash_Regular.otf',
+  display: 'swap',
+  variable: '--font-clash-regular', // Variabel CSS terpisah untuk Regular
+});
+// --- Akhir Konfigurasi Font Clash ---
+
+// Metadata untuk SEO (Tetap)
 export const metadata: Metadata = {
   title: "Clashub | E-sports Community",
   description: "Pusat Strategi & Komunitas E-sports Clash of Clans",
 };
 
-// Ubah RootLayout menjadi async Server Component
+// Ubah RootLayout menjadi async Server Component (Tetap)
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Panggil getSessionUser di server untuk mendapatkan status sesi awal
   const initialServerUser: ServerUser | null = await getSessionUser();
 
   return (
-    <html lang="id">
-      <body className={`${inter.variable} ${uncialAntiqua.variable} font-sans flex flex-col min-h-screen`}>
-        {/* Berikan initialServerUser sebagai prop ke AuthProvider */}
+    // Tambahkan variabel clashFontBold dan clashFontRegular ke html
+    <html lang="id" className={`${inter.variable} ${clashFontBold.variable} ${clashFontRegular.variable}`}>
+      {/* Pastikan body default menggunakan font-sans (Inter) */}
+      <body className={`font-sans flex flex-col min-h-screen`}>
         <AuthProvider initialServerUser={initialServerUser}>
           <Header />
           <main className="flex-grow">
@@ -45,4 +56,3 @@ export default async function RootLayout({
     </html>
   );
 }
-

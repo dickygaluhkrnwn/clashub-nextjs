@@ -81,7 +81,7 @@ const PlayerDetailPage = async ({ params }: PlayerDetailPageProps) => {
     return (
         <main className="container mx-auto p-4 md:p-8 mt-10">
             {/* Header Tindakan */}
-            <header className="flex justify-between items-center flex-wrap gap-4 mb-6 card-stone p-6">
+            <header className="flex justify-between items-center flex-wrap gap-4 mb-6 card-stone p-6 rounded-lg">
                 <Button href="/teamhub" variant="secondary" size="md" className="flex items-center flex-shrink-0">
                     <ArrowLeftIcon className="h-4 w-4 mr-2" /> Kembali ke Pencarian
                 </Button>
@@ -108,21 +108,24 @@ const PlayerDetailPage = async ({ params }: PlayerDetailPageProps) => {
                         height={100}
                         className="w-24 h-24 rounded-full mx-auto border-4 border-coc-gold object-cover flex-shrink-0"
                     />
-                    <h1 className="text-3xl md:text-4xl text-white font-supercell m-0">{player.displayName}</h1>
+                    {/* Ganti font-supercell menjadi font-clash */}
+                    <h1 className="text-3xl md:text-4xl text-white font-clash m-0">{player.displayName}</h1>
                     <p className="text-sm text-gray-400 font-bold mb-1">{player.playerTag}</p>
                     <span className={`px-3 py-1 text-xs font-bold rounded-full ${isCompetitiveVision ? 'bg-coc-red text-white' : 'bg-coc-green text-coc-stone'}`}>
                         {isCompetitiveVision ? 'Kompetitif' : 'Kasual'}
                     </span>
 
                     <div className="text-left pt-4 border-t border-coc-gold-dark/20 space-y-4">
-                        <h3 className="text-lg text-coc-gold-dark font-supercell flex items-center gap-2">
+                         {/* Ganti font-supercell menjadi font-clash */}
+                        <h3 className="text-lg text-coc-gold-dark font-clash flex items-center gap-2">
                             <InfoIcon className="h-5 w-5"/> Bio & Visi
                         </h3>
                         <p className="text-sm text-gray-300">{player.bio || 'Pemain ini belum melengkapi bio-nya.'}</p>
                     </div>
 
                     <div className="text-left pt-4 border-t border-coc-gold-dark/20 space-y-4">
-                        <h3 className="text-lg text-coc-gold-dark font-supercell flex items-center gap-2">
+                         {/* Ganti font-supercell menjadi font-clash */}
+                        <h3 className="text-lg text-coc-gold-dark font-clash flex items-center gap-2">
                             <CogsIcon className="h-5 w-5"/> Preferensi
                         </h3>
                         <p className="text-sm"><span className="font-bold text-gray-300">Role Main:</span> {player.playStyle || 'Belum Diatur'}</p>
@@ -131,7 +134,8 @@ const PlayerDetailPage = async ({ params }: PlayerDetailPageProps) => {
 
                     {/* Kontak Sosial */}
                     <div className="text-left pt-4 border-t border-coc-gold-dark/20 space-y-2">
-                         <h3 className="text-lg text-coc-gold-dark font-supercell flex items-center gap-2">Kontak</h3>
+                         {/* Ganti font-supercell menjadi font-clash */}
+                         <h3 className="text-lg text-coc-gold-dark font-clash flex items-center gap-2">Kontak</h3>
                         {player.discordId ? (
                             <p className="text-sm text-gray-300 flex items-center gap-2"><DiscordIcon className="h-4 w-4 text-coc-gold-dark"/> <span className="font-bold">{player.discordId}</span></p>
                         ) : (
@@ -147,8 +151,10 @@ const PlayerDetailPage = async ({ params }: PlayerDetailPageProps) => {
                     </div>
                     
                     <div className="pt-4 border-t border-coc-gold-dark/20 text-center">
-                        <h3 className="text-lg text-coc-gold-dark font-supercell">Reputasi Komitmen</h3>
-                        <p className="text-4xl font-supercell text-coc-gold my-1">
+                         {/* Ganti font-supercell menjadi font-clash */}
+                        <h3 className="text-lg text-coc-gold-dark font-clash">Reputasi Komitmen</h3>
+                         {/* Ganti font-supercell menjadi font-clash */}
+                        <p className="text-4xl font-clash text-coc-gold my-1">
                             {player.reputation ? player.reputation.toFixed(1) : '5.0'} <StarIcon className="inline h-7 w-7" />
                         </p>
                         <p className="text-xs text-gray-400">(8 Ulasan Komitmen)</p>
@@ -160,7 +166,8 @@ const PlayerDetailPage = async ({ params }: PlayerDetailPageProps) => {
                 <section className="lg:col-span-3 space-y-8">
                     
                     {/* Status Permainan */}
-                    <div className="card-stone p-6">
+                    <div className="card-stone p-6 rounded-lg">
+                         {/* Judul h2 akan otomatis font-clash */}
                         <h2 className="mb-6 flex items-center gap-2">
                             <TrophyIcon className="h-6 w-6" /> Status Permainan
                         </h2>
@@ -177,10 +184,12 @@ const PlayerDetailPage = async ({ params }: PlayerDetailPageProps) => {
                             </div>
                             <div className="flex-grow grid grid-cols-2 gap-4 text-center w-full">
                                 <div className="bg-coc-stone/50 p-4 rounded-lg border border-coc-gold-dark/30">
+                                     {/* Judul h4 akan otomatis font-clash */}
                                     <h4 className="text-3xl text-coc-gold">{validThLevel}</h4>
                                     <p className="text-xs uppercase text-gray-400">Level Town Hall</p>
                                 </div>
                                 <div className="bg-coc-stone/50 p-4 rounded-lg border border-coc-gold-dark/30">
+                                     {/* Judul h4 akan otomatis font-clash */}
                                     <h4 className="text-3xl text-coc-gold">450+</h4> 
                                     <p className="text-xs uppercase text-gray-400">Bintang War Diperoleh</p>
                                 </div>
@@ -189,7 +198,8 @@ const PlayerDetailPage = async ({ params }: PlayerDetailPageProps) => {
                     </div>
 
                     {/* Aktivitas & Postingan Terbaru */}
-                    <div className="card-stone p-6">
+                    <div className="card-stone p-6 rounded-lg">
+                         {/* Judul h2 akan otomatis font-clash */}
                         <h2 className="mb-4">Aktivitas & Postingan Terbaru</h2>
                         <div className="space-y-4">
                             {dummyRecentPosts.map((post) => (
@@ -205,7 +215,8 @@ const PlayerDetailPage = async ({ params }: PlayerDetailPageProps) => {
                     </div>
 
                     {/* Riwayat Tim */}
-                    <div className="card-stone p-6">
+                    <div className="card-stone p-6 rounded-lg">
+                         {/* Judul h2 akan otomatis font-clash */}
                         <h2 className="mb-4 flex items-center gap-2"><UserIcon className="h-5 w-5"/> Riwayat Tim</h2>
                         <div className="space-y-4">
                             {currentTeamHistory.length === 0 ? (
@@ -213,7 +224,8 @@ const PlayerDetailPage = async ({ params }: PlayerDetailPageProps) => {
                             ) : (
                                 currentTeamHistory.map((history, index) => (
                                     <div key={index} className="flex flex-col p-4 bg-coc-stone/50 rounded-lg border-l-4 border-coc-gold-dark/10 hover:border-coc-gold transition-all">
-                                        <h4 className="text-lg font-bold text-white flex justify-between items-center">
+                                         {/* Judul h4 akan otomatis font-clash */}
+                                        <h4 className="text-lg font-clash text-white flex justify-between items-center">
                                             <Link href={`/team/${history.id}`} className='hover:text-coc-gold'>{history.name}</Link>
                                             <span className={`px-2 py-0.5 ml-2 text-xs font-bold rounded-full whitespace-nowrap ${history.role === 'Leader' ? 'bg-coc-gold text-coc-stone' : 'bg-gray-400 text-coc-stone'}`}>
                                                 {history.role}

@@ -22,9 +22,12 @@ const config: Config = {
         'coc-dark-elixir': '#5d3c5d',
       },
       fontFamily: {
-        // Menggunakan variabel CSS untuk font dari layout.tsx
-        'supercell': ['var(--font-uncial-antiqua)', 'cursive'], 
-        'sans': ['var(--font-inter)', 'sans-serif'],
+        // Font Sans-serif default (Inter)
+        sans: ['var(--font-inter)', 'sans-serif'],
+        // Font Clash Bold (untuk header/display)
+        clash: ['var(--font-clash)', 'cursive'], // Mengganti supercell dengan clash
+        // Font Clash Regular (opsional, jika perlu digunakan terpisah)
+        'clash-regular': ['var(--font-clash-regular)', 'cursive'],
       },
       backgroundImage: {
         // Menambahkan semua variasi gambar latar
@@ -56,4 +59,3 @@ const config: Config = {
   plugins: [],
 };
 export default config;
-

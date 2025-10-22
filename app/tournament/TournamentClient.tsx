@@ -59,12 +59,17 @@ const TournamentClient = ({ initialTournaments, error: serverError }: Tournament
             if (!thMatch && tournament.thRequirement) {
                  if (tournament.thRequirement.includes('-')) { // Cek range (e.g., "TH 15 - 16")
                     const [min, max] = tournament.thRequirement.replace(/TH /g, '').split(' - ').map(Number);
-                    const filterTh = parseInt(thLevel.replace('TH ', '').split(' ')[0]); // Ambil angka TH dari filter
-                    thMatch = filterTh >= min && filterTh <= max;
+                    // Ambil angka pertama dari filter (misal "15" dari "TH 15 - 16" atau "13" dari "TH 13")
+                    const filterThNum = parseInt(thLevel.replace(/\D/g, ''), 10);
+                    if (!isNaN(filterThNum)) {
+                         thMatch = filterThNum >= min && filterThNum <= max;
+                    }
                  } else if (thLevel.includes('-')){ // Jika filter adalah range tapi data single TH
                     const [filterMin, filterMax] = thLevel.replace(/TH /g, '').split(' - ').map(Number);
-                    const dataTh = parseInt(tournament.thRequirement.replace(/TH /g, '').replace(' Only', ''));
-                    thMatch = dataTh >= filterMin && dataTh <= filterMax;
+                    const dataTh = parseInt(tournament.thRequirement.replace(/\D/g, ''), 10);
+                     if (!isNaN(dataTh)) {
+                        thMatch = dataTh >= filterMin && dataTh <= filterMax;
+                    }
                  } else { // Cek single TH (e.g., "TH 16 Only" vs "TH 16")
                      thMatch = tournament.thRequirement.includes(thLevel.split(' ')[1]); // Cek apakah angka TH ada di requirement
                  }
@@ -109,13 +114,15 @@ const TournamentClient = ({ initialTournaments, error: serverError }: Tournament
                         // Reset pagination jika kembali ke tab ini (opsional)
                         setVisibleTournamentsCount(ITEMS_PER_LOAD_TOURNAMENT);
                     }}
-                    className={`px-6 py-3 font-supercell text-lg whitespace-nowrap transition-colors ${activeTab === 'tournaments' ? 'text-coc-gold border-b-2 border-coc-gold' : 'text-gray-400 hover:text-white'}`}
+                    // Menggunakan font-clash untuk tombol tab
+                    className={`px-6 py-3 font-clash text-lg whitespace-nowrap transition-colors ${activeTab === 'tournaments' ? 'text-coc-gold border-b-2 border-coc-gold' : 'text-gray-400 hover:text-white'}`}
                 >
                     Daftar Turnamen
                 </button>
                 <button
                     onClick={() => setActiveTab('leagues')}
-                    className={`px-6 py-3 font-supercell text-lg whitespace-nowrap transition-colors ${activeTab === 'leagues' ? 'text-coc-gold border-b-2 border-coc-gold' : 'text-gray-400 hover:text-white'}`}
+                    // Menggunakan font-clash untuk tombol tab
+                    className={`px-6 py-3 font-clash text-lg whitespace-nowrap transition-colors ${activeTab === 'leagues' ? 'text-coc-gold border-b-2 border-coc-gold' : 'text-gray-400 hover:text-white'}`}
                 >
                     Liga & Klasemen
                 </button>
@@ -135,6 +142,7 @@ const TournamentClient = ({ initialTournaments, error: serverError }: Tournament
                     {activeTab === 'tournaments' && (
                         <>
                             <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
+                                {/* Judul akan otomatis font-clash */}
                                 <h1 className="text-3xl md:text-4xl flex items-center gap-2">
                                     <TrophyIcon className='h-8 w-8 text-coc-gold-dark'/>
                                     Turnamen Aktif & Akan Datang
@@ -144,21 +152,26 @@ const TournamentClient = ({ initialTournaments, error: serverError }: Tournament
                                 </Button>
                             </div>
 
+                            {/* State Loading/Filtering/Error */}
                             {isFiltering ? (
-                                <div className="text-center py-20 card-stone">
+                                <div className="text-center py-20 card-stone rounded-lg">
                                      <CogsIcon className="h-10 w-10 text-coc-gold animate-spin mx-auto mb-4" />
-                                    <h3 className="text-xl text-coc-gold">Menerapkan Filter...</h3>
+                                     {/* Menggunakan font-clash */}
+                                    <h3 className="text-xl font-clash text-coc-gold">Menerapkan Filter...</h3>
                                 </div>
                             ) : serverError ? (
-                                <div className="text-center py-20 card-stone p-6">
-                                    <h3 className="text-xl text-coc-red">{serverError}</h3>
+                                <div className="text-center py-20 card-stone p-6 rounded-lg">
+                                    {/* Menggunakan font-clash */}
+                                    <h3 className="text-xl font-clash text-coc-red">{serverError}</h3>
                                 </div>
                             ) : tournamentsToShow.length === 0 ? (
-                                <div className="text-center py-10 card-stone p-6">
-                                    <h3 className="text-xl text-gray-400">Tidak ada turnamen yang ditemukan.</h3>
+                                <div className="text-center py-10 card-stone p-6 rounded-lg">
+                                     {/* Menggunakan font-clash */}
+                                    <h3 className="text-xl font-clash text-gray-400">Tidak ada turnamen yang ditemukan.</h3>
                                     <p className='text-sm text-gray-500'>Coba ubah kriteria filter Anda.</p>
                                 </div>
                             ) : (
+                                // Daftar Turnamen
                                 <div className="space-y-6">
                                      {/* Render tournamentsToShow */}
                                     {tournamentsToShow.map(tournament => (
@@ -181,9 +194,11 @@ const TournamentClient = ({ initialTournaments, error: serverError }: Tournament
                         </>
                     )}
 
+                    {/* Placeholder Tab Liga */}
                     {activeTab === 'leagues' && (
-                         <div className="text-center py-20 card-stone">
-                            <h2 className="text-2xl text-coc-gold">Klasemen Liga (Development)</h2>
+                         <div className="text-center py-20 card-stone rounded-lg">
+                             {/* Menggunakan font-clash untuk judul */}
+                            <h2 className="text-2xl font-clash text-coc-gold">Klasemen Liga (Development)</h2>
                             <p className="text-gray-400 mt-2">Fitur ini sedang dalam pengembangan.</p>
                         </div>
                     )}

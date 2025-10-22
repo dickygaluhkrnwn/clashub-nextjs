@@ -46,6 +46,20 @@ const KnowledgeHubPage = async ({ searchParams }: KnowledgeHubPageProps) => {
         error = "Gagal memuat postingan. Periksa koneksi atau database.";
     }
 
+     // Jika ada error fatal, tampilkan pesan error yang di-render oleh server
+    if (error && initialPosts.length === 0) { // Hanya tampilkan jika tidak ada data sama sekali
+        return (
+             <main className="container mx-auto p-4 md:p-8 mt-10">
+                <div className="text-center py-20 card-stone p-6 max-w-lg mx-auto">
+                    {/* Menggunakan font-clash untuk judul error */}
+                    <h1 className="text-3xl text-coc-red font-clash mb-4">Kesalahan Server</h1>
+                    <h2 className="text-xl text-gray-300">{error}</h2>
+                    <p className="text-sm text-gray-500 mt-4">Data postingan tidak dapat dimuat saat ini. Coba lagi dalam beberapa saat.</p>
+                </div>
+            </main>
+        );
+    }
+
     // 4. Meneruskan data ke Client Component
     return (
         <main className="container mx-auto p-4 md:p-8 mt-10">
@@ -53,7 +67,8 @@ const KnowledgeHubPage = async ({ searchParams }: KnowledgeHubPageProps) => {
                 initialPosts={initialPosts}
                 initialCategory={activeCategory} // Nilai kategori dari URL
                 initialSortBy={activeSortBy} // Nilai sorting dari URL (untuk UI awal)
-                error={error}
+                // Berikan error ke client hanya jika ada error TAPI masih ada postingan (misal gagal fetch sebagian)
+                error={initialPosts.length > 0 ? error : null}
             />
         </main>
     );

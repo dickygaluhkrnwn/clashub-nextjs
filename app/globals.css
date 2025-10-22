@@ -13,21 +13,27 @@
     background-size: 500px;
   }
 
-  /* Mode terang akan memiliki latar belakang yang berbeda */
-  .light body {
-    @apply bg-slate-100 text-slate-800;
-    background-image: none;
-  }
+  /* Mode terang akan memiliki latar belakang yang berbeda (jika diaktifkan) */
+  /* .light body { ... } */
 
   h1, h2, h3, h4, h5, h6 {
-    /* Menerapkan font & warna utama untuk semua judul */
-    @apply font-supercell text-coc-gold;
+    /* Menggunakan font Clash Bold yang baru dikonfigurasi & warna utama */
+    @apply font-clash text-coc-gold; /* Mengganti font-supercell menjadi font-clash */
     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
   }
 
   /* Menambahkan gaya spesifik untuk sub-judul agar konsisten */
   h2 {
-    @apply text-2xl border-l-4 border-coc-gold pl-4;
+    @apply text-2xl border-l-4 border-coc-gold pl-4 mb-4; /* Tambahkan margin-bottom default */
+  }
+
+  h3 {
+      @apply text-xl mb-3; /* Tambahkan ukuran default dan margin-bottom */
+  }
+
+  /* Styling dasar untuk link agar konsisten */
+  a {
+      @apply text-coc-gold hover:text-coc-gold-dark transition-colors;
   }
 }
 
