@@ -8,7 +8,8 @@ import { Button } from '@/app/components/ui/Button';
 import { Team, UserProfile, JoinRequest } from '@/lib/types';
 // PERBAIKAN 1: Import CheckIcon
 import { ArrowLeftIcon, CheckIcon, XIcon, UserIcon, CogsIcon, ClockIcon } from '@/app/components/icons'; 
-import { updateJoinRequestStatus, updateMemberRole } from '@/lib/firestore'; // Import fungsi aksi
+// PERBAIKAN 2: Tambahkan getUserProfile ke impor Firestore
+import { updateJoinRequestStatus, updateMemberRole, getUserProfile } from '@/lib/firestore'; // Import fungsi aksi
 
 interface ManageRosterData {
     team: Team;
@@ -42,11 +43,11 @@ const ManageRosterClient = ({ initialData, currentUserUid }: ManageRosterClientP
         setIsProcessing(request.id);
         
         try {
-            // PERBAIKAN 2: Action sudah menggunakan tipe yang benar ('approved'/'rejected')
+            // 1. Update status permintaan di Firestore
             await updateJoinRequestStatus(request.id, action);
 
             if (action === 'approved') {
-                // 2. Update profil pengguna (jadikan member)
+                // 2. Update profil pengguna (jadikan member) di Firestore
                 await updateMemberRole(
                     request.requesterId, 
                     team.id, 
@@ -54,26 +55,23 @@ const ManageRosterClient = ({ initialData, currentUserUid }: ManageRosterClientP
                     'Member' // Default role anggota baru
                 );
                 
-                // 3. Secara optimis update daftar anggota di UI
-                // PERBAIKAN 3: Menambahkan email: null agar sesuai dengan interface UserProfile
-                const newMember: UserProfile = { 
-                    uid: request.requesterId, 
-                    email: null, // Diperlukan oleh UserProfile
-                    displayName: request.requesterName, 
-                    playerTag: 'N/A', 
-                    thLevel: request.requesterThLevel,
-                    role: 'Member',
-                    reputation: 5.0, 
-                    avatarUrl: '/images/placeholder-avatar.png',
-                    // Tambahkan field wajib lainnya jika ada
-                };
-                setActiveMembers(prev => [...prev, newMember]);
-                alert(`Pemain ${request.requesterName} berhasil disetujui sebagai anggota.`);
+                // 3. AMBIL PROFIL LENGKAP untuk update UI
+                const newMemberProfile = await getUserProfile(request.requesterId);
+
+                if (newMemberProfile) {
+                    // 4. Update daftar anggota aktif di UI dengan data profil LENGKAP
+                    setActiveMembers(prev => [...prev, newMemberProfile]);
+                    alert(`Pemain ${request.requesterName} berhasil disetujui sebagai anggota.`);
+                } else {
+                    // Jika gagal mengambil profil, tetap lanjutkan proses hapus request
+                    console.warn(`[WARNING] Profil lengkap untuk ${request.requesterName} tidak ditemukan setelah persetujuan.`);
+                    alert(`Pemain ${request.requesterName} berhasil disetujui, namun data di UI mungkin tidak lengkap. Refresh halaman diperlukan.`);
+                }
             } else {
                  alert(`Permintaan dari ${request.requesterName} berhasil ditolak.`);
             }
             
-            // 4. Hapus permintaan dari daftar pending
+            // 5. Hapus permintaan dari daftar pending
             setPendingRequests(prev => prev.filter(req => req.id !== request.id));
             
         } catch (error) {
@@ -89,6 +87,10 @@ const ManageRosterClient = ({ initialData, currentUserUid }: ManageRosterClientP
      * Menangani perubahan peran anggota (Kapten/Co-Leader/Member)
      */
     const handleChangeRole = async (member: UserProfile, newRole: UserProfile['role']) => {
+        // Periksa apakah peran baru adalah "Leader" dan Kapten sedang mencoba merubah peran sendiri
+        // Karena Leader tidak boleh diubah melalui dropdown ini (perlu logic transfer kepemilikan)
+        if (newRole === 'Leader' && member.role === 'Leader') return; 
+
         if (!member.teamId || member.role === newRole) return;
         
         setRoleUpdateLoading(member.uid);
@@ -114,6 +116,12 @@ const ManageRosterClient = ({ initialData, currentUserUid }: ManageRosterClientP
      * Menangani pengeluaran anggota dari tim.
      */
     const handleKickMember = async (member: UserProfile) => {
+        // Kapten tidak boleh mengeluarkan dirinya sendiri
+        if (member.uid === currentUserUid) {
+            alert("Kapten tidak dapat mengeluarkan dirinya sendiri. Anda harus mentransfer kepemimpinan terlebih dahulu.");
+            return;
+        }
+
         if (!window.confirm(`Anda yakin ingin mengeluarkan ${member.displayName} dari tim? Tindakan ini tidak dapat dibatalkan.`)) {
             return;
         }
@@ -223,7 +231,7 @@ const ManageRosterClient = ({ initialData, currentUserUid }: ManageRosterClientP
                                             <select
                                                 value={member.role || 'Member'}
                                                 onChange={(e) => handleChangeRole(member, e.target.value as UserProfile['role'])}
-                                                disabled={isLoading || member.uid === currentUserUid}
+                                                disabled={isLoading || member.uid === currentUserUid || member.role === 'Leader'}
                                                 className="bg-coc-stone/70 border border-coc-gold-dark/50 rounded-md px-3 py-1.5 text-sm text-white disabled:opacity-50"
                                             >
                                                 <option value="Leader" disabled>Kapten</option>
@@ -238,7 +246,7 @@ const ManageRosterClient = ({ initialData, currentUserUid }: ManageRosterClientP
                                                 size="sm" 
                                                 className="bg-coc-red/70 border-coc-red text-white hover:bg-coc-red/90"
                                                 onClick={() => handleKickMember(member)}
-                                                disabled={member.uid === currentUserUid || isLoading}
+                                                disabled={member.uid === currentUserUid || isLoading || member.role === 'Leader'}
                                             >
                                                 {isLoading ? '...' : <XIcon className="h-4 w-4"/>}
                                             </Button>

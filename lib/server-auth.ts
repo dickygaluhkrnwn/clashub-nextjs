@@ -18,12 +18,8 @@ export interface ServerUser {
  * @function getSessionUser
  * Mengambil informasi pengguna dari cookie permintaan Next.js (simulasi).
  * * CATATAN: Karena Next.js tidak memiliki integrasi native untuk Firebase Admin SDK 
- * di Server Component tanpa server eksternal/middleware kompleks, kita akan 
- * MENSIMULASIKAN dengan membaca cookie dummy 'session-token' untuk demo SSR.
- * * Di lingkungan produksi penuh, kode ini harus memanggil Firebase Admin SDK
- * untuk memverifikasi ID token dari klien.
- * * Untuk saat ini, kita akan menganggap token 'dummy-auth-token' berarti pengguna login.
- * Data UID/Email akan diambil dari cookie jika tersedia.
+ * di Server Component, kita MENSIMULASIKAN dengan membaca cookie 'session-token'.
+ * Cookie ini seharusnya berisi UID pengguna yang sebenarnya.
  * * @returns {Promise<ServerUser | null>} Objek pengguna jika sesi ditemukan.
  */
 export async function getSessionUser(): Promise<ServerUser | null> {
@@ -32,22 +28,22 @@ export async function getSessionUser(): Promise<ServerUser | null> {
     const requestHeaders = headers();
     const cookie = requestHeaders.get('cookie');
 
-    // MENSIMULASIKAN otentikasi:
-    // Jika kita menemukan cookie 'session-token' dengan nilai tertentu,
-    // kita asumsikan pengguna terautentikasi dan memberikan data dummy.
-    
-    // Di dunia nyata, Anda akan menggunakan Admin SDK di sini:
-    // if (token) { await admin.auth().verifyIdToken(token); }
-
+    // 1. Cari cookie 'session-token'
     const dummyToken = cookie?.split(';').find(c => c.trim().startsWith('session-token='));
     
     if (dummyToken && dummyToken.includes('logged_in')) {
-        // Karena ini simulasi, kita bisa menggunakan UID dari salah satu seed data
-        const uid = "uid_lordz"; 
-        const email = "lordz@example.com";
-        const displayName = "Lord Z";
-
-        return { uid, email, displayName };
+        // 2. Ekstrak UID dari nilai token (format: 'logged_in_UID_ANDA')
+        const tokenValue = dummyToken.split('=')[1];
+        const uid = tokenValue.split('_')[1]; // Mengambil bagian setelah 'logged_in_'
+        
+        if (uid) {
+            // Karena ini simulasi, kita mengisi email dan displayName dengan nilai dummy.
+            // Di lingkungan nyata, kita akan memuat displayName/email dari data profil.
+            const email = `${uid}@example.com`;
+            const displayName = uid === "uid_lordz" ? "Lord Z" : `Clasher #${uid.substring(4, 8)}`;
+            
+            return { uid, email, displayName };
+        }
     }
 
     return null;
