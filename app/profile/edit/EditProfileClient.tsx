@@ -38,7 +38,8 @@ const staticAvatars = [
 
 // Tipe data khusus untuk state form
 type ProfileFormData = Omit<Partial<UserProfile>, 'playStyle'> & {
-    playStyle?: UserProfile['playStyle'] | '';
+    // PERBAIKAN UTAMA: playStyle sekarang bisa berupa string kosong "" (selain nilai valid dari UserProfile)
+    playStyle?: UserProfile['playStyle'] | '' | null;
 };
 
 // --- Validation Utility ---
@@ -69,7 +70,7 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
         playerTag: '',
         thLevel: 0,
         bio: '',
-        playStyle: '',
+        playStyle: '', // Diinisialisasi sebagai string kosong, yang sekarang tipe-nya valid
         activeHours: '',
         avatarUrl: '/images/placeholder-avatar.png', // Selalu menggunakan URL
         discordId: '',
@@ -137,6 +138,9 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
         }));
     };
 
+    // HAPUS HELPER LAMA YANG MENGKONVERSI STRING KOSONG KE UNDEFINED
+    // const getUndefinedIfEmpty = ...
+
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -151,10 +155,12 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
                             playerTag: profile.playerTag || '',
                             thLevel: profile.thLevel || 10,
                             bio: profile.bio || '',
+                            // PERBAIKAN: Gunakan string kosong sebagai default jika null/undefined
                             playStyle: profile.playStyle || '',
                             activeHours: profile.activeHours || '',
                             // Pastikan ada fallback untuk avatar
                             avatarUrl: profile.avatarUrl || '/images/placeholder-avatar.png', 
+                            // Pastikan field null/undefined dari DB dikonversi ke string kosong untuk form
                             discordId: profile.discordId ?? '', 
                             website: profile.website ?? '',
                         });
@@ -204,17 +210,8 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
         
         try {
             // --- Persiapan Data untuk Firestore ---
-            // Mengubah string kosong menjadi UNDEFINED agar Firestore menghapus field tersebut
-            const getUndefinedIfEmpty = (value: string | number | null | undefined): string | number | null | undefined => {
-                // Konversi string kosong/whitespace menjadi undefined
-                if (typeof value === 'string' && value.trim() === '') return undefined;
-                // Pertahankan angka 0 (untuk thLevel default, meskipun kita harapkan > 0)
-                if (value === 0) return 0;
-                // KOREKSI: Paksa null menjadi undefined
-                if (value === null) return undefined; 
-                return value;
-            };
-
+            // PERBAIKAN UTAMA: Hanya kirim field yang ada dalam `updatableUserFields`
+            
             const updatedData: Partial<UserProfile> = {
                 displayName: formData.displayName,
                 playerTag: formData.playerTag?.toUpperCase() || '', 
@@ -223,14 +220,15 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
                 // DATA AVATAR DARI PEMILIHAN STATIS
                 avatarUrl: formData.avatarUrl, 
 
-                // Menggunakan getUndefinedIfEmpty untuk field opsional
-                bio: getUndefinedIfEmpty(formData.bio) as string | undefined, 
-                activeHours: getUndefinedIfEmpty(formData.activeHours) as string | undefined,
-                playStyle: getUndefinedIfEmpty(formData.playStyle) as UserProfile['playStyle'] | undefined, 
-                discordId: getUndefinedIfEmpty(formData.discordId) as string | undefined,
-                website: getUndefinedIfEmpty(formData.website) as string | undefined,
+                // MENGHINDARI KONVERSI KE UNDEFINED di CLIENT, kirim string kosong atau nilai
+                bio: formData.bio || '', 
+                activeHours: formData.activeHours || '',
+                // playStyle dikirim apa adanya, termasuk string kosong jika tidak dipilih.
+                playStyle: formData.playStyle as UserProfile['playStyle'] | null | undefined, 
+                discordId: formData.discordId || '', 
+                website: formData.website || '',
             };
-
+            
             // Panggil updateUserProfile
             await updateUserProfile(uid, updatedData);
 
@@ -245,9 +243,13 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
             
 
         } catch (err) {
+            // Error handling yang lebih rinci dari `lib/firestore.ts`
             console.error("Gagal menyimpan profil:", err);
-            // Tangani error update Firestore
-            setError("Gagal menyimpan perubahan ke database. Pastikan Firebase Rules sudah diatur dengan benar! " + (err as Error).message);
+            
+            // Pastikan error message dari Firestore ditampilkan ke user
+            const rawErrorMessage = (err as Error).message || "Terjadi kesalahan tidak dikenal.";
+            // Ganti alert() dengan Notification
+            setError(`Gagal menyimpan perubahan ke database. ${rawErrorMessage}`);
             showNotification("Gagal menyimpan perubahan. Lihat konsol untuk detail error.", 'error');
 
         } finally {
@@ -379,7 +381,8 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
                             <label htmlFor="playStyle" className="block text-sm font-bold text-gray-300 mb-2">Role Favorit</label>
                             <select
                                 id="playStyle"
-                                value={formData.playStyle || ""}
+                                // PERBAIKAN UTAMA: Tambahkan casting untuk menghilangkan peringatan TS
+                                value={formData.playStyle as string || ""}
                                 onChange={handleInputChange}
                                 className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white focus:ring-coc-gold focus:border-coc-gold"
                             >

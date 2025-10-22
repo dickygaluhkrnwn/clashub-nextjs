@@ -62,16 +62,19 @@ export const createUserProfile = async (uid: string, data: Partial<UserProfile>)
       displayName: data.playerTag || data.email?.split('@')[0] || 'New Player',
       playerTag: data.playerTag || '',
       thLevel: data.thLevel || 1,
-      bio: 'Ini adalah E-Sports CV baru saya di Clashub!',
-      role: 'Free Agent',
-      playStyle: 'Attacker Utama',
-      activeHours: 'Belum diatur',
-      reputation: 5.0,
-      // URL Avatar default
+      
+      // MEMASTIKAN SEMUA FIELD SKEMA LENGKAP DIISI SAAT CREATE (Bahkan jika null/undefined)
+      bio: data.bio || '', // Ganti null/undefined dengan string kosong
+      role: data.role || 'Free Agent',
+      playStyle: data.playStyle || 'Attacker Utama',
+      activeHours: data.activeHours || '',
+      reputation: data.reputation || 5.0,
       avatarUrl: data.avatarUrl || '/images/placeholder-avatar.png', 
-      ...data,
-      teamId: null,
-      teamName: null,
+      discordId: data.discordId || '',
+      website: data.website || '',
+      
+      teamId: data.teamId || null,
+      teamName: data.teamName || null,
     };
     await setDoc(userRef, profileData);
   } catch (error) {
@@ -90,12 +93,14 @@ export const createUserProfile = async (uid: string, data: Partial<UserProfile>)
 export const updateUserProfile = async (uid: string, data: Partial<UserProfile>): Promise<void> => {
   try {
     const userRef = doc(firestore, 'users', uid);
-    // PERBAIKAN UTAMA: Kita tetap menggunakan updateDoc. Masalah "loading" kemungkinan 
-    // besar adalah karena Rules. Asumsikan Rules di Langkah 1 sudah diimplementasikan (di Canvas).
-    await updateDoc(userRef, data);
+    // PERBAIKAN: Gunakan `setDoc(..., {merge: true})` untuk memastikan Firestore menerima data 
+    // parsial (Partial<UserProfile>) tanpa memengaruhi field yang tidak ada di `data` (seperti role/reputation).
+    // Walaupun `updateDoc` juga melakukan hal yang sama, `setDoc(..., {merge: true})` lebih eksplisit.
+    await setDoc(userRef, data, { merge: true });
   } catch (error) {
+    // RE-THROW ERROR TANPA MENUTUPNYA, AGAR DETAIL ERROR FIREBASE MUNCUL DI CONSOLE SERVER
     console.error(`Firestore Error [updateUserProfile(${uid})]:`, error);
-    throw new Error("Gagal memperbarui profil pengguna."); // Re-throw error
+    throw new Error(`Gagal memperbarui profil pengguna. Detail: ${error}`); // Re-throw error
   }
 };
 
