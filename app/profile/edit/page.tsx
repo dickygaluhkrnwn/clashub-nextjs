@@ -1,5 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getSessionUser } from '@/lib/server-auth';
+import { getUserProfile } from '@/lib/firestore'; // Tambahkan impor getUserProfile
+import { UserProfile } from '@/lib/types'; // Tambahkan impor UserProfile
 import EditProfileClient from './EditProfileClient';
 import { Metadata } from 'next';
 
@@ -10,7 +12,8 @@ export const metadata: Metadata = {
 
 /**
  * @component EditProfilePage (Server Component)
- * Menangani otentikasi sisi server untuk melindungi rute dan meneruskan UID pengguna ke klien.
+ * Menangani otentikasi sisi server, mengambil data UserProfile lengkap, 
+ * dan meneruskannya ke klien.
  */
 const EditProfilePage = async () => {
 
@@ -20,10 +23,23 @@ const EditProfilePage = async () => {
     if (!sessionUser) {
         redirect('/auth');
     }
+    
+    // Ambil UserProfile lengkap dari Firestore
+    const userProfile = await getUserProfile(sessionUser.uid);
 
-    // Meneruskan UID yang sudah diverifikasi ke Client Component
+    // Jika profil tidak ditemukan, kita buat objek dasar sebagai fallback
+    const initialProfile: Partial<UserProfile> = userProfile || {
+        uid: sessionUser.uid,
+        displayName: sessionUser.displayName || 'Pemain Baru',
+        email: sessionUser.email,
+        isVerified: false, // Default: belum diverifikasi
+        thLevel: 1, // Default TH 1
+        role: 'Free Agent',
+    };
+
+    // Meneruskan Profil lengkap ke Client Component
     return (
-        <EditProfileClient initialUser={{ uid: sessionUser.uid }} />
+        <EditProfileClient initialProfile={initialProfile} />
     );
 };
 

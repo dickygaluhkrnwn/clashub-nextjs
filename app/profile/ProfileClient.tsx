@@ -7,7 +7,8 @@ import { useAuth } from '@/app/context/AuthContext';
 import { Button } from '@/app/components/ui/Button';
 import { UserProfile } from '@/lib/types';
 import { getThImage } from '@/lib/th-utils';
-import { TrophyIcon, StarIcon, InfoIcon, CogsIcon, XIcon, GlobeIcon, DiscordIcon, AlertTriangleIcon } from '@/app/components/icons'; // Import AlertTriangleIcon
+// Tambahkan ShieldCheckIcon, CalendarIcon, CrownIcon
+import { TrophyIcon, StarIcon, InfoIcon, CogsIcon, XIcon, GlobeIcon, DiscordIcon, AlertTriangleIcon, ShieldCheckIcon, CalendarIcon, CrownIcon } from '@/app/components/icons';
 import { PostCard } from '@/app/components/cards';
 
 // Data statis untuk Postingan Terbaru (Sesuai prototipe lama)
@@ -37,21 +38,19 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
         return url.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
     };
 
+    // Cek apakah pengguna memiliki peran kepemimpinan
+    const isClanManager = userProfile?.clanRole === 'leader' || userProfile?.clanRole === 'coLeader';
+
     // --- 1. Handle Loading Auth Awal ---
     if (authLoading) {
         return (
             <div className="flex justify-center items-center min-h-screen">
-                {/* PERBAIKAN FONT */}
                 <h1 className="text-3xl text-coc-gold font-clash animate-pulse">Memuat Sesi Pengguna...</h1>
             </div>
         );
     }
 
     // --- 2. Periksa apakah error adalah 'Profil belum ditemukan' atau 'Fatal Error' ---
-    // Logika ini menggantikan skenario 2 dan 3 yang lama.
-
-    // Kasus A: Profil TIDAK ditemukan (InitialProfile null) DAN ada pesan error
-    // Pesan error di sini berasal dari Server Component yang mengatakan "Profil belum ditemukan. Silakan lengkapi data Anda."
     const isMissingProfile = !userProfile && error && error.includes('Profil E-Sports CV Anda belum ditemukan');
 
     if (isMissingProfile) {
@@ -59,7 +58,6 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
             <div className="flex justify-center items-center min-h-screen">
                 <div className="card-stone p-8 max-w-md text-center rounded-lg">
                     <InfoIcon className="h-12 w-12 text-coc-gold mx-auto mb-4"/>
-                    {/* PERBAIKAN FONT */}
                     <h2 className="text-2xl text-coc-gold font-clash mb-4">Profil Belum Lengkap</h2>
                     <p className="text-gray-400 mb-6">
                         {error}
@@ -73,13 +71,11 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
     }
 
     // Kasus B: Fatal Error (InitialProfile null dan pesan error bukan missing profile)
-    // Ini menangani kasus "Coba Lagi" yang Anda lihat.
     if (!userProfile && error) {
         return (
           <div className="flex justify-center items-center min-h-screen">
             <div className="card-stone p-8 max-w-md text-center rounded-lg">
               <AlertTriangleIcon className="h-12 w-12 text-coc-red mx-auto mb-4"/>
-              {/* PERBAIKAN FONT */}
               <h2 className="text-2xl text-coc-red font-clash mb-4">Error Memuat Profil</h2>
               <p className="text-gray-400 mb-6">{error}</p>
               <Button onClick={() => router.refresh()} variant="primary">
@@ -89,35 +85,73 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
           </div>
         );
     }
-
+    
     // --- 3. Tampilkan Profil Jika Semua OK ---
-    // (Juga mencakup kasus di mana serverError adalah null karena profil ditemukan)
     if (currentUser && userProfile) {
         const validThLevel = userProfile.thLevel && !isNaN(userProfile.thLevel) && userProfile.thLevel > 0 ? userProfile.thLevel : 9;
         const thImage = getThImage(validThLevel);
-
-        // PERBAIKAN UTAMA: Mengambil avatarUrl yang sudah tersimpan
         const avatarSrc = userProfile.avatarUrl || '/images/placeholder-avatar.png';
-
         const displayWebsite = cleanUrlDisplay(userProfile.website);
+        
+        // Data Verifikasi
+        const isVerified = userProfile.isVerified || false;
+        const lastVerifiedDate = userProfile.lastVerified 
+            ? new Date(userProfile.lastVerified).toLocaleDateString('id-ID', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })
+            : 'N/A';
 
         return (
             <main className="container mx-auto p-4 md:p-8 mt-10">
-                {/* PERBAIKAN: Tambahkan items-start pada grid container */}
+                {/* --- HEADER STATUS VERIFIKASI (BARU) --- */}
+                <div className={`card-stone p-4 mb-8 max-w-5xl mx-auto rounded-lg border-2 ${isVerified ? 'border-coc-green/50 bg-coc-green/10' : 'border-coc-red/50 bg-coc-red/10'}`}>
+                    <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <div className="flex items-center gap-3">
+                            {isVerified ? (
+                                <ShieldCheckIcon className="h-7 w-7 text-coc-green flex-shrink-0" />
+                            ) : (
+                                <AlertTriangleIcon className="h-7 w-7 text-coc-red flex-shrink-0" />
+                            )}
+                            <p className="text-sm sm:text-base font-sans font-semibold text-white">
+                                {isVerified ? (
+                                    <>
+                                        Akun CoC **Terverifikasi**. Nama In-Game: <span className="text-coc-green">{userProfile.inGameName}</span>. 
+                                        {userProfile.clanName && userProfile.clanTag && ` Saat ini di klan: ${userProfile.clanName} (${userProfile.clanTag}).`}
+                                    </>
+                                ) : (
+                                    <>
+                                        Akun CoC **Belum Terverifikasi**. Data TH dan Tag bersifat manual.
+                                    </>
+                                )}
+                            </p>
+                        </div>
+                        <Button 
+                            href="/profile/edit" 
+                            variant="secondary" 
+                            size="sm" 
+                            className="w-full sm:w-auto flex-shrink-0"
+                        >
+                            {isVerified ? 'Lihat Detail Verifikasi' : 'Mulai Verifikasi'}
+                        </Button>
+                    </div>
+                </div>
+                {/* --- END HEADER STATUS VERIFIKASI --- */}
+
                 <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                    
                     {/* Kolom Kiri: Ringkasan Profil & Aksi */}
-                    {/* PERBAIKAN: Hapus kelas h-fit */}
                     <aside className="lg:col-span-1 card-stone p-6 sticky top-28 text-center">
                         <Image
-                            src={avatarSrc} // Menggunakan avatarSrc yang sudah dimuat dari state/Firestore
+                            src={avatarSrc}
                             alt={`${userProfile.displayName} Avatar`}
-                            width={100} // Ukuran asli gambar
-                            height={100} // Ukuran asli gambar
-                            sizes="(max-width: 1024px) 80px, 100px" // Ukuran render: 80px di layar kecil/medium, 100px di layar besar
-                            priority // Avatar utama kemungkinan LCP
+                            width={100}
+                            height={100}
+                            sizes="(max-width: 1024px) 80px, 100px"
+                            priority
                             className="w-24 h-24 rounded-full mx-auto border-4 border-coc-gold object-cover flex-shrink-0"
                         />
-                        {/* PERBAIKAN FONT */}
                         <h1 className="text-3xl font-clash text-white mt-4">
                             {userProfile.displayName}
                         </h1>
@@ -125,23 +159,28 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
                             Tag: <span className="text-coc-gold font-bold">{userProfile.playerTag}</span>
                         </p>
 
+                        {/* Status Klan & Role */}
+                        <div className={`p-2 rounded-md font-sans font-bold text-xs uppercase mb-6 ${userProfile.clanRole === 'leader' || userProfile.clanRole === 'coLeader' ? 'bg-coc-gold/20 text-coc-gold' : 'bg-coc-stone/50 text-gray-400'}`}>
+                            Role Klan: {userProfile.clanRole === 'not in clan' ? 'TIDAK DALAM KLAN' : `${userProfile.clanRole} di ${userProfile.clanName || 'Klan Tidak Dikenal'}`}
+                        </div>
+
                         <div className="space-y-6 text-left">
+                            {/* ... Bio & Visi ... */}
                             <div className="pt-4 border-t border-coc-gold-dark/20">
-                                {/* PERBAIKAN FONT */}
                                 <h3 className="text-lg text-coc-gold-dark font-clash flex items-center gap-2 mb-2"><InfoIcon className="h-5 w-5"/> Bio & Visi</h3>
                                 <p className="text-sm text-gray-300">{userProfile.bio || 'Belum ada bio.'}</p>
                             </div>
 
+                            {/* ... Preferensi ... */}
                             <div className="pt-4 border-t border-coc-gold-dark/20">
-                                 {/* PERBAIKAN FONT */}
                                 <h3 className="text-lg text-coc-gold-dark font-clash flex items-center gap-2 mb-2"><CogsIcon className="h-5 w-5"/> Preferensi</h3>
                                 <p className="text-sm"><span className="font-bold text-gray-300">Role Main:</span> {userProfile.playStyle || 'Belum Diatur'}</p>
                                 <p className="text-sm"><span className="font-bold text-gray-300">Jam Aktif:</span> {userProfile.activeHours || 'Belum Diatur'}</p>
                             </div>
 
+                            {/* ... Kontak ... */}
                             {(userProfile.discordId || userProfile.website) && (
                                 <div className="pt-4 border-t border-coc-gold-dark/20">
-                                     {/* PERBAIKAN FONT */}
                                     <h3 className="text-lg text-coc-gold-dark font-clash flex items-center gap-2 mb-2">
                                         Kontak
                                     </h3>
@@ -154,17 +193,15 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
                                     {userProfile.website && (
                                         <a href={userProfile.website} target="_blank" rel="noopener noreferrer" className="text-sm text-coc-gold hover:underline flex items-center gap-2 mt-1">
                                             <GlobeIcon className="h-4 w-4 text-coc-gold-dark"/>
-                                            {/* PERBAIKAN: Menggunakan helper untuk membersihkan tampilan URL */}
                                             {displayWebsite}
                                         </a>
                                     )}
                                 </div>
                             )}
 
+                            {/* Reputasi */}
                             <div className="pt-4 border-t border-coc-gold-dark/20 text-center">
-                                 {/* PERBAIKAN FONT */}
                                 <h3 className="text-lg text-coc-gold-dark font-clash">Reputasi Komitmen</h3>
-                                 {/* PERBAIKAN FONT */}
                                 <p className="text-4xl font-clash text-coc-gold my-1">
                                     {userProfile.reputation ? userProfile.reputation.toFixed(1) : '5.0'} <StarIcon className="inline h-7 w-7" />
                                 </p>
@@ -172,47 +209,72 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
                             </div>
                         </div>
 
-                        <div className="mt-8">
-                            {/* PERBAIKAN UTAMA: Memastikan tombol EDIT PROFIL menonjol */}
+                        {/* --- TOMBOL AKSI UTAMA --- */}
+                        <div className="mt-8 space-y-3">
                             <Button href="/profile/edit" variant="primary" size="lg" className="w-full">
                                 Edit Profil Saya
                             </Button>
+
+                            {/* Tombol Manajemen Klan (BARU) */}
+                            {isClanManager && userProfile.clanTag && (
+                                <Button href="/clan/manage" variant="secondary" size="lg" className="w-full bg-coc-gold-dark/20 hover:bg-coc-gold-dark/40 border-coc-gold-dark/30 hover:border-coc-gold-dark">
+                                    <CrownIcon className="inline h-5 w-5 mr-2" />
+                                    Kelola Klan Saya ({userProfile.clanTag})
+                                </Button>
+                            )}
                         </div>
+                        {/* --- END TOMBOL AKSI UTAMA --- */}
                     </aside>
 
                     {/* Kolom Kanan: Detail CV */}
                     <section className="lg:col-span-2 space-y-8">
                         <div className="card-stone p-6">
-                             {/* PERBAIKAN FONT */}
-                            <h2 className="mb-6 flex items-center gap-2">
-                                <TrophyIcon className="h-6 w-6" /> Status Permainan
+                            <h2 className="mb-6 flex items-center gap-2 font-clash text-2xl text-white border-b border-coc-gold-dark/30 pb-2">
+                                <TrophyIcon className="h-6 w-6 text-coc-gold" /> Status Permainan
                             </h2>
+                            
+                            {/* --- DETAIL TH & TROPHY --- */}
                             <div className="flex flex-col md:flex-row items-center gap-6">
                                 <Image
                                     src={thImage}
                                     alt={`Town Hall ${validThLevel}`}
-                                    width={120} // Ukuran asli gambar TH
-                                    height={120} // Ukuran asli gambar TH
-                                    sizes="(max-width: 768px) 100px, 120px" // Render ~100px di mobile, 120px di desktop
+                                    width={120}
+                                    height={120}
+                                    sizes="(max-width: 768px) 100px, 120px"
                                     className="flex-shrink-0"
                                 />
                                 <div className="flex-grow grid grid-cols-2 gap-4 text-center w-full">
                                     <div className="bg-coc-stone/50 p-4 rounded-lg border border-coc-gold-dark/30">
-                                         {/* PERBAIKAN FONT */}
                                         <h4 className="text-3xl text-coc-gold font-clash">{validThLevel}</h4>
                                         <p className="text-xs uppercase text-gray-400">Level Town Hall</p>
                                     </div>
                                     <div className="bg-coc-stone/50 p-4 rounded-lg border border-coc-gold-dark/30">
-                                         {/* PERBAIKAN FONT */}
-                                        <h4 className="text-3xl text-coc-gold font-clash">5200+</h4> {/* Data statis */}
-                                        <p className="text-xs uppercase text-gray-400">Trofi Saat Ini</p>
+                                        {/* PERBAIKAN: Menggunakan data dari CoC API jika sudah diverifikasi, jika tidak menggunakan data CV */}
+                                        <h4 className="text-3xl text-coc-gold font-clash">{isVerified ? userProfile.trophies?.toLocaleString() || 'N/A' : '5200+'}</h4>
+                                        <p className="text-xs uppercase text-gray-400">Trofi Saat Ini {isVerified && <span className="text-coc-green">(LIVE)</span>}</p>
                                     </div>
                                 </div>
                             </div>
+                            
+                            {/* --- DATA SINKRONISASI CO-LEADER (BARU) --- */}
+                            {isClanManager && isVerified && (
+                                <div className="mt-6 p-4 bg-coc-stone/30 rounded-lg border border-coc-gold/20">
+                                    <p className="text-sm font-sans text-gray-300 flex items-center gap-2">
+                                        <CalendarIcon className="h-4 w-4 text-coc-gold" />
+                                        Data Clan Terakhir Disinkronisasi: 
+                                        <span className="font-bold text-coc-gold">
+                                            {userProfile.lastSynced ? new Date(userProfile.lastSynced).toLocaleString('id-ID') : 'Belum Pernah'}
+                                        </span>
+                                    </p>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Data ini digunakan untuk statistik dan manajemen klan Anda.
+                                    </p>
+                                </div>
+                            )}
                         </div>
+                        
                         <div className="card-stone p-6">
-                             {/* PERBAIKAN FONT */}
-                            <h2 className="mb-4 font-clash">Aktivitas Terbaru</h2>
+                            <h2 className="mb-4 font-clash text-2xl text-white border-b border-coc-gold-dark/30 pb-2">Aktivitas Terbaru</h2>
                             <div className="space-y-4">
                                 {recentPosts.map((post) => (
                                     <PostCard key={post.title} {...post} />
@@ -220,8 +282,7 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
                             </div>
                         </div>
                         <div className="card-stone p-6">
-                             {/* PERBAIKAN FONT */}
-                            <h2 className="mb-4 font-clash">Riwayat Tim</h2>
+                            <h2 className="mb-4 font-clash text-2xl text-white border-b border-coc-gold-dark/30 pb-2">Riwayat Tim</h2>
                             <p className="text-gray-400 text-sm">Riwayat Tim akan muncul di sini.</p>
                         </div>
                     </section>
@@ -230,8 +291,6 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
         );
     }
 
-    // Fallback jika tidak ada kondisi yang cocok (seharusnya tidak terjadi jika logic benar)
-    // Jika auth sudah selesai tapi tidak ada currentUser (seharusnya sudah redirect di server component)
     return null;
 };
 
