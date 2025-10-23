@@ -7,7 +7,8 @@ import { Button } from '@/app/components/ui/Button';
 import { UserProfile } from '@/lib/types';
 import { updateUserProfile } from '@/lib/firestore'; // updateUserProfile
 // Import Icon baru
-import { UserCircleIcon, SaveIcon, XIcon, InfoIcon, CogsIcon, CheckIcon, ShieldCheckIcon, CalendarIcon } from '@/app/components/icons';
+// PERBAIKAN: Mengganti ShieldCheckIcon dan CalendarIcon dengan ikon yang sudah ada / benar
+import { UserCircleIcon, SaveIcon, XIcon, InfoIcon, CogsIcon, CheckIcon, ShieldIcon } from '@/app/components/icons'; 
 import Notification, { NotificationProps } from '@/app/components/ui/Notification';
 
 // Opsi statis untuk dropdown TH.
@@ -35,8 +36,10 @@ const staticAvatars = [
 
 
 // Tipe data khusus untuk state form
-type ProfileFormData = Omit<Partial<UserProfile>, 'playStyle'> & {
+// PERBAIKAN: Menambahkan 'trophies' ke Omit agar sesuai dengan UserProfile yang diperbarui
+type ProfileFormData = Omit<Partial<UserProfile>, 'playStyle' | 'trophies'> & {
     playStyle?: UserProfile['playStyle'] | '' | null;
+    trophies: number; // Harus diisi dengan nilai, minimal 0
 };
 
 // --- Validation Utility ---
@@ -74,7 +77,8 @@ const sanitizeData = (data: ProfileFormData): Partial<UserProfile> => {
     const cleanData: Partial<UserProfile> = {};
     const updatableFields = [
         'displayName', 'playerTag', 'thLevel', 'avatarUrl',
-        'discordId', 'website', 'bio', 'activeHours', 'playStyle'
+        'discordId', 'website', 'bio', 'activeHours', 'playStyle',
+        // trophies dihapus dari sini karena dihandle terpisah/diupdate oleh API
     ];
 
     for (const key of updatableFields) {
@@ -120,6 +124,8 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
         avatarUrl: initialProfile.avatarUrl || '/images/placeholder-avatar.png',
         discordId: initialProfile.discordId ?? '',
         website: initialProfile.website ?? '',
+        // PERBAIKAN 5.1: Menambahkan inisialisasi trophies untuk memenuhi UserProfile type
+        trophies: initialProfile.trophies || 0,
     });
     
     // --- State Verifikasi CoC (BARU) ---
@@ -190,9 +196,9 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
          hover:border-coc-gold/70
          focus:ring-2 focus:ring-coc-gold focus:border-coc-gold focus:outline-none
          ${hasError
-            ? 'border-coc-red focus:border-coc-red focus:ring-coc-red/50' // Error state
-            : 'border-coc-gold-dark/50' // Default state
-        }`
+             ? 'border-coc-red focus:border-coc-red focus:ring-coc-red/50' // Error state
+             : 'border-coc-gold-dark/50' // Default state
+         }`
     );
     // --- End Style input ---
 
@@ -276,6 +282,8 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
                 playerTag: result.profile.playerTag,
                 thLevel: result.profile.thLevel,
                 displayName: result.profile.inGameName || result.profile.displayName, // Gunakan inGameName jika ada
+                // PERBAIKAN 5.3: Update trophies di formData
+                trophies: result.profile.trophies,
             }));
 
             // Kosongkan token setelah sukses
@@ -320,14 +328,17 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
             // kita hanya mengirimkan field yang dapat diubah.
             const updatedData = sanitizeData(formData);
             
-            // Hapus playerTag dan thLevel dari updatedData jika sudah diverifikasi
+            // Hapus field yang dikunci/diatur API dari payload save CV
             if (isVerified) {
                 delete updatedData.playerTag;
                 delete updatedData.thLevel;
-                // Kita juga tidak ingin menimpa field verifikasi lainnya saat menyimpan CV
+                // Field verifikasi yang tidak boleh ditimpa:
                 delete (updatedData as any).isVerified;
                 delete (updatedData as any).clanTag;
                 delete (updatedData as any).clanRole;
+                delete (updatedData as any).trophies; // PERBAIKAN 5.4: Hapus trophies dari payload save CV
+                delete (updatedData as any).inGameName;
+                delete (updatedData as any).lastVerified;
             }
 
             await updateUserProfile(uid, updatedData);
@@ -378,7 +389,8 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
 
                     {/* --- BAGIAN VERIFIKASI AKUN COCLANS (BARU) --- */}
                     <h3 className="text-xl font-clash text-coc-gold border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2">
-                        <ShieldCheckIcon className="h-5 w-5" /> Verifikasi Akun Clash of Clans
+                        {/* PERBAIKAN: Mengganti ShieldCheckIcon yang tidak ada dengan ShieldIcon */}
+                        <ShieldIcon className="h-5 w-5" /> Verifikasi Akun Clash of Clans
                     </h3>
                     
                     <div className="bg-coc-stone/30 p-4 rounded-lg space-y-4">
@@ -386,7 +398,8 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
                             <div className="text-center p-3 bg-coc-green/20 text-coc-green border border-coc-green/50 rounded-md flex items-center justify-center gap-2">
                                 <CheckIcon className="h-5 w-5" />
                                 <span className="font-sans font-semibold">Akun Terverifikasi:</span> {initialProfile.inGameName} ({initialProfile.playerTag}).
-                                <CalendarIcon className="h-4 w-4 ml-4" /> Terakhir: {formattedLastVerified}
+                                {/* PERBAIKAN: Mengganti CalendarIcon yang tidak ada dengan InfoIcon */}
+                                <InfoIcon className="h-4 w-4 ml-4" /> Terakhir: {formattedLastVerified}
                             </div>
                         ) : (
                             <div className="text-center p-3 bg-coc-red/20 text-red-400 border border-coc-red/50 rounded-md flex items-center justify-center gap-2">
@@ -408,6 +421,7 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
                                         disabled={isVerified || isVerifying}
                                         className={inputClasses(!!formErrors.verifyTag, isVerified || isVerifying)}
                                         aria-invalid={!!formErrors.verifyTag}
+                                        aria-describedby="playerTag-error"
                                     />
                                 </FormGroup>
                             </div>
@@ -434,14 +448,15 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
                                     className="w-full" 
                                     disabled={isVerifying || isVerified || !!formErrors.verifyTag || !!formErrors.verifyToken}
                                 >
-                                    <ShieldCheckIcon className="inline h-5 w-5 mr-2" />
+                                    {/* PERBAIKAN: Mengganti ShieldCheckIcon yang tidak ada dengan ShieldIcon */}
+                                    <ShieldIcon className="inline h-5 w-5 mr-2" />
                                     {isVerifying ? 'Memproses...' : (isVerified ? 'Verifikasi Sukses' : 'Verifikasi Sekarang')}
                                 </Button>
                             </div>
                         </form>
                         
                         <p className="text-xs text-gray-400 font-sans mt-2">
-                           *Player Tag dan Token verifikasi dapat ditemukan di Pengaturan Clash of Clans Anda, di bawah 'Lainnya' > 'Tampilkan Token API'. Token ini hanya berlaku untuk beberapa menit.
+                            *Player Tag dan Token verifikasi dapat ditemukan di Pengaturan Clash of Clans Anda, di bawah 'Lainnya' &gt; 'Tampilkan Token API'. Token ini hanya berlaku untuk beberapa menit.
                         </p>
                     </div>
                     {/* --- END BAGIAN VERIFIKASI AKUN COCLANS --- */}
@@ -461,8 +476,8 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
                                     className={`
                                         relative rounded-full transition-transform duration-200
                                         ${formData.avatarUrl === url
-                                        ? 'ring-4 ring-coc-green scale-110'
-                                        : 'ring-2 ring-transparent hover:scale-105'
+                                            ? 'ring-4 ring-coc-green scale-110'
+                                            : 'ring-2 ring-transparent hover:scale-105'
                                         }
                                     `}
                                 >
@@ -532,7 +547,7 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
                         <CogsIcon className="h-5 w-5" /> Preferensi Game
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <FormGroup label="Level Town Hall (Wajib)" htmlFor="thLevel" error={formErrors.thLevel} disabled={isVerified}>
+                        <FormGroup label="Level Town Hall (Wajib)" htmlFor="thLevel" disabled={isVerified}>
                             <select
                                 id="thLevel"
                                 value={formData.thLevel || 0}

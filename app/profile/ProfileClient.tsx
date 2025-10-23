@@ -8,7 +8,8 @@ import { Button } from '@/app/components/ui/Button';
 import { UserProfile } from '@/lib/types';
 import { getThImage } from '@/lib/th-utils';
 // Tambahkan ShieldCheckIcon, CalendarIcon, CrownIcon
-import { TrophyIcon, StarIcon, InfoIcon, CogsIcon, XIcon, GlobeIcon, DiscordIcon, AlertTriangleIcon, ShieldCheckIcon, CalendarIcon, CrownIcon } from '@/app/components/icons';
+// PERBAIKAN: Mengganti ShieldCheckIcon menjadi ShieldIcon dan menghapus ikon yang tidak diekspor sementara
+import { TrophyIcon, StarIcon, InfoIcon, CogsIcon, XIcon, GlobeIcon, DiscordIcon, AlertTriangleIcon, ShieldIcon } from '@/app/components/icons';
 import { PostCard } from '@/app/components/cards';
 
 // Data statis untuk Postingan Terbaru (Sesuai prototipe lama)
@@ -110,7 +111,8 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
                     <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
                         <div className="flex items-center gap-3">
                             {isVerified ? (
-                                <ShieldCheckIcon className="h-7 w-7 text-coc-green flex-shrink-0" />
+                                // PERBAIKAN: Mengganti ShieldCheckIcon menjadi ShieldIcon
+                                <ShieldIcon className="h-7 w-7 text-coc-green flex-shrink-0" />
                             ) : (
                                 <AlertTriangleIcon className="h-7 w-7 text-coc-red flex-shrink-0" />
                             )}
@@ -118,7 +120,8 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
                                 {isVerified ? (
                                     <>
                                         Akun CoC **Terverifikasi**. Nama In-Game: <span className="text-coc-green">{userProfile.inGameName}</span>. 
-                                        {userProfile.clanName && userProfile.clanTag && ` Saat ini di klan: ${userProfile.clanName} (${userProfile.clanTag}).`}
+                                        {/* PERBAIKAN #4.1: Menggunakan userProfile.teamName */}
+                                        {userProfile.teamName && userProfile.clanTag && ` Saat ini di klan: ${userProfile.teamName} (${userProfile.clanTag}).`} 
                                     </>
                                 ) : (
                                     <>
@@ -161,7 +164,8 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
 
                         {/* Status Klan & Role */}
                         <div className={`p-2 rounded-md font-sans font-bold text-xs uppercase mb-6 ${userProfile.clanRole === 'leader' || userProfile.clanRole === 'coLeader' ? 'bg-coc-gold/20 text-coc-gold' : 'bg-coc-stone/50 text-gray-400'}`}>
-                            Role Klan: {userProfile.clanRole === 'not in clan' ? 'TIDAK DALAM KLAN' : `${userProfile.clanRole} di ${userProfile.clanName || 'Klan Tidak Dikenal'}`}
+                            {/* PERBAIKAN #4.2: Menggunakan userProfile.teamName */}
+                            Role Klan: {userProfile.clanRole === 'not in clan' ? 'TIDAK DALAM KLAN' : `${userProfile.clanRole} di ${userProfile.teamName || 'Klan Tidak Dikenal'}`}
                         </div>
 
                         <div className="space-y-6 text-left">
@@ -218,7 +222,8 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
                             {/* Tombol Manajemen Klan (BARU) */}
                             {isClanManager && userProfile.clanTag && (
                                 <Button href="/clan/manage" variant="secondary" size="lg" className="w-full bg-coc-gold-dark/20 hover:bg-coc-gold-dark/40 border-coc-gold-dark/30 hover:border-coc-gold-dark">
-                                    <CrownIcon className="inline h-5 w-5 mr-2" />
+                                    {/* PERBAIKAN: Mengganti CrownIcon yang belum diekspor dengan CogsIcon (Placeholder) */}
+                                    <CogsIcon className="inline h-5 w-5 mr-2" /> 
                                     Kelola Klan Saya ({userProfile.clanTag})
                                 </Button>
                             )}
@@ -249,8 +254,10 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
                                         <p className="text-xs uppercase text-gray-400">Level Town Hall</p>
                                     </div>
                                     <div className="bg-coc-stone/50 p-4 rounded-lg border border-coc-gold-dark/30">
-                                        {/* PERBAIKAN: Menggunakan data dari CoC API jika sudah diverifikasi, jika tidak menggunakan data CV */}
-                                        <h4 className="text-3xl text-coc-gold font-clash">{isVerified ? userProfile.trophies?.toLocaleString() || 'N/A' : '5200+'}</h4>
+                                        {/* PERBAIKAN #4.3: Menggunakan userProfile.trophies dan fall back ke "N/A" atau "0" */}
+                                        <h4 className="text-3xl text-coc-gold font-clash">
+                                            {userProfile.trophies?.toLocaleString() || (isVerified ? 'N/A' : '0')}
+                                        </h4>
                                         <p className="text-xs uppercase text-gray-400">Trofi Saat Ini {isVerified && <span className="text-coc-green">(LIVE)</span>}</p>
                                     </div>
                                 </div>
@@ -260,10 +267,11 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
                             {isClanManager && isVerified && (
                                 <div className="mt-6 p-4 bg-coc-stone/30 rounded-lg border border-coc-gold/20">
                                     <p className="text-sm font-sans text-gray-300 flex items-center gap-2">
-                                        <CalendarIcon className="h-4 w-4 text-coc-gold" />
+                                        {/* PERBAIKAN: Mengganti CalendarIcon yang belum diekspor dengan InfoIcon (Placeholder) */}
+                                        <InfoIcon className="h-4 w-4 text-coc-gold" />
                                         Data Clan Terakhir Disinkronisasi: 
                                         <span className="font-bold text-coc-gold">
-                                            {userProfile.lastSynced ? new Date(userProfile.lastSynced).toLocaleString('id-ID') : 'Belum Pernah'}
+                                            {userProfile.lastVerified ? new Date(userProfile.lastVerified).toLocaleString('id-ID') : 'Belum Pernah'}
                                         </span>
                                     </p>
                                     <p className="text-xs text-gray-500 mt-1">

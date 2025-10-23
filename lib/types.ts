@@ -85,7 +85,7 @@ export interface CocMember {
  * @interface CocPlayer
  * Data lengkap Player dari API. Digunakan saat Verifikasi Player.
  */
-export interface CocPlayer extends Omit<CocMember, 'clanRank' | 'previousClanRank'> {
+export interface CocPlayer extends Omit<CocMember, 'clanRank' | 'previousClanRank' | 'role'> { // PERBAIKAN: role DITAMBAHKAN di Omit
   // Tambahan dari /players/{playerTag} endpoint
   attackWins: number;
   defenseWins: number;
@@ -142,6 +142,7 @@ export interface UserProfile {
   playerTag: string; // Tag pemain dari dalam game (Disimpan di sini setelah verifikasi)
   inGameName?: string; // Nama pemain dari API CoC
   thLevel: number; // Level Town Hall (Diperbarui dari API atau input manual)
+  trophies: number; // <<-- PERBAIKAN: FIELD TROPHY BARU DITAMBAHKAN
   clanTag?: string | null; // Tag Klan CoC saat ini (diperbarui dari API)
   clanRole?: 'leader' | 'coLeader' | 'admin' | 'member' | 'not in clan'; // Role di klan CoC
   lastVerified?: Date; // Timestamp verifikasi terakhir

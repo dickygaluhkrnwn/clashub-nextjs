@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/Button';
 import { ManagedClan, ClanApiCache, UserProfile } from '@/lib/types';
-import { CrownIcon, ShieldCheckIcon, AlertTriangleIcon, CogsIcon, ClockIcon, UsersIcon, SyncIcon, ArrowRightIcon } from '@/app/components/icons';
+// PERBAIKAN: Menyesuaikan impor ikon. ArrowRightIcon (Masalah #3/7) diganti dengan XIcon sebagai fallback di JSX jika ArrowRightIcon benar-benar hilang.
+// Kita akan coba pertahankan ArrowRightIcon dulu, jika masih error, ganti dengan XIcon atau InfoIcon.
+import { UserCircleIcon, ShieldIcon, AlertTriangleIcon, CogsIcon, ClockIcon, InfoIcon, TrophyIcon, UserIcon, XIcon, GlobeIcon } from '@/app/components/icons'; 
 import Notification, { NotificationProps } from '@/app/components/ui/Notification';
 
 interface ClanManagementData {
@@ -37,6 +39,7 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
     if (serverError) {
         return (
             <main className="container mx-auto p-4 md:p-8 mt-10 min-h-[60vh]">
+                <Notification notification={notification ?? undefined} />
                 <div className="flex justify-center items-center">
                     <div className="card-stone p-8 max-w-lg text-center rounded-lg border-2 border-coc-red/50 bg-coc-red/10">
                         <AlertTriangleIcon className="h-12 w-12 text-coc-red mx-auto mb-4"/>
@@ -56,12 +59,16 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
     // Asumsi: Jika tidak ada serverError, initialData dijamin ada oleh Server Component
     const clan = initialData!.clan; 
     const cache = initialData!.cache;
-    const isCacheStale = !cache || (cache.lastSynced.getTime() < Date.now() - 3600000); // Dianggap 'stale' jika > 1 jam
+    // PERBAIKAN: Memastikan cache.lastUpdated adalah Date sebelum menggunakan getTime()
+    const lastSyncedDate = cache?.lastUpdated instanceof Date ? cache.lastUpdated : new Date(0); 
+
+    // Dianggap 'stale' jika > 1 jam (3600000 ms)
+    const isCacheStale = !cache || (lastSyncedDate.getTime() < Date.now() - 3600000); 
     const syncStatusClass = isCacheStale ? 'text-coc-red' : 'text-coc-green';
     const syncMessage = isCacheStale ? 'Perlu Sinkronisasi' : 'Data Fresh';
     
-    const lastSyncTime = cache?.lastSynced 
-        ? cache.lastSynced.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })
+    const lastSyncTime = cache?.lastUpdated 
+        ? new Date(cache.lastUpdated).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })
         : 'Belum Pernah';
 
     // --- FUNGSI SINKRONISASI MANUAL (Fase 2.2) ---
@@ -73,7 +80,8 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
             const response = await fetch('/api/coc/sync-managed-clan', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ teamId: clan.id }),
+                // clan.id adalah ID internal Firestore, bukan Clan Tag
+                body: JSON.stringify({ managedClanId: clan.id }), 
             });
 
             const result = await response.json();
@@ -82,8 +90,9 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
                 throw new Error(result.message || 'Sinkronisasi gagal. Cek API Key atau status klan.');
             }
 
+            // Setelah sukses, kita refresh router untuk memuat data terbaru dari Server Component
             showNotification(`Sinkronisasi berhasil! Data terakhir diambil: ${new Date(result.lastSynced).toLocaleTimeString('id-ID')}`, 'success');
-            router.refresh(); // Memaksa Server Component memuat ulang data terbaru
+            router.refresh(); 
 
         } catch (err) {
             const errorMessage = (err as Error).message || "Terjadi kesalahan saat memanggil API sinkronisasi.";
@@ -94,6 +103,17 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
     };
     // --- END FUNGSI SINKRONISASI MANUAL ---
 
+    // PERBAIKAN: Memastikan penggunaan nama field yang benar
+    const memberCount = cache?.members?.length || clan.memberCount || 0;
+    const avgThLevel = clan.avgTh || 'N/A';
+
+    // Mendefinisikan ArrowRightIcon lokal sebagai fallback jika import gagal
+    const ArrowRightIconLocal = (props: React.SVGProps<SVGSVGElement>) => (
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+        </svg>
+    );
+
     return (
         <main className="container mx-auto p-4 md:p-8 mt-10">
             <Notification notification={notification ?? undefined} />
@@ -103,10 +123,12 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
                 {/* Header Klan */}
                 <div className="card-stone p-6 flex flex-col md:flex-row justify-between items-start md:items-center">
                     <div className="flex items-center gap-4">
-                        <CrownIcon className="h-10 w-10 text-coc-gold flex-shrink-0" />
+                        {/* PERBAIKAN: CrownIcon diganti UserCircleIcon */}
+                        <UserCircleIcon className="h-10 w-10 text-coc-gold flex-shrink-0" />
                         <div>
                             <h1 className="text-3xl font-clash text-white">{clan.name} <span className="text-coc-gold text-2xl font-sans font-bold">({clan.tag})</span></h1>
-                            <p className="text-sm text-gray-400 font-sans">Level Klan: {cache?.cocClanData?.clanLevel || 'N/A'}</p>
+                            {/* PERBAIKAN: Menggunakan clan.clanLevel dari ManagedClan root */}
+                            <p className="text-sm text-gray-400 font-sans">Level Klan: {clan.clanLevel || 'N/A'}</p>
                         </div>
                     </div>
                     
@@ -126,7 +148,8 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
                         {/* Panel Sinkronisasi */}
                         <div className="card-stone p-6 space-y-4">
                             <h3 className="text-xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2">
-                                <SyncIcon className="h-5 w-5" /> Kontrol Sinkronisasi
+                                {/* PERBAIKAN: SyncIcon diganti ClockIcon */}
+                                <ClockIcon className="h-5 w-5" /> Kontrol Sinkronisasi
                             </h3>
                             <p className="text-sm text-gray-300 font-sans">
                                 Sinkronisasi akan menarik data Anggota dan Log War terbaru dari API Clash of Clans ke cache privat klan Anda.
@@ -137,7 +160,8 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
                                 disabled={isSyncing}
                                 className={`w-full ${isSyncing ? 'animate-pulse' : ''}`}
                             >
-                                <SyncIcon className={`inline h-5 w-5 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+                                {/* PERBAIKAN: SyncIcon diganti ClockIcon (sementara) */}
+                                <ClockIcon className={`inline h-5 w-5 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
                                 {isSyncing ? 'Sedang Sinkronisasi...' : 'Sinkronisasi Manual Sekarang'}
                             </Button>
                         </div>
@@ -145,12 +169,21 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
                         {/* Panel Data Internal */}
                         <div className="card-stone p-6 space-y-3">
                             <h3 className="text-xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2">
+                                {/* PERBAIKAN: InfoIcon sudah diimpor */}
                                 <InfoIcon className="h-5 w-5" /> Data Internal
                             </h3>
+                            <p className="text-sm text-gray-300"><span className="font-bold">ID Internal:</span> {clan.id}</p>
                             <p className="text-sm text-gray-300"><span className="font-bold">UID Owner:</span> {clan.ownerUid}</p>
                             <p className="text-sm text-gray-300"><span className="font-bold">Status Rekrutmen:</span> <span className="text-coc-green">{clan.recruitingStatus}</span></p>
-                            <Button href={`/team/${clan.id}`} variant="tertiary" className="w-full mt-4">
-                                Lihat Profil Tim <ArrowRightIcon className="inline h-4 w-4 ml-2" />
+                            <p className="text-sm text-gray-300"><span className="font-bold">Rata-rata TH:</span> {avgThLevel}</p>
+                            <p className="text-sm text-gray-300"><span className="font-bold">Anggota Total:</span> {memberCount}</p>
+                            <Button 
+                                href={`/team/${clan.id}`} 
+                                // PERBAIKAN: Mengganti variant="tertiary" (Masalah 5) menjadi variant="link"
+                                variant="link" 
+                                className="w-full mt-4 text-coc-gold hover:text-white justify-center"
+                            >
+                                Lihat Profil Tim <ArrowRightIconLocal className="inline h-4 w-4 ml-2" />
                             </Button>
                         </div>
                     </aside>
@@ -158,10 +191,12 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
                     {/* Kolom Kanan: Detail Anggota Cache */}
                     <section className="lg:col-span-2 card-stone p-6 space-y-6">
                         <h2 className="font-clash text-2xl text-white border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2">
-                            <UsersIcon className="h-6 w-6 text-coc-gold" /> Anggota Klan (Cache Privat)
+                            {/* PERBAIKAN: UsersIcon diganti UserIcon */}
+                            <UserIcon className="h-6 w-6 text-coc-gold" /> Anggota Klan (Cache Privat)
                         </h2>
 
-                        {!cache?.currentMembers || cache.currentMembers.length === 0 ? (
+                        {/* PERBAIKAN: Menggunakan cache.members */}
+                        {!cache?.members || cache.members.length === 0 ? (
                             <div className="p-4 text-center bg-coc-red/10 border border-coc-red/30 rounded-md">
                                 <p className="text-gray-300">Belum ada data anggota di cache. Silakan lakukan **Sinkronisasi Manual**.</p>
                             </div>
@@ -174,16 +209,18 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
                                             <th className="px-3 py-2 text-left text-xs font-clash text-coc-gold uppercase tracking-wider">TH</th>
                                             <th className="px-3 py-2 text-left text-xs font-clash text-coc-gold uppercase tracking-wider">Role</th>
                                             <th className="px-3 py-2 text-left text-xs font-clash text-coc-gold uppercase tracking-wider">Trofi</th>
-                                            <th className="px-3 py-2 text-left text-xs font-clash text-coc-gold uppercase tracking-wider">Donasi</th>
+                                            <th className-="px-3 py-2 text-left text-xs font-clash text-coc-gold uppercase tracking-wider">Donasi</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-coc-gold-dark/10">
-                                        {cache.currentMembers.map((member) => (
+                                        {/* PERBAIKAN: Iterasi menggunakan cache.members */}
+                                        {cache.members.map((member) => (
                                             <tr key={member.tag} className="hover:bg-coc-stone/20 transition-colors">
                                                 <td className="px-3 py-3 whitespace-nowrap text-sm font-semibold text-white">{member.name}</td>
                                                 <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-300">{member.townHallLevel}</td>
                                                 <td className="px-3 py-3 whitespace-nowrap text-xs uppercase font-medium text-coc-green">{member.role}</td>
-                                                <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-300">{member.trophies?.toLocaleString() || 'N/A'}</td>
+                                                {/* Menggunakan trophies dari CocMember yang ada */}
+                                                <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-300">{member.trophies?.toLocaleString() || 'N/A'}</td> 
                                                 <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-300">{member.donations.toLocaleString()}</td>
                                             </tr>
                                         ))}

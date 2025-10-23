@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
       playerTag: cocPlayerData.tag, // Pastikan tag bersih dan benar
       inGameName: cocPlayerData.name,
       thLevel: cocPlayerData.townHallLevel,
+      trophies: cocPlayerData.trophies, // <<-- PERBAIKAN: MENYIMPAN DATA TROPHY
       lastVerified: new Date(), // Simpan timestamp verifikasi
       // Default jika tidak ada klan
       clanTag: null,
