@@ -409,6 +409,13 @@ export const createPost = async (
     },
     authorProfile: UserProfile
 ): Promise<string> => {
+  
+  // --- PERBAIKAN KRITIS: Validasi Profil Penulis ---
+  if (!authorProfile || !authorProfile.playerTag || authorProfile.thLevel === undefined || authorProfile.thLevel < 1) {
+       throw new Error("Gagal membuat postingan. E-Sports CV Anda belum lengkap (Player Tag/TH Level wajib diisi).");
+  }
+  // --- Akhir Perbaikan ---
+
   try {
     const postsRef = collection(firestore, 'posts');
     const now = Timestamp.now(); // Gunakan Timestamp Firestore
