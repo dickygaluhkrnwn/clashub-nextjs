@@ -5,7 +5,7 @@ import { Metadata } from 'next';
 import { Button } from '@/app/components/ui/Button';
 import { UserProfile, Team } from '@/lib/types';
 import { getUserProfile, getTeamById } from '@/lib/firestore';
-import { getThImage } from '@/lib/th-utils'; 
+import { getThImage } from '@/lib/th-utils';
 // Menggunakan ikon-ikon yang sudah diperbarui dan dikoreksi
 import { ArrowLeftIcon, StarIcon, TrophyIcon, InfoIcon, CogsIcon, GlobeIcon, DiscordIcon, LinkIcon, UserIcon } from '@/app/components/icons';
 import { PostCard } from '@/app/components/cards';
@@ -29,7 +29,7 @@ const dummyRecentPosts = [
  */
 export async function generateMetadata({ params }: PlayerDetailPageProps): Promise<Metadata> {
     const playerId = params.playerId;
-    const player = await getUserProfile(playerId); 
+    const player = await getUserProfile(playerId);
 
     if (!player) {
         return { title: "Pemain Tidak Ditemukan | Clashub" };
@@ -54,7 +54,7 @@ const PlayerDetailPage = async ({ params }: PlayerDetailPageProps) => {
     if (!player) {
         notFound();
     }
-    
+
     // Penyiapan Data & Fallback
     const validThLevel = player.thLevel && !isNaN(player.thLevel) && player.thLevel > 0 ? player.thLevel : 9;
     const thImage = getThImage(validThLevel);
@@ -68,7 +68,7 @@ const PlayerDetailPage = async ({ params }: PlayerDetailPageProps) => {
     if (player.teamId) {
         teamData = await getTeamById(player.teamId);
     }
-    
+
     // Data dummy untuk Riwayat Tim (akan diganti dengan data historis di sprint mendatang)
     const currentTeamHistory = teamData ? [{
         name: player.teamName || teamData.name,
@@ -85,7 +85,7 @@ const PlayerDetailPage = async ({ params }: PlayerDetailPageProps) => {
                 <Button href="/teamhub" variant="secondary" size="md" className="flex items-center flex-shrink-0">
                     <ArrowLeftIcon className="h-4 w-4 mr-2" /> Kembali ke Pencarian
                 </Button>
-                
+
                 <div className="flex gap-4">
                     <Button variant="secondary" size="md" className="flex-shrink-0">
                         Kirim Pesan
@@ -98,14 +98,16 @@ const PlayerDetailPage = async ({ params }: PlayerDetailPageProps) => {
 
             {/* Layout Utama Profil */}
             <section className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                
+
                 {/* Kolom Kiri: Ringkasan CV */}
                 <aside className="lg:col-span-1 card-stone p-6 h-fit sticky top-28 space-y-6 text-center">
-                    <Image 
-                        src={avatarSrc} 
-                        alt={`${player.displayName} Avatar`} 
-                        width={100} 
+                    <Image
+                        src={avatarSrc}
+                        alt={`${player.displayName} Avatar`}
+                        width={100}
                         height={100}
+                        sizes="(max-width: 1024px) 80px, 100px" // Ukuran render
+                        priority // Prioritaskan avatar
                         className="w-24 h-24 rounded-full mx-auto border-4 border-coc-gold object-cover flex-shrink-0"
                     />
                     {/* Ganti font-supercell menjadi font-clash */}
@@ -149,7 +151,7 @@ const PlayerDetailPage = async ({ params }: PlayerDetailPageProps) => {
                             <p className="text-sm text-gray-500 flex items-center gap-2"><LinkIcon className="h-4 w-4 text-gray-500"/> Website belum diatur</p>
                         )}
                     </div>
-                    
+
                     <div className="pt-4 border-t border-coc-gold-dark/20 text-center">
                          {/* Ganti font-supercell menjadi font-clash */}
                         <h3 className="text-lg text-coc-gold-dark font-clash">Reputasi Komitmen</h3>
@@ -164,21 +166,22 @@ const PlayerDetailPage = async ({ params }: PlayerDetailPageProps) => {
 
                 {/* Kolom Kanan: Detail CV */}
                 <section className="lg:col-span-3 space-y-8">
-                    
+
                     {/* Status Permainan */}
                     <div className="card-stone p-6 rounded-lg">
                          {/* Judul h2 akan otomatis font-clash */}
                         <h2 className="mb-6 flex items-center gap-2">
                             <TrophyIcon className="h-6 w-6" /> Status Permainan
                         </h2>
-                        
+
                         <div className="flex flex-col md:flex-row items-center gap-6">
                             <div className="relative w-36 h-36 flex items-center justify-center">
-                                <Image 
-                                    src={thImage} 
-                                    alt={`Town Hall ${validThLevel}`} 
-                                    width={120} 
-                                    height={120} 
+                                <Image
+                                    src={thImage}
+                                    alt={`Town Hall ${validThLevel}`}
+                                    width={120}
+                                    height={120}
+                                    sizes="(max-width: 768px) 100px, 120px" // Ukuran render
                                     className="flex-shrink-0"
                                 />
                             </div>
@@ -190,7 +193,7 @@ const PlayerDetailPage = async ({ params }: PlayerDetailPageProps) => {
                                 </div>
                                 <div className="bg-coc-stone/50 p-4 rounded-lg border border-coc-gold-dark/30">
                                      {/* Judul h4 akan otomatis font-clash */}
-                                    <h4 className="text-3xl text-coc-gold">450+</h4> 
+                                    <h4 className="text-3xl text-coc-gold">450+</h4>
                                     <p className="text-xs uppercase text-gray-400">Bintang War Diperoleh</p>
                                 </div>
                             </div>

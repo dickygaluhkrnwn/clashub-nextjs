@@ -161,8 +161,10 @@ const TeamProfileTabs: React.FC<TeamProfileTabsProps> = ({ team, members, compet
                                     <Image
                                         src={member.avatarUrl || '/images/placeholder-avatar.png'}
                                         alt={`${member.displayName} Avatar`}
-                                        width={40}
-                                        height={40}
+                                        width={40} // Ukuran asli
+                                        height={40} // Ukuran asli
+                                        sizes="40px" // Ukuran render tetap 40px
+                                        quality={75} // Kualitas default
                                         className="rounded-full object-cover border-2 border-coc-gold-dark flex-shrink-0" /* Thicker border */
                                     />
                                     <div className="flex-grow min-w-0"> {/* Added min-w-0 for better truncation */}

@@ -50,8 +50,17 @@ export const TeamCard = ({ id, name, tag, rating, vision, avgTh, logoUrl = "/ima
     <div className="card-stone flex flex-col justify-between h-full p-5">
       <div>
         <div className="flex items-center gap-4 mb-4">
-          <Image src={logoUrl} alt={`${name} logo`} width={50} height={50} className="rounded-full border-2 border-coc-gold-dark flex-shrink-0" />
-          <div className="flex-grow min-w-0">
+          <Image
+            src={logoUrl}
+            alt={`${name} logo`}
+            width={50} // Ukuran tetap
+            height={50} // Ukuran tetap
+            sizes="(max-width: 768px) 40px, 50px" // Ukuran render: ~40px di mobile, 50px di desktop
+            quality={75} // Default quality, eksplisit
+            className="rounded-full border-2 border-coc-gold-dark flex-shrink-0"
+          />
+          {/* ... existing code ... */}
+        <div className="flex-grow min-w-0">
             {/* Menambahkan font-clash */}
             <h4 className="font-clash text-lg text-white leading-tight truncate">{name}</h4>
             <p className="text-xs text-gray-400">{tag}</p>
@@ -78,6 +87,7 @@ export const TeamCard = ({ id, name, tag, rating, vision, avgTh, logoUrl = "/ima
 };
 
 // -- Komponen PostCard (untuk Knowledge Hub) --
+// Tidak ada <Image> di sini, tidak perlu diubah
 export const PostCard = ({ category, tag, title, author, stats, href }: PostCardProps) => {
     return (
       <Link href={href} className="block group h-full">
@@ -100,6 +110,7 @@ export const PostCard = ({ category, tag, title, author, stats, href }: PostCard
   };
 
 // -- Komponen TournamentCard --
+// Tidak ada <Image> di sini, tidak perlu diubah
 export const TournamentCard = ({ id, title, status, thRequirement, prizePool }: TournamentCardProps) => {
     const statusStyles = {
         'Akan Datang': 'border-coc-gold bg-coc-gold/10',
@@ -145,8 +156,17 @@ export const PlayerCard = ({ id, name, tag, thLevel, reputation, role, avatarUrl
         <div className="card-stone flex flex-col justify-between h-full p-5">
             <div>
                 <div className="flex items-center gap-4 mb-4">
-                    <Image src={avatarUrl} alt={`${name} avatar`} width={50} height={50} className="rounded-full border-2 border-coc-gold-dark flex-shrink-0" />
-                    <div className="flex-grow min-w-0">
+                    <Image
+                      src={avatarUrl}
+                      alt={`${name} avatar`}
+                      width={50} // Ukuran tetap
+                      height={50} // Ukuran tetap
+                      sizes="(max-width: 768px) 40px, 50px" // Ukuran render: ~40px di mobile, 50px di desktop
+                      quality={75} // Default quality, eksplisit
+                      className="rounded-full border-2 border-coc-gold-dark flex-shrink-0"
+                    />
+                    {/* ... existing code ... */}
+                <div className="flex-grow min-w-0">
                         {/* Menambahkan font-clash */}
                         <h4 className="font-clash text-lg text-white leading-tight truncate">{name}</h4>
                         <p className="text-xs text-gray-400">{tag}</p>

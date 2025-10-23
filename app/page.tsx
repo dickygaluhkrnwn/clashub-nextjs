@@ -4,6 +4,7 @@ import { TrophyIcon, SkullIcon, PercentageIcon, CogsIcon, BookOpenIcon } from "@
 import CarouselSection from "@/app/components/layout/CarouselSection";
 import { getRecommendedTeams } from "@/lib/server-utils"; // Import fungsi Server baru
 import { Team } from "@/lib/types"; // Import tipe data Team
+import Image from "next/image"; // Import Image component
 
 // --- DATA STATIS SEMENTARA (Akan diganti di Sprint berikutnya) ---
 // Data statis untuk PostCard, disesuaikan dengan props yang benar.
@@ -33,6 +34,7 @@ export default async function Home() {
     return (
         <>
             {/* Hero Banner Section */}
+            {/* Background image dihandle oleh CSS, tidak menggunakan next/image */}
             <section className="relative h-[400px] bg-hero-banner bg-cover bg-center bg-no-repeat flex flex-col items-center justify-center text-center text-white border-b-4 border-coc-gold shadow-lg">
                 <div className="absolute inset-0 bg-black/60" />
                 <div className="relative z-10 p-4">
@@ -86,7 +88,14 @@ export default async function Home() {
                         {/* Info Tim Pengguna (Statis) */}
                         <div className="bg-coc-stone-light/50 p-6 rounded-lg shadow-stone border border-coc-gold-dark/20 flex flex-col justify-between">
                             <div className="flex items-center gap-4 border-b-2 border-coc-gold-dark/30 pb-4 mb-4">
-                                <img src="/images/clan-badge-placeholder.png" alt="Clan Badge" className="w-16 h-16"/>
+                                {/* Ganti img dengan Image */}
+                                <Image
+                                  src="/images/clan-badge-placeholder.png"
+                                  alt="Clan Badge"
+                                  width={64} // Sesuaikan width
+                                  height={64} // Sesuaikan height
+                                  className="w-16 h-16" // Class tetap untuk styling
+                                />
                                 <div>
                                      {/* h3 akan otomatis menggunakan font-clash dari globals.css */}
                                     <h3 className="text-xl">THE GOLDEN ARMY</h3>
@@ -110,7 +119,14 @@ export default async function Home() {
                         <div className="bg-coc-stone-light/50 p-6 rounded-lg shadow-stone border border-coc-gold-dark/20 text-center">
                              {/* h3 akan otomatis menggunakan font-clash dari globals.css */}
                             <h3 className="text-lg mb-4">RINGKASAN PROFIL ANDA</h3>
-                            <img src="/images/placeholder-avatar.png" alt="Avatar" className="w-20 h-20 rounded-full mx-auto border-4 border-coc-gold-dark"/>
+                            {/* Ganti img dengan Image */}
+                            <Image
+                              src="/images/placeholder-avatar.png"
+                              alt="Avatar Pengguna"
+                              width={80} // Sesuaikan width
+                              height={80} // Sesuaikan height
+                              className="w-20 h-20 rounded-full mx-auto border-4 border-coc-gold-dark" // Class tetap untuk styling
+                            />
                             <div className="flex justify-around mt-4">
                                 {/* Statistik: font-sans (default), font-bold */}
                                 <div><p className="text-xs text-gray-400">TH LEVEL</p><span className="text-2xl font-bold">15</span></div>

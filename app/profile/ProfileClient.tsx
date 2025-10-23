@@ -71,7 +71,7 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
             </div>
         );
     }
-    
+
     // Kasus B: Fatal Error (InitialProfile null dan pesan error bukan missing profile)
     // Ini menangani kasus "Coba Lagi" yang Anda lihat.
     if (!userProfile && error) {
@@ -95,24 +95,26 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
     if (currentUser && userProfile) {
         const validThLevel = userProfile.thLevel && !isNaN(userProfile.thLevel) && userProfile.thLevel > 0 ? userProfile.thLevel : 9;
         const thImage = getThImage(validThLevel);
-        
+
         // PERBAIKAN UTAMA: Mengambil avatarUrl yang sudah tersimpan
-        const avatarSrc = userProfile.avatarUrl || '/images/placeholder-avatar.png'; 
-        
+        const avatarSrc = userProfile.avatarUrl || '/images/placeholder-avatar.png';
+
         const displayWebsite = cleanUrlDisplay(userProfile.website);
 
         return (
             <main className="container mx-auto p-4 md:p-8 mt-10">
                 {/* PERBAIKAN: Tambahkan items-start pada grid container */}
-                <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 items-start"> 
+                <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
                     {/* Kolom Kiri: Ringkasan Profil & Aksi */}
                     {/* PERBAIKAN: Hapus kelas h-fit */}
-                    <aside className="lg:col-span-1 card-stone p-6 sticky top-28 text-center"> 
+                    <aside className="lg:col-span-1 card-stone p-6 sticky top-28 text-center">
                         <Image
                             src={avatarSrc} // Menggunakan avatarSrc yang sudah dimuat dari state/Firestore
                             alt={`${userProfile.displayName} Avatar`}
-                            width={100}
-                            height={100}
+                            width={100} // Ukuran asli gambar
+                            height={100} // Ukuran asli gambar
+                            sizes="(max-width: 1024px) 80px, 100px" // Ukuran render: 80px di layar kecil/medium, 100px di layar besar
+                            priority // Avatar utama kemungkinan LCP
                             className="w-24 h-24 rounded-full mx-auto border-4 border-coc-gold object-cover flex-shrink-0"
                         />
                         {/* PERBAIKAN FONT */}
@@ -189,8 +191,9 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
                                 <Image
                                     src={thImage}
                                     alt={`Town Hall ${validThLevel}`}
-                                    width={120}
-                                    height={120}
+                                    width={120} // Ukuran asli gambar TH
+                                    height={120} // Ukuran asli gambar TH
+                                    sizes="(max-width: 768px) 100px, 120px" // Render ~100px di mobile, 120px di desktop
                                     className="flex-shrink-0"
                                 />
                                 <div className="flex-grow grid grid-cols-2 gap-4 text-center w-full">
@@ -229,7 +232,7 @@ const ProfileClient = ({ initialProfile, serverError }: ProfileClientProps) => {
 
     // Fallback jika tidak ada kondisi yang cocok (seharusnya tidak terjadi jika logic benar)
     // Jika auth sudah selesai tapi tidak ada currentUser (seharusnya sudah redirect di server component)
-    return null; 
+    return null;
 };
 
 export default ProfileClient;
