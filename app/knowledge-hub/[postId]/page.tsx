@@ -5,13 +5,13 @@ import Image from 'next/image';
 import { getPostById, getUserProfile } from '@/lib/firestore';
 import { Post, UserProfile } from '@/lib/types';
 // FIX: Tambahkan PaperPlaneIcon dan LinkIcon
-import { ArrowLeftIcon, StarIcon, EditIcon, BookOpenIcon, UserCircleIcon, ClockIcon, PaperPlaneIcon, LinkIcon } from '@/app/components/icons'; 
+import { ArrowLeftIcon, StarIcon, EditIcon, BookOpenIcon, UserCircleIcon, ClockIcon, PaperPlaneIcon, LinkIcon } from '@/app/components/icons';
 import { Button } from '@/app/components/ui/Button';
 // FIX: Import React untuk ContentRenderer dan CommentCard
-import React from 'react'; 
+import React from 'react';
 // FIX: Pastikan date-fns dan locale diimpor jika sudah diinstal
 import { format } from 'date-fns';
-import { id } from 'date-fns/locale'; 
+import { id } from 'date-fns/locale';
 import { getSessionUser } from '@/lib/server-auth';
 
 // Definisikan tipe untuk parameter rute dinamis
@@ -54,21 +54,21 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
         getPostById(postId),
         getSessionUser(),
     ]);
-    
+
     if (!post) {
         notFound();
     }
 
     // Ambil data profil penulis
     const authorProfile: UserProfile | null = await getUserProfile(post.authorId);
-    
+
     // Cek apakah pengguna saat ini adalah penulis postingan
     const isAuthor = sessionUser && sessionUser.uid === post.authorId;
 
     return (
         <main className="container mx-auto p-4 md:p-8 mt-10">
             <section className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                
+
                 {/* Kolom Kiri: Konten Postingan & Komentar */}
                 <div className="lg:col-span-3">
                     <div className="mb-6">
@@ -76,11 +76,12 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                             <ArrowLeftIcon className="h-4 w-4 mr-2" /> Kembali ke Hub
                         </Button>
                     </div>
-
-                    <div className="card-stone p-8 space-y-6">
+                    {/* PERBAIKAN STYLING: Tambahkan rounded-lg */}
+                    <div className="card-stone p-8 space-y-6 rounded-lg">
                         <header>
-                            <h1 className="text-4xl text-white font-supercell m-0 leading-tight">{post.title}</h1>
-                            
+                            {/* PERBAIKAN FONT: font-supercell -> font-clash */}
+                            <h1 className="text-4xl text-white font-clash m-0 leading-tight">{post.title}</h1>
+
                             {/* Meta Detail */}
                             <div className="flex flex-wrap items-center gap-4 py-4 mt-4 border-y border-coc-gold-dark/20 text-sm text-gray-400">
                                 {/* Tags */}
@@ -102,11 +103,12 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
 
                         {/* Konten Utama */}
                         <div className="prose prose-invert prose-lg max-w-none text-gray-300">
-                            <p className="whitespace-pre-line leading-relaxed">
+                            {/* Menggunakan paragraph karena ContentRenderer akan menghasilkan <br> */}
+                            <div className="whitespace-pre-line leading-relaxed">
                                 <ContentRenderer content={post.content} />
-                            </p>
+                            </div>
                         </div>
-                        
+
                         {/* Tombol Aksi Penulis (Edit/Hapus) */}
                         {isAuthor && (
                             <div className="flex justify-end gap-4 pt-4 border-t border-coc-gold-dark/20">
@@ -122,11 +124,12 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
 
                         {/* Bagian Komentar */}
                         <div className="mt-10 pt-6 border-t-2 border-coc-gold-dark/30">
-                            <h2 className="text-2xl border-l-4 border-coc-gold pl-3 mb-6">Balasan ({post.replies})</h2>
-                            
+                            {/* PERBAIKAN FONT: Terapkan font-clash */}
+                            <h2 className="text-2xl font-clash border-l-4 border-coc-gold pl-3 mb-6">Balasan ({post.replies})</h2>
+
                             {/* Area Input Komentar (Statis) */}
                             <div className="bg-coc-stone/50 p-4 rounded-lg mb-6">
-                                <textarea placeholder="Tulis komentar atau pertanyaan Anda di sini..." rows={3} className="w-full bg-transparent border-b border-coc-gold-dark/50 p-2 text-white focus:outline-none resize-none"></textarea>
+                                <textarea placeholder="Tulis komentar atau pertanyaan Anda di sini..." rows={3} className="w-full bg-transparent border-b border-coc-gold-dark/50 p-2 text-white focus:outline-none resize-none font-sans"></textarea>
                                 <Button variant="primary" size="sm" className="mt-3">
                                     <PaperPlaneIcon className="inline h-4 w-4 mr-2"/> Kirim Komentar
                                 </Button>
@@ -142,25 +145,30 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                 </div>
 
                 {/* Kolom Kanan: Sidebar Penulis */}
-                <aside className="lg:col-span-1 card-stone p-6 h-fit sticky top-28 space-y-6 text-center">
-                    <h2 className="text-xl border-l-4 border-coc-gold-dark pl-3 mb-4 flex items-center justify-center">Penulis</h2>
-                    
-                    <Image 
-                        src={authorProfile?.avatarUrl || '/images/placeholder-avatar.png'} 
-                        alt={`${post.authorName} Avatar`} 
-                        width={80} 
+                 {/* PERBAIKAN STYLING: Tambahkan rounded-lg */}
+                <aside className="lg:col-span-1 card-stone p-6 h-fit sticky top-28 space-y-6 text-center rounded-lg">
+                     {/* PERBAIKAN FONT: Terapkan font-clash */}
+                    <h2 className="text-xl font-clash border-l-4 border-coc-gold-dark pl-3 mb-4 flex items-center justify-center">Penulis</h2>
+
+                    <Image
+                        src={authorProfile?.avatarUrl || '/images/placeholder-avatar.png'}
+                        alt={`${post.authorName} Avatar`}
+                        width={80}
                         height={80}
                         className="w-20 h-20 rounded-full mx-auto border-4 border-coc-gold object-cover flex-shrink-0"
                     />
-                    <h3 className="text-2xl text-white font-supercell m-0">{post.authorName}</h3>
-                    
+                     {/* PERBAIKAN FONT: font-supercell -> font-clash */}
+                    <h3 className="text-2xl text-white font-clash m-0">{post.authorName}</h3>
+
                     <p className="text-xs text-gray-400 mt-1">
                         {authorProfile?.playStyle || 'Kontributor'}
                     </p>
-                    
+
                     <div className="pt-4 border-t border-coc-gold-dark/20">
-                        <h3 className="text-lg font-supercell text-coc-gold-dark">Reputasi</h3>
-                        <p className="text-3xl font-supercell text-coc-gold my-1">
+                         {/* PERBAIKAN FONT: font-supercell -> font-clash */}
+                        <h3 className="text-lg font-clash text-coc-gold-dark">Reputasi</h3>
+                         {/* PERBAIKAN FONT: font-supercell -> font-clash */}
+                        <p className="text-3xl font-clash text-coc-gold my-1">
                             {authorProfile?.reputation ? authorProfile.reputation.toFixed(1) : '5.0'} <StarIcon className="inline h-6 w-6" />
                         </p>
                     </div>
@@ -168,10 +176,11 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                     <Button href={`/player/${post.authorId}`} variant="primary" className="w-full mt-4">
                         Lihat E-sports CV
                     </Button>
-                    
+
                     {/* Diskusi Terkait (Statis) */}
                     <div className="pt-4 border-t border-coc-gold-dark/20 text-left">
-                        <h3 className="text-lg font-supercell text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2">Diskusi Terkait</h3>
+                         {/* PERBAIKAN FONT: font-supercell -> font-clash */}
+                        <h3 className="text-lg font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2">Diskusi Terkait</h3>
                         <ul className="text-sm space-y-3 mt-3">
                             <li className="text-gray-300 hover:text-coc-gold transition-colors"><Link href="#">Base Building Anti-Hydrid</Link></li>
                             <li className="text-gray-300 hover:text-coc-gold transition-colors"><Link href="#">Upgrade Hero Equipment Terbaik</Link></li>
@@ -195,11 +204,11 @@ export default PostDetailPage;
 const ContentRenderer = ({ content }: { content: string }) => {
     // 1. Konversi baris baru menjadi <br>
     const htmlContent = content.split('\n').map((line, index) => {
-        
+
         // 2. Deteksi Base Link: Pola umum untuk URL Clash of Clans Base Link
         const baseLinkRegex = /(https?:\/\/(link\.clashofclans\.com)\/(\S+)\/base\/(\S+))/i;
         const linkMatch = line.match(baseLinkRegex);
-        
+
         if (linkMatch) {
             const fullLink = linkMatch[0];
             return (
@@ -211,7 +220,7 @@ const ContentRenderer = ({ content }: { content: string }) => {
                 </p>
             );
         }
-        
+
         // 3. Deteksi Video YouTube (sangat sederhana)
         const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)(\w+)/i;
         const videoMatch = line.match(youtubeRegex);
@@ -221,10 +230,10 @@ const ContentRenderer = ({ content }: { content: string }) => {
              // Embed YouTube menggunakan iframe dengan aspect ratio 16:9
              return (
                  <div key={index} className="relative w-full overflow-hidden rounded-lg border-2 border-coc-gold-dark my-4" style={{ paddingTop: '56.25%' }}>
-                    <iframe 
-                        src={`https://www.youtube.com/embed/${videoId}`} 
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                        allowFullScreen 
+                    <iframe
+                        src={`https://www.youtube.com/embed/${videoId}`}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
                         className="absolute top-0 left-0 w-full h-full"
                         title="Embedded YouTube video"
                     ></iframe>
@@ -232,18 +241,27 @@ const ContentRenderer = ({ content }: { content: string }) => {
              );
         }
 
-        // Teks biasa
-        return <React.Fragment key={index}>{line}<br/></React.Fragment>;
-    });
+        // Teks biasa hanya dikembalikan sebagai string, <p> wrapper akan menangani <br>
+        return line;
+    }).map((line, index, arr) => (
+        // Tambahkan <br /> secara eksplisit kecuali untuk baris terakhir
+        <React.Fragment key={index}>
+            {line}
+            {index < arr.length - 1 && <br />}
+        </React.Fragment>
+    ));
 
-    return <>{htmlContent}</>;
+
+    // Gunakan div dengan prose style di sini agar link dan list di dalam konten asli (jika ada) ter-render dengan baik
+    return <div className="prose prose-invert prose-lg max-w-none text-gray-300 font-sans">{htmlContent}</div>;
 };
+
 
 // --- Komponen Kartu Komentar (Statis) ---
 const CommentCard = ({ authorName, authorId, content, timestamp }: { authorName: string, authorId: string, content: string, timestamp: Date }) => {
     // FIX: locale: id ditambahkan
-    const formattedTime = format(timestamp, 'HH:mm dd/MM/yyyy', { locale: id }); 
-    
+    const formattedTime = format(timestamp, 'HH:mm dd/MM/yyyy', { locale: id });
+
     return (
         <div className="flex gap-4 p-4 bg-coc-stone/50 rounded-lg border-l-4 border-coc-gold-dark/30">
             <Link href={`/player/${authorId}`} className="flex-shrink-0">
@@ -251,7 +269,8 @@ const CommentCard = ({ authorName, authorId, content, timestamp }: { authorName:
             </Link>
             <div className="flex-grow">
                 <Link href={`/player/${authorId}`} className="font-bold text-coc-gold hover:text-white text-md">{authorName}</Link>
-                <p className="text-gray-300 text-sm mt-1">{content}</p>
+                {/* Pastikan konten komentar menggunakan font sans */}
+                <p className="text-gray-300 text-sm mt-1 font-sans">{content}</p>
                 <span className="text-xs text-gray-500 block mt-1">
                     {formattedTime}
                 </span>

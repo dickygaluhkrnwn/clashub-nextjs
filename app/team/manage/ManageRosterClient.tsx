@@ -88,8 +88,17 @@ const ManageRosterClient = ({ initialData, currentUserUid }: ManageRosterClientP
      * Menangani perubahan peran anggota (Kapten/Co-Leader/Member)
      */
     const handleChangeRole = async (member: UserProfile, newRole: UserProfile['role']) => {
-        if (newRole === 'Leader' && member.role === 'Leader') return;
-        if (!member.teamId || member.role === newRole) return;
+        // Prevent unnecessary updates
+        if (newRole === member.role) return;
+        // Leader role cannot be changed directly via this dropdown for safety
+        if (newRole === 'Leader') {
+             showNotification("Transfer kepemimpinan harus dilakukan melalui pengaturan tim khusus.", 'warning');
+             // Optionally reset dropdown back visually if needed, though state won't change
+             // e.target.value = member.role;
+             return;
+        }
+
+        if (!member.teamId) return; // Should not happen for active members
 
         setRoleUpdateLoading(member.uid);
         try {
@@ -108,6 +117,7 @@ const ManageRosterClient = ({ initialData, currentUserUid }: ManageRosterClientP
             setRoleUpdateLoading(null);
         }
     };
+
 
     /**
      * @function handleKickMember (Dipanggil setelah konfirmasi)
@@ -151,6 +161,16 @@ const ManageRosterClient = ({ initialData, currentUserUid }: ManageRosterClientP
         });
     };
 
+    // --- Style Kustom untuk Select ---
+    const selectClasses = `
+        w-full appearance-none bg-coc-stone/70 border border-coc-gold-dark/50 rounded-md
+        px-3 py-2 text-sm text-white focus:ring-1 focus:ring-coc-gold focus:border-coc-gold
+        disabled:opacity-50 disabled:cursor-not-allowed
+        bg-no-repeat bg-right
+    `;
+    // SVG panah dropdown (warna emas gelap)
+    const arrowSvg = `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23B8860B' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`;
+
 
     return (
         <main className="container mx-auto p-4 md:p-8 mt-10">
@@ -158,8 +178,9 @@ const ManageRosterClient = ({ initialData, currentUserUid }: ManageRosterClientP
             <Notification notification={notification ?? undefined} confirmation={confirmation ?? undefined} />
 
             {/* Header Manajemen */}
-            <header className="flex justify-between items-center flex-wrap gap-4 mb-6 card-stone p-6">
-                <h1 className="text-3xl md:text-4xl text-white font-supercell m-0 flex items-center gap-3">
+            {/* PERBAIKAN FONT: font-supercell -> font-clash */}
+            <header className="flex justify-between items-center flex-wrap gap-4 mb-6 card-stone p-6 rounded-lg">
+                <h1 className="text-3xl md:text-4xl text-white font-clash m-0 flex items-center gap-3">
                     <CogsIcon className='h-7 w-7 text-coc-gold-dark'/> Kelola Tim: {team.name}
                 </h1>
                 <Link href={`/team/${team.id}`}>
@@ -175,8 +196,9 @@ const ManageRosterClient = ({ initialData, currentUserUid }: ManageRosterClientP
                 <div className="lg:col-span-3 space-y-8">
 
                     {/* Permintaan Bergabung */}
-                    <div className="card-stone p-6">
-                        <h2 className="text-2xl font-supercell border-l-4 border-coc-gold pl-3 mb-6 flex items-center gap-2">
+                    <div className="card-stone p-6 rounded-lg">
+                        {/* PERBAIKAN FONT: font-supercell -> font-clash */}
+                        <h2 className="text-2xl font-clash border-l-4 border-coc-gold pl-3 mb-6 flex items-center gap-2">
                             Permintaan Bergabung ({pendingRequests.length})
                         </h2>
                         <div className="space-y-4">
@@ -222,8 +244,9 @@ const ManageRosterClient = ({ initialData, currentUserUid }: ManageRosterClientP
                     </div>
 
                     {/* Anggota Aktif */}
-                    <div className="card-stone p-6">
-                        <h2 className="text-2xl font-supercell border-l-4 border-coc-gold pl-3 mb-6 flex items-center gap-2">
+                    <div className="card-stone p-6 rounded-lg">
+                         {/* PERBAIKAN FONT: font-supercell -> font-clash */}
+                        <h2 className="text-2xl font-clash border-l-4 border-coc-gold pl-3 mb-6 flex items-center gap-2">
                             Anggota Aktif ({activeMembers.length}/50)
                         </h2>
 
@@ -240,24 +263,26 @@ const ManageRosterClient = ({ initialData, currentUserUid }: ManageRosterClientP
                                             <p className="text-xs text-gray-400">TH {member.thLevel} | {member.playerTag}</p>
                                         </div>
                                         <div className="flex gap-2 items-center">
-                                            {/* Selector Peran */}
+                                            {/* PERBAIKAN STYLING: Terapkan selectClasses dan style background image */}
                                             <select
                                                 value={member.role || 'Member'}
                                                 onChange={(e) => handleChangeRole(member, e.target.value as UserProfile['role'])}
                                                 disabled={isLoading || member.uid === currentUserUid || member.role === 'Leader'} // Leader cannot be changed here
-                                                className="bg-coc-stone/70 border border-coc-gold-dark/50 rounded-md px-3 py-1.5 text-sm text-white disabled:opacity-50"
+                                                className={selectClasses}
+                                                style={{ backgroundImage: arrowSvg, backgroundPosition: 'right 0.5rem center', backgroundSize: '1.5em 1.5em' }}
                                             >
-                                                <option value="Leader" disabled>Kapten</option> {/* Always disabled */}
-                                                <option value="Co-Leader">Co-Leader</option>
-                                                <option value="Elder">Elder</option>
-                                                <option value="Member">Member</option>
+                                                {/* Opsi Select */}
+                                                <option className='bg-coc-stone text-gray-400' value="Leader" disabled>Kapten</option>
+                                                <option className='bg-coc-stone text-white' value="Co-Leader">Co-Leader</option>
+                                                <option className='bg-coc-stone text-white' value="Elder">Elder</option>
+                                                <option className='bg-coc-stone text-white' value="Member">Member</option>
                                             </select>
 
                                             {/* Tombol Kick (Sekarang memanggil konfirmasi) */}
                                             <Button
                                                 variant="secondary"
                                                 size="sm"
-                                                className="bg-coc-red/70 border-coc-red text-white hover:bg-coc-red/90"
+                                                className="bg-coc-red/70 border-coc-red text-white hover:bg-coc-red/90 !p-2" // Adjust padding for icon-only feel if desired
                                                 onClick={() => requestKickConfirmation(member)} // Call confirmation function
                                                 disabled={member.uid === currentUserUid || isLoading || member.role === 'Leader'} // Leader cannot be kicked
                                             >
@@ -272,13 +297,15 @@ const ManageRosterClient = ({ initialData, currentUserUid }: ManageRosterClientP
                 </div>
 
                 {/* Kolom Kanan: Pengaturan Tim */}
-                <aside className="lg:col-span-1 card-stone p-6 h-fit sticky top-28 space-y-6">
-                    <h2 className="text-2xl font-supercell border-l-4 border-coc-gold pl-3 flex items-center gap-2">
+                <aside className="lg:col-span-1 card-stone p-6 h-fit sticky top-28 space-y-6 rounded-lg">
+                    {/* PERBAIKAN FONT: font-supercell -> font-clash */}
+                    <h2 className="text-2xl font-clash border-l-4 border-coc-gold pl-3 flex items-center gap-2">
                         <CogsIcon className='h-6 w-6'/> Pengaturan Tim
                     </h2>
                     <form className='space-y-4'>
-                        <div className="form-group">
-                            <label htmlFor="recruiting-status" className="block text-sm font-bold text-gray-300 mb-2">Status Rekrutmen</label>
+                        <div className="space-y-2"> {/* Mengganti form-group dengan space-y */}
+                            <label htmlFor="recruiting-status" className="block text-sm font-bold text-gray-300">Status Rekrutmen</label>
+                            {/* PERBAIKAN STYLING: Terapkan selectClasses dan style background image */}
                             <select
                                 id="recruiting-status"
                                 value={team.recruitingStatus}
@@ -286,11 +313,12 @@ const ManageRosterClient = ({ initialData, currentUserUid }: ManageRosterClientP
                                     // TODO: Implement saving to Firestore
                                     showNotification(`Status diubah menjadi: ${e.target.value}. Penyimpanan belum diimplementasikan.`, 'info');
                                 }}
-                                className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white focus:ring-coc-gold focus:border-coc-gold"
+                                className={selectClasses}
+                                style={{ backgroundImage: arrowSvg, backgroundPosition: 'right 0.5rem center', backgroundSize: '1.5em 1.5em' }}
                             >
-                                <option value="Open">Terbuka untuk Umum</option>
-                                <option value="Invite Only">Hanya Undangan</option>
-                                <option value="Closed">Tutup</option>
+                                <option className='bg-coc-stone text-white' value="Open">Terbuka untuk Umum</option>
+                                <option className='bg-coc-stone text-white' value="Invite Only">Hanya Undangan</option>
+                                <option className='bg-coc-stone text-white' value="Closed">Tutup</option>
                             </select>
                         </div>
                         {/* Example save button for other settings */}
@@ -299,8 +327,9 @@ const ManageRosterClient = ({ initialData, currentUserUid }: ManageRosterClientP
                         </Button>
                     </form>
 
-                    <h3 className="text-xl text-coc-gold-dark font-supercell border-b border-coc-gold-dark/30 pb-2 mt-6">
-                        <ClockIcon className='h-5 w-5'/> Jadwal Tim
+                     {/* PERBAIKAN FONT: font-supercell -> font-clash */}
+                    <h3 className="text-xl text-coc-gold-dark font-clash border-b border-coc-gold-dark/30 pb-2 pt-4"> {/* Added pt-4 */}
+                        <ClockIcon className='inline h-5 w-5 mr-2'/> Jadwal Tim
                     </h3>
                     <div className="space-y-3">
                         <Link href="/team/manage/schedule">
