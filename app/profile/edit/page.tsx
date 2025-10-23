@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
-import { getSessionUser } from '@/lib/server-auth'; 
-import EditProfileClient from './EditProfileClient'; 
+import { getSessionUser } from '@/lib/server-auth';
+import EditProfileClient from './EditProfileClient';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -13,14 +13,14 @@ export const metadata: Metadata = {
  * Menangani otentikasi sisi server untuk melindungi rute dan meneruskan UID pengguna ke klien.
  */
 const EditProfilePage = async () => {
-    
+
     const sessionUser = await getSessionUser();
 
     // Route Protection (Server-Side Redirect)
     if (!sessionUser) {
         redirect('/auth');
     }
-    
+
     // Meneruskan UID yang sudah diverifikasi ke Client Component
     return (
         <EditProfileClient initialUser={{ uid: sessionUser.uid }} />

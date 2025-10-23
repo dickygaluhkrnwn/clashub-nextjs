@@ -1,22 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ReactNode } from 'react'; // Import ReactNode
 import { useRouter } from 'next/navigation';
-import Image from 'next/image'; 
+import Image from 'next/image';
 import { Button } from '@/app/components/ui/Button';
 import { UserProfile } from '@/lib/types';
-// PERBAIKAN: uploadProfileImage sekarang adalah fungsi dummy (tanpa Storage)
-// Catatan: Walaupun tidak digunakan untuk upload file, kita biarkan import ini
-// untuk konsistensi API jika ada bagian kode lain yang memanggilnya.
-import { getUserProfile, updateUserProfile, uploadProfileImage } from '@/lib/firestore'; 
+import { getUserProfile, updateUserProfile, uploadProfileImage } from '@/lib/firestore';
+// PERBAIKAN: Tambahkan CogsIcon untuk loading
 import { UserCircleIcon, SaveIcon, XIcon, InfoIcon, CogsIcon, CheckIcon } from '@/app/components/icons';
-import Notification, { NotificationProps } from '@/app/components/ui/Notification'; 
+import Notification, { NotificationProps } from '@/app/components/ui/Notification';
 
 // Opsi statis untuk dropdown TH.
 const thOptions = [16, 15, 14, 13, 12, 11, 10, 9];
 const playStyleOptions: Exclude<UserProfile['playStyle'], null | undefined>[] = ['Attacker Utama', 'Base Builder', 'Donatur', 'Strategist'];
 
-// BARU: Daftar avatar statis yang tersedia (berdasarkan aset yang Anda sediakan)
+// Daftar avatar statis yang tersedia
 const staticAvatars = [
     '/images/placeholder-avatar.png',
     '/images/archer.png',
@@ -38,82 +36,71 @@ const staticAvatars = [
 
 // Tipe data khusus untuk state form
 type ProfileFormData = Omit<Partial<UserProfile>, 'playStyle'> & {
-    // playStyle sekarang bisa berupa string kosong "" (selain nilai valid dari UserProfile)
     playStyle?: UserProfile['playStyle'] | '' | null;
 };
 
 // --- Validation Utility ---
 const validatePlayerTag = (tag: string): string | null => {
-  if (!tag) return "Player Tag wajib diisi.";
-  // Player Tag COC hanya terdiri dari huruf C, G, J, L, P, Q, R, U, V, Y, dan 0, 2, 8, 9
-  const tagRegex = /^#[0289PYLQGRJCUV]{4,}$/; // # + min 4 karakter valid (total min 5)
-  if (!tagRegex.test(tag)) return "Format Player Tag tidak valid (Contoh: #P9Y8Q2V). Hanya boleh 0289PYLQGRJCUV.";
-  return null;
+    if (!tag) return "Player Tag wajib diisi.";
+    const tagRegex = /^#[0289PYLQGRJCUV]{4,}$/; 
+    if (!tagRegex.test(tag)) return "Format Player Tag tidak valid (Contoh: #P9Y8Q2V). Hanya boleh 0289PYLQGRJCUV.";
+    return null;
 };
 // --- End Validation Utility ---
 
+// --- Inline Component: FormGroup (untuk tampilan error yang konsisten) ---
+const FormGroup: React.FC<{ children: ReactNode, error?: string | null, label: string, htmlFor: string }> = ({ children, error, label, htmlFor }) => (
+    <div className="space-y-2">
+        <label htmlFor={htmlFor} className="block text-sm font-bold text-gray-200"> {/* Label dibuat lebih terang */}
+            {label}
+        </label>
+        {children}
+        {/* Error text dibuat lebih terang */}
+        {error && <p id={`${htmlFor}-error`} className="text-xs text-red-400 mt-1 font-sans">{error}</p>}
+    </div>
+);
+// --- End Inline Component ---
+
 
 interface EditProfileClientProps {
-    // Menerima UID yang sudah diverifikasi dari Server Component
     initialUser: { uid: string };
 }
 
 /**
  * @function sanitizeData
- * Menghapus properti dari objek yang memiliki nilai null, undefined, atau string kosong, 
- * SEMENTARA MENGHINDARI pengiriman field sensitif yang TIDAK BOLEH DIUBAH.
- * @param data Data mentah dari form.
- * @returns Data yang sudah dibersihkan dan siap dikirim.
+ * Membersihkan data form sebelum dikirim ke Firestore.
  */
 const sanitizeData = (data: ProfileFormData): Partial<UserProfile> => {
     const cleanData: Partial<UserProfile> = {};
-    
-    // Daftar field yang hanya boleh diubah pengguna dari form ini.
     const updatableFields = [
-        'displayName', 'playerTag', 'thLevel', 'avatarUrl', 
+        'displayName', 'playerTag', 'thLevel', 'avatarUrl',
         'discordId', 'website', 'bio', 'activeHours', 'playStyle'
     ];
 
     for (const key of updatableFields) {
         const value = (data as any)[key];
-        
         let cleanedValue = value;
 
         if (typeof value === 'string') {
-            // Jika string kosong atau hanya spasi, ubah menjadi null (kecuali playerTag/displayName yang harus divalidasi tidak kosong)
             if (value.trim() === '') {
-                 cleanedValue = null;
+                cleanedValue = null;
             }
         } else if (key === 'thLevel') {
-            // Pastikan thLevel adalah number
             cleanedValue = Number(value) || 0;
         }
 
-        // Khusus playStyle, string kosong ('') di select harus dikirim sebagai null
         if (key === 'playStyle' && value === '') {
             cleanedValue = null;
         }
 
-        // Hanya sertakan dalam payload jika nilainya bukan null/undefined (untuk field opsional)
-        // ATAU jika itu field wajib (yang sudah divalidasi di form, seperti displayName, playerTag).
-        // Kita hanya mengirim field yang benar-benar kita inginkan agar Firestore melakukan update minimal.
-
         if (cleanedValue !== null && cleanedValue !== undefined) {
-             (cleanData as any)[key] = cleanedValue;
+            (cleanData as any)[key] = cleanedValue;
         } else if (key === 'avatarUrl') {
-             // Avatar harus string, jika kosong set default placeholder.
-             (cleanData as any)[key] = '/images/placeholder-avatar.png';
+            (cleanData as any)[key] = '/images/placeholder-avatar.png';
         } else if (cleanedValue === null) {
-            // Untuk field opsional yang diizinkan null, kirim null untuk membersihkan nilai lama.
             (cleanData as any)[key] = null;
         }
     }
-    
-    // TIDAK PERLU MENGIRIM UID, EMAIL, ROLE, REPUTATION, teamId, teamName.
-    // Karena Rules sudah mengecek (resource.data.get("uid", resource.data.uid) == resource.data.uid)
-    // Jika kita tidak mengirimnya, Firestore SDK juga tidak akan mencoba mengupdatenya
-    // dan Rule hasNoSensitiveChanges akan lolos.
-    
     return cleanData;
 };
 
@@ -121,66 +108,76 @@ const sanitizeData = (data: ProfileFormData): Partial<UserProfile> => {
 const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
     const router = useRouter();
     const uid = initialUser.uid;
-    
-    // HAPUS: previewUrl, uploadProgress (tidak lagi diperlukan)
-    
-    // State untuk input form
+
     const [formData, setFormData] = useState<ProfileFormData>({
         displayName: '',
         playerTag: '',
         thLevel: 0,
         bio: '',
-        playStyle: '', // Diinisialisasi sebagai string kosong, yang sekarang tipe-nya valid
+        playStyle: '',
         activeHours: '',
-        avatarUrl: '/images/placeholder-avatar.png', // Selalu menggunakan URL
+        avatarUrl: '/images/placeholder-avatar.png',
         discordId: '',
         website: '',
     });
 
     // --- State untuk Validation Error ---
-    const [playerTagError, setPlayerTagError] = useState<string | null>(null);
-    const [isFormValid, setIsFormValid] = useState(false); 
+    // PERBAIKAN: Tambahkan state error untuk semua field wajib
+    const [formErrors, setFormErrors] = useState({
+        displayName: null as string | null,
+        playerTag: null as string | null,
+        thLevel: null as string | null,
+    });
+    const [isFormValid, setIsFormValid] = useState(false);
     // --- End State untuk Validation Error ---
 
     const [isSaving, setIsSaving] = useState(false);
     const [dataLoading, setDataLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null); // Untuk error umum (fetch/save)
-    
-    // BARU: State untuk notifikasi Toast
+    const [error, setError] = useState<string | null>(null);
     const [notification, setNotification] = useState<NotificationProps | null>(null);
 
-    // Helper untuk menampilkan notifikasi (menggantikan alert)
     const showNotification = (message: string, type: NotificationProps['type']) => {
         setNotification({ message, type, onClose: () => setNotification(null) });
     };
 
-
-    // --- Real-time Validation Effect for Player Tag ---
+    // --- Real-time Validation Effect ---
     useEffect(() => {
         const tagError = validatePlayerTag(formData.playerTag || '');
-        setPlayerTagError(tagError);
-        
         const isDisplayValid = !!(formData.displayName && formData.displayName.trim().length > 0);
         const isThValid = !!(formData.thLevel && formData.thLevel > 0);
+
+        setFormErrors({
+            displayName: isDisplayValid ? null : "Nama Tampilan wajib diisi.",
+            playerTag: tagError,
+            thLevel: isThValid ? null : "TH Level wajib dipilih.",
+        });
 
         setIsFormValid(tagError === null && isDisplayValid && isThValid);
     }, [formData.playerTag, formData.displayName, formData.thLevel]);
     // --- End Real-time Validation Effect ---
 
-
-    // HAPUS: handleFileChange (sudah diganti dengan handleAvatarSelect)
+    // --- Style input yang disempurnakan (dari auth/page.tsx) ---
+    const inputClasses = (hasError: boolean) => (
+        `w-full bg-coc-stone/50 border rounded-md px-4 py-2.5 text-white placeholder-gray-500 transition-colors duration-200
+         font-sans disabled:opacity-50 disabled:cursor-not-allowed
+         hover:border-coc-gold/70
+         focus:ring-2 focus:ring-coc-gold focus:border-coc-gold focus:outline-none
+         ${hasError
+            ? 'border-coc-red focus:border-coc-red focus:ring-coc-red/50' // Error state
+            : 'border-coc-gold-dark/50' // Default state
+        }`
+    );
+    // --- End Style input ---
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { id, value } = e.target;
-        setError(null); 
+        setError(null);
 
         let processedValue = value;
         if (id === 'playerTag') {
-            // 1. Pastikan selalu dimulai dengan '#' jika ada input
             if (value.length > 0 && value.charAt(0) !== '#') {
                 processedValue = '#' + value;
             }
-            // 2. Filter karakter yang tidak diizinkan di COC Tag
             processedValue = processedValue.toUpperCase().replace(/[^#0289PYLQGRJCUV]/g, '');
         }
 
@@ -190,7 +187,6 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
         }));
     };
 
-    // BARU: Handler untuk memilih avatar statis
     const handleAvatarSelect = (url: string) => {
         setFormData(prevData => ({
             ...prevData,
@@ -212,33 +208,20 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
                             playerTag: profile.playerTag || '',
                             thLevel: profile.thLevel || 10,
                             bio: profile.bio || '',
-                            // PERBAIKAN: Gunakan string kosong sebagai default jika null/undefined
                             playStyle: profile.playStyle || '',
                             activeHours: profile.activeHours || '',
-                            // Pastikan ada fallback untuk avatar
-                            avatarUrl: profile.avatarUrl || '/images/placeholder-avatar.png', 
-                            // Pastikan field null/undefined dari DB dikonversi ke string kosong untuk form
-                            discordId: profile.discordId ?? '', 
+                            avatarUrl: profile.avatarUrl || '/images/placeholder-avatar.png',
+                            discordId: profile.discordId ?? '',
                             website: profile.website ?? '',
                         });
-                        
-                        // Initial validation check after loading data
-                        const tagError = validatePlayerTag(profile.playerTag || '');
-                        setPlayerTagError(tagError);
-                        const isDisplayValid = !!(profile.displayName && profile.displayName.trim().length > 0);
-                        const isThValid = !!(profile.thLevel && profile.thLevel > 0);
-                        setIsFormValid(tagError === null && isDisplayValid && isThValid);
                     } else {
-                        // Jika profil tidak ada, inisialisasi dengan data dasar dari UID
                         setError("Profil tidak ditemukan. Silakan isi E-Sports CV Anda.");
-                        setFormData(prev => ({ 
-                           ...prev, 
-                           displayName: `Clasher-${uid.substring(0, 4)}`, // Nama default
-                           thLevel: 9, 
-                           playStyle: 'Attacker Utama',
+                        setFormData(prev => ({
+                            ...prev,
+                            displayName: `Clasher-${uid.substring(0, 4)}`,
+                            thLevel: 9,
+                            playStyle: 'Attacker Utama',
                         }));
-                        // Menggunakan Player Tag kosong di sini akan memicu error validasi form, sesuai desain
-                        setIsFormValid(validatePlayerTag(formData.playerTag || '') === null); 
                     }
                 } catch (err) {
                     console.error("Gagal memuat profil:", err);
@@ -251,70 +234,73 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
         if (uid) {
             fetchProfile();
         }
-    }, [uid]);
+    }, [uid]); // PERBAIKAN: Menghapus formData.playerTag dari dependency array
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError(null); 
-        
-        // Periksa validitas form lagi
-        if (!isFormValid || !uid || isSaving || playerTagError) {
+        setError(null);
+
+        if (!isFormValid || !uid || isSaving || formErrors.playerTag || formErrors.displayName || formErrors.thLevel) {
             setError("Harap lengkapi form dengan Player Tag, Nama, dan TH Level yang valid sebelum menyimpan.");
+            // Memaksa validasi ulang untuk menampilkan semua error
+             setFormErrors({
+                displayName: !(formData.displayName && formData.displayName.trim().length > 0) ? "Nama Tampilan wajib diisi." : null,
+                playerTag: validatePlayerTag(formData.playerTag || ''),
+                thLevel: !(formData.thLevel && formData.thLevel > 0) ? "TH Level wajib dipilih." : null,
+            });
             return;
         }
 
         setIsSaving(true);
-        
-        try {
-            // --- Persiapan Data untuk Firestore ---
-            // BARU: Lakukan sanitasi data sebelum dikirim
-            const updatedData = sanitizeData(formData);
-            
-            // Panggil updateUserProfile
-            await updateUserProfile(uid, updatedData);
 
-            // GANTI: Mengganti alert() dengan Notification
+        try {
+            const updatedData = sanitizeData(formData);
+            await updateUserProfile(uid, updatedData);
             showNotification("E-Sports CV berhasil diperbarui! Mengalihkan...", 'success');
-            
-            // Redirect setelah notifikasi muncul (beri waktu 1 detik)
             setTimeout(() => {
-                router.push('/profile'); 
-                router.refresh(); 
+                router.push('/profile');
+                router.refresh();
             }, 1000);
-            
 
         } catch (err) {
-            // Error handling yang lebih rinci dari `lib/firestore.ts`
             console.error("Gagal menyimpan profil:", err);
-            
-            // Pastikan error message dari Firestore ditampilkan ke user
             const rawErrorMessage = (err as Error).message || "Terjadi kesalahan tidak dikenal.";
-            // Ganti alert() dengan Notification
             setError(`Gagal menyimpan perubahan ke database. ${rawErrorMessage}`);
             showNotification("Gagal menyimpan perubahan. Lihat konsol untuk detail error.", 'error');
-
         } finally {
-            // PERBAIKAN UTAMA: Memastikan isSaving selalu false di akhir
             setIsSaving(false);
         }
     };
 
+    // --- Tampilan Loading ---
+    if (dataLoading) {
+        return (
+            <main className="container mx-auto p-4 md:p-8 mt-10">
+                <div className="flex justify-center items-center min-h-[50vh] card-stone p-8 rounded-lg">
+                    <CogsIcon className="h-12 w-12 text-coc-gold animate-spin" />
+                    <span className="font-clash text-2xl text-coc-gold ml-4">Memuat Profil CV Anda...</span>
+                </div>
+            </main>
+        );
+    }
+    // --- End Tampilan Loading ---
+
 
     return (
         <main className="container mx-auto p-4 md:p-8 mt-10">
-             {/* Render Komponen Notifikasi */}
+            {/* Render Komponen Notifikasi */}
             <Notification notification={notification ?? undefined} />
 
             <div className="max-w-4xl mx-auto">
-                <form onSubmit={handleSubmit} className="card-stone p-8 space-y-8">
+                <form onSubmit={handleSubmit} className="card-stone p-8 space-y-8 rounded-lg"> {/* Added rounded-lg */}
                     <h1 className="text-3xl md:text-4xl text-center mb-6 font-clash">
-                        <UserCircleIcon className="inline h-8 w-8 mr-2 text-coc-gold"/>
+                        <UserCircleIcon className="inline h-8 w-8 mr-2 text-coc-gold" />
                         Edit E-Sports CV
                     </h1>
 
-                    {error && <p className="bg-coc-red/20 text-red-400 text-center text-sm p-3 rounded-md mb-4 border border-coc-red">{error}</p>}
+                    {error && <p className="bg-coc-red/20 text-red-400 text-center text-sm p-3 rounded-md mb-4 border border-coc-red font-sans">{error}</p>}
 
-                    {/* BARU: Pemilihan Avatar Statis */}
+                    {/* Pemilihan Avatar Statis */}
                     <h3 className="text-xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2">
                         Pilih Avatar Statis Anda
                     </h3>
@@ -327,22 +313,21 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
                                     onClick={() => handleAvatarSelect(url)}
                                     className={`
                                         relative rounded-full transition-transform duration-200
-                                        ${formData.avatarUrl === url 
-                                            ? 'ring-4 ring-coc-green scale-110' 
-                                            : 'ring-2 ring-transparent hover:scale-105'
-                                        }
+                                        ${formData.avatarUrl === url
+                                        ? 'ring-4 ring-coc-green scale-110'
+                                        : 'ring-2 ring-transparent hover:scale-105'
+                                    }
                                     `}
                                 >
                                     <Image
                                         src={url}
                                         alt="Avatar Option"
-                                        width={60}
-                                        height={60}
-                                        // Gunakan class `border` di Image agar tetap terlihat rapi
-                                        className="w-16 h-16 rounded-full object-cover border border-coc-gold-dark"
+                                        width={80} // Increased size
+                                        height={80} // Increased size
+                                        className="w-20 h-20 rounded-full object-cover border-2 border-coc-gold-dark" // Increased size
                                     />
                                     {formData.avatarUrl === url && (
-                                        <CheckIcon className="absolute bottom-0 right-0 h-5 w-5 bg-coc-green text-white rounded-full p-0.5 border border-coc-stone"/>
+                                        <CheckIcon className="absolute bottom-1 right-1 h-6 w-6 bg-coc-green text-white rounded-full p-0.5 border-2 border-coc-stone" /> // Adjusted checkmark
                                     )}
                                 </button>
                             ))}
@@ -351,11 +336,10 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
 
                     {/* Informasi Dasar */}
                     <h3 className="text-xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2">
-                        <InfoIcon className="h-5 w-5"/> Informasi Dasar
+                        <InfoIcon className="h-5 w-5" /> Informasi Dasar
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="form-group">
-                            <label htmlFor="displayName" className="block text-sm font-bold text-gray-300 mb-2">Nama Tampilan</label>
+                        <FormGroup label="Nama Tampilan (Wajib)" htmlFor="displayName" error={formErrors.displayName}>
                             <input
                                 type="text"
                                 id="displayName"
@@ -363,12 +347,12 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
                                 onChange={handleInputChange}
                                 placeholder="Contoh: Lord Z"
                                 required
-                                className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-4 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold"
+                                className={inputClasses(!!formErrors.displayName)}
+                                aria-invalid={!!formErrors.displayName}
+                                aria-describedby="displayName-error"
                             />
-                        </div>
-                         {/* --- Player Tag Input with Validation --- */}
-                        <div className="form-group">
-                            <label htmlFor="playerTag" className="block text-sm font-bold text-gray-300 mb-2">Player Tag (Wajib)</label>
+                        </FormGroup>
+                        <FormGroup label="Player Tag (Wajib)" htmlFor="playerTag" error={formErrors.playerTag}>
                             <input
                                 type="text"
                                 id="playerTag"
@@ -377,108 +361,100 @@ const EditProfileClient = ({ initialUser }: EditProfileClientProps) => {
                                 placeholder="Contoh: #P20C8Y9L"
                                 required
                                 maxLength={15}
-                                className={`w-full bg-coc-stone/50 border rounded-md px-4 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold ${playerTagError ? 'border-coc-red' : 'border-coc-gold-dark/50'}`}
-                                aria-invalid={!!playerTagError}
-                                aria-describedby="playerTag-error-edit"
+                                className={inputClasses(!!formErrors.playerTag)}
+                                aria-invalid={!!formErrors.playerTag}
+                                aria-describedby="playerTag-error"
                             />
-                             {playerTagError && <p id="playerTag-error-edit" className="text-xs text-red-400 mt-1">{playerTagError}</p>}
-                        </div>
-                         {/* --- End Player Tag Input --- */}
+                        </FormGroup>
                     </div>
-                    <div className="form-group">
-                        <label htmlFor="bio" className="block text-sm font-bold text-gray-300 mb-2">Bio & Visi (Maks 500 karakter)</label>
+                    <FormGroup label="Bio & Visi (Maks 500 karakter)" htmlFor="bio">
                         <textarea
                             id="bio"
-                            value={formData.bio}
+                            value={formData.bio || ''} // Handle null/undefined
                             onChange={handleInputChange}
                             placeholder="Jelaskan gaya bermain, role, dan tim seperti apa yang Anda cari..."
                             rows={4}
                             maxLength={500}
-                            className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-4 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold resize-y"
+                            className={inputClasses(false) + ' resize-y min-h-[100px]'} // Added min-h
                         />
-                    </div>
+                    </FormGroup>
 
                     {/* Preferensi Game */}
                     <h3 className="text-xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2">
-                        <CogsIcon className="h-5 w-5"/> Preferensi Game
+                        <CogsIcon className="h-5 w-5" /> Preferensi Game
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="form-group">
-                            <label htmlFor="thLevel" className="block text-sm font-bold text-gray-300 mb-2">Level Town Hall</label>
+                        <FormGroup label="Level Town Hall (Wajib)" htmlFor="thLevel" error={formErrors.thLevel}>
                             <select
                                 id="thLevel"
                                 value={formData.thLevel || 0}
                                 onChange={handleInputChange}
                                 required
-                                className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white focus:ring-coc-gold focus:border-coc-gold"
+                                className={inputClasses(!!formErrors.thLevel) + ' appearance-none'} // Added appearance-none
+                                aria-invalid={!!formErrors.thLevel}
                             >
-                                <option value="0">-- Pilih TH Level --</option>
+                                <option value="0" disabled className="bg-coc-stone text-gray-500">-- Pilih TH Level --</option>
                                 {thOptions.map(th => (
-                                    <option key={th} value={th}>Town Hall {th}</option>
+                                    <option key={th} value={th} className="bg-coc-stone text-white font-sans">Town Hall {th}</option>
                                 ))}
                             </select>
-                        </div>
-                        <div className="form-group">
-                            <label htmlFor="playStyle" className="block text-sm font-bold text-gray-300 mb-2">Role Favorit</label>
+                        </FormGroup>
+                        <FormGroup label="Role Favorit" htmlFor="playStyle">
                             <select
                                 id="playStyle"
-                                // PERBAIKAN UTAMA: Tambahkan casting untuk menghilangkan peringatan TS
                                 value={formData.playStyle as string || ""}
                                 onChange={handleInputChange}
-                                className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white focus:ring-coc-gold focus:border-coc-gold"
+                                className={inputClasses(false) + ' appearance-none'} // Added appearance-none
                             >
-                                <option value="">-- Pilih Role --</option>
+                                <option value="" className="bg-coc-stone text-gray-500">-- Pilih Role --</option>
                                 {playStyleOptions.map(role => (
-                                    <option key={role} value={role}>{role}</option>
+                                    <option key={role} value={role} className="bg-coc-stone text-white font-sans">{role}</option>
                                 ))}
                             </select>
-                        </div>
+                        </FormGroup>
                     </div>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> 
-                         <div className="form-group">
-                            <label htmlFor="discordId" className="block text-sm font-bold text-gray-300 mb-2">Discord ID (Opsional)</label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <FormGroup label="Discord ID (Opsional)" htmlFor="discordId">
                             <input
                                 type="text"
                                 id="discordId"
-                                value={formData.discordId || ''} 
+                                value={formData.discordId || ''}
                                 onChange={handleInputChange}
                                 placeholder="Contoh: NamaAnda#1234"
-                                className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-4 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold"
+                                className={inputClasses(false)}
                             />
-                        </div>
-                        <div className="form-group">
-                            <label htmlFor="website" className="block text-sm font-bold text-gray-300 mb-2">Website/Portfolio (Opsional)</label>
+                        </FormGroup>
+                        <FormGroup label="Website/Portfolio (Opsional)" htmlFor="website">
                             <input
-                                type="url" 
+                                type="url"
                                 id="website"
-                                value={formData.website || ''} 
+                                value={formData.website || ''}
                                 onChange={handleInputChange}
-                                placeholder="https://contoh.com"
-                                className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-4 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold"
+                                placeholder="https:&#x2F;&#x2F;contoh.com" // Escaped //
+                                className={inputClasses(false)}
                             />
-                        </div>
+                        </FormGroup>
                     </div>
-                    <div className="form-group"> 
-                        <label htmlFor="activeHours" className="block text-sm font-bold text-gray-300 mb-2">Jam Aktif (Contoh: 20:00 - 23:00 WIB)</label>
+                    <FormGroup label="Jam Aktif (Contoh: 20:00 - 23:00 WIB)" htmlFor="activeHours">
                         <input
                             type="text"
                             id="activeHours"
-                            value={formData.activeHours} 
+                            value={formData.activeHours || ''} // Handle null/undefined
                             onChange={handleInputChange}
                             placeholder="Contoh: 19:00 - 22:00 WIB"
-                            className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-4 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold"
+                            className={inputClasses(false)}
                         />
-                    </div>
+                    </FormGroup>
 
                     {/* Tombol Aksi */}
                     <div className="flex flex-col sm:flex-row justify-end items-center gap-4 pt-6 border-t border-coc-gold-dark/20">
                         <Button href="/profile" variant="secondary" className="w-full sm:w-auto">
-                            <XIcon className="inline h-5 w-5 mr-2"/>
+                            <XIcon className="inline h-5 w-5 mr-2" />
                             Batal
                         </Button>
-                        <Button type="submit" variant="primary" className="w-full sm:w-auto" disabled={isSaving || !isFormValid}> 
-                            <SaveIcon className="inline h-5 w-5 mr-2"/>
-                            {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'} 
+                        <Button type="submit" variant="primary" className="w-full sm:w-auto" disabled={isSaving || !isFormValid}>
+                            <SaveIcon className="inline h-5 w-5 mr-2" />
+                            {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
                         </Button>
                     </div>
                 </form>

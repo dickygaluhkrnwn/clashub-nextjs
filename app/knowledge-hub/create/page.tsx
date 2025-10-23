@@ -15,7 +15,7 @@ export const metadata: Metadata = {
  * Menangani perlindungan rute dan menampilkan form pembuatan postingan.
  */
 const CreatePostPage = async () => {
-    
+
     // 1. Route Protection: Pastikan pengguna login
     const sessionUser = await getSessionUser();
 
@@ -23,7 +23,7 @@ const CreatePostPage = async () => {
         // Jika tidak ada sesi, alihkan pengguna ke halaman login
         redirect('/auth');
     }
-    
+
     // Kita hanya perlu memastikan pengguna login. Logika validasi data CV
     // (misalnya, TH level) akan ditangani di sisi klien/Firestore.
 
@@ -35,7 +35,8 @@ const CreatePostPage = async () => {
                 </Button>
             </div>
             {/* Meneruskan kontrol ke Client Component Form */}
-            <PostForm />
+            {/* PERBAIKAN: Menambahkan rounded-lg pada wrapper card-stone */}
+            <PostForm className="card-stone p-8 space-y-8 rounded-lg" />
         </main>
     );
 };
