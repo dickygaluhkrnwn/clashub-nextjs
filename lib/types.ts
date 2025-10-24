@@ -13,11 +13,11 @@
  * Digunakan untuk konsistensi antara data API, UserProfile, dan logika bisnis.
  */
 export enum ClanRole {
-  NOT_IN_CLAN = 'not in clan',
-  MEMBER = 'member',
-  ELDER = 'admin', // CoC API menggunakan 'admin' untuk Elder
-  CO_LEADER = 'coLeader',
-  LEADER = 'leader',
+  NOT_IN_CLAN = 'not in clan',
+  MEMBER = 'member',
+  ELDER = 'admin', // CoC API menggunakan 'admin' untuk Elder
+  CO_LEADER = 'coLeader',
+  LEADER = 'leader',
 }
 
 // =========================================================================
@@ -29,13 +29,13 @@ export enum ClanRole {
  * Mendefinisikan struktur data untuk data League (Liga).
  */
 export interface CocLeague {
-  id: number;
-  name: string;
-  iconUrls: {
-    small: string;
-    tiny: string;
-    medium: string;
-  };
+  id: number;
+  name: string;
+  iconUrls: {
+    small: string;
+    tiny: string;
+    medium: string;
+  };
 }
 
 /**
@@ -43,9 +43,9 @@ export interface CocLeague {
  * Mendefinisikan struktur data untuk Badge/Lambang Klan.
  */
 export interface CocIconUrls {
-  small: string;
-  large: string;
-  medium: string;
+  small: string;
+  large: string;
+  medium: string;
 }
 
 /**
@@ -53,30 +53,30 @@ export interface CocIconUrls {
  * Data Clan dasar dari API. Digunakan untuk PublicClanIndex.
  */
 export interface CocClan {
-  tag: string;
-  name: string;
-  badgeUrls: CocIconUrls;
-  clanLevel: number;
-  clanPoints: number;
-  clanVersusPoints: number;
-  requiredTrophies: number;
-  warFrequency: string; // Misal: 'always', 'lessThanOncePerWeek'
-  warWinStreak: number;
-  warWins: number;
-  warTies: number;
-  warLosses: number;
-  isWarLogPublic: boolean;
-  memberCount: number;
-  location?: {
-    id: number;
-    name: string;
-    isCountry: boolean;
-    countryCode?: string;
-  };
-  type: 'open' | 'inviteOnly' | 'closed';
-  description?: string;
-  // Anggota hanya disertakan saat mengambil /clans/{clanTag}
-  memberList?: CocMember[]; 
+  tag: string;
+  name: string;
+  badgeUrls: CocIconUrls;
+  clanLevel: number;
+  clanPoints: number;
+  clanVersusPoints: number;
+  requiredTrophies: number;
+  warFrequency: string; // Misal: 'always', 'lessThanOncePerWeek'
+  warWinStreak: number;
+  warWins: number;
+  warTies: number;
+  warLosses: number;
+  isWarLogPublic: boolean;
+  memberCount: number;
+  location?: {
+    id: number;
+    name: string;
+    isCountry: boolean;
+    countryCode?: string;
+  };
+  type: 'open' | 'inviteOnly' | 'closed';
+  description?: string;
+  // Anggota hanya disertakan saat mengambil /clans/{clanTag}
+  memberList?: CocMember[]; 
 }
 
 /**
@@ -85,18 +85,18 @@ export interface CocClan {
  * CATATAN: Role di sini menggunakan string literal CoC ('admin', 'coLeader', dll.)
  */
 export interface CocMember {
-  tag: string;
-  name: string;
-  role: 'leader' | 'coLeader' | 'admin' | 'member'; // HANYA role di dalam klan
-  townHallLevel: number;
-  expLevel: number;
-  league: CocLeague;
-  trophies: number;
-  builderBaseTrophies: number;
-  clanRank: number;
-  previousClanRank: number;
-  donations: number;
-  donationsReceived: number;
+  tag: string;
+  name: string;
+  role: 'leader' | 'coLeader' | 'admin' | 'member'; // HANYA role di dalam klan
+  townHallLevel: number;
+  expLevel: number;
+  league: CocLeague;
+  trophies: number;
+  builderBaseTrophies: number;
+  clanRank: number;
+  previousClanRank: number;
+  donations: number;
+  donationsReceived: number;
 }
 
 /**
@@ -104,19 +104,19 @@ export interface CocMember {
  * Data lengkap Player dari API. Digunakan saat Verifikasi Player.
  */
 export interface CocPlayer extends Omit<CocMember, 'clanRank' | 'previousClanRank' | 'role'> {
-  // role: Role diubah menggunakan Union Type dari ClanRole untuk mencakup 'not in clan'
-  role: ClanRole.LEADER | ClanRole.CO_LEADER | ClanRole.ELDER | ClanRole.MEMBER | ClanRole.NOT_IN_CLAN;
-  attackWins: number;
-  defenseWins: number;
-  // Clan bisa null jika pemain tidak dalam klan
-  clan?: {
-    tag: string;
-    name: string;
-    badgeUrls: CocIconUrls;
-    clanLevel: number;
-  };
-  // Data lebih detail lainnya dari API CocPlayer...
-  // Misal: heroes, spells, troops, achievements
+  // role: Role diubah menggunakan Union Type dari ClanRole untuk mencakup 'not in clan'
+  role: ClanRole.LEADER | ClanRole.CO_LEADER | ClanRole.ELDER | ClanRole.MEMBER | ClanRole.NOT_IN_CLAN;
+  attackWins: number;
+  defenseWins: number;
+  // Clan bisa null jika pemain tidak dalam klan
+  clan?: {
+    tag: string;
+    name: string;
+    badgeUrls: CocIconUrls;
+    clanLevel: number;
+  };
+  // Data lebih detail lainnya dari API CocPlayer...
+  // Misal: heroes, spells, troops, achievements
 }
 
 /**
@@ -124,8 +124,8 @@ export interface CocPlayer extends Omit<CocMember, 'clanRank' | 'previousClanRan
  * Data log perang. Formatnya kompleks, kita simpan JSON mentah.
  */
 export interface CocWarLog {
-    items: any[];
-    // Struktur lengkapnya sangat nested. Kita simpan sebagai 'any' untuk saat ini.
+    items: any[];
+    // Struktur lengkapnya sangat nested. Kita simpan sebagai 'any' untuk saat ini.
 }
 
 
@@ -134,8 +134,8 @@ export interface CocWarLog {
  * Digunakan sebagai payload untuk verifikasi: /api/coc/verify-player
  */
 export interface PlayerVerificationRequest {
-  playerTag: string;
-  apiToken: string; // Token verifikasi yang diperoleh pemain dari game
+  playerTag: string;
+  apiToken: string; // Token verifikasi yang diperoleh pemain dari game
 }
 
 
@@ -151,32 +151,32 @@ export interface PlayerVerificationRequest {
  * Ini adalah E-Sports CV dari seorang pemain, DITAMBAH data verifikasi CoC.
  */
 export interface UserProfile {
-  uid: string; // ID unik dari Firebase Auth
-  email: string | null;
-  displayName: string;
-  
-  // --- DATA VERIFIKASI COCLANS (BARU: Sprint 4.1) ---
-  isVerified: boolean; // TRUE jika pemain telah memverifikasi tag mereka
-  playerTag: string; // Tag pemain dari dalam game (Disimpan di sini setelah verifikasi)
-  inGameName?: string; // Nama pemain dari API CoC
-  thLevel: number; // Level Town Hall (Diperbarui dari API atau input manual)
-  trophies: number; // Field Trophy
-  clanTag?: string | null; // Tag Klan CoC saat ini (diperbarui dari API)
-  clanRole?: ClanRole; // MENGGUNAKAN ENUM CLANROLE
-  lastVerified?: Date; // Timestamp verifikasi terakhir
-  
-  // --- FIELD E-SPORTS CV YANG SUDAH ADA ---
-  avatarUrl?: string;
-  discordId?: string | null;
-  website?: string | null;
-  bio?: string;
-  // Role Clashub internal: Role yang ditampilkan di Clashub
-  role?: 'Leader' | 'Co-Leader' | 'Elder' | 'Member' | 'Free Agent'; 
-  playStyle?: 'Attacker Utama' | 'Base Builder' | 'Donatur' | 'Strategist' | null; 
-  activeHours?: string;
-  reputation?: number;
-  teamId?: string | null; 
-  teamName?: string | null; 
+  uid: string; // ID unik dari Firebase Auth
+  email: string | null;
+  displayName: string;
+  
+  // --- DATA VERIFIKASI COCLANS (BARU: Sprint 4.1) ---
+  isVerified: boolean; // TRUE jika pemain telah memverifikasi tag mereka
+  playerTag: string; // Tag pemain dari dalam game (Disimpan di sini setelah verifikasi)
+  inGameName?: string; // Nama pemain dari API CoC
+  thLevel: number; // Level Town Hall (Diperbarui dari API atau input manual)
+  trophies: number; // Field Trophy
+  clanTag?: string | null; // Tag Klan CoC saat ini (diperbarui dari API)
+  clanRole?: ClanRole; // MENGGUNAKAN ENUM CLANROLE
+  lastVerified?: Date; // Timestamp verifikasi terakhir
+  
+  // --- FIELD E-SPORTS CV YANG SUDAH ADA ---
+  avatarUrl?: string;
+  discordId?: string | null;
+  website?: string | null;
+  bio?: string;
+  // Role Clashub internal: Role yang ditampilkan di Clashub
+  role?: 'Leader' | 'Co-Leader' | 'Elder' | 'Member' | 'Free Agent'; 
+  playStyle?: 'Attacker Utama' | 'Base Builder' | 'Donatur' | 'Strategist' | null; 
+  activeHours?: string;
+  reputation?: number;
+  teamId?: string | null; 
+  teamName?: string | null; 
 }
 
 
@@ -186,28 +186,28 @@ export interface UserProfile {
  * Disimpan di koleksi 'managedClans'. Menggantikan interface Team sebelumnya.
  */
 export interface ManagedClan {
-  id: string; // ID dokumen internal kita (BUKAN clanTag)
-  name: string; // Nama klan CoC (nama dari API)
-  tag: string; // Clan Tag CoC yang unik
-  ownerUid: string; // UID pengguna yang memiliki / mengelola klan ini (Leader/Co-Leader)
-  
-  // --- DATA CLASHUB INTERNAL (Diadaptasi dari Team) ---
-  logoUrl?: string; // Logo klan dari API
-  vision: 'Kompetitif' | 'Kasual'; // Visi Tim (Custom Clashub)
-  website?: string;
-  discordId?: string; 
-  recruitingStatus: 'Open' | 'Invite Only' | 'Closed'; // Status rekrutmen (Custom Clashub)
-  
-  // --- DATA CACHE & METADATA ---
-  lastSynced: Date; // Timestamp sinkronisasi API terakhir
-  avgTh: number; // Rata-rata Level TH anggota (dikalkulasi)
-  clanLevel: number; // Level Klan CoC (dari API)
-  memberCount: number; // Jumlah anggota (dari API)
+  id: string; // ID dokumen internal kita (BUKAN clanTag)
+  name: string; // Nama klan CoC (nama dari API)
+  tag: string; // Clan Tag CoC yang unik
+  ownerUid: string; // UID pengguna yang memiliki / mengelola klan ini (Leader/Co-Leader)
+  
+  // --- DATA CLASHUB INTERNAL (Diadaptasi dari Team) ---
+  logoUrl?: string; // Logo klan dari API
+  vision: 'Kompetitif' | 'Kasual'; // Visi Tim (Custom Clashub)
+  website?: string;
+  discordId?: string; 
+  recruitingStatus: 'Open' | 'Invite Only' | 'Closed'; // Status rekrutmen (Custom Clashub)
+  
+  // --- DATA CACHE & METADATA ---
+  lastSynced: Date; // Timestamp sinkronisasi API terakhir
+  avgTh: number; // Rata-rata Level TH anggota (dikalkulasi)
+  clanLevel: number; // Level Klan CoC (dari API)
+  memberCount: number; // Jumlah anggota (dari API)
 
-  // Sub-koleksi: managedClans/{id}/clanApiCache 
-  // Sub-koleksi: managedClans/{id}/warLog
-  // Sub-koleksi: managedClans/{id}/raidLog
-  // ...
+  // Sub-koleksi: managedClans/{id}/clanApiCache 
+  // Sub-koleksi: managedClans/{id}/warLog
+  // Sub-koleksi: managedClans/{id}/raidLog
+  // ...
 }
 
 /**
@@ -216,21 +216,21 @@ export interface ManagedClan {
  * Disimpan di sub-koleksi managedClans/{id}/clanApiCache/current
  */
 export interface ClanApiCache {
-  id: 'current'; // ID dokumen tunggal
-  lastUpdated: Date;
-  currentWar?: CocWarLog; // Bisa null jika tidak ada war aktif
-  currentRaid?: any; // Data Raid Capital aktif (jika ada endpoint)
-  // Daftar anggota yang diperbarui dari API Coc, termasuk Partisipasi
-  members: Array<CocMember & {
-    // Properti Partisipasi yang dikalkulasi dari Aggregators.js (Blueprint CSV)
-    cwlSuccessCount: number;
-    warSuccessCount: number;
-    cwlFailCount: number;
-    warFailCount: number;
-    participationStatus: 'Promosi' | 'Demosi' | 'Aman' | 'Leader/Co-Leader'; // dari blueprint CSV
-    lastRoleChangeDate: Date; // Kunci untuk reset partisipasi (dari Log Perubahan Role CSV)
-    // Field lainnya...
-  }>;
+  id: 'current'; // ID dokumen tunggal
+  lastUpdated: Date;
+  currentWar?: CocWarLog; // Bisa null jika tidak ada war aktif
+  currentRaid?: any; // Data Raid Capital aktif (jika ada endpoint)
+  // Daftar anggota yang diperbarui dari API Coc, termasuk Partisipasi
+  members: Array<CocMember & {
+    // Properti Partisipasi yang dikalkulasi dari Aggregators.js (Blueprint CSV)
+    cwlSuccessCount: number;
+    warSuccessCount: number;
+    cwlFailCount: number;
+    warFailCount: number;
+    participationStatus: 'Promosi' | 'Demosi' | 'Aman' | 'Leader/Co-Leader'; // dari blueprint CSV
+    lastRoleChangeDate: Date; // Kunci untuk reset partisipasi (dari Log Perubahan Role CSV)
+    // Field lainnya...
+  }>;
 }
 
 
@@ -240,27 +240,27 @@ export interface ClanApiCache {
  * Disimpan di koleksi 'publicClanIndex'.
  */
 export interface PublicClanIndex {
-  tag: string; // ID dokumen (clanTag)
-  name: string;
-  clanLevel: number;
-  memberCount: number;
-  clanPoints: number;
-  badgeUrls: CocIconUrls;
-  lastUpdated: Date; // Untuk memeriksa apakah cache masih 'fresh'
-  
-  // --- FIELD TAMBAHAN DARI CocClan UNTUK TAMPILAN PROFIL PUBLIK (PERBAIKAN ERROR) ---
-  requiredTrophies?: number; 
-  warFrequency?: string;
-  warWinStreak?: number;
-  warWins?: number;
-  type?: 'open' | 'inviteOnly' | 'closed';
-  description?: string;
-  location?: {
-    id: number;
-    name: string;
-    isCountry: boolean;
-    countryCode?: string;
-  };
+  tag: string; // ID dokumen (clanTag)
+  name: string;
+  clanLevel: number;
+  memberCount: number;
+  clanPoints: number;
+  badgeUrls: CocIconUrls;
+  lastUpdated: Date; // Untuk memeriksa apakah cache masih 'fresh'
+  
+  // --- FIELD TAMBAHAN DARI CocClan UNTUK TAMPILAN PROFIL PUBLIK (PERBAIKAN ERROR) ---
+  requiredTrophies?: number; 
+  warFrequency?: string;
+  warWinStreak?: number;
+  warWins?: number;
+  type?: 'open' | 'inviteOnly' | 'closed';
+  description?: string;
+  location?: {
+    id: number;
+    name: string;
+    isCountry: boolean;
+    countryCode?: string;
+  };
 }
 
 
@@ -273,17 +273,17 @@ export interface PublicClanIndex {
  * menggunakannya untuk menampilkan daftar tim sebelum dirombak penuh di Fase 4.
  */
 export interface Team {
-  id: string; // ID dokumen dari Firestore
-  name: string;
-  tag: string; // Tag klan
-  rating: number; // Reputasi Tim
-  vision: 'Kompetitif' | 'Kasual'; // Visi Tim
-  avgTh: number; // Rata-rata Level TH anggota
-  logoUrl?: string;
-  captainId: string;
-  website?: string;
-  discordId?: string; 
-  recruitingStatus: 'Open' | 'Invite Only' | 'Closed';
+  id: string; // ID dokumen dari Firestore
+  name: string;
+  tag: string; // Tag klan
+  rating: number; // Reputasi Tim
+  vision: 'Kompetitif' | 'Kasual'; // Visi Tim
+  avgTh: number; // Rata-rata Level TH anggota
+  logoUrl?: string;
+  captainId: string;
+  website?: string;
+  discordId?: string; 
+  recruitingStatus: 'Open' | 'Invite Only' | 'Closed';
 }
 
 /**
@@ -292,15 +292,16 @@ export interface Team {
  * Ini adalah subset dari UserProfile.
  */
 export interface Player {
-    id: string; // ID dokumen dari Firestore (sama dengan uid)
-    name: string;
-    tag: string;
-    thLevel: number;
-    reputation: number;
-    role: 'Leader' | 'Co-Leader' | 'Elder' | 'Member' | 'Free Agent';
-    avatarUrl?: string;
-    displayName: string; 
-    playerTag: string; // Ini adalah playerTag CoC
+    id: string; // ID dokumen dari Firestore (sama dengan uid)
+    name: string;
+    tag: string;
+    inGameName?: string; // PERBAIKAN: Menambahkan inGameName untuk resolusi error 2339
+    thLevel: number;
+    reputation: number;
+    role: 'Leader' | 'Co-Leader' | 'Elder' | 'Member' | 'Free Agent';
+    avatarUrl?: string;
+    displayName: string; 
+    playerTag: string; // Ini adalah playerTag CoC
 }
 
 /**
@@ -308,11 +309,11 @@ export interface Player {
  * Mendefinisikan struktur data untuk sebuah turnamen.
  */
 export interface Tournament {
-    id: string; 
-    title: string;
-    status: 'Akan Datang' | 'Live' | 'Selesai';
-    thRequirement: string;
-    prizePool: string;
+    id: string; 
+    title: string;
+    status: 'Akan Datang' | 'Live' | 'Selesai';
+    thRequirement: string;
+    prizePool: string;
 }
 
 /**
@@ -320,15 +321,15 @@ export interface Tournament {
  * Mendefinisikan struktur data untuk permintaan bergabung ke sebuah tim.
  */
 export interface JoinRequest {
-    id: string; 
-    teamId: string; 
-    teamName: string;
-    requesterId: string; 
-    requesterName: string;
-    requesterThLevel: number;
-    message: string;
-    status: 'pending' | 'approved' | 'rejected';
-    timestamp: Date; 
+    id: string; 
+    teamId: string; 
+    teamName: string;
+    requesterId: string; 
+    requesterName: string;
+    requesterThLevel: number;
+    message: string;
+    status: 'pending' | 'approved' | 'rejected';
+    timestamp: Date; 
 }
 
 // --- DATA UNTUK KNOWLEDGE HUB ---
@@ -338,28 +339,28 @@ export interface JoinRequest {
  * Daftar kategori yang tersedia di Knowledge Hub.
  */
 export type PostCategory = 
-  | 'Semua Diskusi' 
-  | 'Strategi Serangan' 
-  | 'Base Building' 
-  | 'Manajemen Tim' 
-  | 'Berita Komunitas'
-  | 'Diskusi Umum';
+  | 'Semua Diskusi' 
+  | 'Strategi Serangan' 
+  | 'Base Building' 
+  | 'Manajemen Tim' 
+  | 'Berita Komunitas'
+  | 'Diskusi Umum';
 
 /**
  * @interface Post
  * Mendefinisikan struktur data untuk postingan/artikel di Knowledge Hub.
  */
 export interface Post {
-    id: string;
-    title: string;
-    content: string; // Isi lengkap postingan
-    category: PostCategory;
-    tags: string[]; // Contoh: ['TH16', 'Hybrid', 'CWL']
-    authorId: string;
-    authorName: string;
-    authorAvatarUrl?: string;
-    createdAt: Date; 
-    updatedAt?: Date;
-    likes: number;
-    replies: number;
+    id: string;
+    title: string;
+    content: string; // Isi lengkap postingan
+    category: PostCategory;
+    tags: string[]; // Contoh: ['TH16', 'Hybrid', 'CWL']
+    authorId: string;
+    authorName: string;
+    authorAvatarUrl?: string;
+    createdAt: Date; 
+    updatedAt?: Date;
+    likes: number;
+    replies: number;
 }
