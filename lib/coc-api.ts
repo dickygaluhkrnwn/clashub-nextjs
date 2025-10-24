@@ -8,7 +8,8 @@ import { CocClan, CocMember, CocPlayer, CocWarLog } from './types';
 // KONFIGURASI API
 // =========================================================================
 
-const COC_API_URL = 'https://api.clashofclans.com/v1';
+// [PERBAIKAN] Menggunakan URL proxy untuk mencocokkan konfigurasi API Key
+const COC_API_URL = 'https://cocproxy.royaleapi.dev/v1';
 
 /**
  * Mengambil API Key dari Environment Variables.
@@ -131,7 +132,7 @@ export async function getClanWarLog(clanTag: string): Promise<CocWarLog> {
  * 4. Mendapatkan War Aktif Klan (CocWarLog) dari API.
  * Mengimplementasikan logika cek War Classic & CWL Group dari Blueprint Apps Script.
  * @param clanTag Tag Klan.
- * @returns {Promise<CocWarLog>} Data War Aktif mentah.
+ * @returns {Promise<CocWarLog | null>} Data War Aktif mentah.
  */
 export async function getClanCurrentWar(clanTag: string): Promise<CocWarLog | null> {
     const encodedTag = encodeTag(clanTag);
@@ -182,6 +183,7 @@ export async function getClanCurrentWar(clanTag: string): Promise<CocWarLog | nu
  */
 export async function verifyPlayerToken(playerTag: string, apiToken: string): Promise<boolean> {
     const encodedTag = encodeTag(playerTag);
+    // [PERBAIKAN] Pastikan endpoint POST juga menggunakan proxy
     const url = `${COC_API_URL}/players/${encodedTag}/verifytoken`;
 
     const apiKey = getCocApiKey();
@@ -220,13 +222,12 @@ export async function verifyPlayerToken(playerTag: string, apiToken: string): Pr
     }
     
     if (response.status === 404) {
-         throw new Error('Pemain tidak ditemukan. Pastikan Player Tag benar.');
+        throw new Error('Pemain tidak ditemukan. Pastikan Player Tag benar.');
     }
     
     if (response.status === 403) {
-         throw new Error('API Key tidak memiliki akses ke IP ini. Cek pengaturan API Key CoC Anda.');
+        throw new Error('API Key tidak memiliki akses ke IP ini. Cek pengaturan API Key CoC Anda.');
     }
-
 
     throw new Error(`Gagal memverifikasi token: Status ${response.status}. Detail: ${typeof errorBody === 'object' ? JSON.stringify(errorBody) : errorBody}`);
 }
