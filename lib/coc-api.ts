@@ -1,4 +1,4 @@
-// File: lib/coc-api.ts (MODIFIED - Enhanced Error Handling)
+// File: lib/coc-api.ts (MODIFIED - Enhanced Error Handling & Fixed Double Encoding)
 // Deskripsi: Service layer khusus server untuk berinteraksi dengan API resmi Clash of Clans.
 // Semua fungsi di sini harus dipanggil dari Server Components, Server Actions, atau API Routes.
 
@@ -28,13 +28,15 @@ const getCocApiKey = (): string => {
 /**
  * Fungsi utilitas untuk memanggil API Clash of Clans dengan header otentikasi.
  * Menerapkan exponential backoff untuk keandalan.
- * @param endpoint Endpoint API (misal: '/players/%23PLAYERTAG')
+ * @param endpoint Endpoint API (misal: '/players/%23PLAYERTAG') - DIHARAPKAN SUDAH DI-ENCODE JIKA PERLU
  * @returns {Promise<T>} Data JSON yang di-parse.
  * @throws {Error} Melempar error spesifik berdasarkan status response (404, 403, 429, 5xx, dll).
  */
 async function fetchCocApi<T>(endpoint: string): Promise<T> {
     const apiKey = getCocApiKey();
+    // PERBAIKAN: Langsung gunakan endpoint karena diasumsikan sudah di-encode oleh pemanggil
     const url = `${COC_API_URL}${endpoint}`;
+    console.log(`[fetchCocApi] Requesting URL: ${url}`); // Logging URL final
 
     // Exponential Backoff implementation
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -51,7 +53,8 @@ async function fetchCocApi<T>(endpoint: string): Promise<T> {
             // --- PERBAIKAN: Penanganan Error Lebih Spesifik ---
             if (response.status === 404) {
                 // Spesifik untuk Not Found
-                throw new Error(`notFound: Resource at ${endpoint} not found.`);
+                // PERBAIKAN: Sertakan URL yang gagal
+                throw new Error(`notFound: Resource at ${url} not found.`);
             }
             if (response.status === 403) {
                  // Spesifik untuk Forbidden (biasanya masalah API Key/IP)
@@ -60,18 +63,18 @@ async function fetchCocApi<T>(endpoint: string): Promise<T> {
                  try {
                      const errorBody = await response.json();
                      if (errorBody && errorBody.reason) {
-                         errorBodyText = `Forbidden: ${errorBody.reason}. Check API Key IP whitelist.`;
+                         errorBodyText = `Forbidden: ${errorBody.reason}. Check API Key IP whitelist. URL: ${url}`;
                      }
                  } catch (e) { /* ignore json parse error */ }
                  throw new Error(errorBodyText);
             }
             if (response.status === 429) {
                  // Rate Limit - akan ditangani oleh retry logic
-                 console.warn(`CoC API Rate Limit hit for ${endpoint}. Retrying...`);
+                 console.warn(`CoC API Rate Limit hit for ${url}. Retrying...`);
                  // Tidak throw error, biarkan retry logic berjalan
             } else if (response.status >= 500) {
                  // Server Error - akan ditangani oleh retry logic
-                 console.warn(`CoC API Server Error (${response.status}) for ${endpoint}. Retrying...`);
+                 console.warn(`CoC API Server Error (${response.status}) for ${url}. Retrying...`);
                  // Tidak throw error, biarkan retry logic berjalan
             } else if (!response.ok) {
                  // Error klien lainnya (misal 400 Bad Request)
@@ -89,7 +92,7 @@ async function fetchCocApi<T>(endpoint: string): Promise<T> {
                           errorBodyText = await response.text();
                       } catch (textError) { /* ignore text parse error */ }
                  }
-                 throw new Error(`CoC API request failed: ${errorBodyText}`);
+                 throw new Error(`CoC API request failed: ${errorBodyText} at URL: ${url}`);
             }
             // --- AKHIR PERBAIKAN ---
 
@@ -112,7 +115,7 @@ async function fetchCocApi<T>(endpoint: string): Promise<T> {
             if (attempt === 4 || !(response)) { // Jika response null (network error) atau attempt terakhir
                  // Tambahkan konteks endpoint ke pesan error jika belum ada
                  if (error instanceof Error && !error.message.includes(endpoint)) {
-                      throw new Error(`Failed fetching ${endpoint}: ${error.message}`);
+                      throw new Error(`Failed fetching ${url}: ${error.message}`);
                  }
                 throw error; // Lempar error asli (dari throw new Error di atas atau network error)
             }
@@ -123,51 +126,47 @@ async function fetchCocApi<T>(endpoint: string): Promise<T> {
              }
              // Jika error tapi BUKAN 404/403/400/429/5xx, dan bukan attempt terakhir, coba lagi (mungkin error parsing JSON sementara?)
               const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
-              console.warn(`Unexpected error during fetch for ${endpoint}. Retrying in ${Math.round(delay / 1000)}s... Error:`, error);
+              console.warn(`Unexpected error during fetch for ${url}. Retrying in ${Math.round(delay / 1000)}s... Error:`, error);
               await new Promise(res => setTimeout(res, delay));
               continue;
         }
     }
     // Seharusnya tidak pernah mencapai sini karena retry logic atau throw error
-    throw new Error(`Failed to fetch CoC API endpoint ${endpoint} after multiple retries.`);
+    throw new Error(`Failed to fetch CoC API endpoint ${url} after multiple retries.`);
 }
 
 
 // =========================================================================
-// FUNGSI-FUNGSI PENGAMBILAN DATA (Tidak berubah signifikan, mengandalkan fetchCocApi)
+// FUNGSI-FUNGSI PENGAMBILAN DATA
 // =========================================================================
 
-const encodeTag = (tag: string): string => {
-    // Pastikan tag dimulai dengan # sebelum di-encode
-    const cleanedTag = tag.trim().toUpperCase();
-    return encodeURIComponent(cleanedTag.startsWith('#') ? cleanedTag : `#${cleanedTag}`);
-};
+// Fungsi encodeTag dipindahkan ke API route atau pemanggil lainnya
+// const encodeTag = (tag: string): string => { ... };
 
-export async function getPlayerData(playerTag: string): Promise<CocPlayer> {
-    const encodedTag = encodeTag(playerTag);
-     // fetchCocApi akan melempar Error('notFound: ...') jika 404
-    return fetchCocApi<CocPlayer>(`/players/${encodedTag}`);
-}
-
-export async function getClanData(clanTag: string): Promise<CocClan> {
-    const encodedTag = encodeTag(clanTag);
+export async function getPlayerData(encodedPlayerTag: string): Promise<CocPlayer> {
+    // PERBAIKAN: Langsung gunakan tag yang sudah di-encode
     // fetchCocApi akan melempar Error('notFound: ...') jika 404
-    return fetchCocApi<CocClan>(`/clans/${encodedTag}`);
+    return fetchCocApi<CocPlayer>(`/players/${encodedPlayerTag}`);
 }
 
-export async function getClanWarLog(clanTag: string): Promise<CocWarLog> {
-    const encodedTag = encodeTag(clanTag);
-     // fetchCocApi akan melempar Error('notFound: ...') jika 404
-    return fetchCocApi<CocWarLog>(`/clans/${encodedTag}/warlog`);
+export async function getClanData(encodedClanTag: string): Promise<CocClan> {
+    // PERBAIKAN: Langsung gunakan tag yang sudah di-encode
+    // fetchCocApi akan melempar Error('notFound: ...') jika 404
+    return fetchCocApi<CocClan>(`/clans/${encodedClanTag}`);
 }
 
-export async function getClanCurrentWar(clanTag: string): Promise<CocWarLog | null> {
-    const encodedTag = encodeTag(clanTag);
+export async function getClanWarLog(encodedClanTag: string): Promise<CocWarLog> {
+    // PERBAIKAN: Langsung gunakan tag yang sudah di-encode
+    // fetchCocApi akan melempar Error('notFound: ...') jika 404
+    return fetchCocApi<CocWarLog>(`/clans/${encodedClanTag}/warlog`);
+}
 
+export async function getClanCurrentWar(encodedClanTag: string, rawClanTag: string): Promise<CocWarLog | null> {
+    // PERBAIKAN: Menerima tag mentah (rawClanTag) untuk pencarian di CWL group
+    // PERBAIKAN: Langsung gunakan tag yang sudah di-encode
     try {
         // Cek War Classic aktif
-        // fetchCocApi akan melempar error 404 jika clan tidak ditemukan
-        const warResponse = await fetchCocApi<CocWarLog | { reason: string }>(`/clans/${encodedTag}/currentwar`);
+        const warResponse = await fetchCocApi<CocWarLog | { reason: string }>(`/clans/${encodedClanTag}/currentwar`);
 
         if ('state' in warResponse && (warResponse.state === 'inWar' || warResponse.state === 'preparation')) {
             return warResponse as CocWarLog;
@@ -176,51 +175,51 @@ export async function getClanCurrentWar(clanTag: string): Promise<CocWarLog | nu
         // Cek CWL Group jika tidak dalam war classic
         if ('reason' in warResponse && warResponse.reason === 'notInWar') {
             try {
-                const cwlGroupResponse = await fetchCocApi<any>(`/clans/${encodedTag}/currentwar/leaguegroup`);
+                // PERBAIKAN: Gunakan encodedClanTag untuk request leaguegroup
+                const cwlGroupResponse = await fetchCocApi<any>(`/clans/${encodedClanTag}/currentwar/leaguegroup`);
                 if ('state' in cwlGroupResponse && cwlGroupResponse.state === 'inWar') {
-                    const clanInGroup = cwlGroupResponse.clans.find((c: any) => c.tag === clanTag); // Clan Tag asli, bukan encoded
+                    // PERBAIKAN: Gunakan rawClanTag untuk find
+                    const clanInGroup = cwlGroupResponse.clans.find((c: any) => c.tag === rawClanTag);
                     const currentWarTag = clanInGroup?.currentWarTag;
                     if (currentWarTag) {
-                        return fetchCocApi<CocWarLog>(`/clanwarleagues/wars/${encodeTag(currentWarTag)}`);
+                        // PERBAIKAN: Encode warTag sebelum memanggil fetchCocApi
+                        return fetchCocApi<CocWarLog>(`/clanwarleagues/wars/${encodeURIComponent(currentWarTag)}`);
                     }
                 }
             } catch (cwlError) {
-                // Abaikan error 404 dari leaguegroup (klan mungkin tidak ada di CWL atau di luar musim)
                 if (cwlError instanceof Error && cwlError.message.startsWith('notFound')) {
-                    console.log(`Clan ${clanTag} not currently in CWL group or CWL endpoint not found.`);
+                    console.log(`Clan ${rawClanTag} not currently in CWL group or CWL endpoint not found.`);
                 } else {
-                    console.error(`Error fetching CWL group for ${clanTag}:`, cwlError); // Log error CWL lainnya
+                    console.error(`Error fetching CWL group for ${rawClanTag}:`, cwlError);
                 }
             }
         }
     } catch (error) {
-         // Tangani error jika clan utama tidak ditemukan oleh fetchCocApi
          if (error instanceof Error && error.message.startsWith('notFound')) {
-              console.warn(`getClanCurrentWar: Clan ${clanTag} not found.`);
-              return null; // Kembalikan null jika klan tidak ditemukan
+              console.warn(`getClanCurrentWar: Clan ${rawClanTag} not found.`);
+              return null;
          }
-        console.error(`Error checking current war for ${clanTag}:`, error);
-        // Mungkin lempar error lagi atau kembalikan null tergantung kebutuhan
-        // throw error;
+        console.error(`Error checking current war for ${rawClanTag}:`, error);
         return null;
     }
 
-    return null; // Tidak ada War Aktif yang ditemukan.
+    return null;
 }
 
 
 /**
  * 5. Memverifikasi Player dengan Token API In-Game (verifyPlayerToken).
  * Endpoint ini hanya memverifikasi token.
- * @param playerTag Tag Pemain.
+ * @param encodedPlayerTag Tag Pemain yang SUDAH di-encode.
  * @param apiToken Token API yang diperoleh pemain di game.
  * @returns {Promise<boolean>} True jika verifikasi berhasil.
  * @throws {Error} Jika verifikasi gagal (misal: 404 Player Not Found, 400 Invalid Token, 403 IP/Key problem).
  */
-export async function verifyPlayerToken(playerTag: string, apiToken: string): Promise<boolean> {
-    const encodedTag = encodeTag(playerTag);
-    const url = `${COC_API_URL}/players/${encodedTag}/verifytoken`;
+export async function verifyPlayerToken(encodedPlayerTag: string, apiToken: string): Promise<boolean> {
+    // PERBAIKAN: Langsung gunakan tag yang sudah di-encode
+    const url = `${COC_API_URL}/players/${encodedPlayerTag}/verifytoken`;
     const apiKey = getCocApiKey();
+    console.log(`[verifyPlayerToken] Requesting URL: ${url}`); // Logging URL final
 
     let response: Response | null = null;
     try {
@@ -236,51 +235,21 @@ export async function verifyPlayerToken(playerTag: string, apiToken: string): Pr
         });
 
         if (response.ok) {
-            // Status 200 OK berarti verifikasi sukses.
             return true;
         }
 
-        // --- PERBAIKAN: Penanganan Error Lebih Spesifik untuk Verify ---
+        // Penanganan Error (tetap sama)
         let errorBody: any = null;
-        try {
-            errorBody = await response.json();
-        } catch (e) {
-             try {
-                  errorBody = await response.text(); // Fallback ke teks jika bukan JSON
-             } catch (textError) { /* ignore text parse error */ }
-        }
-
+        try { errorBody = await response.json(); } catch (e) { try { errorBody = await response.text(); } catch (textError) {} }
         console.error('Verify Token Error:', response.status, errorBody);
-
-        if (response.status === 404) {
-             // Langsung throw error spesifik untuk Not Found
-            throw new Error('Pemain tidak ditemukan. Pastikan Player Tag benar.');
-        }
-
-        if (response.status === 400 && errorBody?.reason === 'invalidToken') {
-             // Spesifik untuk token tidak valid (API V1 mungkin mengembalikan ini)
-              throw new Error('Token API tidak valid. Periksa kembali token dari pengaturan game.');
-        }
-         // Cek reason 'forbidden' (mungkin karena token salah ATAU player tag salah di API v1/v2?)
-         // Kita beri pesan yang lebih umum mencakup keduanya
-         if (response.status === 400 && errorBody?.reason === 'forbidden') {
-            throw new Error('Token tidak valid atau Player Tag salah. Pastikan keduanya benar.');
-        }
-
-        if (response.status === 403) {
-            // Spesifik untuk masalah IP/API Key
-            throw new Error('Akses API ditolak (403). Cek pengaturan IP whitelist pada API Key CoC Anda.');
-        }
-        // Error lainnya
+        if (response.status === 404) { throw new Error('Pemain tidak ditemukan. Pastikan Player Tag benar.'); }
+        if (response.status === 400 && errorBody?.reason === 'invalidToken') { throw new Error('Token API tidak valid. Periksa kembali token dari pengaturan game.'); }
+        if (response.status === 400 && errorBody?.reason === 'forbidden') { throw new Error('Token tidak valid atau Player Tag salah. Pastikan keduanya benar.'); }
+        if (response.status === 403) { throw new Error('Akses API ditolak (403). Cek pengaturan IP whitelist pada API Key CoC Anda.'); }
         throw new Error(`Gagal memverifikasi token: Status ${response.status}. Detail: ${typeof errorBody === 'object' ? JSON.stringify(errorBody) : errorBody}`);
-        // --- AKHIR PERBAIKAN ---
 
     } catch (error) {
-         // Jika error sudah dilempar dari atas, lempar lagi
-         if (error instanceof Error) {
-            throw error;
-         }
-        // Handle network errors
+         if (error instanceof Error) { throw error; }
         console.error('Network error during verifyPlayerToken:', error);
         throw new Error('Gagal menghubungi API CoC untuk verifikasi. Periksa koneksi internet.');
     }
