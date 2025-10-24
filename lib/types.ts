@@ -218,7 +218,7 @@ export interface ClanApiCache {
 
 /**
  * @interface PublicClanIndex
- * Data cache publik dari klan manapun. Hanya menyimpan data API yang penting.
+ * Data cache publik dari klan manapun. Ini mencakup data yang diperlukan untuk profil klan publik.
  * Disimpan di koleksi 'publicClanIndex'.
  */
 export interface PublicClanIndex {
@@ -229,7 +229,20 @@ export interface PublicClanIndex {
   clanPoints: number;
   badgeUrls: CocIconUrls;
   lastUpdated: Date; // Untuk memeriksa apakah cache masih 'fresh'
-  // Data CocClan mentah lainnya yang relevan untuk pencarian publik.
+  
+  // --- FIELD TAMBAHAN DARI CocClan UNTUK TAMPILAN PROFIL PUBLIK (PERBAIKAN ERROR) ---
+  requiredTrophies?: number; 
+  warFrequency?: string;
+  warWinStreak?: number;
+  warWins?: number;
+  type?: 'open' | 'inviteOnly' | 'closed';
+  description?: string;
+  location?: {
+    id: number;
+    name: string;
+    isCountry: boolean;
+    countryCode?: string;
+  };
 }
 
 

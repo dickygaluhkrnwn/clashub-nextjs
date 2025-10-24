@@ -6,8 +6,8 @@ import EditProfileClient from './EditProfileClient';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-    title: "Clashub | Edit E-Sports CV",
-    description: "Perbarui informasi Town Hall, gaya bermain, bio, dan detail kontak Anda."
+	title: "Clashub | Edit E-Sports CV",
+	description: "Perbarui informasi Town Hall, gaya bermain, bio, dan detail kontak Anda."
 };
 
 /**
@@ -17,30 +17,35 @@ export const metadata: Metadata = {
  */
 const EditProfilePage = async () => {
 
-    const sessionUser = await getSessionUser();
+	const sessionUser = await getSessionUser();
 
-    // Route Protection (Server-Side Redirect)
-    if (!sessionUser) {
-        redirect('/auth');
-    }
-    
-    // Ambil UserProfile lengkap dari Firestore
-    const userProfile = await getUserProfile(sessionUser.uid);
+	// Route Protection (Server-Side Redirect)
+	if (!sessionUser) {
+		redirect('/auth');
+	}
+	
+	// Ambil UserProfile lengkap dari Firestore
+	const userProfile = await getUserProfile(sessionUser.uid);
 
-    // Jika profil tidak ditemukan, kita buat objek dasar sebagai fallback
-    const initialProfile: Partial<UserProfile> = userProfile || {
-        uid: sessionUser.uid,
-        displayName: sessionUser.displayName || 'Pemain Baru',
-        email: sessionUser.email,
-        isVerified: false, // Default: belum diverifikasi
-        thLevel: 1, // Default TH 1
-        role: 'Free Agent',
-    };
+	// Jika profil tidak ditemukan, kita buat objek dasar sebagai fallback
+	const initialProfile: Partial<UserProfile> = userProfile || {
+		uid: sessionUser.uid,
+		displayName: sessionUser.displayName || 'Pemain Baru',
+		email: sessionUser.email,
+		// Memastikan inisialisasi semua field verifikasi baru
+		isVerified: false, 
+		playerTag: '',
+		thLevel: 1, 
+		trophies: 0,
+		clanRole: 'not in clan',
+		// Field lama
+		role: 'Free Agent',
+	};
 
-    // Meneruskan Profil lengkap ke Client Component
-    return (
-        <EditProfileClient initialProfile={initialProfile} />
-    );
+	// Meneruskan Profil lengkap ke Client Component
+	return (
+		<EditProfileClient initialProfile={initialProfile as UserProfile} />
+	);
 };
 
 export default EditProfilePage;

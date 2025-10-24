@@ -2,9 +2,10 @@ import { Button } from "@/app/components/ui/Button";
 import { TeamCard, PostCard } from "@/app/components/cards";
 import { TrophyIcon, SkullIcon, PercentageIcon, CogsIcon, BookOpenIcon } from "@/app/components/icons";
 import CarouselSection from "@/app/components/layout/CarouselSection";
-import { getRecommendedTeams } from "@/lib/server-utils"; // Import fungsi Server baru
-import { Team } from "@/lib/types"; // Import tipe data Team
-import Image from "next/image"; // Import Image component
+import { getRecommendedTeams } from "@/lib/server-utils"; 
+// PERBAIKAN #1: Mengganti Team dengan ManagedClan
+import { ManagedClan } from "@/lib/types"; 
+import Image from "next/image"; 
 
 // --- DATA STATIS SEMENTARA (Akan diganti di Sprint berikutnya) ---
 // Data statis untuk PostCard, disesuaikan dengan props yang benar.
@@ -19,10 +20,12 @@ const latestPosts = [
 
 // Mengubah komponen menjadi fungsi async, menjadikannya Server Component
 export default async function Home() {
-    let recommendedTeams: Team[] = [];
+    // PERBAIKAN #2: Mengganti Team[] dengan ManagedClan[]
+    let recommendedTeams: ManagedClan[] = []; 
     let error: string | null = null;
 
     try {
+        // getRecommendedTeams sekarang mengembalikan ManagedClan[]
         recommendedTeams = await getRecommendedTeams();
     } catch (err) {
         console.error("Error fetching data on server:", err);
@@ -57,7 +60,7 @@ export default async function Home() {
                     <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-8">
                         {/* Status War Mendatang (Statis) */}
                         <div className="bg-coc-stone-light/50 p-6 rounded-lg shadow-stone border border-coc-gold-dark/20 flex flex-col justify-between">
-                             {/* h3 akan otomatis menggunakan font-clash dari globals.css */}
+                            {/* h3 akan otomatis menggunakan font-clash dari globals.css */}
                             <h3 className="text-xl mb-4 text-center border-b-2 border-coc-gold-dark/30 pb-2">STATUS WAR MENDATANG</h3>
                             <div className="grid grid-cols-3 gap-4 text-center my-4">
                                 <div>
@@ -97,7 +100,7 @@ export default async function Home() {
                                   className="w-16 h-16" // Class tetap untuk styling
                                 />
                                 <div>
-                                     {/* h3 akan otomatis menggunakan font-clash dari globals.css */}
+                                    {/* h3 akan otomatis menggunakan font-clash dari globals.css */}
                                     <h3 className="text-xl">THE GOLDEN ARMY</h3>
                                     <p className="text-sm text-coc-gold-dark font-bold">#P9Y8Q2V0</p>
                                 </div>
@@ -117,7 +120,7 @@ export default async function Home() {
                     <div className="space-y-8">
                         {/* Ringkasan Profil */}
                         <div className="bg-coc-stone-light/50 p-6 rounded-lg shadow-stone border border-coc-gold-dark/20 text-center">
-                             {/* h3 akan otomatis menggunakan font-clash dari globals.css */}
+                            {/* h3 akan otomatis menggunakan font-clash dari globals.css */}
                             <h3 className="text-lg mb-4">RINGKASAN PROFIL ANDA</h3>
                             {/* Ganti img dengan Image */}
                             <Image
@@ -137,7 +140,7 @@ export default async function Home() {
 
                         {/* Pengumuman (Statis) */}
                         <div className="bg-coc-stone-light/50 p-6 rounded-lg shadow-stone border border-coc-gold-dark/20">
-                             {/* h3 akan otomatis menggunakan font-clash dari globals.css */}
+                            {/* h3 akan otomatis menggunakan font-clash dari globals.css */}
                             <h3 className="text-lg mb-4">PENGUMUMAN PENTING</h3>
                             <div className="space-y-4">
                                 <a href="/news/1" className="block hover:bg-coc-stone/30 p-2 rounded-md transition-colors">
@@ -166,8 +169,19 @@ export default async function Home() {
                             Tidak ada tim yang ditemukan untuk direkomendasikan.
                         </div>
                     ) : (
-                        recommendedTeams.map((team) => (
-                            <TeamCard key={team.id} id={team.id} name={team.name} tag={team.tag} rating={team.rating} vision={team.vision} avgTh={team.avgTh} logoUrl={team.logoUrl} />
+                        // PERBAIKAN #3: Memastikan TeamCard menerima properti ManagedClan
+                        recommendedTeams.map((clan) => (
+                            <TeamCard 
+                                key={clan.id} 
+                                id={clan.id} 
+                                name={clan.name} 
+                                tag={clan.tag} 
+                                // PERBAIKAN #4: Menggunakan nilai fallback 5.0 untuk 'rating' karena tidak ada di ManagedClan
+                                rating={5.0} 
+                                vision={clan.vision} 
+                                avgTh={clan.avgTh} 
+                                logoUrl={clan.logoUrl} 
+                            />
                         ))
                     )}
                 </CarouselSection>
