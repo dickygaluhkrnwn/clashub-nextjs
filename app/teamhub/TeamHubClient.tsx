@@ -26,10 +26,11 @@ const PublicClanCard = ({ clan }: PublicClanCardProps) => (
         <div className="flex items-center gap-4 w-full sm:w-auto">
             {/* Menggunakan URL Badge klan dari API */}
             <img 
-                src={clan.badgeUrls.large || '/images/clan-badge-placeholder.png'} 
+                src={clan.badgeUrls?.large || '/images/clan-badge-placeholder.png'} 
                 alt={`${clan.name} Badge`} 
                 className="w-14 h-14 rounded-full border-2 border-coc-gold-dark flex-shrink-0"
                 onError={(e) => {
+                    // Penanganan error gambar
                     e.currentTarget.onerror = null;
                     e.currentTarget.src = '/images/clan-badge-placeholder.png';
                 }}
@@ -40,6 +41,7 @@ const PublicClanCard = ({ clan }: PublicClanCardProps) => (
                 <p className="text-sm text-gray-400">Level {clan.clanLevel} | {clan.memberCount} Anggota</p>
             </div>
         </div>
+        {/* Link ke halaman profil klan publik baru: /clan/[clanTag] */}
         <Link href={`/clan/${encodeURIComponent(clan.tag)}`} passHref className="w-full sm:w-auto">
              <Button variant="secondary" size="sm" className="w-full sm:w-auto">Lihat Profil</Button>
         </Link>
@@ -52,9 +54,10 @@ const PublicClanCard = ({ clan }: PublicClanCardProps) => (
 // =========================================================================
 
 interface TeamHubClientProps {
-    // PERBAIKAN #3: Mengganti initialTeams menjadi initialClans
+    // PERBAIKAN #3: Mengganti initialTeams menjadi initialClans DAN MENAMBAH initialPublicClans
     initialClans: ManagedClan[]; 
     initialPlayers: Player[];
+    initialPublicClans: PublicClanIndex[]; // BARU: Data dari Server Component
 }
 
 type ActiveTab = 'clashubTeams' | 'publicClans' | 'players';
@@ -78,12 +81,15 @@ export type PlayerFilters = {
  * @component TeamHubClient
  * Menampilkan tab untuk Tim Clashub, Pencarian Klan Publik, dan Pemain.
  */
-const TeamHubClient = ({ initialClans, initialPlayers }: TeamHubClientProps) => {
+const TeamHubClient = ({ initialClans, initialPlayers, initialPublicClans }: TeamHubClientProps) => { // Menerima prop baru
     // PERBAIKAN #4: Menambahkan tab 'publicClans'
     const [activeTab, setActiveTab] = useState<ActiveTab>('clashubTeams');
     const [allClans] = useState<ManagedClan[]>(initialClans); // Mengganti allTeams
     const [allPlayers] = useState<Player[]>(initialPlayers);
     const [isFiltering, setIsFiltering] = useState(false);
+
+    // BARU: State untuk Klan Publik (berasal dari cache Server Component)
+    const [publicClansCache] = useState<PublicClanIndex[]>(initialPublicClans);
 
     // --- State Pagination ---
     const [visibleClansCount, setVisibleClansCount] = useState(ITEMS_PER_LOAD); // Mengganti visibleTeamsCount
@@ -103,7 +109,8 @@ const TeamHubClient = ({ initialClans, initialPlayers }: TeamHubClientProps) => 
         thLevel: 9,
     });
     
-    // --- State Pencarian Publik ---
+    // --- State Pencarian Publik (CARI TAG LANGSUNG) ---
+    // Logika ini hanya untuk pencarian langsung (bukan filter/list)
     const [publicClanTag, setPublicClanTag] = useState('');
     const [publicClanResult, setPublicClanResult] = useState<PublicClanIndex | null>(null);
     const [isSearching, setIsSearching] = useState(false);
@@ -133,7 +140,7 @@ const TeamHubClient = ({ initialClans, initialPlayers }: TeamHubClientProps) => 
     const filteredPlayers = useMemo(() => {
         return allPlayers.filter(player => {
              // Menggunakan nullish coalescing untuk fallback jika displayName/name null
-            const name = player.displayName || player.name || '';
+            const name = player.displayName || player.inGameName || player.name || ''; // Ditambahkan inGameName
             const tag = player.playerTag || player.tag || '';
 
             const searchTermLower = playerFilters.searchTerm.toLowerCase();
@@ -186,29 +193,34 @@ const TeamHubClient = ({ initialClans, initialPlayers }: TeamHubClientProps) => 
     // --- FUNGSI PENCARIAN PUBLIK (Fase 2.3) ---
     const handlePublicClanSearch = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!publicClanTag) return;
-        
+        // Tag harus dimulai dengan '#'
+        const rawTag = publicClanTag.toUpperCase().trim();
+        if (!rawTag) return;
+
         setIsSearching(true);
         setPublicSearchError(null);
         setPublicClanResult(null);
-
-        // Tag perlu di-encode sebelum dikirim ke API Route
-        const tagToSearch = publicClanTag.toUpperCase().trim();
-        const encodedTag = encodeURIComponent(tagToSearch.startsWith('#') ? tagToSearch : `#${tagToSearch}`); // Pastikan ada '#'
+        
+        // Pastikan Tag diawali dengan '#'
+        const tagToSearch = rawTag.startsWith('#') ? rawTag : `#${rawTag}`;
+        const encodedTag = encodeURIComponent(tagToSearch); 
 
         try {
             const response = await fetch(`/api/coc/search-clan?clanTag=${encodedTag}`);
             const result = await response.json();
             
             if (!response.ok) {
+                // Tangani error berdasarkan status dan body API Route
+                const errorMessage = result.message || 'Gagal mengambil data klan publik.';
                 if (response.status === 404) {
                     setPublicSearchError(`Klan dengan tag ${tagToSearch} tidak ditemukan.`);
                 } else {
-                    throw new Error(result.error || 'Gagal mengambil data klan publik.');
+                    setPublicSearchError(errorMessage);
                 }
                 return;
             }
 
+            // Jika sukses, set hasil pencarian
             setPublicClanResult(result.clan);
             
         } catch (error) {
@@ -219,10 +231,28 @@ const TeamHubClient = ({ initialClans, initialPlayers }: TeamHubClientProps) => 
         }
     }, [publicClanTag]);
 
+
+    // Logika untuk menampilkan daftar klan publik (cache) atau hasil pencarian
+    const clansToDisplay = useMemo(() => {
+        // Jika pengguna sudah mencari klan secara manual, tampilkan hasilnya
+        if (publicClanResult) {
+            return [publicClanResult];
+        }
+        // Jika tidak ada pencarian spesifik, tampilkan cache dari SSR
+        return publicClansCache; 
+    }, [publicClanResult, publicClansCache]);
+
     // Render Tab Header
     const TabButton = ({ tab, label, icon: Icon }: { tab: ActiveTab, label: string, icon: React.FC<React.SVGProps<SVGSVGElement>> }) => (
         <button
-            onClick={() => { setActiveTab(tab); setClanFilters({ ...clanFilters, searchTerm: '' }); setPlayerFilters({ ...playerFilters, searchTerm: '' }); }}
+            onClick={() => { 
+                setActiveTab(tab); 
+                // Reset search/filter state saat pindah tab
+                setClanFilters({ ...clanFilters, searchTerm: '' }); 
+                setPlayerFilters({ ...playerFilters, searchTerm: '' });
+                setPublicSearchError(null);
+                setPublicClanResult(null); 
+            }}
             className={`flex items-center gap-2 py-3 px-6 font-clash text-lg transition-all duration-200 
                 ${activeTab === tab 
                     ? 'bg-coc-gold-dark text-white border-b-4 border-coc-gold' 
@@ -257,10 +287,18 @@ const TeamHubClient = ({ initialClans, initialPlayers }: TeamHubClientProps) => 
                     {activeTab === 'players' && (
                         <PlayerHubFilter filters={playerFilters} onFilterChange={handlePlayerFilterChange as any} />
                     )}
+                    {activeTab === 'publicClans' && (
+                        <div className="card-stone p-4 space-y-4">
+                            <h3 className="text-xl font-clash text-white border-b border-coc-gold/30 pb-2">Filter Cache Publik</h3>
+                            <p className="text-sm text-gray-400">Saat ini, cache klan publik hanya menampilkan daftar klan terpopuler dari sinkronisasi terakhir. Gunakan pencarian tag untuk hasil *real-time*.</p>
+                             {/* Placeholder Filter Publik (untuk masa depan) */}
+                             <Button variant="secondary" disabled className="w-full">Filter Lanjutan (Segera Hadir)</Button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Kolom Hasil Pencarian */}
-                <div className={`lg:col-span-${activeTab === 'publicClans' ? '4' : '3'} ${activeTab === 'publicClans' ? 'lg:max-w-3xl lg:mx-auto' : ''}`}>
+                <div className={`lg:col-span-${activeTab === 'publicClans' ? '3' : '3'} ${activeTab === 'publicClans' ? 'lg:col-start-2 lg:col-span-2' : ''}`}>
                     <div className="card-stone p-6 min-h-[50vh] space-y-6">
                     {isFiltering ? (
                         <div className="text-center py-20">
@@ -280,7 +318,6 @@ const TeamHubClient = ({ initialClans, initialPlayers }: TeamHubClientProps) => 
                                         <>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 {clansToShow.map(clan => (
-                                                    // PERBAIKAN: Menggunakan ManagedClan/TeamCard yang ada (asumsi TeamCard sudah diupdate)
                                                     <Link key={clan.id} href={`/team/${clan.id}`} passHref>
                                                         <div className="card-stone p-4 flex flex-col hover:border-coc-gold transition-all duration-200 cursor-pointer">
                                                             <h3 className="text-xl font-clash text-white">{clan.name} <span className="text-coc-gold text-lg">({clan.tag})</span></h3>
@@ -305,8 +342,9 @@ const TeamHubClient = ({ initialClans, initialPlayers }: TeamHubClientProps) => 
                             {/* -------------------- TAB: PENCARIAN KLAN PUBLIK -------------------- */}
                             {activeTab === 'publicClans' && (
                                 <div className="space-y-6">
-                                     <h1 className="text-3xl md:text-4xl font-clash mb-6 text-white">Pencarian Klan Publik CoC</h1>
-                                     <form onSubmit={handlePublicClanSearch} className="flex flex-col sm:flex-row gap-4 p-4 card-stone/50 rounded-lg shadow-inner">
+                                    <h1 className="text-3xl md:text-4xl font-clash mb-6 text-white">Pencarian Klan Publik CoC</h1>
+                                    {/* Form Pencarian Langsung */}
+                                    <form onSubmit={handlePublicClanSearch} className="flex flex-col sm:flex-row gap-4 p-4 card-stone/50 rounded-lg shadow-inner">
                                         <input
                                             type="text"
                                             placeholder="#CLANTAG (cth: #PQL2G08J) atau Nama Klan"
@@ -325,23 +363,30 @@ const TeamHubClient = ({ initialClans, initialPlayers }: TeamHubClientProps) => 
                                         </Button>
                                     </form>
 
-                                    {/* Hasil Pencarian */}
-                                    <div className="pt-4">
+                                    {/* Hasil Pencarian & Cache List */}
+                                    <div className="pt-4 space-y-4">
                                         {publicSearchError && (
-                                            <div className="p-4 bg-coc-red/10 border border-coc-red/50 text-coc-red rounded-lg flex items-center gap-3 mb-4">
+                                            <div className="p-4 bg-coc-red/10 border border-coc-red/50 text-coc-red rounded-lg flex items-center gap-3">
                                                 <AlertTriangleIcon className="h-6 w-6"/>
                                                 <span className="font-sans">{publicSearchError}</span>
                                             </div>
                                         )}
                                         
-                                        {publicClanResult ? (
-                                            <PublicClanCard clan={publicClanResult} />
+                                        {clansToDisplay.length > 0 ? (
+                                            <div className="grid grid-cols-1 gap-4">
+                                                {clansToDisplay.map(clan => (
+                                                    <PublicClanCard key={clan.tag} clan={clan} />
+                                                ))}
+                                            </div>
                                         ) : (
-                                            <p className="text-gray-400 text-center py-10">Masukkan **#CLANTAG** atau Nama Klan untuk melihat hasil publik.</p>
+                                            <p className="text-gray-400 text-center py-10">
+                                                {publicClanResult ? 'Klan tidak ditemukan berdasarkan Tag.' : 'Daftar Klan Publik terpopuler (cache) akan muncul di sini, atau lakukan pencarian langsung menggunakan Tag.'}
+                                            </p>
                                         )}
+
                                     </div>
                                     <div className="text-xs text-gray-500 pt-4 border-t border-coc-stone/50">
-                                        <ClockIcon className="h-3 w-3 inline mr-1"/> Data klan publik di-cache selama 6 jam di database Clashub.
+                                        <ClockIcon className="h-3 w-3 inline mr-1"/> Data klan publik di-cache dan diperbarui secara berkala. Pencarian langsung menggunakan Tag adalah *real-time*.
                                     </div>
                                 </div>
                             )}
@@ -356,12 +401,10 @@ const TeamHubClient = ({ initialClans, initialPlayers }: TeamHubClientProps) => 
                                     ) : (
                                         <>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                {/* Asumsi PlayerCard dapat menerima props Player */}
-                                                {/* PERBAIKAN: Mengganti tag dan name property dengan playerTag dan displayName/name */}
-                                                {/* Menggunakan div placeholder karena PlayerCard belum dianalisis/diupdate */}
                                                 {playersToShow.map(player => (
                                                     <Link key={player.id} href={`/player/${player.id}`} passHref>
                                                         <div className="card-stone p-4 flex flex-col hover:border-coc-gold transition-all duration-200 cursor-pointer">
+                                                            {/* Placeholder card content for player */}
                                                             <h3 className="text-xl font-clash text-white">{player.displayName || player.name} <span className="text-coc-gold text-lg">({player.playerTag})</span></h3>
                                                             <p className="text-sm text-gray-400">Role: {player.role} | TH: {player.thLevel}</p>
                                                         </div>

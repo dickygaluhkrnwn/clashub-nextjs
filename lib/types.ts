@@ -4,6 +4,23 @@
 // untuk bentuk data kita.
 
 // =========================================================================
+// 0. ENUMERASI KONSTANTA
+// =========================================================================
+
+/**
+ * @enum ClanRole
+ * Peran pemain di klan Clash of Clans (CoC).
+ * Digunakan untuk konsistensi antara data API, UserProfile, dan logika bisnis.
+ */
+export enum ClanRole {
+  NOT_IN_CLAN = 'not in clan',
+  MEMBER = 'member',
+  ELDER = 'admin', // CoC API menggunakan 'admin' untuk Elder
+  CO_LEADER = 'coLeader',
+  LEADER = 'leader',
+}
+
+// =========================================================================
 // 1. TIPE DATA CLASH OF CLANS API MENTAH (COCAPIType)
 // =========================================================================
 
@@ -65,11 +82,12 @@ export interface CocClan {
 /**
  * @interface CocMember
  * Data Anggota Klan (CocPlayer versi singkat) saat di dalam CocClan.
+ * CATATAN: Role di sini menggunakan string literal CoC ('admin', 'coLeader', dll.)
  */
 export interface CocMember {
   tag: string;
   name: string;
-  role: 'leader' | 'coLeader' | 'admin' | 'member';
+  role: 'leader' | 'coLeader' | 'admin' | 'member'; // HANYA role di dalam klan
   townHallLevel: number;
   expLevel: number;
   league: CocLeague;
@@ -85,11 +103,11 @@ export interface CocMember {
  * @interface CocPlayer
  * Data lengkap Player dari API. Digunakan saat Verifikasi Player.
  */
-export interface CocPlayer extends Omit<CocMember, 'clanRank' | 'previousClanRank' | 'role'> { // PERBAIKAN: role DITAMBAHKAN di Omit
-  // Tambahan dari /players/{playerTag} endpoint
+export interface CocPlayer extends Omit<CocMember, 'clanRank' | 'previousClanRank' | 'role'> {
+  // role: Role diubah menggunakan Union Type dari ClanRole untuk mencakup 'not in clan'
+  role: ClanRole.LEADER | ClanRole.CO_LEADER | ClanRole.ELDER | ClanRole.MEMBER | ClanRole.NOT_IN_CLAN;
   attackWins: number;
   defenseWins: number;
-  role: 'leader' | 'coLeader' | 'admin' | 'member' | 'not in clan'; // Memperluas role
   // Clan bisa null jika pemain tidak dalam klan
   clan?: {
     tag: string;
@@ -142,9 +160,9 @@ export interface UserProfile {
   playerTag: string; // Tag pemain dari dalam game (Disimpan di sini setelah verifikasi)
   inGameName?: string; // Nama pemain dari API CoC
   thLevel: number; // Level Town Hall (Diperbarui dari API atau input manual)
-  trophies: number; // <<-- PERBAIKAN: FIELD TROPHY BARU DITAMBAHKAN
+  trophies: number; // Field Trophy
   clanTag?: string | null; // Tag Klan CoC saat ini (diperbarui dari API)
-  clanRole?: 'leader' | 'coLeader' | 'admin' | 'member' | 'not in clan'; // Role di klan CoC
+  clanRole?: ClanRole; // MENGGUNAKAN ENUM CLANROLE
   lastVerified?: Date; // Timestamp verifikasi terakhir
   
   // --- FIELD E-SPORTS CV YANG SUDAH ADA ---
@@ -152,7 +170,7 @@ export interface UserProfile {
   discordId?: string | null;
   website?: string | null;
   bio?: string;
-  // Role Clashub internal: Kita tetap pertahankan field ini untuk Role Clashub
+  // Role Clashub internal: Role yang ditampilkan di Clashub
   role?: 'Leader' | 'Co-Leader' | 'Elder' | 'Member' | 'Free Agent'; 
   playStyle?: 'Attacker Utama' | 'Base Builder' | 'Donatur' | 'Strategist' | null; 
   activeHours?: string;

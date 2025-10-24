@@ -1,20 +1,23 @@
-import { getManagedClans } from "./firestore"; // PERBAIKAN #1: Mengganti getTeams
-import { ManagedClan } from "./types"; // PERBAIKAN #2: Mengganti Team dengan ManagedClan
+// File: lib/server-utils.ts
+// Deskripsi: Kumpulan fungsi utilitas yang dijalankan HANYA di sisi server (misal: API Routes).
+
+import { getManagedClans } from "@/lib/firestore"; // Menggunakan absolute path
+import { ManagedClan } from "@/lib/types"; // Menggunakan absolute path
 
 /**
+ * @function getRecommendedTeams
  * Mengambil dan memilih klan secara acak untuk direkomendasikan di halaman utama.
  * Logika ini berjalan di Server Component (SSR).
  * @returns Array 5 klan internal terbaik atau klan acak.
  */
-export async function getRecommendedTeams(): Promise<ManagedClan[]> { // PERBAIKAN #3: Mengganti Team[] dengan ManagedClan[]
+export async function getRecommendedTeams(): Promise<ManagedClan[]> { 
     try {
-        const allClans = await getManagedClans(); // PERBAIKAN #4: Memanggil getManagedClans
+        const allClans = await getManagedClans(); 
 
-        // 1. Prioritaskan klan dengan rating tertinggi (kita menggunakan rating placeholder 5.0 di ManagedClan)
-        // Kita akan menggunakan rata-rata TH tertinggi sebagai proxy rating, atau hanya klan dengan logo/website yang diisi.
+        // 1. Prioritaskan klan dengan logo/website yang diisi (proxy rating)
         const prioritizedClans = allClans
-            .filter(clan => clan.logoUrl || clan.website) // Filter hanya klan yang lebih lengkap datanya
-            .sort((a, b) => b.avgTh - a.avgTh); // Urutkan dari rata-rata TH tertinggi
+            .filter(clan => clan.logoUrl || clan.website) 
+            .sort((a, b) => b.avgTh - a.avgTh); 
 
         // 2. Ambil 5 klan dari yang diprioritaskan
         let selectedClans: ManagedClan[] = prioritizedClans.slice(0, 5);
@@ -37,4 +40,20 @@ export async function getRecommendedTeams(): Promise<ManagedClan[]> { // PERBAIK
         // Mengembalikan array kosong jika terjadi error agar halaman tidak crash
         return []; 
     }
+}
+
+/**
+ * @function getClanTagsToMonitor
+ * Mengambil daftar Clan Tags yang harus dimonitor dan di-cache secara berkala 
+ * oleh Cron Job (Public Index).
+ * @returns {string[]} Array of raw clan tags (termasuk '#').
+ */
+export function getClanTagsToMonitor(): string[] {
+    // Implementasi placeholder menggunakan Tag Klan internal (GBK Crew & GBK Squad) 
+    // sesuai blueprint Dasboard Clan CoC - Main - Pengaturan.csv.
+    return [
+        '#2G8PU0GLJ', // GBK Crew
+        '#2GQ9R8Y2R', // GBK Squad
+        // Daftar ini akan di-update secara otomatis oleh Cron Job.
+    ];
 }

@@ -1,39 +1,42 @@
+// File: app/teamhub/page.tsx
 import TeamHubClient from "./TeamHubClient";
 // PERBAIKAN #1: Mengganti getTeams dengan getManagedClans
-// Kita juga memerlukan getPublicClanIndex (akan digunakan di Client/API Route nanti)
-import { getManagedClans, getPlayers } from '@/lib/firestore'; 
-// PERBAIKAN #2: Menggunakan tipe data ManagedClan yang baru dan menghapus Team
-import { ManagedClan, Player } from '@/lib/types';
+// KITA JUGA MEMBUTUHKAN getPublicClanIndex dari firestore untuk cache klan publik
+import { getManagedClans, getPlayers, getPublicClanIndex } from '@/lib/firestore'; 
+// PERBAIKAN #2: Menggunakan tipe data ManagedClan dan PublicClanIndex yang baru
+import { ManagedClan, Player, PublicClanIndex } from '@/lib/types'; // Import PublicClanIndex
 import { Metadata } from "next";
 
 // Metadata untuk SEO (Best practice Next.js)
 export const metadata: Metadata = {
-    title: "Clashub | Hub Tim & Pencarian Klan", // Disesuaikan untuk mencakup Pencarian Klan
+    title: "Clashub | Hub Tim & Pencarian Klan", 
     description: "Cari tim kompetitif Clashub atau cari klan publik CoC. Filter berdasarkan Level TH, reputasi, dan visi tim.",
 };
 
 // Mengubah komponen ini menjadi fungsi async menjadikannya Server Component
 const TeamHubPage = async () => {
-    // PERBAIKAN #3: Menggunakan tipe ManagedClan
+    // PERBAIKAN #3: Inisialisasi array untuk Klan Publik
     let initialClans: ManagedClan[] = []; 
     let initialPlayers: Player[] = [];
+    let initialPublicClans: PublicClanIndex[] = []; // BARU: Menampung cache klan publik
     let loadError: string | null = null;
     
     // Menggunakan Promise.all untuk mengambil semua data secara paralel
     try {
-        // PERBAIKAN #4: Memanggil getManagedClans()
-        const [clans, players] = await Promise.all([
-            getManagedClans(), // Mengambil daftar ManagedClan
-            getPlayers()
+        // PERBAIKAN #4: Menambahkan getPublicClanIndex ke Promise.all
+        const [clans, players, publicClans] = await Promise.all([
+            getManagedClans(), // Mengambil daftar ManagedClan (Tim Internal)
+            getPlayers(), // Mengambil daftar Player
+            getPublicClanIndex(), // BARU: Mengambil daftar PublicClanIndex (Cache Klan Publik)
         ]);
 
-        // PERBAIKAN #5: Menyimpan hasil ke initialClans
+        // PERBAIKAN #5: Menyimpan hasil ke initialClans dan initialPublicClans
         initialClans = clans; 
         initialPlayers = players;
+        initialPublicClans = publicClans; // BARU: Simpan data klan publik
     } catch (err) {
         console.error("Error fetching data on server:", err);
-        // Pesan error diubah
-        loadError = "Gagal memuat daftar tim Clashub atau pemain. Silakan coba lagi.";
+        loadError = "Gagal memuat daftar hub klan. Silakan coba lagi.";
     }
 
     // Jika ada error fatal, tampilkan pesan error yang di-render oleh server
@@ -50,13 +53,14 @@ const TeamHubPage = async () => {
         );
     }
 
-    // Meneruskan data yang sudah di-fetch ke Client Component
-    // PERBAIKAN #6: Mengganti initialTeams menjadi initialClans - INI ADALAH PERBAIKAN YANG ANDA MINTA, KARENA SEKARANG TEAMHUBCLIENT.TSX MENGHARAPKAN initialClans
+    // Meneruskan SEMUA data yang sudah di-fetch ke Client Component
+    // PERBAIKAN #6: Mengirim initialPublicClans ke Client Component
     return (
         <main className="container mx-auto p-4 md:p-8 mt-10">
             <TeamHubClient
                 initialClans={initialClans}
                 initialPlayers={initialPlayers}
+                initialPublicClans={initialPublicClans} // BARU: Data untuk tab Pencarian Klan Publik
             />
         </main>
     );
