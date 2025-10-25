@@ -2,30 +2,17 @@
 // Ideally, the image part should be its own client component if the rest needs to be server.
 
 import { useState, useEffect } from 'react'; // Need useState, useEffect for client component
-import { NextPage, Metadata } from 'next';
-import { notFound, useParams } from 'next/navigation'; // Need useParams on client
+import { NextPage } from 'next'; // Removed Metadata as it's complex with client-side fetching
+import { useParams } from 'next/navigation'; // Need useParams on client
 import { PublicClanIndex, CocMember } from '@/lib/types';
-import { GlobeIcon, ShieldIcon, UserIcon, TrophyIcon, MapPinIcon, ClockIcon, ArrowLeftIcon, RefreshCwIcon } from '@/app/components/icons'; // Added RefreshCwIcon
+// Added icons needed for new data points (e.g., StarIcon for Capital Points)
+import { GlobeIcon, ShieldIcon, UserIcon, TrophyIcon, MapPinIcon, ClockIcon, ArrowLeftIcon, RefreshCwIcon, StarIcon } from '@/app/components/icons';
 import { Button } from '@/app/components/ui/Button';
 import Image from 'next/image'; // Import Image component
 import Link from 'next/link'; // Need Link on client
 
 // Utility untuk memformat Tag (Tidak berubah)
 const formatTag = (tag: string) => tag.replace('%23', '#');
-
-// We need to fetch data on the client side now or pass it down if part remains server
-// For simplicity now, let's fetch on client side.
-// Metadata generation needs separate handling (e.g., generateMetadata function needs refactoring or removal if purely client-side)
-
-// interface ClanPageProps {
-//     params: { clanTag: string }; // params are accessed via hook now
-// }
-
-// =========================================================================
-// SERVER DATA FETCHING -> MOVED TO CLIENT SIDE FETCHING
-// =========================================================================
-
-// Removed generateMetadata as it's complex with client-side fetching setup for this fix.
 
 // =========================================================================
 // MAIN COMPONENT (NOW A CLIENT COMPONENT)
@@ -44,9 +31,13 @@ const ClanPublicProfilePage: NextPage = () => {
 
             setLoading(true);
             setError(null);
+            setClan(null); // Reset clan state before fetching
             console.log(`[ClanPublicProfilePage Client] Fetching data for encoded tag: ${encodedTag}`);
 
-            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+            // Construct the internal API URL correctly
+            // Assumes NEXT_PUBLIC_BASE_URL is set in your environment variables for deployment
+            // Defaults to localhost:3000 for local development
+            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin; // Use window.location.origin as a fallback
             const internalApiUrl = `${baseUrl}/api/coc/search-clan?clanTag=${encodedTag}`;
             console.log(`[ClanPublicProfilePage Client] Calling API route: ${internalApiUrl}`);
 
@@ -57,30 +48,41 @@ const ClanPublicProfilePage: NextPage = () => {
                 if (response.status === 404) {
                     console.log(`[ClanPublicProfilePage Client] Clan not found (404) for tag: ${encodedTag}`);
                     setError("Klan tidak ditemukan.");
-                    setClan(null); // Explicitly set clan to null on 404
-                    // In a real app, you might redirect or show a proper not found UI here
-                    // For now, setting error state is enough to stop rendering clan data
                     return; // Stop execution after setting error
                 }
 
-                if (!response.ok) {
-                    const errorBody = await response.text();
-                    console.error(`[ClanPublicProfilePage Client] Failed fetch. Status: ${response.status}, Body: ${errorBody}`);
-                    throw new Error(`Gagal memuat data klan (Status: ${response.status})`);
+                 // Check for other non-OK statuses first
+                 if (!response.ok) {
+                    let errorMessage = `Gagal memuat data klan (Status: ${response.status})`;
+                    try {
+                        // Try to parse error message from API if available
+                        const errorBody = await response.json();
+                        errorMessage = errorBody.error || errorBody.message || errorMessage;
+                    } catch (parseError) {
+                        // If parsing fails, use the default message
+                        console.error("[ClanPublicProfilePage Client] Failed to parse error response:", parseError);
+                    }
+                    console.error(`[ClanPublicProfilePage Client] Failed fetch. Status: ${response.status}, Message: ${errorMessage}`);
+                    throw new Error(errorMessage);
                 }
 
+
+                // If response is OK, parse the JSON
                 const result = await response.json();
                 console.log(`[ClanPublicProfilePage Client] Successfully fetched data for tag: ${encodedTag}`);
                 if (result.clan) {
                     setClan(result.clan);
                 } else {
+                    // This case should ideally not happen if API route is consistent
+                    console.warn("[ClanPublicProfilePage Client] API response OK but 'clan' data is missing:", result);
                     throw new Error("Format data klan tidak valid dari server.");
                 }
 
             } catch (err) {
                 console.error(`[ClanPublicProfilePage Client] Error fetching clan data for tag ${encodedTag}:`, err);
                 setError(err instanceof Error ? err.message : "Terjadi kesalahan saat memuat data.");
-                setClan(null); // Ensure clan is null on error
+                // Ensure clan is null on error
+                setClan(null);
             } finally {
                 setLoading(false);
             }
@@ -92,7 +94,8 @@ const ClanPublicProfilePage: NextPage = () => {
     // --- Loading State ---
     if (loading) {
         return (
-            <main className="container mx-auto p-4 md:p-8 mt-10 flex justify-center items-center min-h-[60vh]">
+            // PENYESUAIAN UI: Menggunakan wrapper standar, tapi dipusatkan untuk loading
+            <main className="max-w-7xl mx-auto p-4 md:p-8 mt-10 flex justify-center items-center min-h-[60vh]">
                 <div className="text-center">
                     <RefreshCwIcon className="h-12 w-12 text-coc-gold animate-spin mx-auto mb-4" />
                     <p className="text-xl font-clash text-gray-400">Memuat data klan...</p>
@@ -101,61 +104,49 @@ const ClanPublicProfilePage: NextPage = () => {
         );
     }
 
-    // --- Error State ---
-     if (error) {
+    // --- Error State (Includes Not Found Logic Now) ---
+     if (error || !clan) { // Show error if error state is set OR if clan is null after loading
          return (
-             <main className="container mx-auto p-4 md:p-8 mt-10">
-                 <div className="mb-6">
-                     <Button href="/teamhub" variant="secondary" size="md" className="flex items-center">
-                         <ArrowLeftIcon className="h-4 w-4 mr-2" /> Kembali ke Hub
-                     </Button>
-                 </div>
-                 <div className="text-center py-20 card-stone p-6 max-w-lg mx-auto rounded-lg">
-                     <h1 className="text-3xl text-coc-red font-clash mb-4">Error</h1>
-                     <p className="text-xl text-gray-300">{error}</p>
-                 </div>
-             </main>
+              <main className="max-w-7xl mx-auto space-y-8 p-4 md:p-8 mt-10"> {/* PENYESUAIAN UI: Wrapper standar */}
+                   <div className="mb-6">
+                        <Button href="/teamhub" variant="secondary" size="md" className="flex items-center">
+                             <ArrowLeftIcon className="h-4 w-4 mr-2" /> Kembali ke Hub
+                        </Button>
+                   </div>
+                   <div className="text-center py-20 card-stone p-6 max-w-lg mx-auto rounded-lg">
+                       <h1 className="text-3xl text-coc-red font-clash mb-4">
+                           {error === "Klan tidak ditemukan." ? "404 - Klan Tidak Ditemukan" : "Error"}
+                       </h1>
+                       <p className="text-xl text-gray-300">
+                           {error || "Data klan tidak dapat ditampilkan."}
+                       </p>
+                   </div>
+              </main>
          );
      }
 
-    // --- Not Found State (handled by error state for now) ---
-    if (!clan) {
-         // This case should ideally be handled by the error state after 404,
-         // but as a fallback, show not found.
-         return (
-              <main className="container mx-auto p-4 md:p-8 mt-10">
-                  <div className="mb-6">
-                      <Button href="/teamhub" variant="secondary" size="md" className="flex items-center">
-                          <ArrowLeftIcon className="h-4 w-4 mr-2" /> Kembali ke Hub
-                      </Button>
-                  </div>
-                  <div className="text-center py-20 card-stone p-6 max-w-lg mx-auto rounded-lg">
-                      <h1 className="text-3xl text-coc-red font-clash mb-4">404 - Klan Tidak Ditemukan</h1>
-                      <p className="text-xl text-gray-300">Klan dengan tag ini tidak dapat ditemukan.</p>
-                  </div>
-              </main>
-          );
-    }
 
     // --- Render Clan Data ---
     const lastUpdatedTime = clan.lastUpdated
         ? new Date(clan.lastUpdated).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })
         : 'N/A';
 
+    // Safely access memberList, defaulting to empty array if undefined/null
     const memberList: CocMember[] = (clan as any).memberList || [];
     const decodedTag = formatTag(clan.tag);
 
     return (
-        <main className="container mx-auto p-4 md:p-8 mt-10">
-            {/* Tombol Kembali */}
-             <div className="mb-6">
-                 <Button href="/teamhub" variant="secondary" size="md" className="flex items-center">
-                     <ArrowLeftIcon className="h-4 w-4 mr-2" /> Kembali ke Hub
-                 </Button>
-             </div>
+        // PENYESUAIAN UI: Menggunakan layout wrapper standar
+        <main className="max-w-7xl mx-auto space-y-8 p-4 md:p-8 mt-10">
+             {/* Tombol Kembali */}
+              <div className="mb-6">
+                   <Button href="/teamhub" variant="secondary" size="md" className="flex items-center">
+                        <ArrowLeftIcon className="h-4 w-4 mr-2" /> Kembali ke Hub
+                   </Button>
+              </div>
 
-            <div className="max-w-7xl mx-auto space-y-8">
-
+            {/* Konten utama sekarang di dalam wrapper standar */}
+            <>
                 {/* Header Klan Publik */}
                 <div className="card-stone p-6 flex flex-col md:flex-row justify-between items-start md:items-center rounded-lg">
                     <div className="flex items-center gap-6">
@@ -185,9 +176,11 @@ const ClanPublicProfilePage: NextPage = () => {
                 </div>
 
                 {/* Ringkasan Statistik */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                 {/* PENYESUAIAN UI: Menambah clanCapitalPoints */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4"> {/* Adjusted grid cols */}
                     <StatCard icon={UserIcon} title="Anggota" value={`${clan.memberCount}/50`} color="text-coc-blue" />
                     <StatCard icon={TrophyIcon} title="Poin Klan" value={clan.clanPoints.toLocaleString()} color="text-coc-gold" />
+                    <StatCard icon={StarIcon} title="Poin Ibu Kota" value={clan.clanCapitalPoints?.toLocaleString() || 'N/A'} color="text-yellow-400" /> {/* BARU */}
                     <StatCard icon={ShieldIcon} title="Kemenangan War" value={clan.warWins?.toLocaleString() || 'N/A'} color="text-coc-green" />
                     <StatCard icon={GlobeIcon} title="Tipe Klan" value={clan.type || 'N/A'} color="text-gray-400" />
                 </div>
@@ -197,16 +190,18 @@ const ClanPublicProfilePage: NextPage = () => {
                     <h2 className="text-2xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2">Deskripsi Klan</h2>
                     <p className="text-gray-300 whitespace-pre-line font-sans">{clan.description || 'Tidak ada deskripsi yang tersedia.'}</p>
                     <div className="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-400">
+                        {/* Data yang sudah ada */}
                         <DetailItem icon={MapPinIcon} label="Lokasi" value={clan.location?.name || 'Global'} />
                         <DetailItem icon={ClockIcon} label="Frekuensi War" value={clan.warFrequency || 'N/A'} />
                         <DetailItem icon={TrophyIcon} label="Trofi Dibutuhkan" value={clan.requiredTrophies?.toLocaleString() || '0'} />
                         <DetailItem icon={ShieldIcon} label="Rekor War Winstreak" value={clan.warWinStreak?.toLocaleString() || '0'} />
+                        {/* Bisa tambahkan detail lain di sini jika ada */}
                     </div>
                 </div>
 
                 {/* Daftar Anggota (Opsional) */}
-                {memberList.length > 0 && (
-                     <div className="card-stone p-6 space-y-4 rounded-lg">
+                {memberList.length > 0 ? ( // Added check for length > 0
+                    <div className="card-stone p-6 space-y-4 rounded-lg">
                         <h2 className="text-2xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2">Daftar Anggota ({memberList.length})</h2>
                         <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-coc-gold-dark/20 text-xs">
@@ -236,17 +231,23 @@ const ClanPublicProfilePage: NextPage = () => {
                             </table>
                         </div>
                         <p className="text-xs text-gray-500 font-sans pt-2">
-                             *Daftar anggota mungkin tidak selalu tersedia di profil publik karena batasan API.
+                             *Daftar anggota mungkin tidak selalu tersedia di profil publik karena batasan API CoC.
                         </p>
+                    </div>
+                ) : (
+                     // Optional: Show a message if memberList is empty or undefined
+                     <div className="card-stone p-6 rounded-lg">
+                          <h2 className="text-2xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2">Daftar Anggota</h2>
+                          <p className="text-gray-400 text-center py-5">Informasi daftar anggota tidak tersedia untuk klan ini saat ini.</p>
                      </div>
                 )}
-            </div>
+            </>
         </main>
     );
 };
 
 // =========================================================================
-// CLIENT COMPONENT FOR CLAN BADGE WITH FALLBACK
+// CLIENT COMPONENT FOR CLAN BADGE WITH FALLBACK (Tidak Berubah)
 // =========================================================================
 interface ClanBadgeImageProps {
     src: string;
@@ -286,26 +287,28 @@ const ClanBadgeImage: React.FC<ClanBadgeImageProps> = ({ src: initialSrc, alt, w
 };
 
 // =========================================================================
-// HELPER COMPONENTS (Unchanged)
+// HELPER COMPONENTS (Tidak Berubah)
 // =========================================================================
-const StatCard = ({ icon: Icon, title, value, color }: { icon: React.FC<React.SVGProps<SVGSVGElement>>, title: string, value: string, color: string }) => (
+const StatCard = ({ icon: Icon, title, value, color }: { icon: React.FC<React.SVGProps<SVGSVGElement>>, title: string, value: string | undefined, color: string }) => ( // Value can be undefined
     <div className="card-stone p-4 flex items-center space-x-3 bg-coc-stone/50 rounded-lg">
         <Icon className={`h-8 w-8 ${color} flex-shrink-0`} />
         <div>
             <p className="text-sm text-gray-400 font-sans">{title}</p>
-            <p className="text-xl font-clash text-white">{value}</p>
+            {/* Handle potentially undefined value */}
+            <p className="text-xl font-clash text-white">{value ?? 'N/A'}</p>
         </div>
     </div>
 );
 
-const DetailItem = ({ icon: Icon, label, value }: { icon: React.FC<React.SVGProps<SVGSVGElement>>, label: string, value: string }) => (
+
+const DetailItem = ({ icon: Icon, label, value }: { icon: React.FC<React.SVGProps<SVGSVGElement>>, label: string, value: string | undefined }) => ( // Value can be undefined
     <div className="flex items-center space-x-3">
         <Icon className="h-5 w-5 text-coc-gold flex-shrink-0" />
         <p>
-            <span className="font-bold text-white">{label}:</span> {value}
+            <span className="font-bold text-white">{label}:</span> {value ?? 'N/A'} {/* Handle potentially undefined value */}
         </p>
     </div>
 );
 
-export default ClanPublicProfilePage; // Export the main component
 
+export default ClanPublicProfilePage; // Export the main component
