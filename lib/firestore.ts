@@ -57,8 +57,8 @@ async function getDocumentById<T>(collectionName: string, id: string): Promise<F
                 if (data[key] instanceof ClientTimestamp) {
                     data[key] = (data[key] as ClientTimestamp).toDate();
                 }
-                 // Handle Firestore Timestamps within nested objects/arrays if necessary
-                 // This example only handles top-level timestamps
+                // Handle Firestore Timestamps within nested objects/arrays if necessary
+                // This example only handles top-level timestamps
             });
             return { ...data as T, id: docSnap.id }; // Pastikan cast ke T setelah konversi
         }
@@ -86,7 +86,8 @@ async function getCollectionData<T>(collectionName: string): Promise<FirestoreDo
                 if (data[key] instanceof ClientTimestamp) {
                     data[key] = (data[key] as ClientTimestamp).toDate();
                 }
-                 // Handle Firestore Timestamps within nested objects/arrays if necessary
+                // Handle Firestore Timestamps within nested objects/arrays if necessary
+                // This example only handles top-level timestamps
             });
             return { id: doc.id, ...data } as FirestoreDocument<T>; // Pastikan cast ke T setelah konversi
         });
@@ -133,12 +134,12 @@ export const createUserProfile = async (uid: string, data: Partial<UserProfile>)
             teamName: data.teamName ?? null,
         };
         // Hapus field undefined sebelum kirim ke firestore client sdk
-         Object.keys(profileData).forEach(key => {
-              if ((profileData as any)[key] === undefined) {
-                  delete (profileData as any)[key];
-              }
-          });
-        await clientSetDoc(userRef, profileData);
+          Object.keys(profileData).forEach(key => {
+               if ((profileData as any)[key] === undefined) {
+                   delete (profileData as any)[key];
+               }
+           });
+        await clientSetDoc(userRef, profileData, { merge: true }); // Menggunakan merge true untuk update
     } catch (error) {
         console.error(`Firestore Error [createUserProfile - Client(${uid})]:`, error);
         throw new Error("Gagal membuat profil pengguna baru di database.");
@@ -152,14 +153,14 @@ export const createUserProfile = async (uid: string, data: Partial<UserProfile>)
 export const updateUserProfile = async (uid: string, data: Partial<UserProfile>): Promise<void> => {
     try {
         const userRef = clientDoc(firestore, COLLECTIONS.USERS, uid);
-         // Hapus field undefined sebelum kirim
-         const cleanData: Partial<UserProfile> = {};
-         Object.keys(data).forEach(keyStr => {
-              const key = keyStr as keyof Partial<UserProfile>;
-              if (data[key] !== undefined) {
-                  (cleanData as any)[key] = data[key];
-              }
-          });
+          // Hapus field undefined sebelum kirim
+          const cleanData: Partial<UserProfile> = {};
+          Object.keys(data).forEach(keyStr => {
+               const key = keyStr as keyof Partial<UserProfile>;
+               if (data[key] !== undefined) {
+                    (cleanData as any)[key] = data[key];
+               }
+           });
         await clientSetDoc(userRef, cleanData, { merge: true });
     } catch (error) {
         console.error(`Firestore Error [updateUserProfile - Client(${uid})]:`, error);
@@ -174,6 +175,46 @@ export const updateUserProfile = async (uid: string, data: Partial<UserProfile>)
 export const getUserProfile = async (uid: string): Promise<UserProfile | null> => {
     return getDocumentById<UserProfile>(COLLECTIONS.USERS, uid);
 };
+
+// --- FUNGSI BARU: Mencari UserProfile berdasarkan Tag CoC ---
+/**
+ * Mengambil data profil pengguna berdasarkan Tag Pemain CoC.
+ * Catatan: Ini memerlukan indeks Firestore pada field 'playerTag'.
+ */
+export const getUserProfileByTag = async (playerTag: string): Promise<UserProfile | null> => {
+    // Normalisasi tag (hapus # jika ada)
+    const normalizedTag = playerTag.startsWith('#') ? playerTag.toUpperCase() : `#${playerTag.toUpperCase()}`;
+    
+    try {
+        const usersRef = clientCollection(firestore, COLLECTIONS.USERS);
+        const q = clientQuery(
+            usersRef,
+            clientWhere('playerTag', '==', normalizedTag),
+            clientLimit(1) // Hanya perlu satu hasil
+        );
+        const snapshot = await clientGetDocs(q);
+
+        if (snapshot.docs.length > 0) {
+            const doc = snapshot.docs[0];
+            const data = doc.data() as DocumentData;
+            // Konversi Timestamp
+            Object.keys(data).forEach(key => {
+                 if (data[key] instanceof ClientTimestamp) {
+                      data[key] = (data[key] as ClientTimestamp).toDate();
+                 }
+            });
+            return { uid: doc.id, ...data } as UserProfile;
+        }
+
+        console.log(`Firestore Info [getUserProfileByTag - Client(${normalizedTag})]: Profile not found.`);
+        return null;
+    } catch (error) {
+        console.error(`Firestore Error [getUserProfileByTag - Client(${normalizedTag})]:`, error);
+        return null;
+    }
+};
+// -----------------------------------------------------------
+
 
 /**
  * Mengambil daftar semua pemain (subset UserProfile).
@@ -385,6 +426,42 @@ export const createPost = async (
     }
 };
 
+// --- FUNGSI BARU: Mengambil Postingan Berdasarkan Penulis ---
+/**
+ * Mengambil daftar postingan berdasarkan UID penulis.
+ * Menggunakan Client SDK.
+ */
+export const getPostsByAuthor = async (authorId: string, limitCount: number = 3): Promise<FirestoreDocument<Post>[]> => {
+    const postsRef = clientCollection(firestore, COLLECTIONS.POSTS);
+    // Query: filter berdasarkan authorId, urutkan berdasarkan waktu buat terbaru, batasi 3
+    let q = clientQuery(
+        postsRef,
+        clientWhere('authorId', '==', authorId),
+        clientOrderBy('createdAt', 'desc'),
+        clientLimit(limitCount)
+    );
+
+    try {
+        const snapshot = await clientGetDocs(q);
+        return snapshot.docs.map(doc => {
+            const data = doc.data();
+            Object.keys(data).forEach(key => {
+                 if (data[key] instanceof ClientTimestamp) {
+                     data[key] = (data[key] as ClientTimestamp).toDate();
+                 }
+             });
+            return {
+                id: doc.id,
+                ...data,
+            } as FirestoreDocument<Post>;
+        });
+    } catch (error) {
+        console.error(`Firestore Error [getPostsByAuthor - Client(${authorId})]:`, error);
+        return [];
+    }
+};
+// -------------------------------------------------------------------
+
 /**
  * Mengambil daftar postingan dengan filter dan sortir.
  * Menggunakan Client SDK.
@@ -401,14 +478,14 @@ export const getPosts = async (
         q = clientQuery(q, clientWhere('category', '==', category));
     }
 
-     q = clientQuery(q, clientOrderBy(sortBy, sortOrder));
-     q = clientQuery(q, clientLimit(50));
+      q = clientQuery(q, clientOrderBy(sortBy, sortOrder));
+      q = clientQuery(q, clientLimit(50));
 
     try {
         const snapshot = await clientGetDocs(q);
         return snapshot.docs.map(doc => {
             const data = doc.data();
-             Object.keys(data).forEach(key => {
+            Object.keys(data).forEach(key => {
                  if (data[key] instanceof ClientTimestamp) {
                      data[key] = (data[key] as ClientTimestamp).toDate();
                  }
@@ -423,4 +500,3 @@ export const getPosts = async (
         return [];
     }
 };
-

@@ -1,7 +1,14 @@
+// File: app/components/icons.tsx
+// Deskripsi: Kumpulan ikon SVG (Lucide) untuk konsistensi UI.
+
 import React from 'react';
 
 // Properti standar untuk semua ikon
 type IconProps = React.SVGProps<SVGSVGElement>;
+
+// =========================================================================
+// IKON DASAR
+// =========================================================================
 
 export const BellIcon = (props: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -59,14 +66,11 @@ export const XIcon = (props: IconProps) => (
     </svg>
 );
 
-// Ikon Bintang (filled style)
 export const StarIcon = (props: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
     </svg>
 );
-
-// --- IKON YANG SUDAH ADA DARI SEBELUMNYA ---
 
 export const ArrowLeftIcon = (props: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -87,8 +91,6 @@ export const ClockIcon = (props: IconProps) => (
         <polyline points="12 6 12 12 16 14" />
     </svg>
 );
-
-// --- IKON UTAMA LAINNYA ---
 
 export const TrophyIcon = (props: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -185,7 +187,6 @@ export const UserCircleIcon = (props: IconProps) => (
     </svg>
 );
 
-// Ikon BARU yang HILANG sebelumnya
 export const SaveIcon = (props: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
@@ -202,8 +203,6 @@ export const InfoIcon = (props: IconProps) => (
     </svg>
 );
 
-// --- IKON BARU DARI KEBUTUHAN BARU (Globe/Link & Discord) ---
-
 export const GlobeIcon = (props: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <circle cx="12" cy="12" r="10" />
@@ -212,7 +211,6 @@ export const GlobeIcon = (props: IconProps) => (
     </svg>
 );
 
-// BARU: Ikon MapPin untuk Lokasi Klan (Memperbaiki error di app/clan/[clanTag]/page.tsx)
 export const MapPinIcon = (props: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <path d="M12 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/>
@@ -220,8 +218,7 @@ export const MapPinIcon = (props: IconProps) => (
     </svg>
 );
 
-export const LinkIcon = (props: IconProps) => ( // Alternatif untuk tautan
-    // PERBAIKAN: Menghapus duplikasi strokeLinecap
+export const LinkIcon = (props: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
         <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
@@ -235,20 +232,18 @@ export const DiscordIcon = (props: IconProps) => (
     </svg>
 );
 
-// BARU: Ikon Check (Tugas 2.3)
 export const CheckIcon = (props: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <polyline points="20 6 9 17 4 12" />
     </svg>
 );
 
-// BARU: Ikon Edit (Tugas 3.2)
 export const EditIcon = (props: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
     </svg>
 );
-// BARU: Ikon Sort (Tugas 3.1)
+
 export const SortAscIcon = (props: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <path d="m3 12 4-4 4 4"/>
@@ -258,7 +253,6 @@ export const SortAscIcon = (props: IconProps) => (
     </svg>
 );
 
-// BARU: Ikon PaperPlane
 export const PaperPlaneIcon = (props: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <path d="m22 2-7 20-4-9-9-4 20-7Z"/>
@@ -266,7 +260,6 @@ export const PaperPlaneIcon = (props: IconProps) => (
     </svg>
 );
 
-// BARU: Ikon AlertTriangle
 export const AlertTriangleIcon = (props: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
@@ -275,7 +268,6 @@ export const AlertTriangleIcon = (props: IconProps) => (
     </svg>
 );
 
-// BARU: Ikon RefreshCwIcon (untuk Loading/Filtering)
 export const RefreshCwIcon = (props: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.7 2.7L3 8" />
@@ -285,7 +277,6 @@ export const RefreshCwIcon = (props: IconProps) => (
     </svg>
 );
 
-// PENAMBAHAN IKON YANG HILANG (Briefcase & ShieldCheck)
 export const BriefcaseIcon = (props: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <rect width="20" height="14" x="2" y="7" rx="2" ry="2"/>
@@ -297,5 +288,14 @@ export const ShieldCheckIcon = (props: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>
         <path d="m9 12 2 2 4-4"/>
+    </svg>
+);
+
+// PENTING: Penambahan ExternalLinkIcon
+export const ExternalLinkIcon = (props: IconProps) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path d="M15 3h6v6"/>
+        <path d="M10 14 21 3"/>
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
     </svg>
 );

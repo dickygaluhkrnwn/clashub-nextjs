@@ -8,35 +8,41 @@ import cocApi from '@/lib/coc-api';
 // Menggunakan fungsi firestore yang sudah diupdate (Admin SDK untuk write, Client SDK untuk read)
 import { getPublicClanIndex } from '@/lib/firestore'; // <<<--- Hanya perlu get (Client SDK)
 import { updatePublicClanIndex } from '@/lib/firestore-admin'; // <<<--- Import update dari Admin SDK file
-import { PublicClanIndex, CocClan } from '@/lib/types';
+import { PublicClanIndex, CocClan, CocMember } from '@/lib/types';
 import { getClanTagsToMonitor } from '@/lib/server-utils'; // Fungsi untuk mendapatkan daftar klan
 
 // Cache dianggap 'stale' (kadaluarsa) jika lebih dari 6 jam (6 * 60 * 60 * 1000 ms)
 const CACHE_STALE_MS = 1000 * 60 * 60 * 6;
 
 /**
+ * Tipe yang dikembalikan oleh fetchAndUpdatePublicIndex:
+ * Menggabungkan PublicClanIndex (untuk cache) dengan CocClan (untuk live data)
+ */
+type ClanFetchResult = {
+    clanData: PublicClanIndex | CocClan;
+    source: 'cache' | 'live';
+}
+
+/**
  * Fungsi utilitas internal untuk mengambil data API dan mengupdate cache.
  * @param clanTag Tag Klan yang sudah di-encode.
  * @param forceUpdate Lewati pemeriksaan cache jika true.
- * @returns {Promise<PublicClanIndex>} Data klan yang sudah di-cache.
+ * @returns {Promise<ClanFetchResult>} Data klan yang sudah di-cache atau data live.
  * @throws {Error} Jika clan tidak ditemukan atau terjadi error API/Firestore.
  */
-async function fetchAndUpdatePublicIndex(clanTag: string, forceUpdate: boolean = false): Promise<PublicClanIndex> {
+async function fetchAndUpdatePublicIndex(clanTag: string, forceUpdate: boolean = false): Promise<ClanFetchResult> {
     // --- DEBUG LOGGING ---
     console.log(`[fetchAndUpdatePublicIndex] Started for tag: ${clanTag}, forceUpdate: ${forceUpdate}`);
     // --- END DEBUG LOGGING ---
 
     // 1. Cek Cache Firestore (Hanya jika tidak dipaksa update)
-    let cachedData: PublicClanIndex | null = null; // Tipe eksplisit
+    let cachedData: PublicClanIndex | null = null;
     if (!forceUpdate) {
         // --- DEBUG LOGGING ---
         console.log(`[fetchAndUpdatePublicIndex] Checking Firestore cache for ${clanTag}...`);
         // --- END DEBUG LOGGING ---
         try {
             cachedData = await getPublicClanIndex(clanTag); // getPublicClanIndex pakai Client SDK (aman)
-             // --- DEBUG LOGGING ---
-             console.log(`[fetchAndUpdatePublicIndex] Firestore cache result for ${clanTag}: ${cachedData ? 'Found' : 'Not Found'}`);
-             // --- END DEBUG LOGGING ---
 
             if (cachedData) {
                 // Pastikan lastUpdated adalah objek Date
@@ -48,12 +54,13 @@ async function fetchAndUpdatePublicIndex(clanTag: string, forceUpdate: boolean =
                     const isFresh = (Date.now() - lastUpdatedDate.getTime()) < CACHE_STALE_MS;
                     if (isFresh) {
                         console.log(`[PUBLIC INDEX] Returning fresh cache for ${clanTag}`);
-                        return cachedData;
+                        // Mengembalikan data index dari cache (Tanpa MemberList)
+                        return { clanData: cachedData, source: 'cache' };
                     } else {
-                         console.log(`[fetchAndUpdatePublicIndex] Cache for ${clanTag} is stale.`);
+                        console.log(`[fetchAndUpdatePublicIndex] Cache for ${clanTag} is stale.`);
                     }
                 } else {
-                     console.warn(`[PUBLIC INDEX] Invalid lastUpdated timestamp found for ${clanTag}, forcing refresh.`);
+                    console.warn(`[PUBLIC INDEX] Invalid lastUpdated timestamp found for ${clanTag}, forcing refresh.`);
                 }
             }
         } catch (cacheError) {
@@ -61,7 +68,7 @@ async function fetchAndUpdatePublicIndex(clanTag: string, forceUpdate: boolean =
             // Lanjutkan untuk fetch dari API jika cache error
         }
     } else {
-         console.log(`[fetchAndUpdatePublicIndex] Force update enabled, skipping cache check for ${clanTag}.`);
+        console.log(`[fetchAndUpdatePublicIndex] Force update enabled, skipping cache check for ${clanTag}.`);
     }
 
     // 2. Cache stale, tidak ada, atau dipaksa update: Fetch dari API CoC
@@ -69,23 +76,16 @@ async function fetchAndUpdatePublicIndex(clanTag: string, forceUpdate: boolean =
 
     let apiData: CocClan;
     try {
-        // --- DEBUG LOGGING ---
-        console.log(`[fetchAndUpdatePublicIndex] Calling cocApi.getClanData with tag: ${clanTag}`);
-        // --- END DEBUG LOGGING ---
         apiData = await cocApi.getClanData(clanTag);
-        // --- DEBUG LOGGING ---
         console.log(`[fetchAndUpdatePublicIndex] Successfully fetched API data for ${clanTag}. Clan Name: ${apiData.name}`);
-        // --- END DEBUG LOGGING ---
     } catch (apiError) {
-        // --- DEBUG LOGGING ---
-        console.error(`[fetchAndUpdatePublicIndex] Error calling cocApi.getClanData for ${clanTag}:`, apiError);
-        // --- END DEBUG LOGGING ---
         // Lempar ulang error agar bisa ditangkap oleh GET handler
+        console.error(`[fetchAndUpdatePublicIndex] Error calling cocApi.getClanData for ${clanTag}:`, apiError);
         throw apiError;
     }
 
 
-    // 3. Transformasi dan Update Cache
+    // 3. Transformasi dan Update Cache (Hanya untuk Indexing)
     const newIndexData: Omit<PublicClanIndex, 'lastUpdated'> = {
         tag: apiData.tag,
         name: apiData.name,
@@ -106,34 +106,15 @@ async function fetchAndUpdatePublicIndex(clanTag: string, forceUpdate: boolean =
 
     // Update/set dokumen di koleksi publicClanIndex (pakai Admin SDK)
     try {
-        // --- DEBUG LOGGING ---
-        console.log(`[fetchAndUpdatePublicIndex] Updating Firestore cache (publicClanIndex) for ${apiData.tag}...`);
-        // --- END DEBUG LOGGING ---
-        await updatePublicClanIndex(apiData.tag, newIndexData); // <<<--- Memanggil fungsi dari firestore-admin.ts
-        // --- DEBUG LOGGING ---
+        await updatePublicClanIndex(apiData.tag, newIndexData);
         console.log(`[fetchAndUpdatePublicIndex] Firestore cache updated for ${apiData.tag}.`);
-        // --- END DEBUG LOGGING ---
     } catch (updateError) {
         console.error(`[fetchAndUpdatePublicIndex] Error updating Firestore cache for ${apiData.tag}:`, updateError);
-        // Pertimbangkan: apakah harus throw error atau mengembalikan data API meskipun cache gagal?
-        // Untuk sekarang, kita log error tapi tetap coba kembalikan data baru
     }
 
-
-    // Dapatkan data yang diperbarui (dengan timestamp baru) - pakai Client SDK (aman)
-    // --- DEBUG LOGGING ---
-    console.log(`[fetchAndUpdatePublicIndex] Retrieving updated cache for ${apiData.tag} after update...`);
-    // --- END DEBUG LOGGING ---
-    const updatedCache = await getPublicClanIndex(apiData.tag);
-    if (!updatedCache) {
-         console.error(`[PUBLIC INDEX] Failed to retrieve cache immediately after update for ${clanTag}`);
-         // Fallback: kembalikan data API yang baru diambil dengan timestamp saat ini
-         return { ...newIndexData, lastUpdated: new Date() } as PublicClanIndex;
-    }
-     // --- DEBUG LOGGING ---
-     console.log(`[fetchAndUpdatePublicIndex] Returning updated cache for ${apiData.tag}.`);
-     // --- END DEBUG LOGGING ---
-    return updatedCache;
+    // 4. Mengembalikan data API secara penuh (CocClan) yang mencakup memberList
+    console.log(`[fetchAndUpdatePublicIndex] Returning full live API data for ${apiData.tag}.`);
+    return { clanData: apiData, source: 'live' };
 }
 
 
@@ -147,50 +128,34 @@ async function fetchAndUpdatePublicIndex(clanTag: string, forceUpdate: boolean =
  */
 export async function GET(request: NextRequest) {
     const clanTagParam = request.nextUrl.searchParams.get('clanTag');
-    // --- DEBUG LOGGING ---
     console.log(`[API GET /search-clan] Received request. clanTagParam: ${clanTagParam}`);
-    // --- END DEBUG LOGGING ---
 
     if (!clanTagParam) {
-        // --- DEBUG LOGGING ---
-        console.log("[API GET /search-clan] Error: Missing clanTag parameter.");
-        // --- END DEBUG LOGGING ---
         return NextResponse.json({ error: 'Missing clanTag parameter.' }, { status: 400 });
     }
-     const clanTag = clanTagParam.trim().toUpperCase();
-     // --- DEBUG LOGGING ---
-     console.log(`[API GET /search-clan] Cleaned clanTag: ${clanTag}`);
-     // --- END DEBUG LOGGING ---
-     const encodedTag = encodeURIComponent(clanTag.startsWith('#') ? clanTag : `#${clanTag}`);
-     // --- DEBUG LOGGING ---
-     console.log(`[API GET /search-clan] Encoded tag for processing: ${encodedTag}`);
-     // --- END DEBUG LOGGING ---
+    const clanTag = clanTagParam.trim().toUpperCase();
+    const encodedTag = encodeURIComponent(clanTag.startsWith('#') ? clanTag : `#${clanTag}`);
 
     try {
-        // --- DEBUG LOGGING ---
-        console.log(`[API GET /search-clan] Calling fetchAndUpdatePublicIndex for encoded tag: ${encodedTag}`);
-        // --- END DEBUG LOGGING ---
-        const clanData = await fetchAndUpdatePublicIndex(encodedTag, false);
-         // --- DEBUG LOGGING ---
-         console.log(`[API GET /search-clan] fetchAndUpdatePublicIndex succeeded for ${encodedTag}. Returning data.`);
-         // --- END DEBUG LOGGING ---
+        // Panggil fungsi yang sudah dimodifikasi
+        const { clanData, source } = await fetchAndUpdatePublicIndex(encodedTag, false);
+        console.log(`[API GET /search-clan] fetchAndUpdatePublicIndex succeeded for ${encodedTag}. Returning data (Source: ${source}).`);
+
+        // Mengembalikan data penuh (CocClan jika 'live', PublicClanIndex jika 'cache')
         return NextResponse.json({
             clan: clanData,
-            source: clanData.lastUpdated && (Date.now() - new Date(clanData.lastUpdated).getTime()) < 10000 ? 'live' : 'cache'
+            source: source,
         }, { status: 200 });
 
     } catch (error) {
-        // --- DEBUG LOGGING ---
         console.error(`[API GET /search-clan] Caught error for ${clanTag} (encoded: ${encodedTag}):`, error);
-        // --- END DEBUG LOGGING ---
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred.';
-         if (errorMessage.startsWith('notFound')) {
-             return NextResponse.json({ error: `Clan with tag ${clanTag} not found.` }, { status: 404 });
-         }
-         if (errorMessage.includes('Forbidden')) {
-              return NextResponse.json({ error: `Access denied (403). Check API Key/IP. Detail: ${errorMessage}` }, { status: 403 });
-         }
-        // Log error umum yang tidak tertangkap secara spesifik
+        if (errorMessage.startsWith('notFound')) {
+            return NextResponse.json({ error: `Clan with tag ${clanTag} not found.` }, { status: 404 });
+        }
+        if (errorMessage.includes('Forbidden')) {
+            return NextResponse.json({ error: `Access denied (403). Check API Key/IP. Detail: ${errorMessage}` }, { status: 403 });
+        }
         console.error(`[API GET /search-clan] Unhandled error during public clan search for ${clanTag}:`, error);
         return NextResponse.json({ error: `Search failed: ${errorMessage}` }, { status: 500 });
     }
@@ -222,9 +187,8 @@ export async function POST(request: NextRequest) {
         const updatePromises = tagsToUpdate.map(async (tag: string) => {
              const encodedTag = encodeURIComponent(tag.startsWith('#') ? tag : `#${tag}`);
             try {
-                // --- DEBUG LOGGING (Cron) ---
-                console.log(`[CRON JOB] Updating tag: ${tag} (encoded: ${encodedTag})`);
-                // --- END DEBUG LOGGING ---
+                // Ketika dipanggil dari cron job, kita paksa update dan kita tidak peduli dengan nilai kembali
+                // Kita hanya peduli cache index-nya terupdate.
                 await fetchAndUpdatePublicIndex(encodedTag, true); // forceUpdate=true
                 updatedCount++;
                 return { tag, status: 'Success' };
