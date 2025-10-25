@@ -3,61 +3,78 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
 import { app } from '@/lib/firebase';
-// Import tipe ServerUser
 import { ServerUser } from '@/lib/server-auth';
+// Impor Tipe UserProfile dan fungsi getter
+import { UserProfile } from '@/lib/types';
+import { getUserProfile } from '@/lib/firestore'; // Fungsi client-side untuk fetch data
 
 const auth = getAuth(app);
 
 interface AuthContextType {
-  currentUser: User | ServerUser | null; // Tipe bisa User dari Firebase atau ServerUser dari server
+  currentUser: User | null; // Objek User dari Firebase Auth
+  userProfile: UserProfile | ServerUser | null; // Data lengkap dari Firestore
   loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
-    currentUser: null,
-    loading: true
+  currentUser: null,
+  userProfile: null, // Tambahkan userProfile ke context
+  loading: true,
 });
 
-// Tambahkan prop initialServerUser
 interface AuthProviderProps {
-    children: ReactNode;
-    initialServerUser: ServerUser | null; // Terima data dari server
+  children: ReactNode;
+  initialServerUser: ServerUser | null; // Terima data dari server
 }
 
 export function AuthProvider({ children, initialServerUser }: AuthProviderProps) {
-  // Gunakan initialServerUser sebagai state awal jika ada
-  // Casting `initialServerUser as User` aman di sini karena kita hanya butuh info dasar (uid, dll) untuk render awal
-  const [currentUser, setCurrentUser] = useState<User | ServerUser | null>(initialServerUser);
-  // Jika server sudah memberikan user, kita anggap tidak loading lagi di awal
+  // Pisahkan state:
+  // currentUser untuk data auth Firebase (user.uid, user.email, dll)
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  // userProfile untuk data dari database Firestore (isVerified, teamId, dll)
+  const [userProfile, setUserProfile] = useState<UserProfile | ServerUser | null>(
+    initialServerUser,
+  );
+  // Loading state
   const [loading, setLoading] = useState(!initialServerUser);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      // Update state dengan object User dari Firebase saat listener berjalan
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      // Set status auth Firebase
       setCurrentUser(user);
-      // Hanya set loading false jika listener *pertama kali* berjalan
-      if (loading) {
-          setLoading(false);
+
+      if (user) {
+        // Jika user login, ambil data lengkapnya dari Firestore
+        try {
+          const profile = await getUserProfile(user.uid);
+          setUserProfile(profile);
+        } catch (error) {
+          console.error('Gagal mengambil profil user di AuthContext:', error);
+          setUserProfile(null); // Gagal fetch, pastikan profile null
+        }
+      } else {
+        // Jika user logout, kosongkan juga profilnya
+        setUserProfile(null);
       }
+      
+      // Selesai loading setelah status auth dan profile (jika ada) berhasil didapatkan
+      setLoading(false);
     });
 
     // Membersihkan listener
     return unsubscribe;
-  // Hapus `loading` dari dependency array agar setLoading(false) hanya dipanggil sekali oleh listener
-  }, []);
+  }, []); // Dependency array kosong agar hanya berjalan sekali
 
   const value = {
-    currentUser,
-    // Loading state sekarang hanya true jika initialServerUser null DAN listener belum berjalan
-    loading: loading && !currentUser,
+    currentUser, // Objek auth
+    userProfile, // Objek data Firestore
+    loading,
   };
 
-  // Logika render children diubah sedikit:
-  // Render children jika kita punya initialServerUser ATAU jika client-side loading sudah selesai
   return (
     <AuthContext.Provider value={value}>
-      {/* Tampilkan children jika ada user dari server ATAU jika loading client sudah selesai */}
-      {(initialServerUser || !loading) && children}
+      {/* Tampilkan children hanya jika loading sudah selesai */}
+      {!loading && children}
     </AuthContext.Provider>
   );
 }

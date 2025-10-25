@@ -1,13 +1,13 @@
 // File: app/api/coc/verify-player/route.ts
 // Deskripsi: API Route untuk memproses verifikasi Player Tag Clash of Clans
-// menggunakan Token Verifikasi In-Game. (PERBAIKAN: API Flow, Tipe Data, Error Handling, Import Fix, Use Admin Function)
+// menggunakan Token Verifikasi In-Game. (PERBAIKAN: API Flow, Tipe Data, Error Handling, Import Fix, Use Admin Function, Encoding Tag)
 
 import { NextRequest, NextResponse } from 'next/server';
 // Menggunakan default export dari lib/coc-api
 import cocApi from '@/lib/coc-api';
 // Import fungsi Client SDK untuk read dan fungsi Admin SDK untuk write
 import { getUserProfile } from '@/lib/firestore'; // Hanya perlu read profile
-import { createOrLinkManagedClan, updateMemberRole } from '@/lib/firestore-admin'; // <<<--- IMPORT FUNGSI ADMIN DARI SINI
+import { createOrLinkManagedClan } from '@/lib/firestore-admin'; // <<<--- IMPORT FUNGSI ADMIN DARI SINI
 import { adminFirestore } from '@/lib/firebase-admin'; // Import adminFirestore untuk update user profile
 import { getSessionUser } from '@/lib/server-auth'; // Untuk otentikasi Server-Side
 import { PlayerVerificationRequest, UserProfile, ClanRole, CocPlayer } from '@/lib/types'; // Import tipe data ClanRole dan CocPlayer
@@ -18,6 +18,7 @@ import { PlayerVerificationRequest, UserProfile, ClanRole, CocPlayer } from '@/l
  */
 export async function POST(request: NextRequest) {
     let playerTag: string = ''; // Inisialisasi untuk logging error
+    let encodedPlayerTag: string = ''; // Variabel untuk menyimpan tag yang sudah di-encode
 
     try {
         // 1. Otorisasi Pengguna
@@ -29,27 +30,34 @@ export async function POST(request: NextRequest) {
 
         // 2. Ambil dan Validasi Payload Dasar
         const payload = (await request.json()) as PlayerVerificationRequest;
-        playerTag = payload.playerTag; // Simpan untuk logging error
+        playerTag = payload.playerTag; // Simpan tag MENTAH untuk logging error dan pesan
         const apiToken = payload.apiToken;
 
         if (!playerTag || !apiToken) {
             return NextResponse.json({ message: 'Player tag dan token verifikasi wajib diisi.' }, { status: 400 });
         }
 
+        // --- PERBAIKAN: Encode playerTag SEBELUM dikirim ke cocApi ---
+        // Pastikan tag selalu diawali '#' sebelum encoding
+        const cleanedTag = playerTag.trim().toUpperCase();
+        const tagWithHash = cleanedTag.startsWith('#') ? cleanedTag : `#${cleanedTag}`;
+        encodedPlayerTag = encodeURIComponent(tagWithHash);
+        // --- AKHIR PERBAIKAN ---
+
         // --- LOGIKA API ---
 
-        // 3. Verifikasi Token melalui API CoC
-        await cocApi.verifyPlayerToken(playerTag, apiToken);
+        // 3. Verifikasi Token melalui API CoC (Gunakan encoded tag)
+        await cocApi.verifyPlayerToken(encodedPlayerTag, apiToken);
         console.log(`[VERIFIKASI] Token valid untuk ${playerTag}`);
 
-        // 4. Ambil Data Pemain yang baru saja terverifikasi
-        const cocPlayerData: CocPlayer = await cocApi.getPlayerData(playerTag);
+        // 4. Ambil Data Pemain yang baru saja terverifikasi (Gunakan encoded tag)
+        const cocPlayerData: CocPlayer = await cocApi.getPlayerData(encodedPlayerTag);
         console.log(`[VERIFIKASI] Data pemain ${cocPlayerData.name} (${playerTag}) berhasil diambil.`);
 
         // 5. Siapkan data update untuk UserProfile
         const updateData: Partial<UserProfile> = {
             isVerified: true,
-            playerTag: cocPlayerData.tag,
+            playerTag: cocPlayerData.tag, // Simpan tag asli dari API (sudah pasti benar)
             inGameName: cocPlayerData.name,
             thLevel: cocPlayerData.townHallLevel,
             trophies: cocPlayerData.trophies,
@@ -79,8 +87,9 @@ export async function POST(request: NextRequest) {
             // 6. Logika Penautan Klan (Jika Leader/Co-Leader)
             if (cocApiRole === ClanRole.LEADER || cocApiRole === ClanRole.CO_LEADER) {
                 try {
-                     const managedClanId = await createOrLinkManagedClan( // <<<--- Gunakan fungsi Admin SDK
-                        cocPlayerData.clan.tag,
+                     // createOrLinkManagedClan menerima tag MENTAH
+                     const managedClanId = await createOrLinkManagedClan(
+                        cocPlayerData.clan.tag, // Tag asli dari API
                         cocPlayerData.clan.name,
                         uid
                      );
@@ -89,6 +98,8 @@ export async function POST(request: NextRequest) {
                      console.log(`[VERIFIKASI] User ${uid} menautkan klan ${cocPlayerData.clan.tag} ke ManagedClan ${managedClanId}`);
                 } catch (clanLinkError) {
                      console.error(`[VERIFIKASI] Gagal menautkan klan ${cocPlayerData.clan.tag} untuk user ${uid}:`, clanLinkError);
+                     // Mungkin tambahkan notifikasi error spesifik jika penautan gagal?
+                     // Untuk saat ini, kita lanjutkan update profil user tanpa teamId
                 }
             } else {
                  // Jika bukan Leader/Co, set teamName tapi teamId mungkin null (jika klan belum dikelola)
@@ -104,9 +115,10 @@ export async function POST(request: NextRequest) {
         // 7. Simpan Pembaruan ke Firestore User Profile (Gunakan Admin SDK langsung)
         const userRef = adminFirestore.doc(`users/${uid}`);
         // Hapus field undefined sebelum mengirim ke Admin SDK
-        Object.keys(updateData).forEach(key => {
-            if ((updateData as any)[key] === undefined) {
-                 delete (updateData as any)[key];
+        Object.keys(updateData).forEach(keyStr => {
+            const key = keyStr as keyof Partial<UserProfile>; // Assertion
+            if (updateData[key] === undefined) {
+                 delete updateData[key];
             }
         });
         await userRef.set(updateData, { merge: true });
@@ -123,13 +135,14 @@ export async function POST(request: NextRequest) {
         }, { status: 200 });
 
     } catch (error: any) {
-        // Penanganan Error Spesifik (tetap sama)
+        // Penanganan Error Spesifik (Gunakan playerTag mentah untuk pesan error)
         console.error(`API Verifikasi Error untuk PlayerTag: ${playerTag}. Detail:`, error.message);
         let errorMessage = 'Terjadi kesalahan tidak diketahui saat verifikasi.';
         let statusCode = 500;
-        // ... (logika status code tetap sama) ...
-         if (error instanceof Error) {
+
+        if (error instanceof Error) {
             errorMessage = error.message;
+            // Gunakan playerTag mentah dalam pesan error ke pengguna
             if (errorMessage.includes('Pemain tidak ditemukan') || errorMessage.startsWith('notFound')) {
                 statusCode = 404;
                 errorMessage = `Pemain dengan tag ${playerTag} tidak ditemukan. Pastikan tag benar.`;
@@ -151,4 +164,3 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: errorMessage }, { status: statusCode });
     }
 }
-
