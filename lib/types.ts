@@ -77,7 +77,7 @@ export interface CocClan {
   type: 'open' | 'inviteOnly' | 'closed';
   description?: string;
   // Anggota hanya disertakan saat mengambil /clans/{clanTag}
-  memberList?: CocMember[]; 
+  memberList?: CocMember[];
 }
 
 /**
@@ -104,9 +104,15 @@ export interface CocMember {
  * @interface CocPlayer
  * Data lengkap Player dari API. Digunakan saat Verifikasi Player.
  */
-export interface CocPlayer extends Omit<CocMember, 'clanRank' | 'previousClanRank' | 'role'> {
+export interface CocPlayer
+  extends Omit<CocMember, 'clanRank' | 'previousClanRank' | 'role'> {
   // role: Role diubah menggunakan Union Type dari ClanRole untuk mencakup 'not in clan'
-  role: ClanRole.LEADER | ClanRole.CO_LEADER | ClanRole.ELDER | ClanRole.MEMBER | ClanRole.NOT_IN_CLAN;
+  role:
+    | ClanRole.LEADER
+    | ClanRole.CO_LEADER
+    | ClanRole.ELDER
+    | ClanRole.MEMBER
+    | ClanRole.NOT_IN_CLAN;
   attackWins: number;
   defenseWins: number;
   // Clan bisa null jika pemain tidak dalam klan
@@ -125,10 +131,9 @@ export interface CocPlayer extends Omit<CocMember, 'clanRank' | 'previousClanRan
  * Data log perang. Formatnya kompleks, kita simpan JSON mentah.
  */
 export interface CocWarLog {
-    items: any[];
-    // Struktur lengkapnya sangat nested. Kita simpan sebagai 'any' untuk saat ini.
+  items: any[];
+  // Struktur lengkapnya sangat nested. Kita simpan sebagai 'any' untuk saat ini.
 }
-
 
 /**
  * @interface PlayerVerificationRequest
@@ -138,7 +143,6 @@ export interface PlayerVerificationRequest {
   playerTag: string;
   apiToken: string; // Token verifikasi yang diperoleh pemain dari game
 }
-
 
 // =========================================================================
 // 2. TIPE DATA FIRESTORE CLASHUB (INTERNAL)
@@ -155,7 +159,7 @@ export interface UserProfile {
   uid: string; // ID unik dari Firebase Auth
   email: string | null;
   displayName: string;
-  
+
   // --- DATA VERIFIKASI COCLANS (BARU: Sprint 4.1) ---
   isVerified: boolean; // TRUE jika pemain telah memverifikasi tag mereka
   playerTag: string; // Tag pemain dari dalam game (Disimpan di sini setelah verifikasi)
@@ -165,21 +169,24 @@ export interface UserProfile {
   clanTag?: string | null; // Tag Klan CoC saat ini (diperbarui dari API)
   clanRole?: ClanRole; // MENGGUNAKAN ENUM CLANROLE
   lastVerified?: Date; // Timestamp verifikasi terakhir
-  
+
   // --- FIELD E-SPORTS CV YANG SUDAH ADA ---
   avatarUrl?: string;
   discordId?: string | null;
   website?: string | null;
   bio?: string;
   // Role Clashub internal: Role yang ditampilkan di Clashub
-  role?: 'Leader' | 'Co-Leader' | 'Elder' | 'Member' | 'Free Agent'; 
-  playStyle?: 'Attacker Utama' | 'Base Builder' | 'Donatur' | 'Strategist' | null; 
+  role?: 'Leader' | 'Co-Leader' | 'Elder' | 'Member' | 'Free Agent';
+  playStyle?: 'Attacker Utama' | 'Base Builder' | 'Donatur' | 'Strategist' | null;
   activeHours?: string;
   reputation?: number;
-  teamId?: string | null; 
-  teamName?: string | null; 
-}
 
+  // --- PERUBAHAN (Langkah 1.1) ---
+  // Mengganti 'teamId' dan 'teamName' menjadi 'clanId' dan 'clanName'
+  // untuk merujuk ke ManagedClan internal.
+  clanId?: string | null; // ID klan internal (ManagedClan) yang diikuti pemain
+  clanName?: string | null; // Nama klan internal (ManagedClan) yang diikuti pemain
+}
 
 /**
  * @interface ManagedClan
@@ -191,21 +198,21 @@ export interface ManagedClan {
   name: string; // Nama klan CoC (nama dari API)
   tag: string; // Clan Tag CoC yang unik
   ownerUid: string; // UID pengguna yang memiliki / mengelola klan ini (Leader/Co-Leader)
-  
+
   // --- DATA CLASHUB INTERNAL (Diadaptasi dari Team) ---
   logoUrl?: string; // Logo klan dari API
   vision: 'Kompetitif' | 'Kasual'; // Visi Tim (Custom Clashub)
   website?: string;
-  discordId?: string; 
+  discordId?: string;
   recruitingStatus: 'Open' | 'Invite Only' | 'Closed'; // Status rekrutmen (Custom Clashub)
-  
+
   // --- DATA CACHE & METADATA ---
   lastSynced: Date; // Timestamp sinkronisasi API terakhir
   avgTh: number; // Rata-rata Level TH anggota (dikalkulasi)
   clanLevel: number; // Level Klan CoC (dari API)
   memberCount: number; // Jumlah anggota (dari API)
 
-  // Sub-koleksi: managedClans/{id}/clanApiCache 
+  // Sub-koleksi: managedClans/{id}/clanApiCache
   // Sub-koleksi: managedClans/{id}/warLog
   // Sub-koleksi: managedClans/{id}/raidLog
   // ...
@@ -222,18 +229,19 @@ export interface ClanApiCache {
   currentWar?: CocWarLog; // Bisa null jika tidak ada war aktif
   currentRaid?: any; // Data Raid Capital aktif (jika ada endpoint)
   // Daftar anggota yang diperbarui dari API Coc, termasuk Partisipasi
-  members: Array<CocMember & {
-    // Properti Partisipasi yang dikalkulasi dari Aggregators.js (Blueprint CSV)
-    cwlSuccessCount: number;
-    warSuccessCount: number;
-    cwlFailCount: number;
-    warFailCount: number;
-    participationStatus: 'Promosi' | 'Demosi' | 'Aman' | 'Leader/Co-Leader'; // dari blueprint CSV
-    lastRoleChangeDate: Date; // Kunci untuk reset partisipasi (dari Log Perubahan Role CSV)
-    // Field lainnya...
-  }>;
+  members: Array<
+    CocMember & {
+      // Properti Partisipasi yang dikalkulasi dari Aggregators.js (Blueprint CSV)
+      cwlSuccessCount: number;
+      warSuccessCount: number;
+      cwlFailCount: number;
+      warFailCount: number;
+      participationStatus: 'Promosi' | 'Demosi' | 'Aman' | 'Leader/Co-Leader'; // dari blueprint CSV
+      lastRoleChangeDate: Date; // Kunci untuk reset partisipasi (dari Log Perubahan Role CSV)
+      // Field lainnya...
+    }
+  >;
 }
-
 
 /**
  * @interface PublicClanIndex
@@ -250,9 +258,9 @@ export interface PublicClanIndex {
   clanVersusPoints: number; // Menambahkan field untuk kelengkapan
   badgeUrls: CocIconUrls;
   lastUpdated: Date; // Untuk memeriksa apakah cache masih 'fresh'
-  
+
   // --- FIELD TAMBAHAN DARI CocClan UNTUK TAMPILAN PROFIL PUBLIK ---
-  requiredTrophies?: number; 
+  requiredTrophies?: number;
   warFrequency?: string;
   warWinStreak?: number;
   warWins?: number;
@@ -266,13 +274,12 @@ export interface PublicClanIndex {
   };
 }
 
-
 // --- TIPE DATA YANG SUDAH ADA (Dipertahankan) ---
 
 /**
  * @interface Team
- * Catatan: Interface Team ini digantikan oleh ManagedClan di Firestore, 
- * namun dipertahankan untuk kompatibilitas sementara atau jika Team Hub masih 
+ * Catatan: Interface Team ini digantikan oleh ManagedClan di Firestore,
+ * namun dipertahankan untuk kompatibilitas sementara atau jika Team Hub masih
  * menggunakannya untuk menampilkan daftar tim sebelum dirombak penuh di Fase 4.
  */
 export interface Team {
@@ -285,7 +292,7 @@ export interface Team {
   logoUrl?: string;
   captainId: string;
   website?: string;
-  discordId?: string; 
+  discordId?: string;
   recruitingStatus: 'Open' | 'Invite Only' | 'Closed';
 }
 
@@ -295,16 +302,16 @@ export interface Team {
  * Ini adalah subset dari UserProfile.
  */
 export interface Player {
-    id: string; // ID dokumen dari Firestore (sama dengan uid)
-    name: string;
-    tag: string;
-    inGameName?: string; // PERBAIKAN: Menambahkan inGameName untuk resolusi error 2339
-    thLevel: number;
-    reputation: number;
-    role: 'Leader' | 'Co-Leader' | 'Elder' | 'Member' | 'Free Agent';
-    avatarUrl?: string;
-    displayName: string; 
-    playerTag: string; // Ini adalah playerTag CoC
+  id: string; // ID dokumen dari Firestore (sama dengan uid)
+  name: string;
+  tag: string;
+  inGameName?: string; // PERBAIKAN: Menambahkan inGameName untuk resolusi error 2339
+  thLevel: number;
+  reputation: number;
+  role: 'Leader' | 'Co-Leader' | 'Elder' | 'Member' | 'Free Agent';
+  avatarUrl?: string;
+  displayName: string;
+  playerTag: string; // Ini adalah playerTag CoC
 }
 
 /**
@@ -312,11 +319,11 @@ export interface Player {
  * Mendefinisikan struktur data untuk sebuah turnamen.
  */
 export interface Tournament {
-    id: string; 
-    title: string;
-    status: 'Akan Datang' | 'Live' | 'Selesai';
-    thRequirement: string;
-    prizePool: string;
+  id: string;
+  title: string;
+  status: 'Akan Datang' | 'Live' | 'Selesai';
+  thRequirement: string;
+  prizePool: string;
 }
 
 /**
@@ -324,15 +331,17 @@ export interface Tournament {
  * Mendefinisikan struktur data untuk permintaan bergabung ke sebuah tim.
  */
 export interface JoinRequest {
-    id: string; 
-    teamId: string; 
-    teamName: string;
-    requesterId: string; 
-    requesterName: string;
-    requesterThLevel: number;
-    message: string;
-    status: 'pending' | 'approved' | 'rejected';
-    timestamp: Date; 
+  id: string;
+  // --- PERUBAHAN (Langkah 1.1) ---
+  // Mengganti 'teamId' dan 'teamName' menjadi 'clanId' dan 'clanName'
+  clanId: string; // ID klan internal (ManagedClan)
+  clanName: string; // Nama klan internal (ManagedClan)
+  requesterId: string;
+  requesterName: string;
+  requesterThLevel: number;
+  message: string;
+  status: 'pending' | 'approved' | 'rejected';
+  timestamp: Date;
 }
 
 // --- DATA UNTUK KNOWLEDGE HUB ---
@@ -341,11 +350,11 @@ export interface JoinRequest {
  * @type PostCategory
  * Daftar kategori yang tersedia di Knowledge Hub.
  */
-export type PostCategory = 
-  | 'Semua Diskusi' 
-  | 'Strategi Serangan' 
-  | 'Base Building' 
-  | 'Manajemen Tim' 
+export type PostCategory =
+  | 'Semua Diskusi'
+  | 'Strategi Serangan'
+  | 'Base Building'
+  | 'Manajemen Tim'
   | 'Berita Komunitas'
   | 'Diskusi Umum';
 
@@ -354,16 +363,16 @@ export type PostCategory =
  * Mendefinisikan struktur data untuk postingan/artikel di Knowledge Hub.
  */
 export interface Post {
-    id: string;
-    title: string;
-    content: string; // Isi lengkap postingan
-    category: PostCategory;
-    tags: string[]; // Contoh: ['TH16', 'Hybrid', 'CWL']
-    authorId: string;
-    authorName: string;
-    authorAvatarUrl?: string;
-    createdAt: Date; 
-    updatedAt?: Date;
-    likes: number;
-    replies: number;
+  id: string;
+  title: string;
+  content: string; // Isi lengkap postingan
+  category: PostCategory;
+  tags: string[]; // Contoh: ['TH16', 'Hybrid', 'CWL']
+  authorId: string;
+  authorName: string;
+  authorAvatarUrl?: string;
+  createdAt: Date;
+  updatedAt?: Date;
+  likes: number;
+  replies: number;
 }

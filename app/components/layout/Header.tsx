@@ -4,7 +4,15 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 // Menggunakan ShieldIcon
-import { BellIcon, SearchIcon, MenuIcon, XIcon, LogOutIcon, UserCircleIcon, ShieldIcon } from '@/app/components/icons';
+import {
+  BellIcon,
+  SearchIcon,
+  MenuIcon,
+  XIcon,
+  LogOutIcon,
+  UserCircleIcon,
+  ShieldIcon,
+} from '@/app/components/icons';
 import ThemeToggle from '@/app/components/ui/ThemeToggle';
 import { useAuth } from '@/app/context/AuthContext'; // Konteks yang sudah diupdate
 import { auth } from '@/lib/firebase';
@@ -35,9 +43,9 @@ const UserProfileDropdown = () => {
       await fetch('/api/logout', { method: 'POST' });
       router.push('/');
     } catch (error) {
-      console.error("Gagal untuk logout:", error);
+      console.error('Gagal untuk logout:', error);
       // Ganti alert dengan cara lain jika perlu, karena alert diblokir
-      console.error("Gagal melakukan logout. Silakan coba lagi.");
+      console.error('Gagal melakukan logout. Silakan coba lagi.');
     } finally {
       setIsOpen(false);
     }
@@ -45,13 +53,16 @@ const UserProfileDropdown = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
 
@@ -59,29 +70,29 @@ const UserProfileDropdown = () => {
   let showClanLink = false;
   // --- PERBAIKAN TYPE CHECK ---
   // Gunakan type guard untuk memeriksa apakah userProfile adalah UserProfile
-  const isUserProfile = (profile: UserProfile | ServerUser | null): profile is UserProfile => {
-      return !!profile && typeof profile === 'object' && 'isVerified' in profile;
-  }
+  const isUserProfile = (
+    profile: UserProfile | ServerUser | null
+  ): profile is UserProfile => {
+    return !!profile && typeof profile === 'object' && 'isVerified' in profile;
+  };
 
   if (!authLoading && isUserProfile(userProfile)) {
-      // Akses properti dengan aman setelah memastikan userProfile adalah UserProfile
-      showClanLink = userProfile.isVerified === true && !!userProfile.teamId;
+    // Akses properti dengan aman setelah memastikan userProfile adalah UserProfile
+    // [FIX 1] Ganti 'teamId' -> 'clanId'
+    showClanLink = userProfile.isVerified === true && !!userProfile.clanId;
   }
   // --- AKHIR PERBAIKAN TYPE CHECK ---
-
 
   // --- PERBAIKAN AKSES AVATAR URL ---
   // Dapatkan avatarUrl hanya jika userProfile adalah UserProfile
   const avatarSrc = isUserProfile(userProfile) ? userProfile.avatarUrl : null;
   // --- AKHIR PERBAIKAN AKSES AVATAR URL ---
 
-
   // --- DEBUGGING LOG ---
   // console.log("Header Dropdown - Auth Loading:", authLoading);
   // console.log("Header Dropdown - User Profile:", userProfile);
   // console.log("Header Dropdown - Show Clan Link:", showClanLink);
   // --- END DEBUGGING LOG ---
-
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -91,13 +102,13 @@ const UserProfileDropdown = () => {
       >
         {/* Fallback ke placeholder jika avatarSrc null atau kosong */}
         <img
-          src={avatarSrc || "/images/placeholder-avatar.png"}
+          src={avatarSrc || '/images/placeholder-avatar.png'}
           alt="User Avatar"
           className="rounded-full h-8 w-8 object-cover"
           onError={(e) => {
             // Fallback jika avatarUrl gagal dimuat
             e.currentTarget.onerror = null; // Prevent infinite loop
-            e.currentTarget.src = "/images/placeholder-avatar.png";
+            e.currentTarget.src = '/images/placeholder-avatar.png';
           }}
         />
       </button>
@@ -105,9 +116,12 @@ const UserProfileDropdown = () => {
       {isOpen && (
         <div className="absolute right-0 mt-2 w-48 card-stone p-2 shadow-lg rounded-md z-50">
           <ul className="space-y-1">
-
             <li>
-              <Link href="/profile" onClick={() => setIsOpen(false)} className="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-300 hover:bg-coc-gold/10 hover:text-white rounded-md">
+              <Link
+                href="/profile"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-300 hover:bg-coc-gold/10 hover:text-white rounded-md"
+              >
                 <UserCircleIcon className="h-5 w-5" />
                 <span>Profil Saya</span>
               </Link>
@@ -129,7 +143,10 @@ const UserProfileDropdown = () => {
             )}
 
             <li>
-              <button onClick={handleLogout} className="flex items-center gap-3 w-full px-3 py-2 text-sm text-red-400 hover:bg-coc-red/10 hover:text-red-300 rounded-md">
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-3 w-full px-3 py-2 text-sm text-red-400 hover:bg-coc-red/10 hover:text-red-300 rounded-md"
+              >
                 <LogOutIcon className="h-5 w-5" />
                 <span>Logout</span>
               </button>
@@ -149,15 +166,19 @@ const Header = () => {
 
   // Tampilkan state loading awal jika diperlukan
   // if (authLoading) {
-  //   // Opsional: Tampilkan skeleton UI atau null selama auth loading awal
-  //   return <header className="sticky top-0 z-50 h-[68px] bg-coc-stone/80"></header>;
+  // 	 // Opsional: Tampilkan skeleton UI atau null selama auth loading awal
+  // 	 return <header className="sticky top-0 z-50 h-[68px] bg-coc-stone/80"></header>;
   // }
 
   return (
     <header className="sticky top-0 z-50 bg-coc-stone/80 backdrop-blur-sm border-b-2 border-coc-gold-dark/30 animate-header-glow">
       <div className="container mx-auto flex items-center justify-between p-4">
         {/* Logo - Menerapkan font-clash */}
-        <Link href="/" className="font-clash text-3xl text-coc-gold z-20" style={{ textShadow: '2px 2px 5px rgba(0,0,0,0.8)' }}>
+        <Link
+          href="/"
+          className="font-clash text-3xl text-coc-gold z-20"
+          style={{ textShadow: '2px 2px 5px rgba(0,0,0,0.8)' }}
+        >
           CLASHUB
         </Link>
 
@@ -168,12 +189,13 @@ const Header = () => {
               key={item.name}
               href={item.href}
               className={`
-                px-4 py-2 rounded-md text-sm font-bold transition-all duration-300
-                ${pathname === item.href
-                  ? 'bg-coc-gold text-coc-stone shadow-[inset_0_1px_3px_rgba(0,0,0,0.5)]'
-                  : 'text-gray-300 hover:bg-coc-stone-light/50 hover:text-white'
-                }
-              `}
+ 								 px-4 py-2 rounded-md text-sm font-bold transition-all duration-300
+ 								 ${
+                   pathname === item.href
+                     ? 'bg-coc-gold text-coc-stone shadow-[inset_0_1px_3px_rgba(0,0,0,0.5)]'
+                     : 'text-gray-300 hover:bg-coc-stone-light/50 hover:text-white'
+                 }
+ 							`}
             >
               {item.name}
             </Link>
@@ -200,66 +222,83 @@ const Header = () => {
 
           {/* Render tombol login atau menu profil secara kondisional */}
           {/* Tambahkan cek authLoading di sini juga */}
-          {!authLoading && (
-            currentUser ? (
+          {!authLoading &&
+            (currentUser ? (
               <UserProfileDropdown />
             ) : (
-              <Button href="/auth" variant='primary' size='md'>Login</Button>
-            )
-          )}
+              <Button href="/auth" variant="primary" size="md">
+                Login
+              </Button>
+            ))}
           {/* Opsional: Tampilkan placeholder/spinner jika loading */}
           {authLoading && (
-             <div className="h-9 w-9 rounded-full bg-coc-stone-light animate-pulse"></div>
+            <div className="h-9 w-9 rounded-full bg-coc-stone-light animate-pulse"></div>
           )}
         </div>
 
         {/* Tombol Menu Mobile */}
         <div className="md:hidden z-20">
-            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="text-gray-300 hover:text-coc-gold">
-                {isMenuOpen ? <XIcon className="h-7 w-7" /> : <MenuIcon className="h-7 w-7" />}
-            </button>
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="text-gray-300 hover:text-coc-gold"
+          >
+            {isMenuOpen ? (
+              <XIcon className="h-7 w-7" />
+            ) : (
+              <MenuIcon className="h-7 w-7" />
+            )}
+          </button>
         </div>
 
         {/* Menu Overlay Mobile */}
         {isMenuOpen && (
-            <div className="absolute inset-0 bg-coc-stone/95 backdrop-blur-md flex flex-col items-center justify-center md:hidden">
-                <nav className="flex flex-col items-center gap-6">
-                    {navItems.map((item) => (
-                        <Link
-                          key={item.name}
-                          href={item.href}
-                          onClick={() => setIsMenuOpen(false)}
-                          className={`text-2xl font-bold ${pathname === item.href ? 'text-coc-gold' : 'text-gray-300'}`}
-                        >
-                          {item.name}
-                        </Link>
-                    ))}
-                </nav>
-                 <div className="mt-8 flex items-center gap-6">
-                    <ThemeToggle />
-                    <button className="text-gray-300 hover:text-coc-gold transition-colors">
-                        <SearchIcon className="h-7 w-7" />
-                    </button>
-                    {/* Logika kondisional untuk mobile */}
-                   {!authLoading && ( // Cek loading juga di mobile
-                     currentUser ? (
-                        <UserProfileDropdown />
-                      ) : (
-                        <Button href="/auth" variant='primary' size='md' onClick={() => setIsMenuOpen(false)}>Login</Button>
-                      )
-                   )}
-                   {/* Opsional: Placeholder loading mobile */}
-                   {authLoading && (
-                       <div className="h-9 w-9 rounded-full bg-coc-stone-light animate-pulse"></div>
-                   )}
-                 </div>
+          <div className="absolute inset-0 bg-coc-stone/95 backdrop-blur-md flex flex-col items-center justify-center md:hidden">
+            <nav className="flex flex-col items-center gap-6">
+              {navItems.map((item) => (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`text-2xl font-bold ${
+                    pathname === item.href
+                      ? 'text-coc-gold'
+                      : 'text-gray-300'
+                  }`}
+                >
+                  {item.name}
+                </Link>
+              ))}
+            </nav>
+            <div className="mt-8 flex items-center gap-6">
+              <ThemeToggle />
+              <button className="text-gray-300 hover:text-coc-gold transition-colors">
+                <SearchIcon className="h-7 w-7" />
+              </button>
+              {/* Logika kondisional untuk mobile */}
+              {!authLoading && ( // Cek loading juga di mobile
+                currentUser ? (
+                  <UserProfileDropdown />
+                ) : (
+                  <Button
+                    href="/auth"
+                    variant="primary"
+                    size="md"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Login
+                  </Button>
+                )
+              )}
+              {/* Opsional: Placeholder loading mobile */}
+              {authLoading && (
+                <div className="h-9 w-9 rounded-full bg-coc-stone-light animate-pulse"></div>
+              )}
             </div>
+          </div>
         )}
-
       </div>
     </header>
   );
 };
 
 export default Header;
-
