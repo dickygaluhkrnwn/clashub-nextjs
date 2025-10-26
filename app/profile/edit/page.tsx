@@ -58,8 +58,9 @@ const EditProfilePage = async () => {
         discordId: null,
         website: null,
         bio: '',
-        teamId: null,
-        teamName: null,
+        // PERBAIKAN: Mengganti 'teamId' dan 'teamName' menjadi 'clanId' dan 'clanName'
+        clanId: null,
+        clanName: null,
     };
 
     // Meneruskan Profil lengkap ke Client Component

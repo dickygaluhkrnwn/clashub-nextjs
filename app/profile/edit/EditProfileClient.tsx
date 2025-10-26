@@ -94,6 +94,22 @@ const sanitizeDataForFirestore = (data: ProfileFormData, initialProfile: UserPro
         // Ensure verification status is false if saving while unverified
         cleanData.isVerified = false;
     }
+    
+    // --- START FIX Nomenklatur Team -> Clan ---
+    // Pastikan clanId dan clanName dibawa, terutama jika isVerified=true
+    // Kita harus membawa nilai clanId dan clanName dari initialProfile
+    // karena form ini tidak mengeditnya. Tanpa ini, akan terhapus jika cleanData tidak memiliki properti ini.
+    // Jika user Verified, kita harus pertahankan data tim/klan internal mereka (clanId/clanName).
+    if (initialProfile.clanId) {
+        cleanData.clanId = initialProfile.clanId;
+    }
+    if (initialProfile.clanName) {
+        cleanData.clanName = initialProfile.clanName;
+    }
+    // Jika ada teamId/teamName lama di initialProfile (sebelum refactor), pastikan itu tidak ikut
+    // Namun, karena kita sudah update types.ts, kita hanya perlu fokus pada clanId/clanName.
+    // --- END FIX Nomenklatur Team -> Clan ---
+
 
     // Remove undefined keys before sending to Firestore
     Object.keys(cleanData).forEach(key => {
@@ -143,7 +159,7 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
 
     // Effect to sync form data if initialProfile changes (e.g., after verification refresh)
     useEffect(() => {
-         setFormData({
+          setFormData({
             displayName: initialProfile.displayName || '',
             playerTag: initialProfile.playerTag || '',
             thLevel: initialProfile.thLevel || '',
@@ -156,7 +172,7 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
         });
         // Also update verification form's player tag if profile updated
         if(initialProfile.playerTag){
-             setVerificationForm(prev => ({ ...prev, playerTag: initialProfile.playerTag! }));
+              setVerificationForm(prev => ({ ...prev, playerTag: initialProfile.playerTag! }));
         }
     }, [initialProfile]); // Re-run effect when initialProfile changes
 
@@ -180,7 +196,7 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
         }
     };
 
-     // Handles changes in the verification form inputs
+      // Handles changes in the verification form inputs
     const handleVerificationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value } = e.target;
         let processedValue = value;
@@ -188,16 +204,16 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
         const targetKey = id === 'playerTagVerification' ? 'playerTag' : 'apiToken';
 
         if (targetKey === 'playerTag') {
-             processedValue = value.toUpperCase().replace(/[^#0289PYLQGRJCUV]/g, '');
-             if (value.length > 0 && !processedValue.startsWith('#')) {
+              processedValue = value.toUpperCase().replace(/[^#0289PYLQGRJCUV]/g, '');
+              if (value.length > 0 && !processedValue.startsWith('#')) {
                 processedValue = '#' + processedValue;
             }
         }
 
         setVerificationForm(prev => ({ ...prev, [targetKey]: processedValue.trim() }));
-         // Clear related verification errors on change
+          // Clear related verification errors on change
         if(errors.verifyTag || errors.verifyToken){
-             setErrors(prev => ({ ...prev, verifyTag: null, verifyToken: null }));
+              setErrors(prev => ({ ...prev, verifyTag: null, verifyToken: null }));
         }
     };
 
@@ -255,19 +271,19 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
         if (!isVerified && !formData.thLevel) {
             validationErrors.thLevel = "Level Town Hall wajib dipilih.";
         }
-         // Validate Player Tag only if not verified
-         if (!isVerified) {
-             const tagError = validatePlayerTag(formData.playerTag || '');
-             if (tagError) {
+          // Validate Player Tag only if not verified
+          if (!isVerified) {
+              const tagError = validatePlayerTag(formData.playerTag || '');
+              if (tagError) {
                 validationErrors.playerTag = tagError;
-             }
-         }
+              }
+          }
 
         setErrors(validationErrors); // Update error state
 
         // If there are errors, show notification and stop submission
         if (Object.keys(validationErrors).some(key => validationErrors[key] !== null)) {
-             setNotification({ message: "Harap perbaiki error pada form.", type: 'error', onClose: () => setNotification(null) });
+              setNotification({ message: "Harap perbaiki error pada form.", type: 'error', onClose: () => setNotification(null) });
             return;
         }
 
@@ -329,20 +345,20 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
                         <div className={`p-4 rounded-lg space-y-4 ${isVerified ? 'bg-coc-green/10 border border-coc-green/30' : 'bg-coc-stone/40'}`}>
                             {isVerified ? (
                                 // Display if verified
-                                 <div className="text-center p-3 text-coc-green rounded-md flex flex-col sm:flex-row items-center justify-center gap-x-4 gap-y-2 font-sans">
-                                    <div className="flex items-center gap-2">
-                                        <CheckIcon className="h-6 w-6" />
-                                        <span className="font-semibold">Terverifikasi:</span>
-                                        <span>{initialProfile.inGameName} ({initialProfile.playerTag})</span>
-                                    </div>
-                                    <span className="text-xs text-gray-400 hidden sm:inline">|</span>
-                                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                                  <div className="text-center p-3 text-coc-green rounded-md flex flex-col sm:flex-row items-center justify-center gap-x-4 gap-y-2 font-sans">
+                                     <div className="flex items-center gap-2">
+                                         <CheckIcon className="h-6 w-6" />
+                                         <span className="font-semibold">Terverifikasi:</span>
+                                         <span>{initialProfile.inGameName} ({initialProfile.playerTag})</span>
+                                     </div>
+                                     <span className="text-xs text-gray-400 hidden sm:inline">|</span>
+                                     <div className="flex items-center gap-2 text-xs text-gray-400">
                                          <InfoIcon className="h-4 w-4" />
                                          <span>
-                                            Terakhir dicek: {initialProfile.lastVerified ? new Date(initialProfile.lastVerified).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric'}) : 'N/A'}
+                                             Terakhir dicek: {initialProfile.lastVerified ? new Date(initialProfile.lastVerified).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric'}) : 'N/A'}
                                          </span>
-                                    </div>
-                                </div>
+                                     </div>
+                                 </div>
                             ) : (
                                 // Display verification form if not verified
                                 <>
@@ -398,11 +414,11 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
 
                     {/* --- E-SPORTS CV SECTION --- */}
                     <section className="space-y-6">
-                         <h2 className="text-xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2">Detail CV</h2>
+                           <h2 className="text-xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2">Detail CV</h2>
                         {/* CV Form Fields */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                              <FormGroup label="Nama Tampilan" htmlFor="displayName" error={errors.displayName}>
-                                <input id="displayName" value={formData.displayName} onChange={handleInputChange} className={inputClasses(!!errors.displayName)} required/>
+                                 <input id="displayName" value={formData.displayName} onChange={handleInputChange} className={inputClasses(!!errors.displayName)} required/>
                             </FormGroup>
                             <FormGroup label="Player Tag" htmlFor="playerTag" error={errors.playerTag} disabled={isVerified}>
                                 <input id="playerTag" value={formData.playerTag} onChange={handleInputChange} className={inputClasses(!!errors.playerTag, isVerified)} disabled={isVerified} placeholder="#P20C8Y9L" required={!isVerified} />
@@ -420,20 +436,20 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
                                 </select>
                             </FormGroup>
                              <FormGroup label="Discord ID (Opsional)" htmlFor="discordId">
-                                <input id="discordId" value={formData.discordId || ''} onChange={handleInputChange} placeholder="username#1234" className={inputClasses(false)} />
+                                 <input id="discordId" value={formData.discordId || ''} onChange={handleInputChange} placeholder="username#1234" className={inputClasses(false)} />
                             </FormGroup>
                              <FormGroup label="Website/Link (Opsional)" htmlFor="website">
-                                <input type="url" id="website" value={formData.website || ''} onChange={handleInputChange} placeholder="https://link-kamu.com" className={inputClasses(false)} />
+                                 <input type="url" id="website" value={formData.website || ''} onChange={handleInputChange} placeholder="https://link-kamu.com" className={inputClasses(false)} />
                             </FormGroup>
                         </div>
-                         <FormGroup label="Jam Aktif (Opsional)" htmlFor="activeHours">
+                           <FormGroup label="Jam Aktif (Opsional)" htmlFor="activeHours">
                             <input id="activeHours" value={formData.activeHours || ''} onChange={handleInputChange} placeholder="Contoh: 19:00 - 22:00 WIB" className={inputClasses(false)} />
                         </FormGroup>
                         <FormGroup label="Bio (Maks 500 karakter)" htmlFor="bio">
                             <textarea id="bio" value={formData.bio || ''} onChange={handleInputChange} rows={4} maxLength={500} className={inputClasses(false) + ' resize-y min-h-[100px]'} placeholder="Ceritakan tentang diri Anda, gaya bermain, atau tim yang dicari..." />
                         </FormGroup>
                     </section>
-                     {/* --- END E-SPORTS CV SECTION --- */}
+                      {/* --- END E-SPORTS CV SECTION --- */}
 
 
                     {/* --- ACTION BUTTONS --- */}
@@ -449,9 +465,9 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
                             {isSaving ? 'Menyimpan...' : 'Simpan Perubahan CV'}
                         </Button>
                     </div>
-                     {/* --- END ACTION BUTTONS --- */}
+                      {/* --- END ACTION BUTTONS --- */}
                 </form>
-                 {/* --- END Main Form --- */}
+                  {/* --- END Main Form --- */}
             </div>
         </main>
     );

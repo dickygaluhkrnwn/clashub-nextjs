@@ -63,7 +63,7 @@ const ProfileClient = ({ initialProfile, serverError, recentPosts }: ProfileClie
 
     if (isMissingProfile) {
         // ... (Kode error 'Profil Belum Lengkap' tetap sama) ...
-         return (
+          return (
             <div className="flex justify-center items-center min-h-screen">
                 <div className="card-stone p-8 max-w-md text-center rounded-lg">
                     <InfoIcon className="h-12 w-12 text-coc-gold mx-auto mb-4"/>
@@ -81,7 +81,7 @@ const ProfileClient = ({ initialProfile, serverError, recentPosts }: ProfileClie
 
     if (!userProfile && error) {
         // ... (Kode error 'Fatal Error' tetap sama) ...
-         return (
+          return (
            <div className="flex justify-center items-center min-h-screen">
              <div className="card-stone p-8 max-w-md text-center rounded-lg">
                <AlertTriangleIcon className="h-12 w-12 text-coc-red mx-auto mb-4"/>
@@ -119,8 +119,8 @@ const ProfileClient = ({ initialProfile, serverError, recentPosts }: ProfileClie
                                      Akun CoC **Terverifikasi**. 
                                      {/* Tampilkan InGameName jika berbeda */}
                                      {userProfile.inGameName && userProfile.inGameName !== userProfile.displayName 
-                                        ? ` (${userProfile.inGameName})` 
-                                        : ''}
+                                         ? ` (${userProfile.inGameName})` 
+                                         : ''}
                                  </>
                              ) : (
                                  <>Akun CoC **Belum Terverifikasi**.</>
@@ -263,6 +263,7 @@ const ProfileClient = ({ initialProfile, serverError, recentPosts }: ProfileClie
                                         width={120}
                                         height={120}
                                         sizes="(max-width: 768px) 100px, 120px"
+                                        priority
                                         className="flex-shrink-0"
                                     />
                                 </div>
@@ -284,33 +285,34 @@ const ProfileClient = ({ initialProfile, serverError, recentPosts }: ProfileClie
                                     <div className="bg-coc-stone/50 p-4 rounded-lg border border-coc-gold-dark/30">
                                          <h4 className="text-lg text-coc-gold font-clash capitalize">{isVerified ? (inGameRole.replace('_', ' ') || 'N/A') : 'N/A'}</h4>
                                          <p className="text-xs uppercase text-gray-400 font-sans">Role di Klan CoC</p>
-                                     </div>
+                                       </div>
                                     {/* Clan Tag (jika ada & terverifikasi) */}
                                     {isVerified && userProfile.clanTag && (
                                         <div className="bg-coc-stone/50 p-4 rounded-lg border border-coc-gold-dark/30 col-span-2">
                                             <Link href={`/clan/${encodeURIComponent(userProfile.clanTag)}`} className="hover:opacity-80 transition-opacity block"> {/* Jadikan block */}
                                                 <h4 className="text-lg text-coc-gold font-mono">{userProfile.clanTag}</h4>
-                                                <p className="text-xs uppercase text-gray-400 font-sans">Klan CoC Saat Ini ({userProfile.teamName || 'Nama Tidak Tersedia'})</p>
+                                                {/* FIX: Ganti userProfile.teamName menjadi userProfile.clanName */}
+                                                <p className="text-xs uppercase text-gray-400 font-sans">Klan CoC Saat Ini ({userProfile.clanName || 'Nama Tidak Tersedia'})</p>
                                             </Link>
                                         </div>
                                     )}
                                 </div>
                             </div>
-                               {/* Info Sinkronisasi (jika manager & terverifikasi) */}
-                             {isClanManager && isVerified && (
-                                 <div className="mt-6 p-4 bg-coc-stone/30 rounded-lg border border-coc-gold/20">
-                                     <p className="text-sm font-sans text-gray-300 flex items-center gap-2">
-                                         <InfoIcon className="h-4 w-4 text-coc-gold" /> {/* Placeholder */}
-                                         Data Clan Terakhir Disinkronisasi: 
-                                         <span className="font-bold text-coc-gold">
-                                             {userProfile.lastVerified ? new Date(userProfile.lastVerified).toLocaleString('id-ID') : 'Belum Pernah'}
-                                         </span>
-                                     </p>
-                                     <p className="text-xs text-gray-500 mt-1">
-                                         Data ini digunakan untuk statistik dan manajemen klan Anda.
-                                     </p>
-                                 </div>
-                             )}
+                                {/* Info Sinkronisasi (jika manager & terverifikasi) */}
+                              {isClanManager && isVerified && (
+                                  <div className="mt-6 p-4 bg-coc-stone/30 rounded-lg border border-coc-gold/20">
+                                      <p className="text-sm font-sans text-gray-300 flex items-center gap-2">
+                                          <InfoIcon className="h-4 w-4 text-coc-gold" /> {/* Placeholder */}
+                                          Data Clan Terakhir Disinkronisasi: 
+                                          <span className="font-bold text-coc-gold">
+                                              {userProfile.lastVerified ? new Date(userProfile.lastVerified).toLocaleString('id-ID') : 'Belum Pernah'}
+                                          </span>
+                                      </p>
+                                      <p className="text-xs text-gray-500 mt-1">
+                                          Data ini digunakan untuk statistik dan manajemen klan Anda.
+                                      </p>
+                                  </div>
+                              )}
                         </div>
 
                         {/* Aktivitas & Postingan Terbaru (Sudah Benar) */}
@@ -353,15 +355,15 @@ const ProfileClient = ({ initialProfile, serverError, recentPosts }: ProfileClie
                              <div className="space-y-4">
                                  {/* Logika Riwayat Tim akan ditambahkan di sini jika ada datanya */}
                                   <p className="text-gray-400 text-sm">Riwayat Tim akan muncul di sini.</p>
-                                  {/* Contoh jika ada data (adaptasi dari publik):
-                                  {currentTeamHistory.length === 0 ? (
-                                      <p className="text-gray-400 text-sm">Anda belum memiliki riwayat tim di Clashub.</p>
-                                  ) : (
-                                      currentTeamHistory.map((history, index) => (
-                                          <div key={index} className="..."> ... </div>
-                                      ))
-                                  )}
-                                  */}
+                                 {/* Contoh jika ada data (adaptasi dari publik):
+                                 {currentTeamHistory.length === 0 ? (
+                                     <p className="text-gray-400 text-sm">Anda belum memiliki riwayat tim di Clashub.</p>
+                                 ) : (
+                                     currentTeamHistory.map((history, index) => (
+                                         <div key={index} className="..."> ... </div>
+                                     ))
+                                 )}
+                                 */}
                              </div>
                          </div>
                     </section>
@@ -374,4 +376,3 @@ const ProfileClient = ({ initialProfile, serverError, recentPosts }: ProfileClie
 };
 
 export default ProfileClient;
-
