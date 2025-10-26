@@ -36,7 +36,7 @@ import {
   ClanRole,
 } from './types';
 
-// Helper Type
+// Helper Tipe
 type FirestoreDocument<T> = T & { id: string };
 
 // =========================================================================
@@ -108,7 +108,6 @@ async function getCollectionData<T>(
           data[key] = (data[key] as ClientTimestamp).toDate();
         }
         // Handle Firestore Timestamps within nested objects/arrays if necessary
-        // This example only handles top-level timestamps
       });
       return { id: doc.id, ...data } as FirestoreDocument<T>; // Pastikan cast ke T setelah konversi
     });
@@ -298,6 +297,56 @@ export const getManagedClans = async (): Promise<
   return getCollectionData<ManagedClan>(COLLECTIONS.MANAGED_CLANS);
 };
 
+// --- FUNGSI BARU: Mengambil ManagedClan berdasarkan TAG ---
+/**
+ * Mengambil data ManagedClan berdasarkan Clan Tag CoC.
+ * Catatan: Ini memerlukan indeks Firestore pada field 'tag'.
+ * Menggunakan Client SDK.
+ */
+export const getManagedClanByTag = async (
+	clanTag: string
+): Promise<FirestoreDocument<ManagedClan> | null> => {
+	// Normalisasi tag (pastikan diawali '#')
+	const normalizedTag = clanTag.startsWith('#')
+		? clanTag.toUpperCase()
+		: `#${clanTag.toUpperCase()}`;
+
+	try {
+		const clansRef = clientCollection(firestore, COLLECTIONS.MANAGED_CLANS);
+		const q = clientQuery(
+			clansRef,
+			clientWhere('tag', '==', normalizedTag),
+			clientLimit(1) // Hanya perlu satu hasil
+		);
+		const snapshot = await clientGetDocs(q);
+
+		if (snapshot.docs.length > 0) {
+			const doc = snapshot.docs[0];
+			const data = doc.data() as DocumentData;
+			// Konversi Timestamp
+			Object.keys(data).forEach((key) => {
+				if (data[key] instanceof ClientTimestamp) {
+					data[key] = (data[key] as ClientTimestamp).toDate();
+				}
+			});
+			return { id: doc.id, ...data } as FirestoreDocument<ManagedClan>;
+		}
+
+		console.log(
+			`Firestore Info [getManagedClanByTag - Client(${normalizedTag})]: Managed Clan not found.`
+		);
+		return null;
+	} catch (error) {
+		console.error(
+			`Firestore Error [getManagedClanByTag - Client(${normalizedTag})]:`,
+			error
+		);
+		return null;
+	}
+};
+// -----------------------------------------------------------
+
+
 /**
  * Mengambil cache API klan (sub-koleksi).
  * Menggunakan Client SDK.
@@ -382,21 +431,21 @@ export const getTeamMembers = async (clanId: string): Promise<UserProfile[]> => 
 };
 
 /**
- * Mengambil satu dokumen permintaan bergabung berdasarkan ID.
- * Menggunakan Client SDK.
- */
+ * Mengambil satu dokumen permintaan bergabung berdasarkan ID.
+ * Menggunakan Client SDK.
+ */
 export const getJoinRequest = async (
-    clanId: string,
-    requestId: string
+    clanId: string,
+    requestId: string
 ): Promise<FirestoreDocument<JoinRequest> | null> => {
-    try {
-        const requestsPath = `${COLLECTIONS.MANAGED_CLANS}/${clanId}/joinRequests`;
-        const request = await getDocumentById<JoinRequest>(requestsPath, requestId);
-        return request;
-    } catch (error) {
-        console.error(`Firestore Error [getJoinRequest - Client(${clanId}, ${requestId})]:`, error);
-        return null;
-    }
+    try {
+        const requestsPath = `${COLLECTIONS.MANAGED_CLANS}/${clanId}/joinRequests`;
+        const request = await getDocumentById<JoinRequest>(requestsPath, requestId);
+        return request;
+    } catch (error) {
+        console.error(`Firestore Error [getJoinRequest - Client(${clanId}, ${requestId})]:`, error);
+        return null;
+    }
 };
 
 

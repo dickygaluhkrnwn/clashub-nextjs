@@ -1,7 +1,6 @@
-// File: app/clan/manage/page.tsx
-// Deskripsi: Server Component untuk memuat data awal Dashboard Manajemen Klan.
-
 import { redirect } from 'next/navigation';
+// FIX 1: Hapus import Metadata yang duplikat
+import type { Metadata } from 'next'; 
 import { getSessionUser } from '@/lib/server-auth';
 // Import fungsi read yang diperlukan (getManagedClanData, getClanApiCache, getJoinRequests, getTeamMembers)
 import {
@@ -13,7 +12,9 @@ import {
 } from '@/lib/firestore';
 import { ManagedClan, ClanApiCache, UserProfile, JoinRequest } from '@/lib/types'; // Impor semua tipe data
 import ManageClanClient from './ManageClanClient';
-import { Metadata } from 'next';
+// FIX 1: Hapus import Metadata yang duplikat
+// import { Metadata } from 'next'; 
+import React from 'react'; // Import React untuk elemen JSX
 
 export const metadata: Metadata = {
     title: 'Clashub | Manajemen Klan',
@@ -22,7 +23,6 @@ export const metadata: Metadata = {
 };
 
 // Interface baru untuk data lengkap yang dikirim ke Client Component
-// FIX: Tipe ini sudah benar, masalah ada di penanganan saat mengirim ke ManageClanClient.
 export interface ClanManagementProps {
     clan: ManagedClan;
     cache: ClanApiCache | null;
@@ -54,11 +54,18 @@ const ClanManagementPage = async () => {
     // Gunakan Clashub Role (yang diset Leader/Co-Leader) untuk kontrol akses halaman
     const isClashubManager = userProfile?.role === 'Leader' || userProfile?.role === 'Co-Leader';
 
-    // [FIX] Mengganti userProfile?.teamId menjadi userProfile?.clanId
-    if (!userProfile?.isVerified || !isClashubManager || !userProfile?.clanId) {
+    // --- LOGIKA KRITIS: HANYA MENGGUNAKAN clanId ---
+    // Fix 2: Hapus logic fallback 'teamId' dan hanya gunakan 'clanId'.
+    const userClanId = userProfile?.clanId; 
+    
+    // Logika GAGAL AKSES
+    if (!userProfile?.isVerified || !isClashubManager || !userClanId) { 
         serverError =
             'Akses Ditolak: Anda harus memiliki peran Leader/Co-Leader Clashub yang terverifikasi dan menautkan klan untuk mengakses halaman manajemen.';
         
+        // Catatan: Pesan peringatan tentang 'teamId' dihilangkan karena kode sudah di-fix untuk hanya mencari 'clanId'
+        // Jika userClanId (yaitu userProfile?.clanId) masih null, maka serverError akan muncul.
+
         // Kita tetap kembalikan data minimal untuk Client Component
         return (
             <ManageClanClient
@@ -70,8 +77,8 @@ const ClanManagementPage = async () => {
         );
     } 
     
-    // Clan ID yang digunakan untuk semua operasi
-    const clanId = userProfile.clanId;
+    // Clan ID yang digunakan untuk semua operasi (gunakan ID yang ditemukan)
+    const clanId = userClanId; 
 
     // 3. Ambil data klan, cache, requests, dan anggota secara paralel
     try {
@@ -98,7 +105,6 @@ const ClanManagementPage = async () => {
     }
 
     // 4. Meneruskan data lengkap ke Client Component
-    // FIX KRITIS: Memastikan profile selalu dimasukkan ke dalam objek initialData saat berhasil.
     return (
         <ManageClanClient
             initialData={clanData && userProfile ? {

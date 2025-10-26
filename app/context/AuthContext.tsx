@@ -12,13 +12,15 @@ const auth = getAuth(app);
 
 interface AuthContextType {
   currentUser: User | null; // Objek User dari Firebase Auth
-  userProfile: UserProfile | ServerUser | null; // Data lengkap dari Firestore
+  // FIX 1: Tipe yang digunakan sekarang harus UserProfile atau null. 
+  // ServerUser hanya tipe transisi yang hanya digunakan di server.
+  userProfile: UserProfile | null; 
   loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
   currentUser: null,
-  userProfile: null, // Tambahkan userProfile ke context
+  userProfile: null, 
   loading: true,
 });
 
@@ -29,28 +31,36 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children, initialServerUser }: AuthProviderProps) {
   // Pisahkan state:
-  // currentUser untuk data auth Firebase (user.uid, user.email, dll)
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  // userProfile untuk data dari database Firestore (isVerified, teamId, dll)
-  const [userProfile, setUserProfile] = useState<UserProfile | ServerUser | null>(
-    initialServerUser,
-  );
-  // Loading state
-  const [loading, setLoading] = useState(!initialServerUser);
+  
+  // FIX 2: Initialize userProfile dengan null atau data lengkap jika ada (bukan ServerUser)
+  // Kita hanya ingin menggunakan ServerUser untuk initial loading jika profil belum difetch.
+  // Tetapi untuk konsistensi tipe di context, kita set null di awal dan biarkan useEffect mengambilnya.
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+
+  // FIX 3: Sesuaikan logika loading. Jika ada ServerUser, kita asumsikan tidak loading,
+  // TAPI kita tetap harus menunggu fetch Firestore di useEffect. 
+  // Solusi: Kita tandai loading selesai HANYA setelah onAuthStateChanged selesai dan fetch profil selesai.
+  const [loading, setLoading] = useState(true); // Selalu mulai dengan loading=true
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      // Set status auth Firebase
-      setCurrentUser(user);
+    // Flag untuk memastikan kita hanya melakukan fetch profil sekali saat auth state berubah
+    let isMounted = true; 
 
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!isMounted) return;
+
+      setCurrentUser(user);
+      
       if (user) {
         // Jika user login, ambil data lengkapnya dari Firestore
         try {
           const profile = await getUserProfile(user.uid);
-          setUserProfile(profile);
+          // FIX 4: Gunakan setUserProfile dengan tipe UserProfile | null
+          setUserProfile(profile); 
         } catch (error) {
           console.error('Gagal mengambil profil user di AuthContext:', error);
-          setUserProfile(null); // Gagal fetch, pastikan profile null
+          setUserProfile(null); 
         }
       } else {
         // Jika user logout, kosongkan juga profilnya
@@ -60,14 +70,47 @@ export function AuthProvider({ children, initialServerUser }: AuthProviderProps)
       // Selesai loading setelah status auth dan profile (jika ada) berhasil didapatkan
       setLoading(false);
     });
+    
+    // Cleanup function
+    return () => {
+        isMounted = false; // Mencegah setState setelah unmount
+        unsubscribe(); // Membersihkan listener Firebase
+    };
+  }, []); 
 
-    // Membersihkan listener
-    return unsubscribe;
-  }, []); // Dependency array kosong agar hanya berjalan sekali
+  // FIX 5: Tambahkan useEffect untuk menangani data yang datang dari SSR (initialServerUser).
+  // Jika ada initialServerUser, coba fetch profilnya segera, lalu set loading=false.
+  useEffect(() => {
+      let isMounted = true;
+      
+      const fetchInitialProfile = async () => {
+          if (initialServerUser && isMounted && !currentUser) {
+               // Periksa apakah userProfile masih null, jika ya, fetch.
+               try {
+                  const profile = await getUserProfile(initialServerUser.uid);
+                  setUserProfile(profile);
+               } catch (error) {
+                   console.error('Gagal mengambil initial profile di AuthContext:', error);
+                   setUserProfile(null);
+               }
+               // Tandai loading selesai setelah mencoba fetch data awal
+               setLoading(false); 
+          } else if (!initialServerUser) {
+               // Jika tidak ada user dari SSR, biarkan listener onAuthStateChanged yang menangani loading.
+               setLoading(true);
+          }
+      };
+      // Panggil fetchInitialProfile HANYA jika currentUser belum diset (proses hydration awal)
+      if (!currentUser) {
+          fetchInitialProfile(); 
+      }
+      
+      return () => { isMounted = false; };
+  }, [initialServerUser, currentUser]); // Run once on mount and when currentUser changes to null (logout)
 
   const value = {
-    currentUser, // Objek auth
-    userProfile, // Objek data Firestore
+    currentUser, 
+    userProfile, 
     loading,
   };
 

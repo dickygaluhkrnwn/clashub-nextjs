@@ -66,33 +66,33 @@ const UserProfileDropdown = () => {
     };
   }, []);
 
-  // Evaluasi showClanLink HANYA jika authLoading selesai DAN userProfile ada
-  let showClanLink = false;
-  // --- PERBAIKAN TYPE CHECK ---
-  // Gunakan type guard untuk memeriksa apakah userProfile adalah UserProfile
-  const isUserProfile = (
+  // --- PERBAIKAN LOGIKA: Sederhanakan Pengecekan Menu Klan ---
+  // Kita perlu membedakan antara ServerUser (sebagian) dan UserProfile (lengkap dari Firestore).
+  
+  // Type Guard untuk memastikan objek adalah UserProfile lengkap dari Firestore
+  const isCompleteUserProfile = (
     profile: UserProfile | ServerUser | null
   ): profile is UserProfile => {
-    return !!profile && typeof profile === 'object' && 'isVerified' in profile;
+      // Cek minimal: harus punya isVerified, clanId (bisa null), dan role (Clashub internal)
+      // ServerUser hanya punya uid, email, displayName.
+      return (
+          !!profile && 
+          'isVerified' in profile && 
+          'clanId' in profile &&
+          'role' in profile // Tambahkan cek untuk role Clashub
+      );
   };
 
-  if (!authLoading && isUserProfile(userProfile)) {
-    // Akses properti dengan aman setelah memastikan userProfile adalah UserProfile
-    // [FIX 1] Ganti 'teamId' -> 'clanId'
+  // Logika untuk menampilkan link 'Klan'
+  let showClanLink = false;
+  let avatarSrc: string | null = null;
+  
+  if (isCompleteUserProfile(userProfile)) {
+    // Tampilkan Klan jika terverifikasi DAN punya ID klan internal (ManagedClan)
     showClanLink = userProfile.isVerified === true && !!userProfile.clanId;
+    avatarSrc = userProfile.avatarUrl || null;
   }
-  // --- AKHIR PERBAIKAN TYPE CHECK ---
-
-  // --- PERBAIKAN AKSES AVATAR URL ---
-  // Dapatkan avatarUrl hanya jika userProfile adalah UserProfile
-  const avatarSrc = isUserProfile(userProfile) ? userProfile.avatarUrl : null;
-  // --- AKHIR PERBAIKAN AKSES AVATAR URL ---
-
-  // --- DEBUGGING LOG ---
-  // console.log("Header Dropdown - Auth Loading:", authLoading);
-  // console.log("Header Dropdown - User Profile:", userProfile);
-  // console.log("Header Dropdown - Show Clan Link:", showClanLink);
-  // --- END DEBUGGING LOG ---
+  // --- AKHIR PERBAIKAN LOGIKA ---
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -127,7 +127,7 @@ const UserProfileDropdown = () => {
               </Link>
             </li>
 
-            {/* Tampilkan Link "Klan" secara kondisional (POSISI DIPERBAIKI) */}
+            {/* Tampilkan Link "Klan" secara kondisional */}
             {showClanLink && (
               <li>
                 <Link

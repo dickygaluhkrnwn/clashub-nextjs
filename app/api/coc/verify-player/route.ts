@@ -6,7 +6,8 @@ import { NextRequest, NextResponse } from 'next/server';
 // Menggunakan default export dari lib/coc-api
 import cocApi from '@/lib/coc-api';
 // Import fungsi Client SDK untuk read dan fungsi Admin SDK untuk write
-import { getUserProfile } from '@/lib/firestore'; // Hanya perlu read profile
+// FIX: Menggunakan getManagedClanByTag dari lib/firestore untuk auto-sync member
+import { getUserProfile, getManagedClanByTag } from '@/lib/firestore'; 
 import { createOrLinkManagedClan } from '@/lib/firestore-admin'; // <<<--- IMPORT FUNGSI ADMIN DARI SINI
 import { adminFirestore } from '@/lib/firebase-admin'; // Import adminFirestore untuk update user profile
 import { getSessionUser } from '@/lib/server-auth'; // Untuk otentikasi Server-Side
@@ -16,6 +17,26 @@ import {
   ClanRole,
   CocPlayer,
 } from '@/lib/types'; // Import tipe data ClanRole dan CocPlayer
+
+
+// --- HELPER BARU: Map Role CoC API string ke Clashub Role string ---
+const mapCocRoleToClashubRole = (cocRole: ClanRole): UserProfile['role'] => {
+      switch (cocRole) {
+        case ClanRole.LEADER:
+          return 'Leader';
+        case ClanRole.CO_LEADER:
+          return 'Co-Leader';
+        case ClanRole.ELDER: // ClanRole.ELDER adalah 'admin'
+          return 'Elder';
+        case ClanRole.MEMBER:
+          return 'Member';
+        case ClanRole.NOT_IN_CLAN:
+        default:
+          return 'Free Agent'; // Jika tidak di klan atau role tidak dikenal
+      }
+};
+// --- END HELPER ---
+
 
 /**
  * @function POST
@@ -67,59 +88,29 @@ export async function POST(request: NextRequest) {
       `[VERIFIKASI] Data pemain ${cocPlayerData.name} (${playerTag}) berhasil diambil.`
     );
 
-    // 5. Siapkan data update untuk UserProfile
-    const updateData: Partial<UserProfile> = {
-      isVerified: true,
-      playerTag: cocPlayerData.tag, // Simpan tag asli dari API (sudah pasti benar)
-      inGameName: cocPlayerData.name,
-      thLevel: cocPlayerData.townHallLevel,
-      trophies: cocPlayerData.trophies,
-      lastVerified: new Date(),
-      clanTag: null,
-      clanRole: ClanRole.NOT_IN_CLAN,
-      // [FIX 1] Ganti 'teamId' -> 'clanId'
-      clanId: null,
-      // [FIX 1] Ganti 'teamName' -> 'clanName'
-      clanName: null,
-    };
+    // Map role CoC API (string) ke Enum ClanRole
+    const cocApiRole = cocPlayerData.clan 
+        ? (cocPlayerData.role?.toLowerCase() as ClanRole) || ClanRole.MEMBER
+        : ClanRole.NOT_IN_CLAN;
 
-    let clashubRole: UserProfile['role'] = 'Free Agent'; // Default Clashub role
+    // Tentukan Clashub Role internal
+    let clashubRole: UserProfile['role'] = mapCocRoleToClashubRole(cocApiRole); 
+    let managedClanId: string | null = null;
+    let managedClanName: string | null = null;
+
 
     if (cocPlayerData.clan) {
-      updateData.clanTag = cocPlayerData.clan.tag;
-      const cocApiRole = (cocPlayerData.role?.toLowerCase() ||
-        'member') as ClanRole;
-      updateData.clanRole = cocApiRole;
-
-      // Map role CoC API ke Role Clashub Internal
-      switch (cocApiRole) {
-        case ClanRole.LEADER:
-          clashubRole = 'Leader';
-          break;
-        case ClanRole.CO_LEADER:
-          clashubRole = 'Co-Leader';
-          break;
-        case ClanRole.ELDER:
-          clashubRole = 'Elder';
-          break;
-        default:
-          clashubRole = 'Member';
-      }
-      updateData.role = clashubRole; // Set role Clashub
-
-      // 6. Logika Penautan Klan (Jika Leader/Co-Leader)
+      // 5. Logika Penentuan Penautan Klan (Leader/Co-Leader vs Anggota)
+      
       if (cocApiRole === ClanRole.LEADER || cocApiRole === ClanRole.CO_LEADER) {
+        // [SCENARIO 1]: MANAGER - CREATE OR LINK MANAGED CLAN
         try {
-          // createOrLinkManagedClan menerima tag MENTAH
-          const managedClanId = await createOrLinkManagedClan(
-            cocPlayerData.clan.tag, // Tag asli dari API
+          managedClanId = await createOrLinkManagedClan(
+            cocPlayerData.clan.tag, 
             cocPlayerData.clan.name,
             uid
           );
-          // [FIX 2] Ganti 'teamId' -> 'clanId'
-          updateData.clanId = managedClanId;
-          // [FIX 2] Ganti 'teamName' -> 'clanName'
-          updateData.clanName = cocPlayerData.clan.name;
+          managedClanName = cocPlayerData.clan.name;
           console.log(
             `[VERIFIKASI] User ${uid} menautkan klan ${cocPlayerData.clan.tag} ke ManagedClan ${managedClanId}`
           );
@@ -128,22 +119,50 @@ export async function POST(request: NextRequest) {
             `[VERIFIKASI] Gagal menautkan klan ${cocPlayerData.clan.tag} untuk user ${uid}:`,
             clanLinkError
           );
-          // Mungkin tambahkan notifikasi error spesifik jika penautan gagal?
-          // Untuk saat ini, kita lanjutkan update profil user tanpa clanId
         }
       } else {
-        // Jika bukan Leader/Co, set clanName tapi clanId mungkin null (jika klan belum dikelola)
-        // [FIX 3] Ganti 'teamName' -> 'clanName'
-        updateData.clanName = cocPlayerData.clan.name;
-        // [FIX 3] Ganti 'teamId' -> 'clanId'
-        updateData.clanId = null; // Default null
-        // TODO: Cek apakah clanTag ini ada di managedClans, jika ya, set clanId
+        // [SCENARIO 2]: ANGGOTA - AUTO-SYNC ROLE CLASHUB
+        // Jika bukan Leader/Co-Leader, cek apakah klan mereka SUDAH dikelola.
+        try {
+             // Cari ManagedClan berdasarkan Clan Tag CoC menggunakan fungsi baru
+             const managedClan = await getManagedClanByTag(cocPlayerData.clan.tag);
+             
+             if (managedClan) {
+                  // Jika ditemukan, auto-sync role Clashub mereka dan set clanId
+                  managedClanId = managedClan.id;
+                  managedClanName = managedClan.name;
+                  console.log(`[VERIFIKASI] User ${uid} (Member/Elder) auto-synced to ManagedClan ${managedClanId}.`);
+             }
+        } catch (clanSearchError) {
+             console.warn(`[VERIFIKASI] Gagal mencari ManagedClan untuk auto-sync bagi ${uid}:`, clanSearchError);
+             // Lanjutkan, ID dan Nama tetap null jika gagal atau tidak ditemukan
+        }
+        // Set nama klan dari CoC API untuk display
+        managedClanName = cocPlayerData.clan.name;
+        // Role Clashub sudah di set di awal berdasarkan cocApiRole (Elder/Member)
       }
     } else {
-      // Jika tidak dalam klan CoC, pastikan role Clashub adalah Free Agent
-      updateData.role = 'Free Agent';
+      // [SCENARIO 3]: FREE AGENT
+      clashubRole = 'Free Agent';
     }
 
+    // 6. Siapkan data update final untuk UserProfile
+    const updateData: Partial<UserProfile> = {
+      isVerified: true,
+      playerTag: cocPlayerData.tag, 
+      inGameName: cocPlayerData.name,
+      thLevel: cocPlayerData.townHallLevel,
+      trophies: cocPlayerData.trophies,
+      lastVerified: new Date(),
+      
+      // Update data Clan Internal dan Role Clashub
+      clanTag: cocPlayerData.clan?.tag || null,
+      clanRole: cocApiRole,
+      role: clashubRole,
+      clanId: managedClanId,
+      clanName: managedClanName,
+    };
+    
     // 7. Simpan Pembaruan ke Firestore User Profile (Gunakan Admin SDK langsung)
     const userRef = adminFirestore.doc(`users/${uid}`);
     // Hapus field undefined sebelum mengirim ke Admin SDK
