@@ -1,9 +1,10 @@
 import { redirect } from 'next/navigation';
 import { Metadata } from 'next';
 import { getSessionUser } from '@/lib/server-auth'; // Utilitas Auth Sisi Server
-import { getUserProfile } from '@/lib/firestore'; // Fungsi ambil data profil
+import { getUserProfile, getPostsByAuthor } from '@/lib/firestore'; // Fungsi ambil data profil
+import cocApi from '@/lib/coc-api'; // Objek yang berisi method API CoC
 import ProfileClient from './ProfileClient'; // Client Component (untuk interaktivitas)
-import { UserProfile, ClanRole } from '@/lib/types'; // Import UserProfile & ClanRole
+import { UserProfile, ClanRole, Post, CocPlayer } from '@/lib/types'; // Import UserProfile, ClanRole, Post, CocPlayer
 
 // Metadata untuk SEO
 export const metadata: Metadata = {
@@ -11,10 +12,22 @@ export const metadata: Metadata = {
     description: "Lihat dan kelola E-Sports CV Clash of Clans Anda.",
 };
 
+// --- Fungsi Helper untuk Map Role CoC API ke Enum ClanRole ---
+const mapCocRoleToClanRole = (cocRole?: string): ClanRole => {
+    switch (cocRole?.toLowerCase()) {
+        case 'leader': return ClanRole.LEADER;
+        case 'coLeader': return ClanRole.CO_LEADER;
+        case 'admin': return ClanRole.ELDER; // CoC API uses 'admin' for Elder
+        case 'member': return ClanRole.MEMBER;
+        default: return ClanRole.NOT_IN_CLAN;
+    }
+};
+
 // Mengubah komponen menjadi fungsi async: Server Component
 const ProfilePage = async () => {
     let profileData: UserProfile | null = null;
     let serverError: string | null = null;
+    let recentPosts: Post[] = [];
     
     // 1. Dapatkan status pengguna dari Sisi Server
     const sessionUser = await getSessionUser();
@@ -33,54 +46,92 @@ const ProfilePage = async () => {
             // KASUS PROFIL BARU: Profil belum ada di Firestore
             serverError = "Profil E-Sports CV Anda belum ditemukan. Silakan lengkapi data Anda di halaman Edit Profil.";
             
-            // PERBAIKAN KRITIS: Inisialisasi data minimal dengan SEMUA field verifikasi CoC
+            // Inisialisasi data minimal
             profileData = {
                 uid: sessionUser.uid,
                 email: sessionUser.email || null,
                 displayName: sessionUser.displayName || `Pemain-${sessionUser.uid.substring(0, 4)}`,
-                
-                // --- FIELD VERIFIKASI COCLANS (BARU) ---
                 isVerified: false,
                 playerTag: '',
-                inGameName: undefined, // Tambahkan
-                thLevel: 9, // Diubah dari 1 ke 9 (default lebih realistis)
-                trophies: 0, // Tambahkan
-                clanTag: null, // Tambahkan
-                clanRole: ClanRole.NOT_IN_CLAN, // Gunakan Enum ClanRole
-                lastVerified: undefined, // Tambahkan
-                
-                // --- FIELD E-SPORTS CV LAMA ---
+                inGameName: undefined, 
+                thLevel: 9, 
+                trophies: 0, 
+                clanTag: null, 
+                clanRole: ClanRole.NOT_IN_CLAN, 
+                lastVerified: undefined, 
                 role: 'Free Agent',
                 playStyle: undefined,
-                activeHours: '',
+                activeHours: '',
                 reputation: 5.0,
                 avatarUrl: '/images/placeholder-avatar.png',
-                discordId: null,
-                website: null,
-                bio: '',
+                discordId: null,
+                website: null,
+                bio: '',
                 teamId: null,
                 teamName: null,
             } as UserProfile; // Casting untuk memastikan tipe lengkap
         } else {
             // KASUS PROFIL DITEMUKAN:
-            serverError = null; // Pastikan error direset jika data ditemukan
+            serverError = null; // Pastikan error direset
+
+            // --- Ambil data live jika terverifikasi ---
+            if (profileData.isVerified && profileData.playerTag) {
+                try {
+                    // --- PERBAIKAN: Encode playerTag sebelum memanggil API ---
+                    const encodedPlayerTag = encodeURIComponent(profileData.playerTag);
+                    console.log(`[ProfilePage] Fetching live CoC data for encoded tag: ${encodedPlayerTag}`);
+                    const livePlayerData: CocPlayer | null = await cocApi.getPlayerData(encodedPlayerTag); // Gunakan tag yang sudah di-encode
+
+                    if (livePlayerData) {
+                        console.log(`[ProfilePage] Live data found. Merging...`);
+                        // Timpa data Firestore dengan data live
+                        profileData = {
+                            ...profileData, 
+                            inGameName: livePlayerData.name,
+                            thLevel: livePlayerData.townHallLevel,
+                            trophies: livePlayerData.trophies,
+                            clanTag: livePlayerData.clan?.tag || null,
+                            teamName: livePlayerData.clan 
+                                ? (profileData.teamName && profileData.teamName !== livePlayerData.clan.name ? livePlayerData.clan.name : profileData.teamName || livePlayerData.clan.name) 
+                                : null, 
+                            clanRole: mapCocRoleToClanRole(livePlayerData.role),
+                        };
+                    } else {
+                        console.warn(`[ProfilePage] Live CoC data not found for tag: ${profileData.playerTag}. Using Firestore data.`);
+                    }
+                } catch (cocErr) {
+                    console.error(`[ProfilePage] Error fetching live CoC data for tag ${profileData.playerTag}:`, cocErr);
+                }
+            }
+        }
+
+        // Ambil postingan nyata (setelah profileData dipastikan ada dan mungkin sudah digabung)
+        if (profileData?.uid) { 
+            try {
+                recentPosts = await getPostsByAuthor(profileData.uid, 3);
+            } catch (postErr) {
+                // Log error jika index belum dibuat, tapi jangan blokir render halaman
+                console.error("Server Error: Failed to load recent posts (Firestore Index might be missing):", postErr); 
+                // Biarkan recentPosts kosong jika gagal
+            }
         }
 
     } catch (err) {
-        // KASUS KONEKSI ERROR: Jika terjadi exception (misal koneksi ke Firestore mati)
+        // KASUS KONEKSI ERROR
         console.error("Server Error: Failed to load user profile:", err);
-        profileData = null; // Paksa null jika terjadi error koneksi fatal
-        serverError = "Gagal memuat data profil dari Firestore. Coba lagi."; // Error fatal
+        profileData = null; 
+        serverError = "Gagal memuat data profil dari Firestore. Coba lagi."; 
     }
 
-    // 4. Meneruskan data yang sudah di-fetch ke Client Component
+    // 4. Meneruskan data ke Client Component
     return (
         <ProfileClient 
-            // Kita yakin profileData memiliki uid di sini (karena sudah di-check sessionUser)
             initialProfile={profileData} 
             serverError={serverError}
+            recentPosts={recentPosts}
         />
     );
 };
 
 export default ProfilePage;
+
