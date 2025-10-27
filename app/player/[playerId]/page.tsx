@@ -175,13 +175,14 @@ const PlayerDetailPage = async ({ params }: PlayerDetailPageProps) => {
     <main className="max-w-7xl mx-auto space-y-8 p-4 md:p-8 mt-10">
       {/* Header Tindakan */}
       <header className="flex justify-between items-center flex-wrap gap-4 mb-6 card-stone p-6 rounded-lg">
+        {/* PERBAIKAN: Mengubah href ke "/clan-hub" */}
         <Button
-          href="/teamhub"
+          href="/clan-hub"
           variant="secondary"
           size="md"
           className="flex items-center flex-shrink-0"
         >
-          <ArrowLeftIcon className="h-4 w-4 mr-2" /> Kembali ke Pencarian
+          <ArrowLeftIcon className="h-4 w-4 mr-2" /> Kembali ke Hub {/* Mengubah teks tombol agar lebih sesuai */}
         </Button>
 
         <div className="flex gap-4">

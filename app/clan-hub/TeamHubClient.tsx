@@ -25,9 +25,9 @@ interface PublicClanCardProps {
 const PublicClanCard = ({ clan }: PublicClanCardProps) => {
     // Menghitung rata-rata TH sederhana (hanya untuk tampilan umum)
     const avgThDisplay = clan.memberCount > 0 ? (clan.clanPoints / clan.memberCount / 100).toFixed(1) : 'N/A';
-    
+
     // Link Klan Publik In-Game
-    const cocProfileUrl = `/clan/${encodeURIComponent(clan.tag)}`; 
+    const cocProfileUrl = `/clan/${encodeURIComponent(clan.tag)}`;
 
     return (
         // Menggunakan gaya card-stone dan efek hover yang sama
@@ -53,7 +53,7 @@ const PublicClanCard = ({ clan }: PublicClanCardProps) => {
                         </div>
                     </div>
                 </div>
-                
+
                 {/* Detail Statistik Klan Publik */}
                 <div className="space-y-3 pt-4 font-sans text-sm">
                     <div className="flex justify-between items-center">
@@ -107,17 +107,17 @@ export type PlayerFilters = {
 const TeamHubClient = ({ initialClans, initialPlayers, initialPublicClans }: TeamHubClientProps) => {
     const [activeTab, setActiveTab] = useState<ActiveTab>('clashubTeams');
     const [allClans] = useState<ManagedClan[]>(initialClans);
-    
+
     // FIX TS7022/TS2448/TS7006: Inisialisasi state dengan memetakan initialPlayers, bukan allPlayers (dirinya sendiri).
     const [allPlayers] = useState<Player[]>(
-        initialPlayers.map((p: Player) => ({ 
-            ...p, 
-            name: p.displayName || p.name 
+        initialPlayers.map((p: Player) => ({
+            ...p,
+            name: p.displayName || p.name
         }))
     );
-    
+
     const [isFiltering, setIsFiltering] = useState(false);
-    
+
     // Cache diurutkan berdasarkan level klan (descending)
     const [publicClansCache] = useState<PublicClanIndex[]>(() =>
         [...initialPublicClans].sort((a, b) => (b.clanLevel || 0) - (a.clanLevel || 0))
@@ -272,9 +272,9 @@ const TeamHubClient = ({ initialClans, initialPlayers, initialPublicClans }: Tea
         // 1. Jika ada hasil pencarian tag spesifik, tampilkan itu saja
         if (publicClanResult) { return [publicClanResult]; }
         // 2. Jika input tag aktif (ada di kolom) TAPI tidak ada hasil spesifik, tampilkan array kosong (loading/error)
-        if (publicClanTag.trim() && !publicSearchError) { return []; } 
+        if (publicClanTag.trim() && !publicSearchError) { return []; }
         // 3. Default: Tampilkan cache yang sudah dipaginasi
-        return publicClansToShow; 
+        return publicClansToShow;
     }, [publicClanResult, publicClanTag, publicSearchError, publicClansToShow]);
 
 
@@ -308,9 +308,11 @@ const TeamHubClient = ({ initialClans, initialPlayers, initialPublicClans }: Tea
         // --- Content for Tabs with Sidebar (Teams & Players) ---
         if (activeTab === 'clashubTeams' || activeTab === 'players') {
             return (
-                <section className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                <section className="grid grid-cols-1 lg:grid-cols-4 gap-8 lg:items-start">
                     {/* Filter Column (Sidebar) */}
-                    <div className="lg:col-span-1">
+                    {/* The filter components themselves already have sticky positioning */}
+                    {/* PERBAIKAN: Menambahkan lg:self-start */}
+                    <div className="lg:col-span-1 lg:self-start">
                         {activeTab === 'clashubTeams' && (
                             <TeamHubFilter filters={clanFilters} onFilterChange={handleClanFilterChange as any} />
                         )}
@@ -354,19 +356,19 @@ const TeamHubClient = ({ initialClans, initialPlayers, initialPublicClans }: Tea
             ) : (
                 <>
                     {/* Menggunakan grid 3 kolom untuk TeamCard agar terlihat rapi */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"> 
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                         {clansToShow.map((clan: ManagedClan) => (
                             // Menggunakan TeamCard yang sudah diperbaiki dari cards.tsx
-                            <TeamCard 
-                                key={clan.id} 
-                                id={clan.id} 
-                                name={clan.name} 
-                                tag={clan.tag} 
+                            <TeamCard
+                                key={clan.id}
+                                id={clan.id}
+                                name={clan.name}
+                                tag={clan.tag}
                                 // Placeholder rating
-                                rating={5.0} 
-                                vision={clan.vision} 
-                                avgTh={clan.avgTh} 
-                                logoUrl={clan.logoUrl} 
+                                rating={5.0}
+                                vision={clan.vision}
+                                avgTh={clan.avgTh}
+                                logoUrl={clan.logoUrl}
                             />
                         ))}
                     </div>
@@ -394,15 +396,15 @@ const TeamHubClient = ({ initialClans, initialPlayers, initialPublicClans }: Tea
                          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                             {playersToShow.map((player: Player) => ( // FIX TS7006
                                 // Menggunakan PlayerCard dari cards.tsx
-                                <PlayerCard 
-                                    key={player.id} 
-                                    id={player.id} 
-                                    name={player.displayName || player.name} 
-                                    tag={player.playerTag || player.tag} 
-                                    thLevel={player.thLevel} 
-                                    reputation={player.reputation || 5.0} 
-                                    role={player.role || 'Free Agent'} 
-                                    avatarUrl={player.avatarUrl} 
+                                <PlayerCard
+                                    key={player.id}
+                                    id={player.id}
+                                    name={player.displayName || player.name}
+                                    tag={player.playerTag || player.tag}
+                                    thLevel={player.thLevel}
+                                    reputation={player.reputation || 5.0}
+                                    role={player.role || 'Free Agent'}
+                                    avatarUrl={player.avatarUrl}
                                 />
                             ))}
                         </div>
@@ -515,3 +517,4 @@ const TeamHubClient = ({ initialClans, initialPlayers, initialPublicClans }: Tea
 };
 
 export default TeamHubClient;
+
