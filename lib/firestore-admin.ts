@@ -2,6 +2,7 @@
 // Deskripsi: Berisi fungsi utilitas Firestore yang HANYA menggunakan Firebase Admin SDK.
 // File ini hanya boleh diimpor oleh Server Components, Server Actions, atau API Routes.
 
+// PERBAIKAN: Ekspor adminFirestore
 import { adminFirestore } from './firebase-admin'; // Import adminFirestore
 // --- PERBAIKAN: Import Timestamp langsung dari namespace firestore ---
 import { Timestamp as AdminTimestamp } from 'firebase-admin/firestore';
@@ -47,7 +48,8 @@ function cleanDataForAdminSDK<T extends object>(
     for (const key in data) {
         if (
             Object.prototype.hasOwnProperty.call(data, key) &&
-            data[key] !== undefined
+            data[key] !== undefined &&
+            data[key] !== null // Tambahkan pengecekan null
         ) {
             // Khusus untuk Date, konversi ke AdminTimestamp
             if (data[key] instanceof Date) {
@@ -87,9 +89,16 @@ export const getRoleLogsByClanId = async (
             if (data.changedAt instanceof AdminTimestamp) {
                 data.changedAt = data.changedAt.toDate();
             }
+            // Kembalikan objek yang sesuai dengan tipe RoleChangeLog
             return {
-                id: doc.id,
-                ...data
+                playerTag: data.playerTag,
+                playerName: data.playerName,
+                memberUid: data.memberUid,
+                oldRoleCoC: data.oldRoleCoC,
+                newRoleCoC: data.newRoleCoC,
+                changedByUid: data.changedByUid,
+                changedAt: data.changedAt, // Ini sudah jadi Date
+                // Jangan sertakan 'id' jika tidak didefinisikan di tipe RoleChangeLog
             } as RoleChangeLog;
         });
     } catch (error) {
@@ -108,14 +117,18 @@ export const getCwlArchivesByClanId = async (clanId: string): Promise<any[]> => 
             .collection(COLLECTIONS.MANAGED_CLANS)
             .doc(clanId)
             // Asumsi sub-koleksi untuk arsip CWL adalah 'cwlArchives'
-            .collection('cwlArchives'); 
+            .collection('cwlArchives');
 
         // Mengambil semua dokumen arsip CWL
         const snapshot = await cwlRef.get();
 
         return snapshot.docs.map(doc => {
             const data = doc.data() as any;
-            // Konversi Timestamp jika diperlukan (tergantung skema internal, kita asumsikan Date/Timestamp di-handle di cleanData)
+            // Konversi Timestamp jika diperlukan
+            // Contoh: Jika ada field 'archiveDate'
+            // if (data.archiveDate instanceof AdminTimestamp) {
+            //     data.archiveDate = data.archiveDate.toDate();
+            // }
             return {
                 id: doc.id,
                 ...data
@@ -146,13 +159,14 @@ export const logRoleChange = async (
             .doc(clanId)
             .collection('roleChanges');
 
-        const payload: RoleChangeLog = {
+        // Pastikan tipe data sesuai sebelum membersihkan
+        const payloadWithDate: RoleChangeLog = {
             ...logData,
             changedAt: new Date(), // Tambahkan timestamp
         };
 
-        await logRef.add(cleanDataForAdminSDK(payload));
-        
+        await logRef.add(cleanDataForAdminSDK(payloadWithDate)); // Gunakan payloadWithDate
+
         console.log(`[RoleLog - Admin] Role change recorded for ${logData.playerTag}.`);
 
     } catch (error) {
@@ -188,28 +202,24 @@ export const createOrLinkManagedClan = async (
             return snapshot.docs[0].id;
         }
 
-        // --- PERBAIKAN ERROR TIPE TS(2322) ---
-        // Definisikan tipe newClanData agar sesuai dengan Omit<ManagedClan, 'id'>
         const newClanData: Omit<ManagedClan, 'id'> = {
             name: clanName,
             tag: clanTag,
             ownerUid: ownerUid,
-            vision: 'Kompetitif',
-            recruitingStatus: 'Open',
+            vision: 'Kompetitif', // Default vision
+            recruitingStatus: 'Open', // Default status
             website: undefined,
             discordId: undefined,
             logoUrl: undefined,
             avgTh: 0,
-            clanLevel: 0,
-            memberCount: 0,
-            lastSynced: new Date(), // Gunakan new Date() di sini
+            clanLevel: 0, // Akan diupdate saat sync pertama
+            memberCount: 0, // Akan diupdate saat sync pertama
+            lastSynced: new Date(0), // Set ke waktu epoch agar sync pertama ter-trigger
         };
-        // --- AKHIR PERBAIKAN ---
 
         const cleanedData = cleanDataForAdminSDK(newClanData);
         const docRef = await managedClansRef.add(cleanedData);
-        // Perbaikan kecil: Pastikan 'id' benar-benar ditambahkan ke dokumen setelah dibuat
-        // Ini lebih aman dilakukan dengan update terpisah atau set dengan merge
+        // Menambahkan ID dokumen sebagai field 'id' setelah dibuat
         await docRef.set({ id: docRef.id }, { merge: true });
 
         console.log(
@@ -228,12 +238,14 @@ export const createOrLinkManagedClan = async (
 /**
  * Memperbarui cache API klan dan metadata klan utama.
  * Menggunakan Admin SDK. Dipanggil dari server (sinkronisasi).
+ * FUNGSI INI SEKARANG HANYA CONTOH, LOGIKA UTAMA ADA DI API SYNC LANGSUNG DENGAN BATCH
  */
 export const updateClanApiCache = async (
     clanId: string,
     cacheData: Omit<ClanApiCache, 'id' | 'lastUpdated'>,
     updatedManagedClanFields: Partial<ManagedClan>
 ): Promise<void> => {
+    console.warn("[updateClanApiCache - Admin] This function is deprecated. Use batch operations within the sync API route instead.");
     try {
         const batch = adminFirestore.batch();
         const cacheRef = adminFirestore
@@ -248,26 +260,26 @@ export const updateClanApiCache = async (
         const cachePayload = {
             ...cacheData,
             id: 'current',
-            lastUpdated: AdminTimestamp.now(), // Langsung AdminTimestamp karena ClanApiCache tidak butuh Date
+            lastUpdated: new Date(), // Gunakan Date biasa, cleanData akan konversi
         };
-        // Gunakan cleanDataForAdminSDK juga untuk cache (meskipun lastUpdated sudah Timestamp)
-        batch.set(cacheRef, cleanDataForAdminSDK(cachePayload));
+        batch.set(cacheRef, cleanDataForAdminSDK(cachePayload), { merge: true }); // Gunakan merge
 
         const clanUpdatePayload = cleanDataForAdminSDK({
             ...updatedManagedClanFields,
-            lastSynced: new Date(), // Gunakan new Date(), cleanData akan konversi
+            lastSynced: new Date(), // Update lastSynced juga
         });
         if (Object.keys(clanUpdatePayload).length > 0) {
             batch.update(managedClanRef, clanUpdatePayload);
         }
 
         await batch.commit();
+        console.log(`[updateClanApiCache - Admin(${clanId})] Batch commit successful (legacy function).`);
     } catch (error) {
         console.error(
             `Firestore Error [updateClanApiCache - Admin(${clanId})]:`,
             error
         );
-        throw new Error('Gagal menyimpan cache API klan (Admin SDK).');
+        throw new Error('Gagal menyimpan cache API klan (Admin SDK - legacy).');
     }
 };
 
@@ -286,7 +298,7 @@ export const updatePublicClanIndex = async (
     try {
         const docRef = adminFirestore
             .collection(COLLECTIONS.PUBLIC_CLAN_INDEX)
-            .doc(clanTag);
+            .doc(clanTag); // Gunakan clanTag sebagai ID dokumen
 
         const defaultBadgeUrls: CocIconUrls = {
             small: '/images/clan-badge-placeholder.png',
@@ -294,7 +306,7 @@ export const updatePublicClanIndex = async (
             large: '/images/clan-badge-placeholder.png',
         };
 
-        // Di sini lastUpdated di PublicClanIndex juga Date, jadi gunakan new Date()
+        // Siapkan payload lengkap dengan fallback dan timestamp
         const payload: Omit<PublicClanIndex, 'lastUpdated'> & { lastUpdated: Date } =
             {
                 tag: clanData.tag || clanTag,
@@ -305,7 +317,7 @@ export const updatePublicClanIndex = async (
                 clanCapitalPoints: clanData.clanCapitalPoints || 0,
                 clanVersusPoints: clanData.clanVersusPoints || 0,
                 badgeUrls: clanData.badgeUrls || defaultBadgeUrls,
-                lastUpdated: new Date(), // Gunakan new Date()
+                lastUpdated: new Date(), // Timestamp saat ini
                 requiredTrophies: clanData.requiredTrophies || 0,
                 warFrequency: clanData.warFrequency || 'unknown',
                 warWinStreak: clanData.warWinStreak || 0,
@@ -313,15 +325,17 @@ export const updatePublicClanIndex = async (
                 type: clanData.type || 'closed',
                 description: clanData.description || '',
                 location: clanData.location || undefined,
+                warLeague: clanData.warLeague || undefined, // Sertakan warLeague
             };
 
-        const finalPayload = cleanDataForAdminSDK(payload); // cleanData akan konversi lastUpdated
-        await docRef.set(finalPayload, { merge: true });
+        const finalPayload = cleanDataForAdminSDK(payload); // Konversi Date ke Timestamp
+        await docRef.set(finalPayload, { merge: true }); // Gunakan merge true
     } catch (error) {
         console.error(
             `Firestore Error [updatePublicClanIndex - Admin(${clanTag})]:`,
             error
         );
+        // Jangan throw error agar cron job tidak berhenti jika satu klan gagal
         // throw new Error("Gagal menyimpan indeks klan publik (Admin SDK).");
     }
 };
@@ -333,21 +347,19 @@ export const updatePublicClanIndex = async (
 /**
  * Memperbarui status permintaan bergabung.
  * Menggunakan Admin SDK. Dipanggil dari server.
- * Perlu diingat: Permintaan bergabung disimpan di sub-koleksi managedClans/{clanId}/joinRequests
  */
 export const updateJoinRequestStatus = async (
-    clanId: string, // Perlu clanId untuk path yang benar
+    clanId: string,
     requestId: string,
     newStatus: 'approved' | 'rejected'
 ): Promise<void> => {
     try {
-        // FIX: Menggunakan path sub-koleksi yang benar: managedClans/{clanId}/joinRequests/{requestId}
         const requestRef = adminFirestore
             .collection(COLLECTIONS.MANAGED_CLANS)
             .doc(clanId)
-            .collection('joinRequests') // Asumsi nama sub-koleksi adalah 'joinRequests'
+            .collection('joinRequests') // Asumsi nama sub-koleksi
             .doc(requestId);
-        
+
         await requestRef.update({ status: newStatus });
         console.log(`[JoinRequest - Admin] Request ${requestId} for Clan ${clanId} status updated to ${newStatus}.`);
 
@@ -362,30 +374,31 @@ export const updateJoinRequestStatus = async (
 
 /**
  * Memperbarui clanId, clanName, dan role pengguna.
- * Menggunakan Admin SDK. Dipanggil dari server (misalnya saat approve/kick).
+ * Menggunakan Admin SDK. Dipanggil dari server (misalnya saat approve/kick/role change).
  */
 export const updateMemberRole = async (
     uid: string,
-    // [FIX 1] Ganti 'teamId' -> 'clanId'
     clanId: string | null,
-    // [FIX 1] Ganti 'teamName' -> 'clanName'
     clanName: string | null,
     newRole: UserProfile['role'] // Peran Clashub ('Leader', 'Member', 'Free Agent')
 ): Promise<void> => {
     try {
         const userRef = adminFirestore.collection(COLLECTIONS.USERS).doc(uid);
         const updateData: Partial<UserProfile> = {
-            // [FIX 1] Ganti 'teamId' -> 'clanId'
             clanId: clanId,
-            // [FIX 1] Ganti 'teamName' -> 'clanName'
             clanName: clanName,
             role: newRole,
         };
 
+        // Bersihkan data sebelum update (menghapus undefined/null jika tidak diperlukan)
         const cleanedUpdateData = cleanDataForAdminSDK(updateData);
+        // Pastikan null secara eksplisit disimpan jika clanId/clanName memang null
+        if (clanId === null) cleanedUpdateData.clanId = null;
+        if (clanName === null) cleanedUpdateData.clanName = null;
+
 
         if (Object.keys(cleanedUpdateData).length > 0) {
-            await userRef.update(cleanedUpdateData);
+            await userRef.update(cleanedUpdateData); // Gunakan update, bukan set merge
         } else {
             console.warn(
                 `[updateMemberRole - Admin] No valid data provided for update for UID: ${uid}`
@@ -399,3 +412,6 @@ export const updateMemberRole = async (
         throw new Error('Gagal memperbarui peran anggota (Admin SDK).');
     }
 };
+
+// PERBAIKAN: Ekspor adminFirestore
+export { adminFirestore };

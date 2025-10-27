@@ -1,4 +1,4 @@
-// File: lib/types.ts (PERBAIKAN)
+// File: lib/types.ts (PERBAIKAN + PENAMBAHAN TIPE BARU)
 // Deskripsi: Mendefinisikan semua struktur data (interface) TypeScript
 // yang digunakan di seluruh aplikasi Clashub. Ini adalah "single source of truth"
 // untuk bentuk data kita.
@@ -78,6 +78,16 @@ export interface CocClan {
   description?: string;
   // Anggota hanya disertakan saat mengambil /clans/{clanTag}
   memberList?: CocMember[];
+  // Data Capital Raids (jika ada di API clan, perlu diverifikasi strukturnya)
+  clanCapital?: {
+    capitalHallLevel?: number;
+    // ... properti lain terkait capital ...
+  };
+  // Data Clan War League (jika ada di API clan)
+  warLeague?: {
+    id: number;
+    name: string;
+  };
 }
 
 /**
@@ -128,12 +138,100 @@ export interface CocPlayer
 
 /**
  * @interface CocWarLog
- * Data log perang. Formatnya kompleks, kita simpan JSON mentah.
+ * Data log perang (Classic War/CWL). Formatnya kompleks.
+ * Strukturnya bisa berbeda sedikit antara War Log biasa dan CWL War.
  */
 export interface CocWarLog {
-  items: any[];
-  // Struktur lengkapnya sangat nested. Kita simpan sebagai 'any' untuk saat ini.
+  // Properti umum untuk Classic War dan CWL War
+  state: 'inWar' | 'preparation' | 'warEnded' | 'notInWar';
+  teamSize?: number; // Mungkin tidak ada di CWL war individual
+  startTime?: string; // ISO Date String
+  endTime: string; // ISO Date String
+  clan: CocWarClanInfo;
+  opponent: CocWarClanInfo;
+
+  // Properti spesifik CWL War (diambil dari endpoint /clanwarleagues/wars/{warTag})
+  warTag?: string; // Hanya ada di CWL War
+
+  // Properti dari War Log biasa (items array dari /clans/{clanTag}/warlog)
+  items?: CocWarLogEntry[]; // Hanya ada di response warlog
+
+  // Properti lain yang mungkin ada (result, preparationStartTime, dll.)
+  [key: string]: any; // Allow other properties, adjust as needed
 }
+
+/**
+ * @interface CocWarClanInfo
+ * Informasi klan dalam konteks War Log.
+ */
+export interface CocWarClanInfo {
+  tag: string;
+  name: string;
+  badgeUrls: CocIconUrls;
+  clanLevel: number;
+  attacks?: number;
+  stars: number;
+  destructionPercentage: number;
+  expEarned?: number;
+  members: CocWarMember[];
+}
+
+/**
+ * @interface CocWarMember
+ * Informasi anggota dalam konteks War Log.
+ */
+export interface CocWarMember {
+  tag: string;
+  name: string;
+  townhallLevel: number; // Perhatikan nama properti dari API
+  mapPosition: number;
+  opponentAttacks: number;
+  bestOpponentAttack?: CocWarAttack;
+  attacks?: CocWarAttack[];
+}
+
+/**
+ * @interface CocWarAttack
+ * Informasi serangan dalam konteks War Log.
+ */
+export interface CocWarAttack {
+  attackerTag: string;
+  defenderTag: string;
+  stars: number;
+  destructionPercentage: number;
+  order: number;
+  duration?: number; // Mungkin ada
+}
+
+/**
+ * @interface CocWarLogEntry
+ * Representasi satu entri dalam array `items` dari endpoint warlog.
+ */
+export interface CocWarLogEntry {
+    result?: 'win' | 'lose' | 'tie';
+    endTime: string; // ISO Date String
+    teamSize: number;
+    clan: {
+        tag: string;
+        name: string;
+        badgeUrls: CocIconUrls;
+        clanLevel: number;
+        attacks?: number; // Bisa jadi tidak ada jika war log tidak publik
+        stars: number;
+        destructionPercentage: number;
+        expEarned?: number;
+    };
+    opponent: {
+        tag: string;
+        name: string;
+        badgeUrls: CocIconUrls;
+        clanLevel: number;
+        stars: number;
+        destructionPercentage: number;
+    };
+    // Kita mungkin tidak butuh detail member di sini untuk arsip ringkasan
+}
+
 
 /**
  * @interface PlayerVerificationRequest
@@ -143,6 +241,102 @@ export interface PlayerVerificationRequest {
   playerTag: string;
   apiToken: string; // Token verifikasi yang diperoleh pemain dari game
 }
+
+// --- TIPE DATA BARU: Raid Capital ---
+/**
+ * @interface CocRaidLog
+ * Struktur data untuk log Raid Capital (perkiraan berdasarkan CSV dan API CoC jika tersedia).
+ */
+export interface CocRaidLog {
+  state: 'ongoing' | 'ended';
+  startTime: string; // ISO Date String
+  endTime: string; // ISO Date String
+  capitalTotalLoot: number; // Total jarahan modal oleh klan
+  raidsCompleted?: number; // Jumlah raid yang diselesaikan (mungkin ada di API)
+  totalAttacks: number; // Jumlah serangan yang dilakukan klan
+  enemyDistrictsDestroyed: number; // Jumlah distrik musuh yg dihancurkan
+  offensiveReward: number; // Medali reward penyerangan
+  defensiveReward: number; // Medali reward pertahanan
+  members?: CocRaidMember[]; // Daftar partisipasi anggota (jika API menyediakannya)
+  attackLog: CocRaidAttackLogEntry[]; // Log serangan distrik klan musuh
+  defenseLog: CocRaidDefenseLogEntry[]; // Log pertahanan distrik klan kita
+  // Properti lain mungkin ada
+}
+
+/**
+ * @interface CocRaidMember
+ * Informasi partisipasi anggota dalam Raid Capital (dari API).
+ */
+export interface CocRaidMember {
+  tag: string;
+  name: string;
+  attacks: number; // Jumlah serangan yang digunakan
+  attackLimit: number; // Batas serangan (biasanya 6)
+  bonusAttackLimit: number; // Batas serangan bonus (biasanya 0 atau 3)
+  capitalResourcesLooted: number; // Jarahan yang didapat pemain ini
+}
+
+/**
+ * @interface CocRaidAttackLogEntry
+ * Detail satu entri log serangan dalam Raid Capital (serangan klan kita ke musuh).
+ */
+export interface CocRaidAttackLogEntry {
+    defender: { // Informasi klan musuh yang diserang
+        tag: string;
+        name: string;
+        level: number; // Level Clan Capital musuh
+        // districts?: CocRaidDistrict[]; // Detail distrik musuh mungkin tidak ada di log serangan
+    };
+    attackCount: number; // Jumlah serangan pada klan musuh ini
+    districtCount: number; // Jumlah distrik klan musuh ini
+    districtsDestroyed: number; // Jumlah distrik musuh yang dihancurkan
+    districts: CocRaidDistrict[]; // Detail distrik musuh yang diserang
+}
+
+/**
+ * @interface CocRaidDistrict
+ * Detail satu distrik dalam Raid Capital (bisa distrik kita atau musuh).
+ */
+export interface CocRaidDistrict {
+    id: number;
+    name: string;
+    districtHallLevel: number;
+    destructionPercent: number;
+    attackCount: number; // Jumlah serangan pada distrik ini
+    totalLooted?: number; // Jarahan yang didapat dari distrik ini (mungkin hanya ada di attackLog)
+    attacks?: CocRaidDistrictAttack[]; // Detail serangan pada distrik ini
+    stars?: number; // Bintang yang didapat di distrik ini
+}
+
+/**
+ * @interface CocRaidDistrictAttack
+ * Detail serangan spesifik pada satu distrik dalam Raid Capital.
+ */
+export interface CocRaidDistrictAttack {
+    attacker: {
+        tag: string;
+        name: string;
+    };
+    destructionPercent: number;
+    stars: number;
+}
+
+/**
+ * @interface CocRaidDefenseLogEntry
+ * Detail satu entri log pertahanan dalam Raid Capital (serangan musuh ke klan kita).
+ */
+export interface CocRaidDefenseLogEntry {
+    attacker: { // Informasi klan penyerang
+        tag: string;
+        name: string;
+        level: number; // Level Clan Capital penyerang
+    };
+    attackCount: number; // Jumlah serangan dari klan ini pada klan kita
+    districtCount: number; // Jumlah distrik klan kita
+    districtsDestroyed: number; // Jumlah distrik kita yang hancur oleh klan ini
+    districts: CocRaidDistrict[]; // Detail distrik kita yang diserang oleh klan ini
+}
+
 
 // =========================================================================
 // 2. TIPE DATA FIRESTORE CLASHUB (INTERNAL)
@@ -188,6 +382,20 @@ export interface UserProfile {
   clanName?: string | null; // Nama klan internal (ManagedClan) yang diikuti pemain
 }
 
+// --- TIPE BARU: Top Performers ---
+/**
+ * @interface TopPerformerPlayer
+ * Representasi sederhana pemain untuk daftar Top Performers.
+ */
+export interface TopPerformerPlayer {
+  tag: string;
+  name: string;
+  value: number | string; // Bisa angka (donasi, loot) atau string (status 'Promosi'/'Demosi')
+  // Tambahan properti jika perlu
+  thLevel?: number; // Opsional: Level TH
+  role?: ClanRole | UserProfile['role']; // Bisa role CoC atau role Clashub internal
+}
+
 /**
  * @interface ManagedClan
  * Mendefinisikan struktur data untuk Klan yang Dikelola oleh pengguna Clashub.
@@ -212,10 +420,14 @@ export interface ManagedClan {
   clanLevel: number; // Level Klan CoC (dari API)
   memberCount: number; // Jumlah anggota (dari API)
 
+  // --- DATA AGREGAT BARU (Dari Dashboard.csv) ---
+  // Kita letakkan di ClanApiCache karena data ini dihitung saat sinkronisasi.
+
   // Sub-koleksi: managedClans/{id}/clanApiCache
-  // Sub-koleksi: managedClans/{id}/warLog
-  // Sub-koleksi: managedClans/{id}/raidLog
-  // ...
+  // Sub-koleksi: managedClans/{id}/warArchives (BARU)
+  // Sub-koleksi: managedClans/{id}/cwlArchives (Sudah ada rencana)
+  // Sub-koleksi: managedClans/{id}/raidArchives (BARU)
+  // Sub-koleksi: managedClans/{id}/roleChanges (Sudah ada rencana)
 }
 
 /**
@@ -226,8 +438,8 @@ export interface ManagedClan {
 export interface ClanApiCache {
   id: 'current'; // ID dokumen tunggal
   lastUpdated: Date;
-  currentWar?: CocWarLog; // Bisa null jika tidak ada war aktif
-  currentRaid?: any; // Data Raid Capital aktif (jika ada endpoint)
+  currentWar?: CocWarLog | null; // Bisa null jika tidak ada war aktif
+  currentRaid?: CocRaidLog | null; // Data Raid Capital aktif (BARU)
   // Daftar anggota yang diperbarui dari API Coc, termasuk Partisipasi
   members: Array<
     CocMember & {
@@ -238,9 +450,18 @@ export interface ClanApiCache {
       warFailCount: number;
       participationStatus: 'Promosi' | 'Demosi' | 'Aman' | 'Leader/Co-Leader'; // dari blueprint CSV
       lastRoleChangeDate: Date; // Kunci untuk reset partisipasi (dari Log Perubahan Role CSV)
-      // Field lainnya...
+      // Keterangan status untuk UI (BARU ditambahkan di participationAggregator)
+      statusKeterangan?: string;
     }
   >;
+  // --- DATA AGREGAT BARU: Top Performers (Dimasukkan ke sini) ---
+  topPerformers?: {
+      promotions: TopPerformerPlayer[]; // Pemain yang status partisipasinya 'Promosi'
+      demotions: TopPerformerPlayer[];  // Pemain yang status partisipasinya 'Demosi'
+      topRaidLooter: TopPerformerPlayer | null; // Pemain dengan capitalResourcesLooted tertinggi di raid terakhir
+      topDonator: TopPerformerPlayer | null;    // Pemain dengan donasi tertinggi (dari CocMember)
+      // Bisa ditambahkan metriks lain jika perlu
+  };
 }
 
 /**
@@ -271,6 +492,11 @@ export interface PublicClanIndex {
     name: string;
     isCountry: boolean;
     countryCode?: string;
+  };
+  // Tambahkan warLeague jika ingin ditampilkan di index publik
+  warLeague?: {
+      id: number;
+      name: string;
   };
 }
 
@@ -376,3 +602,53 @@ export interface Post {
   likes: number;
   replies: number;
 }
+
+// --- TIPE DATA BARU UNTUK ARSIP (jika diperlukan struktur spesifik) ---
+
+/**
+ * @interface WarArchive
+ * Struktur data untuk menyimpan satu entri arsip War Classic di Firestore (sub-koleksi warArchives).
+ * Bisa jadi hanya subset dari CocWarLogEntry atau CocWarLog lengkap.
+ * Kita simpan log lengkap (`CocWarLog`) untuk detail maksimal.
+ */
+export interface WarArchive extends Omit<CocWarLog, 'items'> { // Omit 'items' jika log individu
+    id?: string; // ID Dokumen Firestore (opsional, akan ada saat dibaca)
+    clanTag: string; // Tag klan kita untuk query
+    warEndTime: Date; // Simpan sebagai Date untuk query Firestore
+    // warId?: string; // ID unik perang jika ada/diperlukan (bisa dari startTime/endTime?)
+}
+
+/**
+ * @interface RaidArchive
+ * Struktur data untuk menyimpan satu entri arsip Raid Capital di Firestore (sub-koleksi raidArchives).
+ * Berdasarkan CocRaidLog, tapi mungkin disederhanakan.
+ */
+export interface RaidArchive {
+    id?: string; // ID Dokumen Firestore
+    clanTag: string; // Tag klan kita
+    raidId: string; // ID unik raid (misal: clanTag + endTime)
+    startTime: Date;
+    endTime: Date;
+    capitalTotalLoot: number;
+    totalAttacks: number; // Jumlah total serangan klan
+    members?: CocRaidMember[]; // Simpan detail partisipasi anggota (jika ada)
+    offensiveReward?: number;
+    defensiveReward?: number;
+    // PERBAIKAN TS2353: Tambahkan properti yang hilang
+    enemyDistrictsDestroyed?: number; // Jumlah distrik musuh yg dihancurkan
+    attackLog?: CocRaidAttackLogEntry[]; // Log serangan distrik klan musuh
+    defenseLog?: CocRaidDefenseLogEntry[]; // Log pertahanan distrik klan kita
+}
+
+/**
+ * @interface CwlArchive
+ * Struktur data untuk menyimpan satu entri arsip CWL per musim di Firestore (sub-koleksi cwlArchives).
+ */
+export interface CwlArchive {
+    id?: string; // ID Dokumen Firestore (misal: clanTag + season)
+    clanTag: string;
+    season: string; // Identifier musim (misal: "2025-10")
+    rounds: CocWarLog[]; // Menyimpan detail setiap war dalam musim CWL (CocWarLog tanpa 'items')
+    // Bisa ditambahkan data ringkasan musim jika perlu (misal: total stars, placement)
+}
+
