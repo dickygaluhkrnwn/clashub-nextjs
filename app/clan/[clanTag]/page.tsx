@@ -1,5 +1,3 @@
-// File: app/clan/[clanTag]/page.tsx
-
 'use client'; 
 
 import { useState, useEffect } from 'react'; 
@@ -112,7 +110,7 @@ const ClanPublicProfilePage: NextPage = () => {
           return (
                <main className="max-w-7xl mx-auto space-y-8 p-4 md:p-8 mt-10">
                    <div className="mb-6">
-                       <Button href="/teamhub" variant="secondary" size="md" className="flex items-center">
+                       <Button href="/clan-hub" variant="secondary" size="md" className="flex items-center">
                             <ArrowLeftIcon className="h-4 w-4 mr-2" /> Kembali ke Hub
                        </Button>
                    </div>
@@ -151,7 +149,7 @@ const ClanPublicProfilePage: NextPage = () => {
         <main className="max-w-7xl mx-auto space-y-8 p-4 md:p-8 mt-10">
              {/* Tombol Kembali */}
              <div className="mb-6">
-                 <Button href="/teamhub" variant="secondary" size="md" className="flex items-center">
+                 <Button href="/clan-hub" variant="secondary" size="md" className="flex items-center">
                       <ArrowLeftIcon className="h-4 w-4 mr-2" /> Kembali ke Hub
                  </Button>
              </div>

@@ -23,7 +23,8 @@ import { ServerUser } from '@/lib/server-auth'; // Impor ServerUser
 
 const navItems = [
   { name: 'Home', href: '/' },
-  { name: 'Team Hub', href: '/teamhub' },
+  // PERBAIKAN KRITIS: Mengganti '/teamhub' menjadi '/clan-hub'
+  { name: 'Team Hub', href: '/clan-hub' }, 
   { name: 'Tournament', href: '/tournament' },
   { name: 'Knowledge Hub', href: '/knowledge-hub' },
 ];
@@ -131,7 +132,8 @@ const UserProfileDropdown = () => {
             {showClanLink && (
               <li>
                 <Link
-                  href="/clan/manage" // Arahkan ke /clan/manage
+                  // PASTIKAN INI MENGARAH KE RUTE DASHBOARD MANAJEMEN BARU
+                  href="/clan/manage" 
                   onClick={() => setIsOpen(false)}
                   className="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-300 hover:bg-coc-gold/10 hover:text-white rounded-md"
                 >

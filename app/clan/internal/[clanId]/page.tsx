@@ -136,7 +136,8 @@ const ClanDetailPage = async ({ params }: ClanDetailPageProps) => {
             {/* Header Profil Klan */}
             <header className="flex justify-between items-center flex-wrap gap-4 mb-8 card-stone p-6 rounded-lg">
                 <div className="flex items-center gap-4">
-                    <Button href="/clan-hub" variant="secondary" size="md" className="flex items-center flex-shrink-0">
+                    {/* PERBAIKAN KRITIS: Mengubah href="/clan-hub" (sudah benar) */}
+                    <Button href="/clan-hub" variant="secondary" size="md" className="flex items-center flex-shrink-0"> 
                         <ArrowLeftIcon className="h-4 w-4 mr-2" /> Kembali ke Hub
                     </Button>
 
