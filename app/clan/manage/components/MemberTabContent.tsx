@@ -8,8 +8,14 @@ import {
 } from '@/app/components/icons';
 import { getThImage, formatNumber } from '@/lib/th-utils';
 import Image from 'next/image';
-// FIX 1: Import NotificationProps dari file komponennya
 import { NotificationProps } from '@/app/components/ui/Notification';
+
+// Definisikan tipe gabungan untuk Roster
+type RosterMember = ClanApiCache['members'][number] & {
+    uid?: string;
+    clashubRole: UserProfile['role'];
+    isVerified: boolean;
+};
 
 interface MemberTabContentProps {
     clan: ManagedClan;
@@ -22,7 +28,7 @@ interface MemberTabContentProps {
 
 /**
  * Komponen konten utama untuk Tab Anggota (Member Roster).
- * Memindahkan logika MemberRosterTab dari ManageClanClient.tsx.
+ * Menampilkan data partisipasi agregat, dan kontrol manajemen peran/kick.
  */
 const MemberTabContent: React.FC<MemberTabContentProps> = ({ 
     clan, cache, members, userProfile, onAction, onRefresh 
@@ -33,6 +39,10 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
     // State untuk mengontrol dropdown role yang terbuka
     const [openRoleDropdown, setOpenRoleDropdown] = useState<string | null>(null);
 
+    /**
+     * @function getParticipationStatusClass
+     * Mengembalikan kelas Tailwind CSS berdasarkan status partisipasi.
+     */
     const getParticipationStatusClass = (status: ClanApiCache['members'][number]['participationStatus']) => {
         switch (status) {
             case 'Promosi': return 'text-coc-gold bg-coc-gold/20 font-bold border-coc-gold';
@@ -43,7 +53,10 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
         }
     };
     
-    // Helper: Map Role internal Clashub ke Role CoC API
+    /**
+     * @function mapClashubRoleToCocRole
+     * Helper: Map Role internal Clashub ke Role CoC API.
+     */
     const mapClashubRoleToCocRole = (clashubRole: UserProfile['role']): ClanRole => {
         switch (clashubRole) {
             case 'Leader': return ClanRole.LEADER;
@@ -55,17 +68,18 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
         }
     };
     
-    // Fungsi untuk memanggil API PUT Role
+    /**
+     * @function handleRoleChange
+     * Mengubah peran anggota (Memanggil API PUT).
+     */
     const handleRoleChange = async (memberUid: string, newClashubRole: UserProfile['role']) => {
-        // Cari profil target dan metrik cache untuk mendapatkan Tag dan Role CoC
         const targetProfile = members.find(m => m.uid === memberUid);
-        const targetCacheMember = rosterMembers.find(m => m.tag === targetProfile?.playerTag);
 
-        if (!targetProfile || !targetCacheMember) {
-            onAction('Gagal: Profil atau data cache anggota tidak ditemukan.', 'error');
+        if (!targetProfile) {
+            onAction('Gagal: Profil anggota tidak ditemukan.', 'error');
             return;
         }
-
+        
         const oldRoleCoC = mapClashubRoleToCocRole(targetProfile.role);
         const newRoleCoC = mapClashubRoleToCocRole(newClashubRole);
 
@@ -79,8 +93,8 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
                 body: JSON.stringify({ 
                     newClashubRole, 
                     clanId: clan.id,
-                    oldRoleCoC,
-                    newRoleCoC
+                    oldRoleCoC, // Untuk logging di backend
+                    newRoleCoC // Untuk logging di backend
                 }),
             });
 
@@ -88,22 +102,23 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
             if (!response.ok) throw new Error(result.message || 'Gagal mengubah peran.');
 
             onAction(result.message, 'success');
-            onRefresh(); // Refresh data server untuk update UI
+            onRefresh(); 
         } catch (err) {
             onAction((err as Error).message, 'error');
         }
     };
 
-    // Fungsi untuk memanggil API DELETE (Kick)
+    /**
+     * @function handleKick
+     * Mengeluarkan anggota dari klan Clashub (Memanggil API DELETE).
+     */
     const handleKick = async (memberUid: string) => {
         const targetProfile = members.find(m => m.uid === memberUid);
         if (!targetProfile) return;
 
-        // Gunakan confirm() kustom (simulasi)
-        const isConfirmed = confirm(`Yakin ingin mengeluarkan ${targetProfile.displayName} (${targetProfile.playerTag}) dari klan Clashub?`);
-        if (!isConfirmed) return;
-
-        onAction(`Mengeluarkan ${targetProfile.displayName}...`, 'info');
+        // **PERHATIAN**: Mengganti confirm() bawaan browser (dilarang di Canvas)
+        // Kita menggunakan notifikasi sederhana sebagai placeholder untuk modal konfirmasi.
+        onAction(`[KONFIRMASI MANUAL] Meminta server mengeluarkan ${targetProfile.displayName}...`, 'info');
 
         try {
             const response = await fetch(`/api/clan/manage/member/${memberUid}`, {
@@ -115,8 +130,8 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
             const result = await response.json();
             if (!response.ok) throw new Error(result.message || 'Gagal mengeluarkan anggota.');
 
-            onAction(result.message, 'success');
-            onRefresh(); // Refresh data server
+            onAction(`Berhasil mengeluarkan ${targetProfile.displayName}.`, 'success');
+            onRefresh(); 
         } catch (err) {
             onAction((err as Error).message, 'error');
         }
@@ -124,8 +139,8 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
 
     // List of roles that the current user CAN set for others
     const availableClashubRoles: UserProfile['role'][] = isLeader 
-        ? ['Leader', 'Co-Leader', 'Elder', 'Member']
-        : ['Elder', 'Member'];
+        ? ['Co-Leader', 'Elder', 'Member'] // Leader tidak bisa mengubah dirinya sendiri
+        : ['Elder', 'Member']; // Co-Leader hanya bisa mengubah Elder dan Member
 
     if (!cache?.members || cache.members.length === 0) {
         return (
@@ -138,23 +153,33 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
     }
     
     // Gabungkan data cache (partisipasi dan metrik) dengan data profil (UID, role Clashub)
-    const combinedRoster = rosterMembers.map(cacheMember => {
+    const combinedRoster: RosterMember[] = rosterMembers.map(cacheMember => {
         const profileData = members.find(p => p.playerTag === cacheMember.tag);
+        
+        // Memastikan tipe properti CocMember yang digabungkan ada, dan menggunakan properti agregat dari cache.members
         return {
             ...cacheMember,
-            uid: profileData?.uid, // UID untuk aksi manajemen
-            clashubRole: profileData?.role || 'Free Agent', // Role Clashub internal
+            uid: profileData?.uid, 
+            clashubRole: profileData?.role || 'Free Agent', 
             isVerified: profileData?.isVerified || false,
-            // Data tambahan dari cache/agregator
-            warSuccessCount: cacheMember.warSuccessCount || 0,
-            warFailCount: cacheMember.warFailCount || 0,
-            cwlSuccessCount: cacheMember.cwlSuccessCount || 0,
-            cwlFailCount: cacheMember.cwlFailCount || 0,
-            statusKeterangan: (cacheMember as any).statusKeterangan || 'N/A', 
-            xpLevel: (cacheMember as any).expLevel || 0, // Menggunakan XP Level dari cache
-            donations: (cacheMember as any).donations || 0, // Menggunakan Donasi dari cache
-            donationsReceived: (cacheMember as any).donationsReceived || 0, // Menggunakan Donasi Diterima dari cache
-        };
+            // Properti ini sudah ada di ClanApiCache['members'][number]
+            warSuccessCount: cacheMember.warSuccessCount,
+            warFailCount: cacheMember.warFailCount,
+            cwlSuccessCount: cacheMember.cwlSuccessCount,
+            cwlFailCount: cacheMember.cwlFailCount,
+            participationStatus: cacheMember.participationStatus,
+            statusKeterangan: cacheMember.statusKeterangan || 'N/A', 
+            // Properti CocMember
+            expLevel: cacheMember.expLevel, 
+            donations: cacheMember.donations, 
+            donationsReceived: cacheMember.donationsReceived, 
+        } as RosterMember;
+    }).sort((a, b) => {
+        // Urutkan berdasarkan Town Hall Level (descending) lalu Clan Rank (ascending)
+        if (b.townHallLevel !== a.townHallLevel) {
+            return b.townHallLevel - a.townHallLevel;
+        }
+        return a.clanRank - b.clanRank;
     });
 
     return (
@@ -163,20 +188,21 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
                 <thead className="bg-coc-stone/70 sticky top-0">
                     <tr>
                         <th className="px-3 py-2 text-left font-clash text-coc-gold uppercase tracking-wider">Pemain (TH / Role CoC)</th>
-                        <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">Level XP / Donasi</th>
+                        <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">XP / D+ / D-</th>
                         <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">Trophies</th>
-                        <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">Partisipasi (S/F)</th>
+                        <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">Partisipasi CW</th>
+                        <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">Partisipasi CWL</th>
                         <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">Status Partisipasi</th>
-                        <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">Role Clashub / Aksi</th>
+                        <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider w-[150px]">Role Clashub / Aksi</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-coc-gold-dark/10">
                     {combinedRoster.map((member) => {
-                        // Tidak bisa mengubah Leader dan diri sendiri (kecuali Leader untuk transfer, yang tidak diimplementasikan di sini)
+                        // Tidak bisa mengubah Leader dan diri sendiri (kecuali transfer Leader, yang tidak diimplementasikan)
                         const canModify = member.clashubRole !== 'Leader' && member.uid !== userProfile.uid;
                         // Co-Leader tidak bisa mengubah Co-Leader lain
                         const isCoLeaderModifyingCoLeader = userProfile.role === 'Co-Leader' && member.clashubRole === 'Co-Leader';
-                        const isActionDisabled = !canModify || isCoLeaderModifyingCoLeader;
+                        const isActionDisabled = !canModify || isCoLeaderModifyingCoLeader || !member.uid; // Juga disable jika tidak punya akun Clashub (uid)
                         const thImageUrl = getThImage(member.townHallLevel);
 
                         return (
@@ -203,7 +229,7 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
                                 
                                 {/* Kolom 2: XP / Donasi */}
                                 <td className="px-3 py-3 whitespace-nowrap text-center text-gray-300">
-                                    <p>XP Level: <span className="font-bold text-white">{member.xpLevel}</span></p>
+                                    <p>XP: <span className="font-bold text-white">{formatNumber(member.expLevel)}</span></p>
                                     <p className="text-xs">D+: {formatNumber(member.donations)} | D-: {formatNumber(member.donationsReceived)}</p>
                                 </td>
                                 
@@ -212,13 +238,17 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
                                     {formatNumber(member.trophies || 0)} 🏆
                                 </td>
                                 
-                                {/* Kolom 4: Rincian Partisipasi */}
-                                <td className="px-3 py-3 text-center text-gray-300 text-xs">
-                                    <p className="text-gray-400 font-semibold">CW: S-{member.warSuccessCount} / F-{member.warFailCount}</p>
-                                    <p className="text-gray-400 font-semibold">CWL: S-{member.cwlSuccessCount} / F-{member.cwlFailCount}</p>
+                                {/* Kolom 4: Partisipasi CW */}
+                                <td className="px-3 py-3 text-center text-gray-300 text-xs font-semibold">
+                                    <span className="text-coc-green">S-{member.warSuccessCount}</span> / <span className="text-coc-red">F-{member.warFailCount}</span>
                                 </td>
 
-                                {/* Kolom 5: Status Partisipasi */}
+                                {/* Kolom 5: Partisipasi CWL */}
+                                <td className="px-3 py-3 text-center text-gray-300 text-xs font-semibold">
+                                    <span className="text-coc-green">S-{member.cwlSuccessCount}</span> / <span className="text-coc-red">F-{member.cwlFailCount}</span>
+                                </td>
+
+                                {/* Kolom 6: Status Partisipasi */}
                                 <td className="px-3 py-3 whitespace-nowrap text-center">
                                     <div className={`inline-flex flex-col items-center justify-center rounded-lg px-2.5 py-1 text-xs border ${getParticipationStatusClass(member.participationStatus)}`}>
                                         <span className="font-bold">{member.participationStatus}</span>
@@ -226,10 +256,10 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
                                     </div>
                                 </td>
                                 
-                                {/* Kolom 6: Role Clashub / Aksi */}
-                                <td className="px-3 py-3 whitespace-nowrap text-center space-y-1 w-[150px]">
-                                    <span className={member.isVerified ? 'text-coc-green block mb-1' : 'text-coc-red block mb-1'} title={member.isVerified ? "Akun Clashub Terverifikasi" : "Akun Clashub Belum Terverifikasi"}>
-                                         {member.isVerified ? 'VERIFIED' : 'UNVERIFIED'} 
+                                {/* Kolom 7: Role Clashub / Aksi */}
+                                <td className="px-3 py-3 whitespace-nowrap text-center space-y-1 w-[180px]">
+                                    <span className={member.isVerified ? 'text-coc-green block mb-1 font-mono' : 'text-coc-red block mb-1 font-mono'} title={member.isVerified ? "Akun Clashub Terverifikasi" : "Akun Clashub Belum Terverifikasi"}>
+                                            {member.isVerified ? 'VERIFIED' : 'UNVERIFIED'} 
                                     </span>
                                     
                                     {member.uid ? (
@@ -238,10 +268,8 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
                                             <div className="relative inline-block text-left w-full">
                                                 <Button 
                                                     type="button" 
-                                                    // FIX 2: Mengganti size="xs" menjadi size="sm" (atau size="md" jika ingin lebih besar)
                                                     size="sm" 
                                                     variant="secondary"
-                                                    // FIX ERROR 2345: Gunakan non-null assertion (!) karena kita berada dalam blok if(member.uid)
                                                     onClick={() => setOpenRoleDropdown(openRoleDropdown === member.uid ? null : member.uid!)}
                                                     disabled={isActionDisabled}
                                                     className="w-full justify-center text-sm font-semibold"
@@ -259,7 +287,6 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
                                                                     href="#"
                                                                     onClick={(e) => {
                                                                         e.preventDefault();
-                                                                        // FIX 3: Pastikan member.uid non-null sebelum memanggil handleRoleChange
                                                                         handleRoleChange(member.uid!, role);
                                                                     }}
                                                                     className={`block px-4 py-2 text-xs text-white hover:bg-coc-gold-dark/30 ${member.clashubRole === role ? 'bg-coc-gold-dark/50 font-bold' : ''}`}
@@ -276,7 +303,6 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
                                             {/* Tombol Kick */}
                                             <Button 
                                                 type="button" 
-                                                // FIX 2: Mengganti size="xs" menjadi size="sm"
                                                 size="sm" 
                                                 variant="secondary" 
                                                 onClick={() => member.uid && handleKick(member.uid)}

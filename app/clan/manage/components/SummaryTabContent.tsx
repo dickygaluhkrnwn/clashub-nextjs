@@ -1,67 +1,210 @@
 import React from 'react';
-import { ManagedClan, ClanApiCache, TopPerformerPlayer } from '@/lib/types';
+import { ManagedClan, ClanApiCache, CocWarLog, CocRaidLog } from '@/lib/types';
 import { Button } from '@/app/components/ui/Button';
 import { 
-    RefreshCwIcon, ClockIcon, InfoIcon, SwordsIcon, ArrowUpIcon, ArrowDownIcon, CoinsIcon, TrophyIcon
+    RefreshCwIcon, ClockIcon, InfoIcon, SwordsIcon, ArrowUpIcon, ArrowDownIcon, CoinsIcon, TrophyIcon, 
+    HomeIcon, StarIcon, ShieldIcon, UserIcon, ArrowRightIcon
 } from '@/app/components/icons';
 import TopPerformersCard from './TopPerformersCard';
-import { formatNumber } from '@/lib/th-utils'; // formatNumber sekarang diexport dari sini
+import { formatNumber } from '@/lib/th-utils'; 
 
 interface SummaryTabContentProps {
     clan: ManagedClan;
     cache: ClanApiCache | null;
     isSyncing: boolean;
     onSync: () => void;
-    onRefresh: () => void; // Diteruskan dari parent untuk refresh data setelah sinkronisasi
+    onRefresh: () => void; 
 }
 
-/**
- * Komponen konten untuk Tab Ringkasan di halaman Manajemen Klan.
- * Menampilkan kontrol sinkronisasi dan data Top Performers.
- */
+// ======================================================================================================
+// Helper Component: War Status Display
+// ======================================================================================================
+
+interface WarStatusProps {
+    war: CocWarLog;
+    clanTag: string;
+}
+
+const WarStatusDisplay: React.FC<WarStatusProps> = ({ war, clanTag }) => {
+    // Menentukan klan kita dan lawan
+    const ourClan = war.clan.tag === clanTag ? war.clan : war.opponent;
+    const enemyClan = war.opponent.tag !== clanTag ? war.opponent : war.clan;
+
+    if (!ourClan || !enemyClan || war.state === 'notInWar') {
+        return <p className="text-gray-400 mt-3">Saat ini klan tidak sedang dalam War Aktif.</p>;
+    }
+
+    const attacksUsed = ourClan.attacks || 0;
+    const totalMembers = war.teamSize || ourClan.members.length; // Fallback jika teamSize tidak tersedia
+    const totalAttacks = totalMembers * 2; // Asumsi 2 serangan per member
+
+    // War status text and class
+    let stateText = '';
+    let stateClass = '';
+
+    switch (war.state) {
+        case 'inWar':
+            stateText = 'SEDANG BERJALAN';
+            stateClass = 'text-coc-red';
+            break;
+        case 'preparation':
+            stateText = 'PERSIAPAN';
+            stateClass = 'text-coc-blue';
+            break;
+        case 'warEnded':
+            stateText = `SELESAI (${war.result?.toUpperCase() || 'N/A'})`;
+            stateClass = war.result === 'win' ? 'text-coc-green' : war.result === 'lose' ? 'text-coc-red' : 'text-coc-gold';
+            break;
+        default:
+            stateText = 'N/A';
+            stateClass = 'text-gray-400';
+    }
+
+    return (
+        <div className="space-y-4">
+            <div className="flex justify-between items-center border-b border-coc-gold/30 pb-2">
+                <h4 className="text-lg font-clash text-white flex items-center gap-2">
+                    <SwordsIcon className={`h-5 w-5 ${stateClass}`} /> {enemyClan.name}
+                </h4>
+                <span className={`text-sm font-semibold ${stateClass} uppercase`}>
+                    {stateText}
+                </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 text-center">
+                {/* Klan Kita */}
+                <div className="bg-coc-stone/20 p-3 rounded-lg border border-coc-gold/30">
+                    <p className="text-md font-clash text-coc-green">{ourClan.name}</p>
+                    <p className="text-xl font-bold text-white flex items-center justify-center gap-1">
+                        <StarIcon className="h-5 w-5 text-coc-gold" /> {ourClan.stars}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                        {ourClan.destructionPercentage.toFixed(2)}% | {attacksUsed}/{totalAttacks} Serangan
+                    </p>
+                </div>
+
+                {/* Klan Lawan */}
+                <div className="bg-coc-stone/20 p-3 rounded-lg border border-coc-red/30">
+                    <p className="text-md font-clash text-coc-red">{enemyClan.name}</p>
+                    <p className="text-xl font-bold text-white flex items-center justify-center gap-1">
+                        <StarIcon className="h-5 w-5 text-coc-gold" /> {enemyClan.stars}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                        {enemyClan.destructionPercentage.toFixed(2)}%
+                    </p>
+                </div>
+            </div>
+
+            <Button href="/app/clan/manage?tab=active-war" variant="secondary" size="sm" className="w-full mt-2">
+                Lihat Detail Perang <ArrowRightIcon className="w-4 h-4 ml-2" />
+            </Button>
+        </div>
+    );
+};
+
+// ======================================================================================================
+// Helper Component: Raid Summary Display
+// ======================================================================================================
+
+interface RaidSummaryProps {
+    raid: CocRaidLog;
+}
+
+const RaidSummaryDisplay: React.FC<RaidSummaryProps> = ({ raid }) => {
+    // Format tanggal
+    const startDate = new Date(raid.startTime).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+    const endDate = new Date(raid.endTime).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+
+    return (
+        <div className="card-stone p-6 space-y-4 border border-coc-gold/30">
+            <h3 className="text-xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2">
+                <HomeIcon className="h-5 w-5 text-coc-blue" /> Ringkasan Raid Terbaru
+            </h3>
+            
+            <p className="text-sm text-gray-300 font-sans">
+                Periode: <span className="font-semibold">{startDate} - {endDate}</span>
+            </p>
+
+            <div className="grid grid-cols-2 gap-4 text-center">
+                <div className="bg-coc-stone/20 p-3 rounded-lg">
+                    <p className="text-xs text-gray-400">Total Loot Capital</p>
+                    <p className="text-xl font-bold text-coc-gold mt-1">{formatNumber(raid.capitalTotalLoot)}</p>
+                </div>
+                <div className="bg-coc-stone/20 p-3 rounded-lg">
+                    <p className="text-xs text-gray-400">Medali Raid</p>
+                    <p className="text-xl font-bold text-coc-gold mt-1">{formatNumber(raid.offensiveReward || 0)}</p>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 text-center">
+                 <div className="bg-coc-stone/20 p-3 rounded-lg">
+                    <p className="text-xs text-gray-400">Serangan Total</p>
+                    <p className="text-xl font-bold text-white mt-1">{raid.totalAttacks}</p>
+                </div>
+                <div className="bg-coc-stone/20 p-3 rounded-lg">
+                    <p className="text-xs text-gray-400">Distrik Hancur</p>
+                    <p className="text-xl font-bold text-white mt-1">{raid.enemyDistrictsDestroyed || 0}</p>
+                </div>
+            </div>
+
+            <Button href="/app/clan/manage?tab=raid-history" variant="secondary" size="sm" className="w-full mt-2">
+                Lihat Riwayat Raid <ArrowRightIcon className="w-4 h-4 ml-2" />
+            </Button>
+        </div>
+    );
+};
+
+// ======================================================================================================
+// Main Component: SummaryTabContent
+// ======================================================================================================
+
 const SummaryTabContent: React.FC<SummaryTabContentProps> = ({ 
     clan, cache, isSyncing, onSync, onRefresh 
 }) => {
     
     // Logika Sinkronisasi
+    // Cache dianggap basi (stale) jika lebih dari 1 jam (3600000 ms)
     const isCacheStale = !cache || (new Date(cache.lastUpdated || 0).getTime() < Date.now() - 3600000); 
 
-    // Data Top Performers (ambil dari cache, yang seharusnya sudah diisi oleh API Sync)
+    // Data Top Performers (ambil dari cache)
     const topPerformers = cache?.topPerformers;
-    const warState = cache?.currentWar && 'state' in cache.currentWar ? (cache.currentWar as any).state : 'notInWar';
-    const warStatusText = warState === 'inWar' ? 'WAR AKTIF' : warState === 'preparation' ? 'PERSIAPAN WAR' : warState === 'ended' ? 'WAR TERAKHIR' : 'TIDAK DALAM WAR';
-    const warStatusClass = warState === 'inWar' ? 'text-coc-red' : warState === 'preparation' ? 'text-coc-blue' : 'text-coc-green';
+    
+    // Perang Aktif / War Log
+    const currentWar = cache?.currentWar;
+    const isWarActive = currentWar && currentWar.state !== 'notInWar' && currentWar.state !== 'warEnded';
+    
+    // Raid Terbaru / Raid Log
+    const currentRaid = cache?.currentRaid;
+    const isRaidDataAvailable = !!currentRaid && currentRaid.state === 'ended';
 
-    // FIX 1: Mengganti nama properti dari API Cache (asumsi: promotions/demotions)
-    // Menggunakan fallback array kosong untuk menghindari masalah iterasi.
+    // Konstanta Promosi/Demosi (Jika Anda ingin nilainya dinamis, harus dimasukkan ke ManagedClan/Cache)
+    const PROMOTION_LIMIT = 3; 
+    const DEMOTION_LIMIT = 3; 
+
+    // Data untuk TopPerformersCard (Pastikan TopPerformerPlayer.value digunakan)
     const promotions = topPerformers?.promotions || [];
     const demotions = topPerformers?.demotions || [];
-    const PROMOTION_LIMIT = 3; // Hardcode berdasarkan logika Apps Script
-    const DEMOTION_LIMIT = 3; // Hardcode berdasarkan logika Apps Script
-
-    // FIX 2: Mengatasi error property 'donations' and 'loot' pada TopPerformerPlayer
-    // Menggunakan asumsi tipe TopPerformerPlayer, lalu mengakses value melalui 'value' atau 'donations'/'loot'
-    // Menggunakan 'as any' untuk mengakses properti yang mungkin belum ada di lib/types.ts
-    const topDonatorData = topPerformers?.topDonator as any;
-    const topRaidLooterData = topPerformers?.topRaidLooter as any;
+    const topDonatorData = topPerformers?.topDonator;
+    const topRaidLooterData = topPerformers?.topRaidLooter;
     
-    const donatorValue = topDonatorData?.donations ?? topDonatorData?.value ?? 0;
-    const looterValue = topRaidLooterData?.loot ?? topRaidLooterData?.value ?? 0;
+    // Donator & Looter data harus menggunakan properti `value` dari TopPerformerPlayer
+    const donatorValue = topDonatorData?.value as number || 0;
+    const looterValue = topRaidLooterData?.value as number || 0;
 
 
     return (
         <div className="space-y-8">
             
-            {/* Bagian 1: Kontrol Sinkronisasi & Info Internal */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Bagian 1: Kontrol Sinkronisasi, Info Internal & War/Raid Ringkasan */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 
-                {/* Panel Sinkronisasi */}
-                <div className="card-stone p-6 space-y-4">
+                {/* Kolom 1: Sinkronisasi & Info Internal */}
+                <div className="card-stone p-6 space-y-4 border border-coc-gold/30">
                     <h3 className="text-xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2">
                         <ClockIcon className="h-5 w-5" /> Kontrol Sinkronisasi
                     </h3>
                     <p className="text-sm text-gray-300 font-sans">
-                        Sinkronisasi menarik data Anggota, War Log, CWL Archive, dan Raid Log terbaru. Tekan tombol di bawah untuk memperbarui data di dashboard.
+                        Sinkronisasi menarik data Anggota, War Log, CWL Archive, dan Raid Log terbaru. Data terakhir diperbarui: {cache?.lastUpdated ? new Date(cache.lastUpdated).toLocaleString('id-ID') : 'N/A'}.
                     </p>
                     <Button 
                         onClick={onSync} 
@@ -70,26 +213,47 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
                         className={`w-full ${isSyncing ? 'animate-pulse' : ''}`}
                     >
                         <RefreshCwIcon className={`inline h-5 w-5 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-                        {isSyncing ? 'Sedang Sinkronisasi...' : 'Sinkronisasi Manual Sekarang'}
+                        {isSyncing ? 'Sedang Sinkronisasi...' : (isCacheStale ? 'Sinkronisasi Manual (Data Basi)' : 'Sinkronisasi Manual Sekarang')}
                     </Button>
+
+                    <p className="text-sm text-gray-400 pt-2"><span className="font-bold">ID Internal:</span> {clan.id}</p>
+                    <p className="text-sm text-gray-400"><span className="font-bold">UID Owner:</span> {clan.ownerUid}</p>
                 </div>
                 
-                {/* Panel Info Internal */}
-                <div className="card-stone p-6 space-y-3">
+                {/* Kolom 2: War Aktif */}
+                <div className="card-stone p-6 space-y-4 border border-coc-gold/30">
                     <h3 className="text-xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2">
-                        <InfoIcon className="h-5 w-5" /> Info Internal
+                        <SwordsIcon className="h-5 w-5 text-coc-red" /> War Aktif
                     </h3>
-                    <p className="text-sm text-gray-300"><span className="font-bold">ID Internal:</span> {clan.id}</p>
-                    <p className="text-sm text-gray-300"><span className="font-bold">UID Owner:</span> {clan.ownerUid}</p>
-                    <p className="text-sm text-gray-300"><span className="font-bold">Status Rekrutmen:</span> <span className="text-coc-green capitalize">{clan.recruitingStatus}</span></p>
-                    <p className="text-sm text-gray-300"><span className="font-bold">Total Anggota Clashub:</span> {clan.memberCount}</p>
-                    <p className="text-sm text-gray-300"><span className="font-bold">Status War Aktif:</span> <span className={`${warStatusClass} font-semibold`}>{warStatusText}</span></p>
+                    {isWarActive && currentWar ? (
+                        <WarStatusDisplay war={currentWar} clanTag={clan.tag} />
+                    ) : (
+                        <div className="text-center p-4 bg-coc-stone/20 rounded-lg">
+                            <ShieldIcon className="h-8 w-8 text-coc-green/50 mx-auto" />
+                            <p className="text-white font-clash mt-2">Klan Sedang Aman</p>
+                            <p className="text-xs text-gray-400">Tidak ada War Klasik atau CWL aktif.</p>
+                        </div>
+                    )}
                 </div>
+
+                {/* Kolom 3: Raid Terbaru */}
+                {isRaidDataAvailable && currentRaid ? (
+                    <RaidSummaryDisplay raid={currentRaid} />
+                ) : (
+                    <div className="card-stone p-6 space-y-4 border border-coc-gold/30 flex flex-col justify-center items-center">
+                         <HomeIcon className="h-8 w-8 text-coc-blue/50" />
+                        <h3 className="text-xl font-clash text-coc-gold-dark">Raid Capital</h3>
+                        <p className="text-sm text-gray-400 text-center">Data Raid Capital terbaru belum tersedia, atau belum selesai.</p>
+                        <Button href="/app/clan/manage?tab=raid-history" variant="tertiary" size="sm">
+                            Lihat Arsip Raid
+                        </Button>
+                    </div>
+                )}
             </div>
 
             {/* Bagian 2: Top Performers (Berupa kartu) */}
             <h2 className="text-2xl font-clash text-white border-b border-coc-gold-dark/50 pb-2 flex items-center gap-3">
-                <TrophyIcon className="h-6 w-6 text-coc-gold" /> Performa Terbaik Terakhir (Cache)
+                <TrophyIcon className="h-6 w-6 text-coc-gold" /> Performa Terbaik (Dari Agregator)
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -100,7 +264,7 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
                     icon={<ArrowUpIcon className="h-6 w-6 text-coc-green" />}
                     className="bg-coc-green/10 border border-coc-green/30 text-coc-green"
                     value={promotions.length}
-                    description={`Member yang siap dipromosikan ke Elder (Min ${PROMOTION_LIMIT} Sukses)`}
+                    description={`Member yang siap dipromosikan (Min ${PROMOTION_LIMIT} Sukses)`}
                     isPlayerList={true}
                     players={promotions}
                 />
@@ -111,7 +275,7 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
                     icon={<ArrowDownIcon className="h-6 w-6 text-coc-red" />}
                     className="bg-coc-red/10 border border-coc-red/30 text-coc-red"
                     value={demotions.length}
-                    description={`Elder yang berisiko didemosi ke Member (Min ${DEMOTION_LIMIT} Penalti)`}
+                    description={`Elder yang berisiko didemosi (Min ${DEMOTION_LIMIT} Penalti)`}
                     isPlayerList={true}
                     players={demotions}
                 />
@@ -123,24 +287,20 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
                     className="bg-coc-gold/10 border border-coc-gold/30 text-coc-gold"
                     value={topDonatorData?.name || 'N/A'}
                     description={`Total Donasi: ${formatNumber(donatorValue)}`}
+                    isPlayerList={false}
+                    players={topDonatorData ? [topDonatorData] : []}
                 />
 
                 {/* Kartu 4: Top Raid Looter */}
                 <TopPerformersCard
                     title="Top Raid Looter"
-                    icon={<SwordsIcon className="h-6 w-6 text-coc-blue" />}
+                    icon={<HomeIcon className="h-6 w-6 text-coc-blue" />} 
                     className="bg-coc-blue/10 border border-coc-blue/30 text-coc-blue"
                     value={topRaidLooterData?.name || 'N/A'}
                     description={`Total Loot Raid: ${formatNumber(looterValue)}`}
+                    isPlayerList={false}
+                    players={topRaidLooterData ? [topRaidLooterData] : []}
                 />
-            </div>
-
-            {/* Bagian 3: Detail War Aktif (Placeholder - Akan dibuat Tab terpisah) */}
-            <div className="card-stone p-6">
-                <h3 className="text-xl font-clash text-white border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2">
-                    <SwordsIcon className="h-5 w-5 text-coc-red" /> Ringkasan War Aktif (Detail)
-                </h3>
-                <p className="text-gray-400 mt-3">Detail War Aktif akan dipindahkan ke tab khusus di Fase 2, untuk saat ini gunakan War Log dari COC API.</p>
             </div>
             
         </div>
