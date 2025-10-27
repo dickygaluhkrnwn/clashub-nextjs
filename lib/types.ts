@@ -457,9 +457,9 @@ export interface ClanApiCache {
   // --- DATA AGREGAT BARU: Top Performers (Dimasukkan ke sini) ---
   topPerformers?: {
       promotions: TopPerformerPlayer[]; // Pemain yang status partisipasinya 'Promosi'
-      demotions: TopPerformerPlayer[];  // Pemain yang status partisipasinya 'Demosi'
+      demotions: TopPerformerPlayer[];  // Pemain yang status partisipasinya 'Demosi'
       topRaidLooter: TopPerformerPlayer | null; // Pemain dengan capitalResourcesLooted tertinggi di raid terakhir
-      topDonator: TopPerformerPlayer | null;    // Pemain dengan donasi tertinggi (dari CocMember)
+      topDonator: TopPerformerPlayer | null;    // Pemain dengan donasi tertinggi (dari CocMember)
       // Bisa ditambahkan metriks lain jika perlu
   };
 }
@@ -560,6 +560,7 @@ export interface JoinRequest {
   id: string;
   // --- PERUBAHAN (Langkah 1.1) ---
   // Mengganti 'teamId' dan 'teamName' menjadi 'clanId' dan 'clanName'
+  // untuk merujuk ke ManagedClan internal.
   clanId: string; // ID klan internal (ManagedClan)
   clanName: string; // Nama klan internal (ManagedClan)
   requesterId: string;
@@ -651,4 +652,3 @@ export interface CwlArchive {
     rounds: CocWarLog[]; // Menyimpan detail setiap war dalam musim CWL (CocWarLog tanpa 'items')
     // Bisa ditambahkan data ringkasan musim jika perlu (misal: total stars, placement)
 }
-
