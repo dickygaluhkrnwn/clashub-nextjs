@@ -4,13 +4,21 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+// Import ArrowUpIcon dan ArrowDownIcon dari icons.tsx yang sudah ada
 import { CwlArchive, CocWarLog } from '@/lib/types'; // Asumsi CwlArchive diimpor dari lib/types
 import { Loader2, Calendar, ChevronRight, Scale, X, Check, ArrowLeft } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale'; // Untuk format bahasa Indonesia
+import { ArrowUpIcon, ArrowDownIcon } from '@/app/components/icons'; // Import ikon sort
 
 // Helper Type untuk data yang sudah di-hydrate dari Firestore
 type CwlArchiveWithId = CwlArchive & { id: string };
+
+// --- TIPE BARU UNTUK SORTIR ---
+// Kita akan mengurutkan berdasarkan Season ID (string) atau Total Stars (angka) atau Total War Count (angka)
+// Tambahkan properti calculated untuk sort key yang tidak ada di CwlArchive langsung
+type CwlSortKey = 'season' | 'totalStars' | 'totalWars' | 'league' | 'none';
+type SortDirection = 'asc' | 'desc';
 
 // --- Props Component ---
 interface CwlHistoryTabContentProps {
@@ -32,6 +40,11 @@ const CwlWarDetail: React.FC<CwlWarDetailProps> = ({ round, clanTag, roundIndex 
     const opponentClan = round.clan.tag === clanTag ? round.opponent : round.clan;
 
     // Hitung rata-rata TH klan kita (placeholder, karena CocWarClanInfo tidak punya avgTh)
+    // Posisikan member TH tertinggi di atas untuk konsistensi visual
+    const sortedOurMembers = useMemo(() => {
+        return [...ourClan.members].sort((a, b) => b.townhallLevel - a.townhallLevel);
+    }, [ourClan.members]);
+
     const ourAvgTh = (ourClan.members.reduce((sum, m) => sum + m.townhallLevel, 0) / ourClan.members.length) || 0;
     const opponentAvgTh = (opponentClan.members.reduce((sum, m) => sum + m.townhallLevel, 0) / opponentClan.members.length) || 0;
 
@@ -88,10 +101,8 @@ const CwlWarDetail: React.FC<CwlWarDetailProps> = ({ round, clanTag, roundIndex 
                         </tr>
                     </thead>
                     <tbody>
-                        {ourClan.members.map((member, index) => {
-                            const maxAttack = member.attacks?.reduce((max, attack) => attack.destructionPercentage > max.destructionPercentage ? attack : max, member.attacks[0]);
-                            
-                            // Gunakan serangan terbaik sebagai representasi performa
+                        {/* Menggunakan sortedOurMembers untuk tampilan */}
+                        {sortedOurMembers.map((member, index) => {
                             const bestAttack = member.attacks?.reduce((best, attack) => {
                                 if (!best) return attack;
                                 if (attack.stars > best.stars) return attack;
@@ -135,41 +146,12 @@ const CwlHistoryTabContent: React.FC<CwlHistoryTabContentProps> = ({ clanId, ini
     const [selectedSeason, setSelectedSeason] = useState<CwlArchiveWithId | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-
-    // Fungsi fetch data jika diperlukan (misalnya refresh atau load more)
-    const fetchCwlArchives = useCallback(async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            // Catatan: API Route untuk ini BELUM ADA (akan dibuat di langkah selanjutnya)
-            // Untuk saat ini, kita gunakan initial data yang dikirim dari Server Component
-            // Jika Anda mengaktifkan fetching, URL akan seperti ini:
-            // const response = await fetch(`/api/clan/manage/${clanId}/cwl-archives`);
-            // if (!response.ok) throw new Error('Gagal mengambil data arsip CWL.');
-            // const data = await response.json();
-            // setCwlArchives(data);
-        } catch (err) {
-            console.error(err);
-            setError('Terjadi kesalahan saat memuat data arsip CWL.');
-        } finally {
-            setIsLoading(false);
-        }
-    }, [clanId]);
+    // State Sortir BARU
+    const [sort, setSort] = useState<{ key: CwlSortKey, direction: SortDirection }>({ key: 'season', direction: 'desc' });
 
 
-    // Efek untuk update state lokal jika initial data berubah (meskipun jarang terjadi)
-    useEffect(() => {
-        if (initialCwlArchives.length > 0) {
-            setCwlArchives(initialCwlArchives);
-        } else {
-            // Jika tidak ada data awal, coba fetch (opsional)
-            // fetchCwlArchives(); 
-        }
-    }, [initialCwlArchives]);
-
-
-    // Menghitung ringkasan musim (total win/loss/tie)
-    const getSeasonSummary = (rounds: CocWarLog[]) => {
+    // --- FUNGSI AGREGASI CWL (MENGHITUNG METRIK UNTUK SORTING) ---
+    const getSeasonSummary = useCallback((rounds: CocWarLog[]) => {
         let wins = 0;
         let losses = 0;
         let ties = 0;
@@ -189,27 +171,119 @@ const CwlHistoryTabContent: React.FC<CwlHistoryTabContentProps> = ({ clanId, ini
             totalWarCount++;
         });
 
-        const avgDestruction = totalWarCount > 0 ? (totalDestruction / totalWarCount).toFixed(2) : '0.00';
+        const avgDestruction = totalWarCount > 0 ? (totalDestruction / totalWarCount) : 0;
+        const leagueName = rounds[0]?.clan?.warLeague?.name || 'Unknown League'; // Ambil League dari round pertama
 
-        return { wins, losses, ties, totalStars, avgDestruction, totalWarCount };
+        return { wins, losses, ties, totalStars, avgDestruction, totalWarCount, leagueName };
+    }, []);
+
+    // --- FUNGSI SORTIR UTAMA ---
+    const handleSort = useCallback((key: CwlSortKey) => {
+        setSort(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'desc' ? 'asc' : 'desc'
+        }));
+    }, []);
+
+    // --- LOGIKA SORTIR DATA (Musim) ---
+    // Gunakan useMemo untuk menghitung data yang disortir
+    const sortedArchives = useMemo(() => {
+        // Gabungkan data arsip dengan ringkasan untuk mempermudah sorting
+        const archivesWithSummary = cwlArchives.map(archive => ({
+            ...archive,
+            summary: getSeasonSummary(archive.rounds),
+            // Ambil tanggal terakhir (waktu selesai) untuk sorting date
+            endTime: archive.rounds.length > 0 
+                ? new Date(archive.rounds.reduce((latest, round) => {
+                    const current = new Date(round.endTime).getTime();
+                    return current > latest ? current : latest;
+                }, 0))
+                : new Date(0) // Default date untuk musim tanpa rounds
+        }));
+
+        const sortedData = [...archivesWithSummary];
+
+        sortedData.sort((a, b) => {
+            let comparison = 0;
+            const dir = sort.direction === 'asc' ? 1 : -1;
+
+            switch (sort.key) {
+                case 'season':
+                    // Sortir season (String)
+                    comparison = a.season.localeCompare(b.season);
+                    break;
+                case 'totalStars':
+                    // Sortir totalStars (Number)
+                    comparison = a.summary.totalStars - b.summary.totalStars;
+                    break;
+                case 'totalWars':
+                    // Sortir totalWarCount (Number)
+                    comparison = a.summary.totalWarCount - b.summary.totalWarCount;
+                    break;
+                case 'league':
+                    // Sortir league name (String)
+                    comparison = a.summary.leagueName.localeCompare(b.summary.leagueName);
+                    break;
+                case 'none':
+                default:
+                    // Default sort by endTime (terbaru di atas)
+                    comparison = b.endTime.getTime() - a.endTime.getTime(); 
+                    break;
+            }
+
+            // Terapkan arah sortir (kecuali default end time yang sudah terbalik)
+            if (sort.key === 'none') {
+                return comparison; 
+            } else {
+                return comparison * dir;
+            }
+        });
+
+        // Kembalikan data CWL asli (tidak perlu summary)
+        return sortedData.map(item => item as CwlArchiveWithId & { summary: ReturnType<typeof getSeasonSummary> });
+    }, [cwlArchives, sort, getSeasonSummary]);
+    
+
+    // Efek untuk update state lokal jika initial data berubah (meskipun jarang terjadi)
+    useEffect(() => {
+        if (initialCwlArchives.length > 0) {
+            setCwlArchives(initialCwlArchives);
+        } else {
+            // Jika tidak ada data awal, coba fetch (opsional)
+            // fetchCwlArchives(); 
+        }
+    }, [initialCwlArchives]);
+
+
+    // Menentukan ikon sortir
+    const getSortIcon = (key: CwlSortKey) => {
+        if (sort.key !== key) return null;
+        return sort.direction === 'asc' ? <ArrowUpIcon className="h-3 w-3 ml-1" /> : <ArrowDownIcon className="h-3 w-3 ml-1" />;
     };
+
+    // Menentukan kelas CSS untuk header sortable
+    const getHeaderClasses = (key: CwlSortKey, align: 'left' | 'center') =>
+        `py-3 px-4 text-${align} font-extrabold text-gray-400 uppercase tracking-wider cursor-pointer transition-colors hover:text-white ${
+            sort.key === key ? 'text-white bg-gray-700/50' : ''
+        }`;
+
 
     // --- Tampilan Detail Per Musim ---
     if (selectedSeason) {
         const { wins, losses, ties, totalStars, avgDestruction } = getSeasonSummary(selectedSeason.rounds);
 
         return (
-            <div className="p-4 sm:p-6 bg-gray-900 min-h-[500px]">
+            <div className="p-4 sm:p-6 bg-gray-900 min-h-[500px] rounded-lg border border-gray-700">
                 {/* Header Detail Musim */}
                 <button
                     onClick={() => setSelectedSeason(null)}
-                    className="flex items-center text-blue-400 hover:text-blue-300 mb-6 transition-colors"
+                    className="flex items-center text-blue-400 hover:text-blue-300 mb-6 transition-colors font-medium"
                 >
-                    <ArrowLeft className="w-5 h-5 mr-2" />
+                    <ArrowLeft className="w-4 h-4 mr-2" />
                     Kembali ke Daftar Musim
                 </button>
 
-                <div className="bg-gray-800 p-5 rounded-xl shadow-xl mb-6">
+                <div className="bg-gray-800 p-5 rounded-xl shadow-xl mb-6 border border-yellow-500/20">
                     <h2 className="text-3xl font-extrabold text-white mb-2">
                         Riwayat CWL: {selectedSeason.season}
                     </h2>
@@ -256,7 +330,7 @@ const CwlHistoryTabContent: React.FC<CwlHistoryTabContentProps> = ({ clanId, ini
 
     // --- Tampilan Daftar Musim CWL ---
     return (
-        <div className="p-4 sm:p-6 bg-gray-900 min-h-[500px]">
+        <div className="p-4 sm:p-6 bg-gray-900 min-h-[500px] rounded-lg border border-gray-700">
             <h1 className="text-3xl font-extrabold text-white mb-6 border-b border-gray-700 pb-2">
                 Riwayat Clan War League
             </h1>
@@ -283,58 +357,94 @@ const CwlHistoryTabContent: React.FC<CwlHistoryTabContentProps> = ({ clanId, ini
             )}
 
             {!isLoading && cwlArchives.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {cwlArchives.map(archive => {
-                        const { wins, losses, ties, totalWarCount } = getSeasonSummary(archive.rounds);
-                        const warLeague = archive.rounds[0]?.clan?.warLeague?.name || 'Unknown League';
-                        
-                        // Gunakan tanggal terakhir dari rounds sebagai representasi end date
-                        const lastRound = archive.rounds.length > 0 ? archive.rounds[archive.rounds.length - 1] : null;
-                        const endDate = lastRound?.endTime ? format(new Date(lastRound.endTime), 'dd MMM yyyy', { locale: id }) : 'N/A';
-                        
-                        return (
-                            <div
-                                key={archive.id}
-                                className="bg-gray-800 p-5 rounded-xl shadow-lg border border-gray-700/50 hover:border-yellow-500 transition-all cursor-pointer"
-                                onClick={() => setSelectedSeason(archive)}
-                            >
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <h2 className="text-xl font-bold text-yellow-400 mb-1">Musim {archive.season}</h2>
-                                        <p className="text-xs text-gray-400 font-semibold">{warLeague}</p>
+                // Mengganti tampilan grid dengan tabel responsif
+                <div className="overflow-x-auto rounded-lg border border-gray-700">
+                    <table className="min-w-full divide-y divide-gray-700 text-sm">
+                        <thead className="bg-gray-800 sticky top-0">
+                            <tr>
+                                {/* Kolom Musim (Default Sort) */}
+                                <th 
+                                    className={getHeaderClasses('season', 'left') + ' w-40'}
+                                    onClick={() => handleSort('season')}
+                                >
+                                    <div className="flex items-center">
+                                        Musim {getSortIcon('season')}
                                     </div>
-                                    <ChevronRight className="w-5 h-5 text-gray-500" />
-                                </div>
+                                </th>
+                                {/* Kolom Liga (Sortable) */}
+                                <th 
+                                    className={getHeaderClasses('league', 'left') + ' w-40'}
+                                    onClick={() => handleSort('league')}
+                                >
+                                    <div className="flex items-center">
+                                        Liga {getSortIcon('league')}
+                                    </div>
+                                </th>
+                                {/* Kolom Bintang (Sortable) */}
+                                <th 
+                                    className={getHeaderClasses('totalStars', 'center') + ' w-24'}
+                                    onClick={() => handleSort('totalStars')}
+                                >
+                                    <div className="flex items-center justify-center">
+                                        Total ⭐ {getSortIcon('totalStars')}
+                                    </div>
+                                </th>
+                                {/* Kolom W/L/T (Non-Sortable) */}
+                                <th className="py-3 px-4 text-center font-extrabold text-gray-400 uppercase tracking-wider w-32">
+                                    Menang / Kalah / Seri
+                                </th>
+                                {/* Kolom Aksi (Non-Sortable) */}
+                                <th className="py-3 px-4 text-center font-extrabold text-gray-400 uppercase tracking-wider w-20">
+                                    Detail
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-800/50">
+                            {/* Menggunakan sortedArchives */}
+                            {sortedArchives.map(archive => {
+                                const { wins, losses, ties, totalStars, totalWarCount, leagueName } = getSeasonSummary(archive.rounds);
                                 
-                                <div className="mt-4">
-                                    <p className="text-sm text-gray-300 flex items-center mb-1">
-                                        <Calendar className="w-4 h-4 mr-2 text-gray-500" />
-                                        Selesai: {endDate}
-                                    </p>
-                                    <p className="text-sm text-gray-300 flex items-center">
-                                        <Scale className="w-4 h-4 mr-2 text-gray-500" />
-                                        Jumlah War: {totalWarCount}
-                                    </p>
-                                </div>
+                                // Gunakan tanggal terakhir dari rounds sebagai representasi end date
+                                const lastRound = archive.rounds.length > 0 
+                                    ? archive.rounds.reduce((latest, round) => {
+                                        const current = new Date(round.endTime).getTime();
+                                        return current > new Date(latest.endTime).getTime() ? round : latest;
+                                    }, archive.rounds[0]) 
+                                    : null;
 
-                                <div className="mt-4 grid grid-cols-3 text-center border-t border-gray-700 pt-3">
-                                    <div>
-                                        <p className="text-xs text-gray-400">W</p>
-                                        <p className="text-lg font-bold text-green-400">{wins}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-gray-400">L</p>
-                                        <p className="text-lg font-bold text-red-400">{losses}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-gray-400">T</p>
-                                        <p className="text-lg font-bold text-blue-400">{ties}</p>
-                                    </div>
-                                </div>
-
-                            </div>
-                        );
-                    })}
+                                return (
+                                    <tr
+                                        key={archive.id}
+                                        className="bg-gray-800/70 hover:bg-gray-700/70 transition-colors cursor-pointer"
+                                        onClick={() => setSelectedSeason(archive)}
+                                    >
+                                        {/* Musim */}
+                                        <td className="py-3 px-4 font-semibold text-yellow-400">
+                                            {archive.season}
+                                        </td>
+                                        {/* Liga */}
+                                        <td className="py-3 px-4 text-sm text-gray-300">
+                                            {leagueName}
+                                        </td>
+                                        {/* Total Bintang */}
+                                        <td className="py-3 px-4 text-center font-bold text-yellow-500">
+                                            {totalStars}
+                                        </td>
+                                        {/* W/L/T */}
+                                        <td className="py-3 px-4 text-center text-sm font-semibold">
+                                            <span className="text-green-400">{wins}W</span> / 
+                                            <span className="text-red-400"> {losses}L</span> / 
+                                            <span className="text-blue-400"> {ties}T</span>
+                                        </td>
+                                        {/* Detail */}
+                                        <td className="py-3 px-4 text-center">
+                                            <ChevronRight className="w-4 h-4 text-gray-400 mx-auto" />
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
                 </div>
             )}
         </div>
