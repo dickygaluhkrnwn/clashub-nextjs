@@ -12,7 +12,7 @@ import {
     UserProfile,
     CocIconUrls,
     ClanRole,
-    CwlArchive, 
+    CwlArchive,
     RaidArchive, // BARU: Import RaidArchive
 } from './types';
 
@@ -35,8 +35,11 @@ export interface RoleChangeLog {
     changedAt: Date; // Timestamp perubahan
 }
 
-// Helper Type untuk menambahkan ID ke tipe data saat membaca dari Firestore
-type FirestoreDocument<T> = T & { id: string };
+// --- PERBAIKAN: Tambahkan export ---
+/**
+ * Helper Type untuk menambahkan ID ke tipe data saat membaca dari Firestore
+ */
+export type FirestoreDocument<T> = T & { id: string };
 
 // Fungsi untuk membersihkan data sebelum dikirim ke Admin SDK
 function cleanDataForAdminSDK<T extends object>(
@@ -123,16 +126,16 @@ export const getCwlArchivesByClanId = async (
 
         return snapshot.docs.map(doc => {
             const data = doc.data() as Omit<CwlArchive, 'id'>; // Ambil data tanpa ID awal
-            
+
             // Konversi setiap 'endTime' dan 'startTime' dari AdminTimestamp ke ISO String di dalam rounds
             const roundsWithDates = data.rounds?.map(round => {
                 const convertedRound = { ...round };
-                
+
                 // --- PERBAIKAN TS2358: Menggunakan Type Assertion 'as any' ---
                 if ((convertedRound.endTime as any) instanceof AdminTimestamp) {
                     convertedRound.endTime = ((convertedRound.endTime as any) as AdminTimestamp).toDate().toISOString();
                 }
-                
+
                 // --- PERBAIKAN TS2358: Menggunakan Type Assertion 'as any' ---
                 if ((convertedRound.startTime as any) instanceof AdminTimestamp) {
                     convertedRound.startTime = ((convertedRound.startTime as any) as AdminTimestamp).toDate().toISOString();
@@ -172,18 +175,18 @@ export const getRaidArchivesByClanId = async (
 
         return snapshot.docs.map(doc => {
             const data = doc.data() as Omit<RaidArchive, 'id'>; // BARU: Tipe Omit<RaidArchive, 'id'>
-            
+
             // Konversi Timestamp ke Date untuk field yang relevan (startTime, endTime)
             let startTime: Date | undefined = undefined;
             let endTime: Date | undefined = undefined;
-            
+
             if ((data.startTime as any) instanceof AdminTimestamp) {
                  startTime = ((data.startTime as any) as AdminTimestamp).toDate();
             }
             if ((data.endTime as any) instanceof AdminTimestamp) {
                  endTime = ((data.endTime as any) as AdminTimestamp).toDate();
             }
-            
+
             // BARU: Kembalikan objek dengan tipe yang benar dan ID
             return {
                 id: doc.id, // Tambahkan ID dokumen
@@ -471,4 +474,3 @@ export const updateMemberRole = async (
 };
 
 export { adminFirestore }; // Ekspor adminFirestore di akhir
-

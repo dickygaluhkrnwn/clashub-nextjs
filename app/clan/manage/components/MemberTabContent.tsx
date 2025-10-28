@@ -24,6 +24,7 @@ interface MemberTabContentProps {
     userProfile: UserProfile; // Profil Leader/Co-Leader yang sedang login
     onAction: (message: string, type: NotificationProps['type']) => void;
     onRefresh: () => void;
+    isManager: boolean; // <--- BARU: Prop isManager untuk mengontrol fitur manajemen
 }
 
 /**
@@ -31,8 +32,9 @@ interface MemberTabContentProps {
  * Menampilkan data partisipasi agregat, dan kontrol manajemen peran/kick.
  */
 const MemberTabContent: React.FC<MemberTabContentProps> = ({ 
-    clan, cache, members, userProfile, onAction, onRefresh 
+    clan, cache, members, userProfile, onAction, onRefresh, isManager // <--- Gunakan isManager
 }) => {
+    // isLeader hanya relevan untuk logika sub-izin (misal: Leader vs Co-Leader)
     const isLeader = userProfile.role === 'Leader';
     const rosterMembers = cache?.members || [];
     
@@ -73,6 +75,12 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
      * Mengubah peran anggota (Memanggil API PUT).
      */
     const handleRoleChange = async (memberUid: string, newClashubRole: UserProfile['role']) => {
+        // Pengecekan otorisasi di client side
+        if (!isManager) {
+            onAction('Akses Ditolak: Anda tidak memiliki izin untuk mengubah peran.', 'error');
+            return;
+        }
+        
         const targetProfile = members.find(m => m.uid === memberUid);
 
         if (!targetProfile) {
@@ -113,11 +121,16 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
      * Mengeluarkan anggota dari klan Clashub (Memanggil API DELETE).
      */
     const handleKick = async (memberUid: string) => {
+        // Pengecekan otorisasi di client side
+        if (!isManager) {
+            onAction('Akses Ditolak: Anda tidak memiliki izin untuk mengeluarkan anggota.', 'error');
+            return;
+        }
+
         const targetProfile = members.find(m => m.uid === memberUid);
         if (!targetProfile) return;
 
         // **PERHATIAN**: Mengganti confirm() bawaan browser (dilarang di Canvas)
-        // Kita menggunakan notifikasi sederhana sebagai placeholder untuk modal konfirmasi.
         onAction(`[KONFIRMASI MANUAL] Meminta server mengeluarkan ${targetProfile.displayName}...`, 'info');
 
         try {
@@ -139,8 +152,8 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
 
     // List of roles that the current user CAN set for others
     const availableClashubRoles: UserProfile['role'][] = isLeader 
-        ? ['Co-Leader', 'Elder', 'Member'] // Leader tidak bisa mengubah dirinya sendiri
-        : ['Elder', 'Member']; // Co-Leader hanya bisa mengubah Elder dan Member
+        ? ['Co-Leader', 'Elder', 'Member'] // Leader bisa set Co-Leader, Elder, Member
+        : ['Elder', 'Member']; // Co-Leader hanya bisa set Elder dan Member
 
     if (!cache?.members || cache.members.length === 0) {
         return (
@@ -176,6 +189,7 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
         } as RosterMember;
     }).sort((a, b) => {
         // Urutkan berdasarkan Town Hall Level (descending) lalu Clan Rank (ascending)
+        // PERBAIKAN TYPO: townhallLevel -> townHallLevel
         if (b.townHallLevel !== a.townHallLevel) {
             return b.townHallLevel - a.townHallLevel;
         }
@@ -198,11 +212,15 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
                 </thead>
                 <tbody className="divide-y divide-coc-gold-dark/10">
                     {combinedRoster.map((member) => {
-                        // Tidak bisa mengubah Leader dan diri sendiri (kecuali transfer Leader, yang tidak diimplementasikan)
+                        // --- LOGIKA OTORISASI BARU ---
                         const canModify = member.clashubRole !== 'Leader' && member.uid !== userProfile.uid;
                         // Co-Leader tidak bisa mengubah Co-Leader lain
                         const isCoLeaderModifyingCoLeader = userProfile.role === 'Co-Leader' && member.clashubRole === 'Co-Leader';
-                        const isActionDisabled = !canModify || isCoLeaderModifyingCoLeader || !member.uid; // Juga disable jika tidak punya akun Clashub (uid)
+                        
+                        // Action Disabled jika: BUKAN Manager, atau logika izin internal tidak terpenuhi
+                        const isActionDisabled = !isManager || !canModify || isCoLeaderModifyingCoLeader || !member.uid; 
+                        
+                        // PERBAIKAN TYPO: townhallLevel -> townHallLevel
                         const thImageUrl = getThImage(member.townHallLevel);
 
                         return (
@@ -212,6 +230,7 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
                                     <div className="flex items-center space-x-3">
                                         <div className="relative w-8 h-8 flex-shrink-0">
                                             <Image 
+                                                // PERBAIKAN TYPO: townhallLevel -> townHallLevel
                                                 src={thImageUrl}
                                                 alt={`TH ${member.townHallLevel}`}
                                                 width={32}
@@ -259,7 +278,7 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
                                 {/* Kolom 7: Role Clashub / Aksi */}
                                 <td className="px-3 py-3 whitespace-nowrap text-center space-y-1 w-[180px]">
                                     <span className={member.isVerified ? 'text-coc-green block mb-1 font-mono' : 'text-coc-red block mb-1 font-mono'} title={member.isVerified ? "Akun Clashub Terverifikasi" : "Akun Clashub Belum Terverifikasi"}>
-                                            {member.isVerified ? 'VERIFIED' : 'UNVERIFIED'} 
+                                        {member.isVerified ? 'VERIFIED' : 'UNVERIFIED'} 
                                     </span>
                                     
                                     {member.uid ? (
@@ -271,7 +290,7 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
                                                     size="sm" 
                                                     variant="secondary"
                                                     onClick={() => setOpenRoleDropdown(openRoleDropdown === member.uid ? null : member.uid!)}
-                                                    disabled={isActionDisabled}
+                                                    disabled={isActionDisabled} // Disabled jika bukan manager atau ada batasan
                                                     className="w-full justify-center text-sm font-semibold"
                                                 >
                                                     {member.clashubRole} 
@@ -306,7 +325,7 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
                                                 size="sm" 
                                                 variant="secondary" 
                                                 onClick={() => member.uid && handleKick(member.uid)}
-                                                disabled={isActionDisabled}
+                                                disabled={isActionDisabled} // Disabled jika bukan manager atau ada batasan
                                                 className="w-full justify-center bg-coc-red/20 text-coc-red hover:bg-coc-red/30 border border-coc-red/30"
                                             >
                                                 <TrashIcon className="h-3 w-3 mr-1"/> Kick

@@ -13,7 +13,8 @@ interface SummaryTabContentProps {
     cache: ClanApiCache | null;
     isSyncing: boolean;
     onSync: () => void;
-    onRefresh: () => void; 
+    onRefresh: () => void;
+    isManager: boolean; // <-- BARU: Tambahkan prop isManager
 }
 
 // ======================================================================================================
@@ -159,7 +160,7 @@ const RaidSummaryDisplay: React.FC<RaidSummaryProps> = ({ raid }) => {
 // ======================================================================================================
 
 const SummaryTabContent: React.FC<SummaryTabContentProps> = ({ 
-    clan, cache, isSyncing, onSync, onRefresh 
+    clan, cache, isSyncing, onSync, onRefresh, isManager // <-- Tambahkan isManager di sini
 }) => {
     
     // Logika Sinkronisasi
@@ -206,15 +207,27 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
                     <p className="text-sm text-gray-300 font-sans">
                         Sinkronisasi menarik data Anggota, War Log, CWL Archive, dan Raid Log terbaru. Data terakhir diperbarui: {cache?.lastUpdated ? new Date(cache.lastUpdated).toLocaleString('id-ID') : 'N/A'}.
                     </p>
-                    <Button 
-                        onClick={onSync} 
-                        variant={isCacheStale ? 'primary' : 'secondary'}
-                        disabled={isSyncing}
-                        className={`w-full ${isSyncing ? 'animate-pulse' : ''}`}
-                    >
-                        <RefreshCwIcon className={`inline h-5 w-5 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-                        {isSyncing ? 'Sedang Sinkronisasi...' : (isCacheStale ? 'Sinkronisasi Manual (Data Basi)' : 'Sinkronisasi Manual Sekarang')}
-                    </Button>
+                    {isManager ? ( // Hanya tampilkan tombol sync jika Manager
+                        <Button 
+                            onClick={onSync} 
+                            variant={isCacheStale ? 'primary' : 'secondary'}
+                            disabled={isSyncing}
+                            className={`w-full ${isSyncing ? 'animate-pulse' : ''}`}
+                        >
+                            <RefreshCwIcon className={`inline h-5 w-5 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+                            {isSyncing ? 'Sedang Sinkronisasi...' : (isCacheStale ? 'Sinkronisasi Manual (Data Basi)' : 'Sinkronisasi Manual Sekarang')}
+                        </Button>
+                    ) : (
+                        <Button 
+                             onClick={onRefresh} // Anggota biasa hanya bisa refresh UI
+                             variant="tertiary"
+                             disabled={isSyncing}
+                             className={`w-full ${isSyncing ? 'animate-pulse' : ''}`}
+                        >
+                            <RefreshCwIcon className={`inline h-5 w-5 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+                            Muat Ulang Data
+                        </Button>
+                    )}
 
                     <p className="text-sm text-gray-400 pt-2"><span className="font-bold">ID Internal:</span> {clan.id}</p>
                     <p className="text-sm text-gray-400"><span className="font-bold">UID Owner:</span> {clan.ownerUid}</p>

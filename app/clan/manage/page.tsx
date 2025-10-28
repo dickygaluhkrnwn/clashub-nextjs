@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import type { Metadata } from 'next'; 
+import type { Metadata } from 'next';
 import { getSessionUser } from '@/lib/server-auth';
 // Import fungsi read client-side
 import {
@@ -13,7 +13,7 @@ import {
 import { getCwlArchivesByClanId, getRaidArchivesByClanId } from '@/lib/firestore-admin'; // BARU: Tambah getRaidArchivesByClanId
 import { ManagedClan, ClanApiCache, UserProfile, JoinRequest, CwlArchive, RaidArchive } from '@/lib/types'; // BARU: Tambah RaidArchive
 import ManageClanClient from './ManageClanClient';
-import React from 'react'; 
+import React from 'react';
 
 export const metadata: Metadata = {
     title: 'Clashub | Manajemen Klan',
@@ -30,7 +30,7 @@ export interface ClanManagementProps {
     profile: UserProfile;
     cwlArchives: CwlArchive[];
     // BARU: Menambahkan arsip Raid untuk Tab Raid (Fase 3.2)
-    raidArchives: RaidArchive[]; 
+    raidArchives: RaidArchive[];
 }
 
 /**
@@ -50,46 +50,48 @@ const ClanManagementPage = async () => {
     let cacheData: ClanManagementProps['cache'] | null = null;
     let requestsData: ClanManagementProps['joinRequests'] = [];
     let membersData: ClanManagementProps['members'] = [];
-    let cwlArchivesData: ClanManagementProps['cwlArchives'] = []; 
+    let cwlArchivesData: ClanManagementProps['cwlArchives'] = [];
     let raidArchivesData: ClanManagementProps['raidArchives'] = []; // BARU: Inisialisasi data Raid
     let serverError: string | null = null;
 
-    // 2. Validasi Peran dan Status Verifikasi
-    const isClashubManager = userProfile?.role === 'Leader' || userProfile?.role === 'Co-Leader';
-    const userClanId = userProfile?.clanId; 
-    
-    // Logika GAGAL AKSES
-    if (!userProfile?.isVerified || !isClashubManager || !userClanId) { 
+    // 2. Validasi Status Verifikasi dan Penautan Klan
+    // const isClashubManager = userProfile?.role === 'Leader' || userProfile?.role === 'Co-Leader'; // Dihapus dari pemeriksaan akses
+    const userClanId = userProfile?.clanId;
+
+    // --- PERBAIKAN LOGIKA AKSES ---
+    // Sekarang hanya cek verifikasi dan apakah klan sudah ditautkan.
+    // Pengecekan peran ('Leader'/'Co-Leader') dipindahkan ke Client Component untuk UI.
+    if (!userProfile?.isVerified || !userClanId) {
         serverError =
-            'Akses Ditolak: Anda harus memiliki peran Leader/Co-Leader Clashub yang terverifikasi dan menautkan klan untuk mengakses halaman manajemen.';
-        
+            'Akses Ditolak: Anda harus terverifikasi dan menautkan akun Clash of Clans Anda ke klan yang dikelola untuk mengakses halaman ini.';
+
         return (
             <ManageClanClient
                 initialData={null}
                 serverError={serverError}
-                profile={userProfile || ({} as UserProfile)} 
+                profile={userProfile || ({} as UserProfile)}
             />
         );
-    } 
-    
+    }
+
     // Clan ID yang digunakan untuk semua operasi
-    const clanId = userClanId; 
+    const clanId = userClanId;
 
     // 3. Ambil semua data secara paralel
     try {
         const [
-            managedClan, 
-            apiCache, 
-            joinRequests, 
-            teamMembers, 
-            cwlArchives, 
+            managedClan,
+            apiCache,
+            joinRequests,
+            teamMembers,
+            cwlArchives,
             raidArchives // BARU: Tambahkan raidArchives
-        ] = await Promise.all([ 
-            getManagedClanData(clanId), 
-            getClanApiCache(clanId), 
-            getJoinRequests(clanId), 
-            getTeamMembers(clanId), 
-            getCwlArchivesByClanId(clanId), 
+        ] = await Promise.all([
+            getManagedClanData(clanId),
+            getClanApiCache(clanId),
+            getJoinRequests(clanId),
+            getTeamMembers(clanId),
+            getCwlArchivesByClanId(clanId),
             getRaidArchivesByClanId(clanId) // BARU: Panggil fungsi getRaidArchives
         ]);
 
@@ -98,7 +100,7 @@ const ClanManagementPage = async () => {
             cacheData = apiCache;
             requestsData = joinRequests;
             membersData = teamMembers;
-            cwlArchivesData = cwlArchives; 
+            cwlArchivesData = cwlArchives;
             raidArchivesData = raidArchives; // BARU: Simpan data arsip Raid
 
         } else {
@@ -118,16 +120,15 @@ const ClanManagementPage = async () => {
                 cache: cacheData,
                 joinRequests: requestsData,
                 members: membersData,
-                profile: userProfile, 
+                profile: userProfile,
                 cwlArchives: cwlArchivesData,
                 // BARU: Salurkan data arsip Raid
-                raidArchives: raidArchivesData, 
+                raidArchives: raidArchivesData,
             } : null}
             serverError={serverError}
-            profile={userProfile} 
+            profile={userProfile} // Pastikan profile tetap dikirim
         />
     );
 };
 
 export default ClanManagementPage;
-
