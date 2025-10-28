@@ -1,20 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { WarArchive } from '@/lib/types';
+// PERBAIKAN: Import WarArchive dan WarSummary dari lib/types eksternal
+// Hapus semua definisi interface lokal karena sudah didefinisikan di lib/types.ts
+import { WarArchive, WarSummary, WarResult } from '@/lib/types'; 
 import { BookOpenIcon, ClockIcon, StarIcon, SwordsIcon, AlertTriangleIcon, RefreshCwIcon } from '@/app/components/icons';
 import { Button } from '@/app/components/ui/Button';
 
-// Tipe data yang akan ditampilkan dalam daftar riwayat
-interface WarSummary {
-    id: string; // ID Dokumen
-    opponentName: string;
-    teamSize: number;
-    result: 'win' | 'lose' | 'tie' | 'unknown'; // Dibatasi oleh Union Type
-    ourStars: number;
-    opponentStars: number;
-    ourDestruction: number;
-    opponentDestruction: number;
-    endTime: Date;
-}
+// CATATAN: Definisi WarSummary yang sebelumnya di sini telah dihapus/dipindahkan ke lib/types.ts
 
 interface WarHistoryTabContentProps {
     clanId: string; // ID Internal Klan Firestore
@@ -26,7 +17,10 @@ interface WarHistoryTabContentProps {
 // Helper: Tampilan Baris Riwayat War
 // ======================================================================================================
 
+// Menggunakan WarSummary dari '@/lib/types'
 const WarHistoryRow: React.FC<{ war: WarSummary }> = ({ war }) => {
+    // Menangani result 'unknown' dengan default 'tie' untuk class
+    // Karena result adalah WarResult ('win' | 'lose' | 'tie' | 'unknown'), ini akan aman.
     const resultClass = war.result === 'win' ? 'bg-coc-green text-black' : war.result === 'lose' ? 'bg-coc-red text-white' : 'bg-coc-blue text-white';
 
     // Format tanggal
@@ -35,6 +29,7 @@ const WarHistoryRow: React.FC<{ war: WarSummary }> = ({ war }) => {
     });
 
     return (
+        // TODO: Tambahkan onClick untuk menampilkan Detail War (Fase selanjutnya)
         <tr className="hover:bg-coc-stone/20 transition-colors cursor-pointer">
             {/* Kolom Hasil */}
             <td className="px-3 py-3 whitespace-nowrap text-center">
@@ -96,7 +91,7 @@ const WarHistoryRow: React.FC<{ war: WarSummary }> = ({ war }) => {
  * Menampilkan arsip War Classic yang telah selesai.
  */
 const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({ clanId, clanTag, onRefresh }) => {
-    // Tipe data state diubah menjadi WarSummary[]
+    // Tipe WarArchive dan WarSummary sekarang diimpor
     const [history, setHistory] = useState<WarSummary[] | null>(null); 
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -110,20 +105,20 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({ clanId, cla
             setError(null);
             
             // SIMULASI data dari Arsip Perang CSV
-            // PERBAIKAN: Memastikan result menggunakan tipe 'win' | 'lose' | 'tie'
+            // PERBAIKAN: Memastikan literal string yang dilewatkan ke 'result' sesuai dengan WarResult
             const mockData: WarSummary[] = [
                 {
-                    id: 'w1', opponentName: 'DIETARY', teamSize: 15, result: 'lose', 
+                    id: 'w1', opponentName: 'DIETARY', teamSize: 15, result: 'lose', // Menggunakan WarResult dari lib/types
                     ourStars: 45, opponentStars: 45, 
                     ourDestruction: 100, opponentDestruction: 100, endTime: new Date('2025-10-12T05:00:00Z')
                 },
                 {
-                    id: 'w2', opponentName: 'PREDATOR ™', teamSize: 20, result: 'tie', 
+                    id: 'w2', opponentName: 'PREDATOR ™', teamSize: 20, result: 'tie', // Menggunakan WarResult dari lib/types
                     ourStars: 60, opponentStars: 60, 
                     ourDestruction: 100, opponentDestruction: 100, endTime: new Date('2025-10-22T08:00:00Z')
                 },
                 {
-                    id: 'w3', opponentName: 'SURXONSILA 75', teamSize: 15, result: 'win', 
+                    id: 'w3', opponentName: 'SURXONSILA 75', teamSize: 15, result: 'win', // Menggunakan WarResult dari lib/types
                     ourStars: 45, opponentStars: 43, 
                     ourDestruction: 100, opponentDestruction: 97.8, endTime: new Date('2025-10-20T12:00:00Z')
                 },
@@ -172,7 +167,7 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({ clanId, cla
             <div className="flex justify-between items-center border-b border-coc-gold-dark/50 pb-3">
                 <h2 className="text-2xl font-clash text-white flex items-center gap-2">
                     <BookOpenIcon className="h-6 w-6 text-coc-gold" /> Riwayat War Klasik
-                </h2>
+                </h2 >
                 <Button onClick={onRefresh} variant="secondary" size="sm">
                     <RefreshCwIcon className='h-4 w-4 mr-2'/> Muat Ulang
                 </Button>
