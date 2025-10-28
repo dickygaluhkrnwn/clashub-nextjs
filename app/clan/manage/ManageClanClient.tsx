@@ -1,26 +1,29 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/Button';
-// FIX 1: Import ClanRole dari lib/types
-import { ManagedClan, ClanApiCache, UserProfile, JoinRequest, ClanRole, CocWarLog, CwlArchive } from '@/lib/types';
+// Import Tipe Data
+import { ManagedClan, ClanApiCache, UserProfile, JoinRequest, ClanRole, CocWarLog, CwlArchive, RaidArchive } from '@/lib/types'; // BARU: Tambah RaidArchive
+// Import Ikon
 import { 
     UserCircleIcon, ShieldIcon, AlertTriangleIcon, CogsIcon, ClockIcon, InfoIcon, 
     TrophyIcon, UserIcon, XIcon, GlobeIcon, 
     RefreshCwIcon, ArrowRightIcon, MailOpenIcon, ThumbsUpIcon, ThumbsDownIcon, 
     TrashIcon, SettingsIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, SwordsIcon, BookOpenIcon,
-    CalendarCheck2Icon // Import icon baru untuk CWL
+    CalendarCheck2Icon, CoinsIcon // BARU: Tambah CoinsIcon
 } from '@/app/components/icons'; 
+// Import Komponen UI
 import Notification, { NotificationProps } from '@/app/components/ui/Notification';
+// Import Tipe Props Server
 import { ClanManagementProps } from '@/app/clan/manage/page'; 
-// --- Komponen yang Diimpor Setelah Refactoring ---
+// --- Komponen Tab Konten ---
 import ClanManagementHeader from './components/ClanManagementHeader';
 import SummaryTabContent from './components/SummaryTabContent';
 import MemberTabContent from './components/MemberTabContent'; 
 import RequestTabContent from './components/RequestTabContent'; 
-// FASE 2 & 3: Komponen Baru
 import ActiveWarTabContent from './components/ActiveWarTabContent'; 
 import WarHistoryTabContent from './components/WarHistoryTabContent'; 
-import CwlHistoryTabContent from './components/CwlHistoryTabContent'; // BARU: Komponen Riwayat CWL
+import CwlHistoryTabContent from './components/CwlHistoryTabContent'; 
+import RaidTabContent from './components/RaidTabContent'; // BARU: Komponen Raid
 
 interface ManageClanClientProps {
     initialData: ClanManagementProps | null; // Data lengkap dari Server Component
@@ -28,20 +31,14 @@ interface ManageClanClientProps {
     profile: UserProfile | null;
 }
 
-// PERBAIKAN: Menambahkan 'cwl-history' (Fase 3)
-type ActiveTab = 'summary' | 'members' | 'requests' | 'active-war' | 'war-history' | 'cwl-history' | 'settings';
+// BARU: Menambahkan 'raid' (Fase 3.2)
+type ActiveTab = 'summary' | 'members' | 'requests' | 'active-war' | 'war-history' | 'cwl-history' | 'raid' | 'settings';
 
 // --- FUNGSI UTAMA CLIENT ---
-
-/**
- * @component ManageClanClient
- * Menangani tampilan manajemen klan (Leader/Co-Leader yang terverifikasi).
- * Menyediakan tombol sinkronisasi manual dan tampilan multi-tab.
- */
 const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClientProps) => {
     const router = useRouter();
     
-    // State untuk tab aktif dan sinkronisasi
+    // State
     const [activeTab, setActiveTab] = useState<ActiveTab>('summary');
     const [isSyncing, setIsSyncing] = useState(false);
     const [notification, setNotification] = useState<NotificationProps | null>(null);
@@ -50,7 +47,6 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
         setNotification({ message, type, onClose: () => setNotification(null) });
     };
     
-    // Fungsi refresh untuk Client Component (memuat ulang Server Component)
     const handleRefreshData = () => {
         router.refresh();
         showNotification('Memuat ulang data dari server...', 'info');
@@ -58,7 +54,6 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
 
     // --- TAMPILAN ERROR / AKSES DITOLAK ---
     if (serverError) {
-        // ... (Kode error tetap sama) ...
         return (
             <main className="container mx-auto p-4 md:p-8 mt-10 min-h-[60vh]">
                 <Notification notification={notification ?? undefined} />
@@ -78,7 +73,7 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
         );
     }
         
-    // Asumsi: Jika tidak ada serverError, initialData dijamin ada oleh Server Component
+    // Data dari Server Component
     const data = initialData!;
     const clan = data.clan; 
     const cache = data.cache;
@@ -103,7 +98,6 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
                 throw new Error(result.error || 'Sinkronisasi gagal. Cek API Key atau status klan.'); 
             }
 
-            // Setelah sukses, kita refresh router untuk memuat data terbaru dari Server Component
             showNotification(`Sinkronisasi berhasil! Anggota disinkronkan: ${result.memberCount}`, 'success');
             router.refresh(); 
 
@@ -114,7 +108,6 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
             setIsSyncing(false);
         }
     };
-    // --- END FUNGSI SINKRONISASI MANUAL ---
     
     // Utility: Tombol untuk Tab
     const TabButton: React.FC<{ tabName: ActiveTab, icon: React.ReactNode, label: string }> = ({ tabName, icon, label }) => (
@@ -122,14 +115,14 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
             variant={activeTab === tabName ? 'primary' : 'secondary'}
             onClick={() => setActiveTab(tabName)}
             size="sm"
-            className="w-full justify-start md:w-auto md:min-w-[150px]"
+            className="w-full justify-start md:w-auto md:min-w-[150px]" // Responsif
         >
             {icon}
             <span className="ml-2">{label}</span>
         </Button>
     );
     
-    // Komponen Konten Tab
+    // Render Konten Tab Sesuai Pilihan
     const renderContent = () => {
         switch (activeTab) {
             case 'summary':
@@ -171,27 +164,38 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
                         onRefresh={handleRefreshData}
                     />
                 );
-            case 'war-history': // KASUS WAR CLASSIC HISTORY
+            case 'war-history': 
                 return (
                     <WarHistoryTabContent
                         clanId={clan.id}
                         clanTag={clan.tag}
-                        onRefresh={handleRefreshData}
+                        onRefresh={handleRefreshData} 
+                        // Note: Data war archives diambil client-side di dalam komponen ini
                     />
                 );
-            case 'cwl-history': // BARU: KASUS CWL HISTORY
+            case 'cwl-history': 
                 return (
                     <CwlHistoryTabContent
                         clanId={clan.id}
-                        initialCwlArchives={data.cwlArchives || []} // Sediakan data CWL Archives dari props data
+                        initialCwlArchives={data.cwlArchives || []} 
+                        // Note: Komponen ini menerima data awal dari server
                     />
+                );
+            case 'raid': // BARU: KASUS RAID
+                return (
+                     <RaidTabContent
+                        clan={clan}
+                        initialCurrentRaid={cache?.currentRaid} // Ambil raid terbaru dari cache
+                        initialRaidArchives={data.raidArchives || []} // Ambil riwayat raid dari props data
+                        onRefresh={handleRefreshData} 
+                     />
                 );
             case 'settings':
                 return (
                     <div className="p-8 text-center bg-coc-stone/40 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
                         <SettingsIcon className="h-12 w-12 text-coc-gold/50 mb-3" />
                         <p className="text-lg font-clash text-white">Pengaturan Klan</p>
-                        <p className="text-sm text-gray-400 font-sans mt-1">Implementasi pengaturan rekrutmen dan transfer kepemilikan akan hadir di Fase 3.</p>
+                        <p className="text-sm text-gray-400 font-sans mt-1">Implementasi pengaturan rekrutmen dan transfer kepemilikan akan hadir di Fase 4.</p>
                     </div>
                 );
             default:
@@ -209,7 +213,7 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
                 {/* Header Klan */}
                 <ClanManagementHeader 
                     clan={clan} 
-                    profile={data.profile} // PERBAIKAN: Ganti userProfile menjadi profile
+                    profile={data.profile} 
                     cache={cache} 
                 />
 
@@ -219,7 +223,8 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
                     <TabButton tabName="members" icon={<UserIcon className="h-5 w-5"/>} label={`Anggota (${data.members.length})`} />
                     <TabButton tabName="active-war" icon={<SwordsIcon className="h-5 w-5 text-coc-red"/>} label="Perang Aktif" /> 
                     <TabButton tabName="war-history" icon={<BookOpenIcon className="h-5 w-5"/>} label="Riwayat War Klasik" /> 
-                    <TabButton tabName="cwl-history" icon={<CalendarCheck2Icon className="h-5 w-5 text-blue-400"/>} label="Riwayat CWL" /> {/* TOMBOL BARU CWL */}
+                    <TabButton tabName="cwl-history" icon={<CalendarCheck2Icon className="h-5 w-5 text-blue-400"/>} label="Riwayat CWL" /> 
+                    <TabButton tabName="raid" icon={<CoinsIcon className="h-5 w-5 text-yellow-400"/>} label="Ibu Kota Klan" /> {/* TOMBOL BARU RAID */}
                     <TabButton tabName="requests" icon={<MailOpenIcon className="h-5 w-5"/>} label={`Permintaan Gabung (${data.joinRequests.length})`} />
                     <TabButton tabName="settings" icon={<SettingsIcon className="h-5 w-5"/>} label="Pengaturan Klan" />
                 </div>
@@ -235,3 +240,4 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
 };
 
 export default ManageClanClient;
+

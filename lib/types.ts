@@ -225,7 +225,7 @@ export interface CocWarLogEntry {
         attacks?: number; // Bisa jadi tidak ada jika war log tidak publik
         stars: number;
         destructionPercentage: number;
-        expEarned?: number;
+        expEarned?: number; // Ditambahkan ? karena mungkin tidak selalu ada
     };
     opponent: {
         tag: string;
@@ -644,7 +644,8 @@ export interface WarSummary {
  * Kita simpan log lengkap (`CocWarLog`) untuk detail maksimal.
  */
 export interface WarArchive extends Omit<CocWarLog, 'items'> { // Omit 'items' jika log individu
-    id?: string; // ID Dokumen Firestore (opsional, akan ada saat dibaca)
+    // PERBAIKAN TS2322 (Konsistensi): Jadikan ID wajib (string)
+    id: string; // ID Dokumen Firestore (selalu ada saat dibaca)
     clanTag: string; // Tag klan kita untuk query
     warEndTime: Date; // Simpan sebagai Date untuk query Firestore
     // warId?: string; // ID unik perang jika ada/diperlukan (bisa dari startTime/endTime?)
@@ -656,7 +657,8 @@ export interface WarArchive extends Omit<CocWarLog, 'items'> { // Omit 'items' j
  * Berdasarkan CocRaidLog, tapi mungkin disederhanakan.
  */
 export interface RaidArchive {
-    id?: string; // ID Dokumen Firestore
+    // PERBAIKAN TS2322: Jadikan ID wajib (string)
+    id: string; // ID Dokumen Firestore (selalu ada saat dibaca)
     clanTag: string; // Tag klan kita
     raidId: string; // ID unik raid (misal: clanTag + endTime)
     startTime: Date;
@@ -666,7 +668,7 @@ export interface RaidArchive {
     members?: CocRaidMember[]; // Simpan detail partisipasi anggota (jika ada)
     offensiveReward?: number;
     defensiveReward?: number;
-    // PERBAIKAN TS2353: Tambahkan properti yang hilang
+    // Properti yang mungkin hilang dari API (tetap opsional)
     enemyDistrictsDestroyed?: number; // Jumlah distrik musuh yg dihancurkan
     attackLog?: CocRaidAttackLogEntry[]; // Log serangan distrik klan musuh
     defenseLog?: CocRaidDefenseLogEntry[]; // Log pertahanan distrik klan kita
@@ -678,7 +680,7 @@ export interface RaidArchive {
  */
 export interface CwlArchive {
     // PERBAIKAN TS2322: Jadikan ID wajib (string) karena selalu ada saat dibaca dari Firestore
-    id: string; // ID Dokumen Firestore (misal: clanTag + season) 
+    id: string; // ID Dokumen Firestore (misal: clanTag + season)
     clanTag: string;
     season: string; // Identifier musim (misal: "2025-10")
     rounds: CocWarLog[]; // Menyimpan detail setiap war dalam musim CWL (CocWarLog tanpa 'items')
