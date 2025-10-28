@@ -10,7 +10,9 @@ import {
     getJoinRequests, // Fungsi baru untuk mengambil permintaan
     getTeamMembers // Fungsi untuk mengambil anggota klan
 } from '@/lib/firestore';
-import { ManagedClan, ClanApiCache, UserProfile, JoinRequest } from '@/lib/types'; // Impor semua tipe data
+// BARU: Import fungsi Admin SDK untuk mengambil arsip
+import { getCwlArchivesByClanId } from '@/lib/firestore-admin'; 
+import { ManagedClan, ClanApiCache, UserProfile, JoinRequest, CwlArchive } from '@/lib/types'; // Impor semua tipe data, termasuk CwlArchive
 import ManageClanClient from './ManageClanClient';
 // FIX 1: Hapus import Metadata yang duplikat
 // import { Metadata } from 'next'; 
@@ -29,6 +31,8 @@ export interface ClanManagementProps {
     joinRequests: JoinRequest[];
     members: UserProfile[];
     profile: UserProfile;
+    // BARU: Menambahkan arsip CWL untuk Tab Riwayat CWL (Fase 3)
+    cwlArchives: CwlArchive[];
 }
 
 /**
@@ -48,6 +52,7 @@ const ClanManagementPage = async () => {
     let cacheData: ClanManagementProps['cache'] | null = null;
     let requestsData: ClanManagementProps['joinRequests'] = [];
     let membersData: ClanManagementProps['members'] = [];
+    let cwlArchivesData: ClanManagementProps['cwlArchives'] = []; // BARU: Inisialisasi data CWL
     let serverError: string | null = null;
 
     // 2. Validasi Peran dan Status Verifikasi
@@ -80,13 +85,14 @@ const ClanManagementPage = async () => {
     // Clan ID yang digunakan untuk semua operasi (gunakan ID yang ditemukan)
     const clanId = userClanId; 
 
-    // 3. Ambil data klan, cache, requests, dan anggota secara paralel
+    // 3. Ambil data klan, cache, requests, anggota, dan arsip CWL secara paralel
     try {
-        const [managedClan, apiCache, joinRequests, teamMembers] = await Promise.all([
+        const [managedClan, apiCache, joinRequests, teamMembers, cwlArchives] = await Promise.all([ // BARU: Tambahkan cwlArchives
             getManagedClanData(clanId), // Info klan
             getClanApiCache(clanId), // Cache Partisipasi/War
             getJoinRequests(clanId), // Permintaan Bergabung
-            getTeamMembers(clanId) // Semua UserProfile Anggota
+            getTeamMembers(clanId), // Semua UserProfile Anggota
+            getCwlArchivesByClanId(clanId) // BARU: Ambil Arsip CWL
         ]);
 
         if (managedClan) {
@@ -94,6 +100,7 @@ const ClanManagementPage = async () => {
             cacheData = apiCache;
             requestsData = joinRequests;
             membersData = teamMembers;
+            cwlArchivesData = cwlArchives; // BARU: Simpan data arsip CWL
 
         } else {
             serverError =
@@ -114,6 +121,8 @@ const ClanManagementPage = async () => {
                 members: membersData,
                 // FIX: profile dimasukkan ke dalam objek data utama.
                 profile: userProfile, 
+                // BARU: Salurkan data arsip CWL
+                cwlArchives: cwlArchivesData,
             } : null}
             serverError={serverError}
             profile={userProfile} // Properti ini mungkin redundan jika ada di initialData, tapi dipertahankan sebagai fallback untuk UI error state.

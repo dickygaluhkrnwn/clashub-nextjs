@@ -14,6 +14,7 @@ import {
     UserProfile,
     CocIconUrls,
     ClanRole,
+    CwlArchive, // BARU: Import CwlArchive
 } from './types';
 
 // =========================================================================
@@ -39,7 +40,7 @@ export interface RoleChangeLog {
 type FirestoreDocument<T> = T & { id: string };
 
 // Fungsi untuk membersihkan data sebelum dikirim ke Admin SDK
-// --- PERBAIKAN: Gunakan tipe UpdateData dari FirebaseFirestore ---
+// --- PERBAIKan: Gunakan tipe UpdateData dari FirebaseFirestore ---
 function cleanDataForAdminSDK<T extends object>(
     data: Partial<T>
 ): FirebaseFirestore.UpdateData<FirebaseFirestore.DocumentData> {
@@ -109,30 +110,45 @@ export const getRoleLogsByClanId = async (
 
 /**
  * Mengambil semua arsip CWL (Clan War League) untuk Clan tertentu.
- * Digunakan untuk menghitung CWL Success/Fail.
+ * Diurutkan berdasarkan musim secara descending (terbaru di atas)
  */
-export const getCwlArchivesByClanId = async (clanId: string): Promise<any[]> => {
+export const getCwlArchivesByClanId = async (
+    clanId: string
+): Promise<FirestoreDocument<CwlArchive>[]> => {
     try {
         const cwlRef = adminFirestore
             .collection(COLLECTIONS.MANAGED_CLANS)
             .doc(clanId)
-            // Asumsi sub-koleksi untuk arsip CWL adalah 'cwlArchives'
             .collection('cwlArchives');
 
-        // Mengambil semua dokumen arsip CWL
-        const snapshot = await cwlRef.get();
+        // Mengambil semua dokumen arsip CWL, diurutkan secara descending berdasarkan ID Musim (Season)
+        const snapshot = await cwlRef.orderBy('season', 'desc').get();
 
         return snapshot.docs.map(doc => {
-            const data = doc.data() as any;
-            // Konversi Timestamp jika diperlukan
-            // Contoh: Jika ada field 'archiveDate'
-            // if (data.archiveDate instanceof AdminTimestamp) {
-            //     data.archiveDate = data.archiveDate.toDate();
-            // }
+            const data = doc.data() as CwlArchive;
+            
+            // Konversi setiap 'endTime' dan 'startTime' dari AdminTimestamp ke ISO String
+            const roundsWithDates = data.rounds?.map(round => {
+                const convertedRound = { ...round };
+                
+                // --- PERBAIKAN TS2358: Menggunakan Type Assertion 'as any' ---
+                if ((convertedRound.endTime as any) instanceof AdminTimestamp) {
+                    convertedRound.endTime = ((convertedRound.endTime as any) as AdminTimestamp).toDate().toISOString();
+                }
+                
+                // --- PERBAIKAN TS2358: Menggunakan Type Assertion 'as any' ---
+                if ((convertedRound.startTime as any) instanceof AdminTimestamp) {
+                    convertedRound.startTime = ((convertedRound.startTime as any) as AdminTimestamp).toDate().toISOString();
+                }
+                return convertedRound;
+            }) || [];
+
+
             return {
                 id: doc.id,
-                ...data
-            };
+                ...data,
+                rounds: roundsWithDates, // Gunakan rounds yang sudah dikonversi
+            } as FirestoreDocument<CwlArchive>;
         });
     } catch (error) {
         console.error(`Firestore Error [getCwlArchivesByClanId - Admin(${clanId})]:`, error);
@@ -140,6 +156,44 @@ export const getCwlArchivesByClanId = async (clanId: string): Promise<any[]> => 
     }
 };
 
+
+/**
+ * Mengambil semua arsip Raid (Ibu Kota Klan) untuk Clan tertentu.
+ * Diurutkan berdasarkan waktu selesai (endTime) secara descending (terbaru di atas)
+ */
+export const getRaidArchivesByClanId = async (
+    clanId: string
+): Promise<any[]> => {
+    try {
+        const raidRef = adminFirestore
+            .collection(COLLECTIONS.MANAGED_CLANS)
+            .doc(clanId)
+            .collection('raidArchives');
+
+        // Mengambil semua dokumen arsip Raid, diurutkan berdasarkan endTime secara descending
+        const snapshot = await raidRef.orderBy('endTime', 'desc').get();
+
+        return snapshot.docs.map(doc => {
+            const data = doc.data() as any;
+            
+            // Konversi Timestamp ke Date untuk field yang relevan (startTime, endTime)
+            if (data.startTime instanceof AdminTimestamp) {
+                data.startTime = data.startTime.toDate();
+            }
+            if (data.endTime instanceof AdminTimestamp) {
+                data.endTime = data.endTime.toDate();
+            }
+            
+            return {
+                id: doc.id,
+                ...data
+            };
+        });
+    } catch (error) {
+        console.error(`Firestore Error [getRaidArchivesByClanId - Admin(${clanId})]:`, error);
+        return [];
+    }
+};
 
 // =========================================================================
 // FUNGSI SPESIFIK MANAGED CLANS (managedClans) - ADMIN SDK

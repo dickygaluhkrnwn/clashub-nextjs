@@ -175,6 +175,11 @@ export interface CocWarClanInfo {
     destructionPercentage: number;
     expEarned?: number;
     members: CocWarMember[];
+    // --- PERBAIKAN TS2339: Menambahkan warLeague ---
+    warLeague?: {
+        id: number;
+        name: string;
+    };
 }
 
 /**
@@ -458,9 +463,9 @@ export interface ClanApiCache {
     // --- DATA AGREGAT BARU: Top Performers (Dimasukkan ke sini) ---
     topPerformers?: {
         promotions: TopPerformerPlayer[]; // Pemain yang status partisipasinya 'Promosi'
-        demotions: TopPerformerPlayer[];  // Pemain yang status partisipasinya 'Demosi'
+        demotions: TopPerformerPlayer[];  // Pemain yang status partisipasinya 'Demosi'
         topRaidLooter: TopPerformerPlayer | null; // Pemain dengan capitalResourcesLooted tertinggi di raid terakhir
-        topDonator: TopPerformerPlayer | null;    // Pemain dengan donasi tertinggi (dari CocMember)
+        topDonator: TopPerformerPlayer | null;    // Pemain dengan donasi tertinggi (dari CocMember)
         // Bisa ditambahkan metriks lain jika perlu
     };
 }
@@ -672,9 +677,11 @@ export interface RaidArchive {
  * Struktur data untuk menyimpan satu entri arsip CWL per musim di Firestore (sub-koleksi cwlArchives).
  */
 export interface CwlArchive {
-    id?: string; // ID Dokumen Firestore (misal: clanTag + season)
+    // PERBAIKAN TS2322: Jadikan ID wajib (string) karena selalu ada saat dibaca dari Firestore
+    id: string; // ID Dokumen Firestore (misal: clanTag + season) 
     clanTag: string;
     season: string; // Identifier musim (misal: "2025-10")
     rounds: CocWarLog[]; // Menyimpan detail setiap war dalam musim CWL (CocWarLog tanpa 'items')
     // Bisa ditambahkan data ringkasan musim jika perlu (misal: total stars, placement)
 }
+

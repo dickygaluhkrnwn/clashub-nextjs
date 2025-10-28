@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/Button';
 // FIX 1: Import ClanRole dari lib/types
-import { ManagedClan, ClanApiCache, UserProfile, JoinRequest, ClanRole, CocWarLog } from '@/lib/types';
+import { ManagedClan, ClanApiCache, UserProfile, JoinRequest, ClanRole, CocWarLog, CwlArchive } from '@/lib/types';
 import { 
     UserCircleIcon, ShieldIcon, AlertTriangleIcon, CogsIcon, ClockIcon, InfoIcon, 
     TrophyIcon, UserIcon, XIcon, GlobeIcon, 
     RefreshCwIcon, ArrowRightIcon, MailOpenIcon, ThumbsUpIcon, ThumbsDownIcon, 
-    TrashIcon, SettingsIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, SwordsIcon, BookOpenIcon
+    TrashIcon, SettingsIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, SwordsIcon, BookOpenIcon,
+    CalendarCheck2Icon // Import icon baru untuk CWL
 } from '@/app/components/icons'; 
 import Notification, { NotificationProps } from '@/app/components/ui/Notification';
 import { ClanManagementProps } from '@/app/clan/manage/page'; 
@@ -16,9 +17,10 @@ import ClanManagementHeader from './components/ClanManagementHeader';
 import SummaryTabContent from './components/SummaryTabContent';
 import MemberTabContent from './components/MemberTabContent'; 
 import RequestTabContent from './components/RequestTabContent'; 
-// FASE 2: Komponen Baru
+// FASE 2 & 3: Komponen Baru
 import ActiveWarTabContent from './components/ActiveWarTabContent'; 
-import WarHistoryTabContent from './components/WarHistoryTabContent'; // Komponen baru
+import WarHistoryTabContent from './components/WarHistoryTabContent'; 
+import CwlHistoryTabContent from './components/CwlHistoryTabContent'; // BARU: Komponen Riwayat CWL
 
 interface ManageClanClientProps {
     initialData: ClanManagementProps | null; // Data lengkap dari Server Component
@@ -26,8 +28,8 @@ interface ManageClanClientProps {
     profile: UserProfile | null;
 }
 
-// PERBAIKAN: Menambahkan 'active-war' dan 'war-history'
-type ActiveTab = 'summary' | 'members' | 'requests' | 'active-war' | 'war-history' | 'settings';
+// PERBAIKAN: Menambahkan 'cwl-history' (Fase 3)
+type ActiveTab = 'summary' | 'members' | 'requests' | 'active-war' | 'war-history' | 'cwl-history' | 'settings';
 
 // --- FUNGSI UTAMA CLIENT ---
 
@@ -169,12 +171,19 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
                         onRefresh={handleRefreshData}
                     />
                 );
-            case 'war-history': // KASUS BARU: Riwayat Perang
+            case 'war-history': // KASUS WAR CLASSIC HISTORY
                 return (
                     <WarHistoryTabContent
                         clanId={clan.id}
                         clanTag={clan.tag}
                         onRefresh={handleRefreshData}
+                    />
+                );
+            case 'cwl-history': // BARU: KASUS CWL HISTORY
+                return (
+                    <CwlHistoryTabContent
+                        clanId={clan.id}
+                        initialCwlArchives={data.cwlArchives || []} // Sediakan data CWL Archives dari props data
                     />
                 );
             case 'settings':
@@ -209,7 +218,8 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
                     <TabButton tabName="summary" icon={<InfoIcon className="h-5 w-5"/>} label="Ringkasan & Sinkronisasi" />
                     <TabButton tabName="members" icon={<UserIcon className="h-5 w-5"/>} label={`Anggota (${data.members.length})`} />
                     <TabButton tabName="active-war" icon={<SwordsIcon className="h-5 w-5 text-coc-red"/>} label="Perang Aktif" /> 
-                    <TabButton tabName="war-history" icon={<BookOpenIcon className="h-5 w-5"/>} label="Riwayat War" /> {/* TOMBOL BARU */}
+                    <TabButton tabName="war-history" icon={<BookOpenIcon className="h-5 w-5"/>} label="Riwayat War Klasik" /> 
+                    <TabButton tabName="cwl-history" icon={<CalendarCheck2Icon className="h-5 w-5 text-blue-400"/>} label="Riwayat CWL" /> {/* TOMBOL BARU CWL */}
                     <TabButton tabName="requests" icon={<MailOpenIcon className="h-5 w-5"/>} label={`Permintaan Gabung (${data.joinRequests.length})`} />
                     <TabButton tabName="settings" icon={<SettingsIcon className="h-5 w-5"/>} label="Pengaturan Klan" />
                 </div>
