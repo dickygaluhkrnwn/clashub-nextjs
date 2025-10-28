@@ -20,6 +20,18 @@ export enum ClanRole {
     LEADER = 'leader',
 }
 
+// --- TIPE BANTUAN BARU UNTUK PERAN CLASHUB INTERNAL ---
+/**
+ * Tipe untuk peran Clashub yang memiliki izin manajemen (Leader/Co-Leader).
+ */
+export type ManagerRole = 'Leader' | 'Co-Leader';
+
+/**
+ * Tipe untuk peran Clashub anggota biasa (Elder/Member/Free Agent).
+ */
+export type StandardMemberRole = 'Elder' | 'Member' | 'Free Agent';
+// --- AKHIR TIPE BANTUAN BARU ---
+
 // =========================================================================
 // 1. TIPE DATA CLASH OF CLANS API MENTAH (COCAPIType)
 // =========================================================================
@@ -376,7 +388,8 @@ export interface UserProfile {
     website?: string | null;
     bio?: string;
     // Role Clashub internal: Role yang ditampilkan di Clashub
-    role?: 'Leader' | 'Co-Leader' | 'Elder' | 'Member' | 'Free Agent';
+    // PERBAIKAN: Menggunakan union type baru yang sudah didefinisikan di atas
+    role?: ManagerRole | StandardMemberRole; 
     playStyle?: 'Attacker Utama' | 'Base Builder' | 'Donatur' | 'Strategist' | null;
     activeHours?: string;
     reputation?: number;
@@ -399,7 +412,8 @@ export interface TopPerformerPlayer {
     value: number | string; // Bisa angka (donasi, loot) atau string (status 'Promosi'/'Demosi')
     // Tambahan properti jika perlu
     thLevel?: number; // Opsional: Level TH
-    role?: ClanRole | UserProfile['role']; // Bisa role CoC atau role Clashub internal
+    // PERBAIKAN: Menggunakan union type baru untuk role
+    role?: ClanRole | ManagerRole | StandardMemberRole; 
 }
 
 /**
@@ -540,7 +554,8 @@ export interface Player {
     inGameName?: string; // PERBAIKAN: Menambahkan inGameName untuk resolusi error 2339
     thLevel: number;
     reputation: number;
-    role: 'Leader' | 'Co-Leader' | 'Elder' | 'Member' | 'Free Agent';
+    // PERBAIKAN: Menggunakan union type baru untuk role
+    role: ManagerRole | StandardMemberRole; 
     avatarUrl?: string;
     displayName: string;
     playerTag: string; // Ini adalah playerTag CoC
@@ -686,4 +701,3 @@ export interface CwlArchive {
     rounds: CocWarLog[]; // Menyimpan detail setiap war dalam musim CWL (CocWarLog tanpa 'items')
     // Bisa ditambahkan data ringkasan musim jika perlu (misal: total stars, placement)
 }
-

@@ -89,8 +89,9 @@ const UserProfileDropdown = () => {
   let avatarSrc: string | null = null;
   
   if (isCompleteUserProfile(userProfile)) {
-    // Tampilkan Klan jika terverifikasi DAN punya ID klan internal (ManagedClan)
-    showClanLink = userProfile.isVerified === true && !!userProfile.clanId;
+    // [PERBAIKAN KRITIS DI SINI] Tampilkan Klan jika terverifikasi DAN punya Clan Tag CoC
+    // Ini memastikan anggota biasa yang terverifikasi melihat tautan meskipun klan mereka belum dikelola (clanId null)
+    showClanLink = userProfile.isVerified === true && !!userProfile.clanTag;
     avatarSrc = userProfile.avatarUrl || null;
   }
   // --- AKHIR PERBAIKAN LOGIKA ---
@@ -132,7 +133,8 @@ const UserProfileDropdown = () => {
             {showClanLink && (
               <li>
                 <Link
-                  // PASTIKAN INI MENGARAH KE RUTE DASHBOARD MANAJEMEN BARU
+                  // PENTING: Jika clanId tidak ada, ini akan diarahkan ke /clan/manage tanpa ID.
+                  // Namun, page.tsx akan menangani redirect/error jika clanId tidak ditemukan.
                   href="/clan/manage" 
                   onClick={() => setIsOpen(false)}
                   className="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-300 hover:bg-coc-gold/10 hover:text-white rounded-md"

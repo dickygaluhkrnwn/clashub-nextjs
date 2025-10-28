@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-    ManagedClan, ClanApiCache, UserProfile, ClanRole 
+    ManagedClan, ClanApiCache, UserProfile, ClanRole, ManagerRole, StandardMemberRole // Import tipe baru
 } from '@/lib/types';
 import { Button } from '@/app/components/ui/Button';
 import { 
@@ -13,7 +13,7 @@ import { NotificationProps } from '@/app/components/ui/Notification';
 // Definisikan tipe gabungan untuk Roster
 type RosterMember = ClanApiCache['members'][number] & {
     uid?: string;
-    clashubRole: UserProfile['role'];
+    clashubRole: ManagerRole | StandardMemberRole; // Gunakan tipe yang lebih spesifik
     isVerified: boolean;
 };
 
@@ -24,7 +24,7 @@ interface MemberTabContentProps {
     userProfile: UserProfile; // Profil Leader/Co-Leader yang sedang login
     onAction: (message: string, type: NotificationProps['type']) => void;
     onRefresh: () => void;
-    isManager: boolean; // <--- BARU: Prop isManager untuk mengontrol fitur manajemen
+    isManager: boolean; // Prop isManager untuk mengontrol fitur manajemen
 }
 
 /**
@@ -32,7 +32,7 @@ interface MemberTabContentProps {
  * Menampilkan data partisipasi agregat, dan kontrol manajemen peran/kick.
  */
 const MemberTabContent: React.FC<MemberTabContentProps> = ({ 
-    clan, cache, members, userProfile, onAction, onRefresh, isManager // <--- Gunakan isManager
+    clan, cache, members, userProfile, onAction, onRefresh, isManager 
 }) => {
     // isLeader hanya relevan untuk logika sub-izin (misal: Leader vs Co-Leader)
     const isLeader = userProfile.role === 'Leader';
@@ -60,6 +60,7 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
      * Helper: Map Role internal Clashub ke Role CoC API.
      */
     const mapClashubRoleToCocRole = (clashubRole: UserProfile['role']): ClanRole => {
+        // Menggunakan tipe ManagerRole/StandardMemberRole
         switch (clashubRole) {
             case 'Leader': return ClanRole.LEADER;
             case 'Co-Leader': return ClanRole.CO_LEADER;
@@ -189,7 +190,6 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
         } as RosterMember;
     }).sort((a, b) => {
         // Urutkan berdasarkan Town Hall Level (descending) lalu Clan Rank (ascending)
-        // PERBAIKAN TYPO: townhallLevel -> townHallLevel
         if (b.townHallLevel !== a.townHallLevel) {
             return b.townHallLevel - a.townHallLevel;
         }
@@ -207,7 +207,13 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
                         <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">Partisipasi CW</th>
                         <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">Partisipasi CWL</th>
                         <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">Status Partisipasi</th>
-                        <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider w-[150px]">Role Clashub / Aksi</th>
+                        {/* Kolom Aksi hanya terlihat oleh Manager */}
+                        {isManager && (
+                            <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider w-[150px]">Role Clashub / Aksi</th>
+                        )}
+                        {!isManager && (
+                            <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider w-[120px]">Role Clashub</th>
+                        )}
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-coc-gold-dark/10">
@@ -218,9 +224,9 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
                         const isCoLeaderModifyingCoLeader = userProfile.role === 'Co-Leader' && member.clashubRole === 'Co-Leader';
                         
                         // Action Disabled jika: BUKAN Manager, atau logika izin internal tidak terpenuhi
+                        // Note: isActionDisabled hanya digunakan untuk meng-disable tombol, bukan untuk menyembunyikan kolom.
                         const isActionDisabled = !isManager || !canModify || isCoLeaderModifyingCoLeader || !member.uid; 
                         
-                        // PERBAIKAN TYPO: townhallLevel -> townHallLevel
                         const thImageUrl = getThImage(member.townHallLevel);
 
                         return (
@@ -230,7 +236,6 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
                                     <div className="flex items-center space-x-3">
                                         <div className="relative w-8 h-8 flex-shrink-0">
                                             <Image 
-                                                // PERBAIKAN TYPO: townhallLevel -> townHallLevel
                                                 src={thImageUrl}
                                                 alt={`TH ${member.townHallLevel}`}
                                                 width={32}
@@ -275,7 +280,7 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
                                     </div>
                                 </td>
                                 
-                                {/* Kolom 7: Role Clashub / Aksi */}
+                                {/* Kolom 7: Role Clashub / Aksi (Gaya Kolom Disempurnakan) */}
                                 <td className="px-3 py-3 whitespace-nowrap text-center space-y-1 w-[180px]">
                                     <span className={member.isVerified ? 'text-coc-green block mb-1 font-mono' : 'text-coc-red block mb-1 font-mono'} title={member.isVerified ? "Akun Clashub Terverifikasi" : "Akun Clashub Belum Terverifikasi"}>
                                         {member.isVerified ? 'VERIFIED' : 'UNVERIFIED'} 
@@ -283,53 +288,61 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
                                     
                                     {member.uid ? (
                                         <div className="flex flex-col space-y-1 items-center">
-                                            {/* Dropdown Role */}
-                                            <div className="relative inline-block text-left w-full">
-                                                <Button 
-                                                    type="button" 
-                                                    size="sm" 
-                                                    variant="secondary"
-                                                    onClick={() => setOpenRoleDropdown(openRoleDropdown === member.uid ? null : member.uid!)}
-                                                    disabled={isActionDisabled} // Disabled jika bukan manager atau ada batasan
-                                                    className="w-full justify-center text-sm font-semibold"
-                                                >
-                                                    {member.clashubRole} 
-                                                    {openRoleDropdown === member.uid ? <ChevronUpIcon className="h-3 w-3 ml-1"/> : <ChevronDownIcon className="h-3 w-3 ml-1"/>}
-                                                </Button>
-                                                
-                                                {openRoleDropdown === member.uid && (
-                                                    <div className="absolute right-0 z-10 w-32 mt-1 origin-top-right rounded-md bg-coc-stone/90 shadow-lg ring-1 ring-coc-gold-dark/50 focus:outline-none">
-                                                        <div className="py-1">
-                                                            {availableClashubRoles.map(role => (
-                                                                <a 
-                                                                    key={role}
-                                                                    href="#"
-                                                                    onClick={(e) => {
-                                                                        e.preventDefault();
-                                                                        handleRoleChange(member.uid!, role);
-                                                                    }}
-                                                                    className={`block px-4 py-2 text-xs text-white hover:bg-coc-gold-dark/30 ${member.clashubRole === role ? 'bg-coc-gold-dark/50 font-bold' : ''}`}
-                                                                    title={`Ubah role menjadi ${role}`}
-                                                                >
-                                                                    {role}
-                                                                </a>
-                                                            ))}
-                                                        </div>
+                                            {isManager ? ( // TAMPILAN MANAGER (Aksi penuh)
+                                                <>
+                                                    {/* Dropdown Role */}
+                                                    <div className="relative inline-block text-left w-full">
+                                                        <Button 
+                                                            type="button" 
+                                                            size="sm" 
+                                                            variant="secondary"
+                                                            onClick={() => setOpenRoleDropdown(openRoleDropdown === member.uid ? null : member.uid!)}
+                                                            disabled={isActionDisabled} 
+                                                            className="w-full justify-center text-sm font-semibold"
+                                                        >
+                                                            {member.clashubRole} 
+                                                            {openRoleDropdown === member.uid ? <ChevronUpIcon className="h-3 w-3 ml-1"/> : <ChevronDownIcon className="h-3 w-3 ml-1"/>}
+                                                        </Button>
+                                                        
+                                                        {openRoleDropdown === member.uid && (
+                                                            <div className="absolute right-0 z-10 w-32 mt-1 origin-top-right rounded-md bg-coc-stone/90 shadow-lg ring-1 ring-coc-gold-dark/50 focus:outline-none">
+                                                                <div className="py-1">
+                                                                    {availableClashubRoles.map(role => (
+                                                                        <a 
+                                                                            key={role}
+                                                                            href="#"
+                                                                            onClick={(e) => {
+                                                                                e.preventDefault();
+                                                                                handleRoleChange(member.uid!, role);
+                                                                            }}
+                                                                            className={`block px-4 py-2 text-xs text-white hover:bg-coc-gold-dark/30 ${member.clashubRole === role ? 'bg-coc-gold-dark/50 font-bold' : ''}`}
+                                                                            title={`Ubah role menjadi ${role}`}
+                                                                        >
+                                                                            {role}
+                                                                        </a>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                )}
-                                            </div>
-                                            
-                                            {/* Tombol Kick */}
-                                            <Button 
-                                                type="button" 
-                                                size="sm" 
-                                                variant="secondary" 
-                                                onClick={() => member.uid && handleKick(member.uid)}
-                                                disabled={isActionDisabled} // Disabled jika bukan manager atau ada batasan
-                                                className="w-full justify-center bg-coc-red/20 text-coc-red hover:bg-coc-red/30 border border-coc-red/30"
-                                            >
-                                                <TrashIcon className="h-3 w-3 mr-1"/> Kick
-                                            </Button>
+                                                    
+                                                    {/* Tombol Kick */}
+                                                    <Button 
+                                                        type="button" 
+                                                        size="sm" 
+                                                        variant="secondary" 
+                                                        onClick={() => member.uid && handleKick(member.uid)}
+                                                        disabled={isActionDisabled} 
+                                                        className="w-full justify-center bg-coc-red/20 text-coc-red hover:bg-coc-red/30 border border-coc-red/30"
+                                                    >
+                                                        <TrashIcon className="h-3 w-3 mr-1"/> Kick
+                                                    </Button>
+                                                </>
+                                            ) : ( // TAMPILAN ANGGOTA BIASA (Hanya menampilkan role)
+                                                <span className="text-sm font-semibold text-coc-gold-light p-2 bg-coc-stone/30 rounded w-full">
+                                                    {member.clashubRole}
+                                                </span>
+                                            )}
                                         </div>
                                     ) : (
                                         <span className="text-gray-600 italic text-xs">No Clashub Account</span>
