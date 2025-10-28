@@ -1,15 +1,17 @@
+'use client'; 
+
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/Button';
 // Import Tipe Data
-import { ManagedClan, ClanApiCache, UserProfile, JoinRequest, ClanRole, CocWarLog, CwlArchive, RaidArchive } from '@/lib/types'; // BARU: Tambah RaidArchive
+import { ManagedClan, ClanApiCache, UserProfile, JoinRequest, ClanRole, CocWarLog, CwlArchive, RaidArchive } from '@/lib/types'; 
 // Import Ikon
-import { 
-    UserCircleIcon, ShieldIcon, AlertTriangleIcon, CogsIcon, ClockIcon, InfoIcon, 
+import {
+    UserCircleIcon, ShieldIcon, AlertTriangleIcon, CogsIcon, ClockIcon, InfoIcon,
     TrophyIcon, UserIcon, XIcon, GlobeIcon, 
-    RefreshCwIcon, ArrowRightIcon, MailOpenIcon, ThumbsUpIcon, ThumbsDownIcon, 
+    RefreshCwIcon, ArrowRightIcon, MailOpenIcon, ThumbsUpIcon, ThumbsDownIcon,
     TrashIcon, SettingsIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, SwordsIcon, BookOpenIcon,
-    CalendarCheck2Icon, CoinsIcon // BARU: Tambah CoinsIcon
+    CalendarCheck2Icon, CoinsIcon, MenuIcon 
 } from '@/app/components/icons'; 
 // Import Komponen UI
 import Notification, { NotificationProps } from '@/app/components/ui/Notification';
@@ -23,7 +25,7 @@ import RequestTabContent from './components/RequestTabContent';
 import ActiveWarTabContent from './components/ActiveWarTabContent'; 
 import WarHistoryTabContent from './components/WarHistoryTabContent'; 
 import CwlHistoryTabContent from './components/CwlHistoryTabContent'; 
-import RaidTabContent from './components/RaidTabContent'; // BARU: Komponen Raid
+import RaidTabContent from './components/RaidTabContent'; 
 
 interface ManageClanClientProps {
     initialData: ClanManagementProps | null; // Data lengkap dari Server Component
@@ -31,7 +33,6 @@ interface ManageClanClientProps {
     profile: UserProfile | null;
 }
 
-// BARU: Menambahkan 'raid' (Fase 3.2)
 type ActiveTab = 'summary' | 'members' | 'requests' | 'active-war' | 'war-history' | 'cwl-history' | 'raid' | 'settings';
 
 // --- FUNGSI UTAMA CLIENT ---
@@ -42,6 +43,7 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
     const [activeTab, setActiveTab] = useState<ActiveTab>('summary');
     const [isSyncing, setIsSyncing] = useState(false);
     const [notification, setNotification] = useState<NotificationProps | null>(null);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true); // State untuk sidebar
 
     const showNotification = (message: string, type: NotificationProps['type']) => {
         setNotification({ message, type, onClose: () => setNotification(null) });
@@ -109,17 +111,23 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
         }
     };
     
-    // Utility: Tombol untuk Tab
-    const TabButton: React.FC<{ tabName: ActiveTab, icon: React.ReactNode, label: string }> = ({ tabName, icon, label }) => (
-        <Button
-            variant={activeTab === tabName ? 'primary' : 'secondary'}
+    // Utility: Tombol Menu Sidebar (Menggantikan TabButton) - Gaya disesuaikan
+    const MenuButton: React.FC<{ tabName: ActiveTab, icon: React.ReactNode, label: string }> = ({ tabName, icon, label }) => (
+        <button
             onClick={() => setActiveTab(tabName)}
-            size="sm"
-            className="w-full justify-start md:w-auto md:min-w-[150px]" // Responsif
+            className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-md transition-colors duration-150 group ${
+                activeTab === tabName 
+                ? 'bg-coc-dark/90 text-coc-gold font-semibold shadow-inner' // Gaya Aktif Baru
+                : 'text-gray-300 hover:bg-coc-dark/60 hover:text-white' // Gaya Default & Hover Baru
+            }`}
         >
-            {icon}
-            <span className="ml-2">{label}</span>
-        </Button>
+            {React.cloneElement(icon as React.ReactElement, { 
+                className: `h-5 w-5 mr-3 flex-shrink-0 transition-colors duration-150 ${
+                    activeTab === tabName ? 'text-coc-gold' : 'text-gray-400 group-hover:text-gray-300' // Warna ikon
+                }` 
+            })}
+            <span>{label}</span>
+        </button>
     );
     
     // Render Konten Tab Sesuai Pilihan
@@ -181,14 +189,14 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
                         // Note: Komponen ini menerima data awal dari server
                     />
                 );
-            case 'raid': // BARU: KASUS RAID
+            case 'raid': 
                 return (
-                     <RaidTabContent
-                        clan={clan}
-                        initialCurrentRaid={cache?.currentRaid} // Ambil raid terbaru dari cache
-                        initialRaidArchives={data.raidArchives || []} // Ambil riwayat raid dari props data
-                        onRefresh={handleRefreshData} 
-                     />
+                        <RaidTabContent
+                            clan={clan}
+                            initialCurrentRaid={cache?.currentRaid} // Ambil raid terbaru dari cache
+                            initialRaidArchives={data.raidArchives || []} // Ambil riwayat raid dari props data
+                            onRefresh={handleRefreshData} 
+                        />
                 );
             case 'settings':
                 return (
@@ -203,37 +211,55 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
         }
     };
 
-
     return (
         <main className="container mx-auto p-4 md:p-8 mt-10">
             <Notification notification={notification ?? undefined} />
 
             <div className="max-w-7xl mx-auto space-y-8">
                 
-                {/* Header Klan */}
+                {/* Header Klan (Tetap di Atas) */}
                 <ClanManagementHeader 
                     clan={clan} 
                     profile={data.profile} 
                     cache={cache} 
                 />
 
-                {/* Navigasi Tab */}
-                <div className="flex flex-wrap gap-3 border-b border-coc-gold-dark/30 pb-4">
-                    <TabButton tabName="summary" icon={<InfoIcon className="h-5 w-5"/>} label="Ringkasan & Sinkronisasi" />
-                    <TabButton tabName="members" icon={<UserIcon className="h-5 w-5"/>} label={`Anggota (${data.members.length})`} />
-                    <TabButton tabName="active-war" icon={<SwordsIcon className="h-5 w-5 text-coc-red"/>} label="Perang Aktif" /> 
-                    <TabButton tabName="war-history" icon={<BookOpenIcon className="h-5 w-5"/>} label="Riwayat War Klasik" /> 
-                    <TabButton tabName="cwl-history" icon={<CalendarCheck2Icon className="h-5 w-5 text-blue-400"/>} label="Riwayat CWL" /> 
-                    <TabButton tabName="raid" icon={<CoinsIcon className="h-5 w-5 text-yellow-400"/>} label="Ibu Kota Klan" /> {/* TOMBOL BARU RAID */}
-                    <TabButton tabName="requests" icon={<MailOpenIcon className="h-5 w-5"/>} label={`Permintaan Gabung (${data.joinRequests.length})`} />
-                    <TabButton tabName="settings" icon={<SettingsIcon className="h-5 w-5"/>} label="Pengaturan Klan" />
+                {/* Tombol Toggle Sidebar (untuk mobile/tablet) */}
+                <div className="lg:hidden mb-4">
+                    <Button 
+                        variant="secondary" 
+                        size="sm" 
+                        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                        className="flex items-center"
+                    >
+                        {isSidebarOpen ? <XIcon className="h-5 w-5 mr-2" /> : <MenuIcon className="h-5 w-5 mr-2" />} 
+                        {isSidebarOpen ? 'Tutup Menu' : 'Buka Menu'}
+                    </Button>
                 </div>
-                
-                {/* Konten Tab */}
-                <section className="card-stone p-6 min-h-[50vh] rounded-lg">
-                    {renderContent()}
-                </section>
-                
+
+                {/* Layout Utama: Sidebar + Konten */}
+                <div className="flex flex-col lg:flex-row gap-8">
+                    
+                    {/* Sidebar Navigasi - Gaya disesuaikan */}
+                    <nav className={`lg:w-64 flex-shrink-0 ${isSidebarOpen ? 'block' : 'hidden'} lg:block transition-all duration-300 ease-in-out`}>
+                        {/* Ganti gaya background dan border */}
+                        <div className="space-y-2 sticky top-20 bg-coc-dark/70 p-4 rounded-lg border border-coc-gold-dark/30 backdrop-blur-sm">
+                            <MenuButton tabName="summary" icon={<InfoIcon/>} label="Ringkasan & Sinkronisasi" />
+                            <MenuButton tabName="members" icon={<UserIcon/>} label={`Anggota (${data.members.length})`} />
+                            <MenuButton tabName="active-war" icon={<SwordsIcon className="text-coc-red"/>} label="Perang Aktif" /> 
+                            <MenuButton tabName="war-history" icon={<BookOpenIcon/>} label="Riwayat War Klasik" /> 
+                            <MenuButton tabName="cwl-history" icon={<CalendarCheck2Icon className="text-blue-400"/>} label="Riwayat CWL" /> 
+                            <MenuButton tabName="raid" icon={<CoinsIcon className="text-yellow-400"/>} label="Ibu Kota Klan" /> 
+                            <MenuButton tabName="requests" icon={<MailOpenIcon/>} label={`Permintaan Gabung (${data.joinRequests.length})`} />
+                            <MenuButton tabName="settings" icon={<SettingsIcon/>} label="Pengaturan Klan" />
+                        </div>
+                    </nav>
+                    
+                    {/* Konten Utama */}
+                    <section className="flex-grow card-stone p-6 min-h-[70vh] rounded-lg">
+                        {renderContent()}
+                    </section>
+                </div>
             </div>
         </main>
     );

@@ -7,52 +7,62 @@ import { UserProfile } from './types';
 
 // Struktur data minimal pengguna yang dapat diperoleh dari server
 export interface ServerUser {
-  uid: string;
-  email: string | null;
-  displayName: string;
-  // Di masa depan, data ini bisa di-decode dari token JWT Firebase
+  uid: string;
+  email: string | null;
+  displayName: string;
+  // Di masa depan, data ini bisa di-decode dari token JWT Firebase
 }
-
 
 /**
  * @function getSessionUser
  * Mengambil informasi pengguna dari cookie permintaan Next.js (simulasi).
- * * CATATAN: Karena Next.js tidak memiliki integrasi native untuk Firebase Admin SDK 
- * di Server Component, kita MENSIMULASIKAN dengan membaca cookie 'session-token'.
- * Cookie ini seharusnya berisi UID pengguna yang sebenarnya.
- * * @returns {Promise<ServerUser | null>} Objek pengguna jika sesi ditemukan.
+ * * CATATAN: Ini adalah SIMULASI pembacaan sesi. Di produksi, harus menggunakan 
+ * Firebase Admin SDK untuk memverifikasi token sesi JWT.
+ * @returns {Promise<ServerUser | null>} Objek pengguna jika sesi ditemukan.
  */
 export async function getSessionUser(): Promise<ServerUser | null> {
     
     // Ini adalah cara Next.js membaca header request di Server Component
     const requestHeaders = headers();
-    const cookie = requestHeaders.get('cookie');
+    const cookieHeader = requestHeaders.get('cookie');
 
-    // 1. Cari cookie 'session-token'
-    const dummyToken = cookie?.split(';').find(c => c.trim().startsWith('session-token='));
+    if (!cookieHeader) {
+        return null; // Tidak ada cookie sama sekali
+    }
+
+    // 1. Cari nilai cookie 'session-token' secara lebih robust.
+    // Cookie header terlihat seperti: "cookie1=value1; session-token=logged_in_uid_anda; cookie3=value3"
+    const cookiesArray = cookieHeader.split(';');
     
-    if (dummyToken && dummyToken.includes('logged_in')) {
-        // 2. Ekstrak UID dari nilai token (format: 'logged_in_UID_ANDA')
-        const tokenValue = dummyToken.split('=')[1];
+    // Temukan cookie yang dimulai dengan 'session-token=' (dengan trim untuk menghapus spasi)
+    const sessionCookie = cookiesArray.find(c => c.trim().startsWith('session-token='));
+    
+    // Debugging Console (Hanya untuk keperluan diagnostik)
+    // console.log("[ServerAuth] Cookie Header:", cookieHeader);
+    // console.log("[ServerAuth] Session Cookie Found:", sessionCookie ? true : false);
+
+    if (sessionCookie) {
+        // 2. Ekstrak nilai token yang sebenarnya
+        // Nilai mentah: " session-token=logged_in_uid_anda"
+        const tokenValueRaw = sessionCookie.split('=')[1]?.trim(); 
         
-        // --- PERBAIKAN KRITIS DIMULAI DI SINI ---
-        const parts = tokenValue.split('_');
-        // Cookie format: logged_in_uid_anda
-        // parts[0] = 'logged'
-        // parts[1] = 'in'
-        // parts[2] dan seterusnya adalah UID
-        
-        // Kita ambil semua bagian dari index 2 ke belakang dan gabungkan dengan underscore
-        const uid = parts.slice(2).join('_'); // <-- PERBAIKAN
-        // --- PERBAIKAN KRITIS SELESAI DI SINI ---
-        
-        if (uid) {
-            // Karena ini simulasi, kita mengisi email dan displayName dengan nilai dummy.
-            // Di lingkungan nyata, kita akan memuat displayName/email dari data profil.
-            const email = `${uid}@example.com`;
-            const displayName = uid === "uid_lordz" ? "Lord Z" : `Clasher #${uid.substring(4, 8)}`;
+        if (tokenValueRaw && tokenValueRaw.includes('logged_in')) {
             
-            return { uid, email, displayName };
+            // Format yang diharapkan: logged_in_UID_ANDA
+            const parts = tokenValueRaw.split('_');
+            
+            // Ambil semua bagian dari index 2 ke belakang (UID)
+            const uid = parts.slice(2).join('_');
+            
+            // console.log("[ServerAuth] Extracted UID:", uid);
+
+            if (uid && uid.length > 5) { // Cek UID minimal panjang
+                // Karena ini simulasi, kita mengisi email dan displayName dengan nilai dummy.
+                const email = `${uid}@clashub.com`;
+                const displayName = uid === "uid_lordz" ? "Lord Z" : `Clasher #${uid.substring(0, 8)}`;
+                
+                return { uid, email, displayName };
+            }
         }
     }
 
