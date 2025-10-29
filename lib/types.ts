@@ -726,3 +726,53 @@ export interface CwlArchive {
     // Bisa ditambahkan data ringkasan musim jika perlu (misal: total stars, placement)
 }
 
+// =========================================================================
+// 3. TIPE DATA BARU UNTUK VIDEO YOUTUBE (Opsi B)
+// =========================================================================
+
+/**
+ * @type VideoCategory
+ * Kategori video berdasarkan sumber game/channel.
+ * (Tipe ini tetap ada untuk penggunaan internal tipe Video, meskipun frontend mengkategorikannya
+ * sebagai 'Berita Komunitas')
+ */
+export type VideoCategory =
+    | 'Clash of Clans'
+    | 'Brawl Stars'
+    | 'Clash Royale'
+    | 'Hay Day'
+    | 'Lainnya'; // Kategori umum jika perlu
+
+/**
+ * @interface Video
+ * Mendefinisikan struktur data untuk video YouTube yang disimpan di koleksi 'videos' Firestore.
+ */
+export interface Video {
+    id: string;       // ID dokumen Firestore (unik, bisa di-generate otomatis)
+    videoId: string;    // ID unik video dari YouTube (digunakan sebagai primary key logis)
+    title: string;      // Judul video
+    description?: string; // Deskripsi singkat video (opsional)
+    thumbnailUrl: string; // URL thumbnail kualitas tinggi
+    publishedAt: Date;  // Tanggal video dipublikasikan (sebagai objek Date)
+    channelTitle: string; // Nama channel YouTube (misal: "Clash of Clans")
+    channelId: string;  // ID channel YouTube
+    
+    // PERBAIKAN (Sesuai keputusan):
+    // Kategori video sekarang menggunakan tipe PostCategory dan akan disetel ke 'Berita Komunitas'
+    category: PostCategory; 
+    
+    source: 'YouTube'; // Sumber video (bisa diperluas nanti)
+    
+    // Field opsional lain jika diperlukan:
+    // viewCount?: number;
+    // likeCount?: number;
+    // duration?: string; // Format ISO 8601 (misal: PT1M35S)
+}
+
+// --- TIPE GABUNGAN UNTUK KNOWLEDGE HUB ---
+/**
+ * @type KnowledgeHubItem
+ * Tipe gabungan yang merepresentasikan item di feed Knowledge Hub (bisa Post atau Video).
+ */
+export type KnowledgeHubItem = Post | Video;
+

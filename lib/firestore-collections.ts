@@ -8,4 +8,6 @@ export const COLLECTIONS = {
     JOIN_REQUESTS: 'joinRequests',
     POSTS: 'posts',
     TOURNAMENTS: 'tournaments',
+    VIDEOS: 'videos', // <-- BARIS TAMBAHAN: Nama koleksi untuk video YouTube
 }
+

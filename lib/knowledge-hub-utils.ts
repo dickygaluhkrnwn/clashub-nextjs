@@ -1,42 +1,77 @@
-import { Post, PostCategory } from "./types"; // Import PostCategory
+import { Post, Video, KnowledgeHubItem, PostCategory } from "./types"; // Impor tipe gabungan
 
 /**
- * Kategori yang digunakan untuk navigasi di Knowledge Hub.
+ * Kategori yang MURNI postingan manual (tidak termasuk video).
  */
-export const POST_CATEGORIES: PostCategory[] = [ // Gunakan PostCategory[]
-    'Semua Diskusi',
+export const POST_CATEGORIES: PostCategory[] = [
     'Strategi Serangan',
     'Base Building',
     'Manajemen Tim',
-    'Berita Komunitas',
+    'Diskusi Umum',
+    // 'Berita Komunitas' (dihapus sementara dari sini karena akan digabung dengan video)
+];
+
+/**
+ * Tipe untuk kategori filter di UI, termasuk 'Semua Konten'.
+ */
+export type KnowledgeHubCategory = PostCategory | 'Semua Konten';
+
+/**
+ * Daftar kategori yang ditampilkan di filter UI.
+ */
+export const ALL_CATEGORIES: KnowledgeHubCategory[] = [
+    'Semua Konten', // Opsi baru untuk menampilkan Post + Video
+    'Semua Diskusi', // Hanya Post
+    'Strategi Serangan',
+    'Base Building',
+    'Manajemen Tim',
+    'Berita Komunitas', // Akan mengambil Post 'Berita Komunitas' + Video
     'Diskusi Umum',
 ];
+
 
 export type SortOption = 'terbaru' | 'trending';
 
 /**
- * Mengurutkan array Postingan di sisi server/klien (terutama untuk "trending").
- * @param posts - Array postingan.
- * @param sortBy - Kriteria pengurutan ('terbaru' atau 'trending').
- * @returns Array Postingan yang sudah diurutkan.
+ * Helper type guard untuk membedakan Post dan Video.
  */
-export function sortPosts(posts: Post[], sortBy: SortOption): Post[] {
-    // Membuat salinan array untuk menghindari mutasi state React/data fetch
-    const sortedPosts = [...posts];
+function isVideo(item: KnowledgeHubItem): item is Video {
+    return (item as Video).source === 'YouTube';
+}
+
+/**
+ * Mengurutkan array gabungan (Post atau Video) di sisi klien.
+ * @param items - Array item (Post | Video).
+ * @param sortBy - Kriteria pengurutan ('terbaru' atau 'trending').
+ * @returns Array item yang sudah diurutkan.
+ */
+export function sortItems(items: KnowledgeHubItem[], sortBy: SortOption): KnowledgeHubItem[] {
+    const sortedItems = [...items];
+
+    const getItemDate = (item: KnowledgeHubItem): Date => {
+        // Video menggunakan publishedAt, Post menggunakan createdAt
+        return isVideo(item) ? item.publishedAt : item.createdAt;
+    };
 
     if (sortBy === 'terbaru') {
-        // Urutkan berdasarkan tanggal pembuatan terbaru
-        sortedPosts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        // Urutkan berdasarkan tanggal (publishedAt atau createdAt)
+        sortedItems.sort((a, b) => getItemDate(b).getTime() - getItemDate(a).getTime());
     } else if (sortBy === 'trending') {
-        // Urutkan berdasarkan skor trending (likes + replies)
-        sortedPosts.sort((a, b) => {
-            const scoreA = (a.likes || 0) + (a.replies || 0);
-            const scoreB = (b.likes || 0) + (b.replies || 0);
-            return scoreB - scoreA; // Descending (Paling trending di atas)
+        // Urutkan berdasarkan skor (likes/replies), fallback ke tanggal
+        sortedItems.sort((a, b) => {
+            // Video (saat ini) tidak memiliki likes/replies, beri skor 0
+            const scoreA = isVideo(a) ? 0 : (a.likes || 0) + (a.replies || 0);
+            const scoreB = isVideo(b) ? 0 : (b.likes || 0) + (b.replies || 0);
+
+            if (scoreA !== scoreB) {
+                return scoreB - scoreA; // Skor tertinggi di atas
+            }
+            // Jika skor sama (misal, 0 vs 0), urutkan berdasarkan tanggal terbaru
+            return getItemDate(b).getTime() - getItemDate(a).getTime();
         });
     }
 
-    return sortedPosts;
+    return sortedItems;
 }
 
 /**
@@ -44,17 +79,40 @@ export function sortPosts(posts: Post[], sortBy: SortOption): Post[] {
  * @param searchParams - Objek URLSearchParams dari Next.js.
  */
 export function parseSearchParams(searchParams: { [key: string]: string | string[] | undefined }): {
-    category: PostCategory | 'all';
+    // Menggunakan tipe KnowledgeHubCategory baru
+    category: KnowledgeHubCategory;
     sortBy: SortOption;
+    // Nilai internal untuk query Firestore
+    queryCategory: PostCategory | 'all'; 
 } {
-    const categoryQuery = (searchParams.kategori as PostCategory) || 'Semua Diskusi';
+    const categoryQuery = (searchParams.kategori as KnowledgeHubCategory) || 'Semua Konten';
     const sortQuery = (searchParams.sortir as SortOption) || 'terbaru';
     
-    // Memastikan nilai kategori valid, jika tidak, default ke 'Semua Diskusi'
-    const category = POST_CATEGORIES.includes(categoryQuery) ? categoryQuery : 'Semua Diskusi';
+    // Validasi terhadap ALL_CATEGORIES (memperbaiki error TS2367)
+    const category = ALL_CATEGORIES.includes(categoryQuery) ? categoryQuery : 'Semua Konten';
     
-    // Memastikan nilai sort valid
     const sortBy = (sortQuery === 'trending' || sortQuery === 'terbaru') ? sortQuery : 'terbaru';
 
-    return { category, sortBy };
+    // Tentukan nilai query internal berdasarkan pilihan UI
+    let queryCategory: PostCategory | 'all';
+    if (category === 'Semua Konten') {
+        queryCategory = 'all'; // Ambil Post + Video
+    } else if (category === 'Semua Diskusi') {
+        queryCategory = 'all-posts'; // Hanya ambil Post (logika ini akan ditangani di lib/firestore.ts)
+    } else {
+        queryCategory = category; // Ambil kategori spesifik (misal: 'Berita Komunitas')
+    }
+
+    return { category, sortBy, queryCategory };
 }
+
+/**
+ * Mengubah nilai kategori internal (dari URL/state) menjadi teks yang ditampilkan.
+ */
+export function getCategoryDisplayName(category: KnowledgeHubCategory | 'all-posts'): string {
+     if (category === 'all-posts') {
+        return 'Semua Diskusi';
+     }
+     return category; // 'Semua Konten', 'Berita Komunitas', dll.
+}
+
