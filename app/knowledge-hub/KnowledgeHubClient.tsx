@@ -69,6 +69,9 @@ const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, erro
   // Logika filter dan sort (BERUBAH)
   const filteredAndSortedItems = useMemo(() => {
     const filtered = allItems.filter(item => {
+        // PERBAIKAN GUARD CLAUSE: Pastikan 'item' tidak null atau undefined
+        if (!item) return false;
+
         if (activeCategory === 'Semua Konten') return true; // Tampilkan semua
         
         // Logika untuk 'Semua Diskusi' (hanya Post)
@@ -85,6 +88,7 @@ const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, erro
         if (isVideo(item)) return false; 
         
         // Jika item adalah Post, cek kategorinya
+        // FIX: Pastikan item.category ada sebelum membandingkan
         return item.category === activeCategory;
     });
     
@@ -222,23 +226,16 @@ const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, erro
         ) : (
           // --- PERUBAHAN: Render FullPostDisplay, bukan PostCard ---
           <div className="space-y-6"> {/* Beri jarak antar postingan penuh */}
-            {/* PERBAIKAN: Loop 'itemsToShow' dan beri tipe 'item'. Render placeholder untuk Video. */}
+            {/* PERBAIKAN KRITIS: 
+              1. Hapus logika pengecekan isVideo(item).
+              2. Hapus placeholder Video.
+              3. Ganti <FullPostDisplay post={item as Post} /> menjadi <FullPostDisplay item={item} />
+            */}
             {itemsToShow.map(item => (
-                <React.Fragment key={item.id}>
-                    {isVideo(item) ? (
-                        // Placeholder sementara untuk Video
-                        <div className="card-stone p-4 text-coc-gold border-l-4 border-blue-500">
-                            <p className="font-bold">VIDEO: {item.title}</p>
-                            <p className="text-xs text-gray-400">Oleh: {(item as Video).channelTitle} | {(item as Video).publishedAt.toLocaleDateString('id-ID')}</p>
-                            {/* Tambahkan link ke video */}
-                            <a href={`https://www.youtube.com/watch?v=${(item as Video).videoId}`} target="_blank" rel="noopener noreferrer" className="text-xs text-coc-gold-dark hover:underline mt-1 block">Tonton di YouTube &rarr;</a>
-                        </div>
-                    ) : (
-                        // Render Post seperti biasa
-                        // Pastikan item di-cast sebagai Post sebelum diteruskan ke FullPostDisplay
-                        <FullPostDisplay post={item as Post} />
-                    )}
-                </React.Fragment>
+                // Pastikan item tidak null sebelum merender
+                item ? (
+                     <FullPostDisplay key={item.id} item={item} />
+                ) : null
             ))}
           </div>
         )}

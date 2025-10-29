@@ -57,35 +57,50 @@ interface FullPostDisplayProps {
 // --- Main Component ---
 const FullPostDisplay: React.FC<FullPostDisplayProps> = ({ item }) => {
 
+    // --- GUARD CLAUSE: PASTIKAN ITEM VALID ---
+    // Jika item null/undefined, hentikan render
+    if (!item) return null;
+    
     // --- Cek Tipe Item ---
     const isItemVideo = isVideo(item);
 
     // Pisahkan item menjadi Post atau Video
+    // Casting di sini aman KARENA kita sudah melakukan guard clause di atas.
     const post = isItemVideo ? null : (item as Post);
     const video = isItemVideo ? (item as Video) : null;
 
     // --- Data Universal ---
-    const authorId = isItemVideo ? video!.channelId : post!.authorId;
-    const authorName = isItemVideo ? video!.channelTitle : post!.authorName;
+    // PERBAIKAN KRITIS: Gunakan optional chaining (?.) untuk mengakses properti,
+    // terutama pada 'post' dan 'video' yang bisa null sesuai ternary operator di atas.
+    const authorId = isItemVideo ? video?.channelId : post?.authorId;
+    const authorName = isItemVideo ? video?.channelTitle : post?.authorName;
+    
     // PERBAIKAN: Avatar untuk Video adalah thumbnail-nya, untuk Post adalah authorAvatarUrl
-    const authorAvatar = isItemVideo ? video!.thumbnailUrl : (post!.authorAvatarUrl || '/images/placeholder-avatar.png');
-    const authorHref = isItemVideo ? `https://www.youtube.com/channel/${video!.channelId}` : `/player/${post!.authorId}`;
+    const authorAvatar = isItemVideo ? video?.thumbnailUrl : (post?.authorAvatarUrl || '/images/placeholder-avatar.png');
+    // FIX: Gunakan optional chaining untuk authorId dan videoId
+    const authorHref = isItemVideo ? `https://www.youtube.com/channel/${video?.channelId}` : `/player/${post?.authorId}`;
     
     const category = item.category;
     const title = item.title;
     // Link utama item (Tujuan klik judul)
-    const itemLink = isItemVideo ? `https://www.youtube.com/watch?v=${video!.videoId}` : `/knowledge-hub/${post!.id}`;
+    // FIX: Gunakan optional chaining untuk id/videoId
+    const itemLink = isItemVideo ? `https://www.youtube.com/watch?v=${video?.videoId}` : `/knowledge-hub/${post?.id}`;
+    
     // Tipe link (internal atau eksternal)
     const isExternalLink = isItemVideo;
 
     const timeAgo = useMemo(() => {
         try {
-            // PERBAIKAN: Gunakan createdAt untuk Post, publishedAt untuk Video
-            const dateValue = isItemVideo ? video!.publishedAt : post!.createdAt;
-            const itemDate = dateValue instanceof Date ? dateValue : new Date(dateValue);
+            // PERBAIKAN ERROR TS2769: Fallback ke 0 jika publishedAt/createdAt tidak tersedia
+            // Nilai 0 di new Date(0) merepresentasikan Epoch time yang valid.
+            const dateValue = isItemVideo ? video?.publishedAt : post?.createdAt;
             
-            if (isNaN(itemDate.getTime())) {
-                return 'Invalid date';
+            // Menggunakan operator coalescing (??) untuk memastikan dateValue bukanlah null/undefined
+            const itemDate = new Date(dateValue ?? 0); 
+            
+            // PERBAIKAN ERROR TS2367: Ganti 'dateValue === 0' menjadi 'itemDate.getTime() === 0'
+            if (isNaN(itemDate.getTime()) || itemDate.getTime() === 0) {
+                return 'Tanggal Tidak Valid';
             }
             return formatDistanceToNowStrict(itemDate, { addSuffix: true, locale: id });
         } catch (e) {
@@ -100,7 +115,8 @@ const FullPostDisplay: React.FC<FullPostDisplayProps> = ({ item }) => {
     const displayMedia = useMemo(() => {
         // Prioritas 1: Jika item adalah Video, tampilkan video embed
         if (isItemVideo) {
-            return { type: 'video', id: video!.videoId };
+            // FIX: Gunakan optional chaining
+            return { type: 'video', id: video?.videoId };
         }
         // Prioritas 2: Jika item adalah Post dan punya imageUrl
         if (post?.imageUrl) {
@@ -120,35 +136,43 @@ const FullPostDisplay: React.FC<FullPostDisplayProps> = ({ item }) => {
     const postImageFallback = '/images/baseth12-placeholder.png';
 
     // --- Data Konten (Deskripsi) ---
-    const content = isItemVideo ? video!.description : post!.content;
+    // FIX: Gunakan optional chaining
+    const content = isItemVideo ? video?.description : post?.content;
 
     // --- Data Footer ---
-    const tags = isItemVideo ? [video!.channelTitle] : post!.tags;
-    const likes = isItemVideo ? 'N/A' : post!.likes;
-    const replies = isItemVideo ? 'N/A' : post!.replies;
+    // FIX: Gunakan optional chaining
+    const tags = isItemVideo ? [video?.channelTitle || 'YouTube'] : post?.tags;
+    const likes = isItemVideo ? 'N/A' : post?.likes;
+    const replies = isItemVideo ? 'N/A' : post?.replies;
 
 
     return (
         <article className="card-stone rounded-lg overflow-hidden shadow-lg border border-coc-gold-dark/20">
             {/* Header: Author Info */}
             <header className="flex items-center gap-3 p-4 bg-coc-stone-light/50 border-b border-coc-gold-dark/20">
-                <Link href={authorHref} target={isExternalLink ? "_blank" : "_self"} rel={isExternalLink ? "noopener noreferrer" : ""}>
-                    <Image
-                        src={authorAvatar}
-                        alt={`${authorName}'s avatar`}
-                        width={40}
-                        height={40}
-                        className="rounded-full border-2 border-coc-gold object-cover"
-                        onError={(e) => {
-                            e.currentTarget.onerror = null;
-                            e.currentTarget.src = '/images/placeholder-avatar.png'; // Final fallback
-                          }}
-                    />
-                </Link>
-                <div className="flex-grow">
-                    <Link href={authorHref} target={isExternalLink ? "_blank" : "_self"} rel={isExternalLink ? "noopener noreferrer" : ""} className="font-bold text-white hover:underline text-sm font-clash">
-                        {authorName}
+                {/* FIX: Pastikan authorHref valid */}
+                {authorHref && (
+                    <Link href={authorHref} target={isExternalLink ? "_blank" : "_self"} rel={isExternalLink ? "noopener noreferrer" : ""}>
+                        <Image
+                            src={authorAvatar || '/images/placeholder-avatar.png'}
+                            alt={`${authorName}'s avatar`}
+                            width={40}
+                            height={40}
+                            className="rounded-full border-2 border-coc-gold object-cover"
+                            onError={(e) => {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.src = '/images/placeholder-avatar.png'; // Final fallback
+                              }}
+                        />
                     </Link>
+                )}
+                <div className="flex-grow">
+                    {/* FIX: Pastikan authorHref valid */}
+                    {authorHref && (
+                        <Link href={authorHref} target={isExternalLink ? "_blank" : "_self"} rel={isExternalLink ? "noopener noreferrer" : ""} className="font-bold text-white hover:underline text-sm font-clash">
+                            {authorName || 'Kontributor Anonim'}
+                        </Link>
+                    )}
                     <p className="text-xs text-gray-400 font-sans flex items-center gap-1">
                         <ClockIcon className="h-3 w-3" /> {timeAgo} • Kategori: <span className="font-semibold text-coc-gold-dark">{category}</span>
                     </p>
@@ -192,9 +216,12 @@ const FullPostDisplay: React.FC<FullPostDisplayProps> = ({ item }) => {
 
             {/* Content Section */}
             <div className="p-4 space-y-3">
-                <Link href={itemLink} target={isExternalLink ? "_blank" : "_self"} rel={isExternalLink ? "noopener noreferrer" : ""}>
-                    <h2 className="text-xl font-clash text-white hover:text-coc-gold transition-colors leading-tight">{title}</h2>
-                </Link>
+                {/* FIX: Pastikan itemLink valid */}
+                {itemLink && (
+                    <Link href={itemLink} target={isExternalLink ? "_blank" : "_self"} rel={isExternalLink ? "noopener noreferrer" : ""}>
+                        <h2 className="text-xl font-clash text-white hover:text-coc-gold transition-colors leading-tight">{title}</h2>
+                    </Link>
+                )}
                 {/* Render the main content (deskripsi post atau video) */}
                 <ContentRenderer content={content} />
 
@@ -222,7 +249,7 @@ const FullPostDisplay: React.FC<FullPostDisplayProps> = ({ item }) => {
                  {/* Link eksternal untuk Video */}
                  {isItemVideo && (
                      <div className="pt-3 border-t border-coc-gold-dark/20">
-                         <a href={itemLink} target="_blank" rel="noopener noreferrer">
+                         <a href={itemLink || '#'} target="_blank" rel="noopener noreferrer">
                              <Button variant="secondary" size="sm" className="w-full bg-coc-red/20 text-coc-red hover:bg-coc-red/30 border-coc-red/30">
                                  Tonton di YouTube
                              </Button>
@@ -235,11 +262,13 @@ const FullPostDisplay: React.FC<FullPostDisplayProps> = ({ item }) => {
             <footer className="p-4 border-t border-coc-gold-dark/20 flex flex-wrap items-center justify-between gap-y-2 gap-x-4 text-xs">
                 {/* Tags */}
                 <div className="flex flex-wrap gap-1.5">
-                    {tags.map((tag, index) => (
+                    {tags && tags.length > 0 ? tags.map((tag, index) => (
                         <span key={index} className="px-2 py-0.5 font-semibold bg-coc-stone-light text-coc-gold rounded-sm border border-coc-gold-dark/30">
                             #{tag.toUpperCase()}
                         </span>
-                    ))}
+                    )) : (
+                        <span className="px-2 py-0.5 font-semibold bg-gray-500/30 text-gray-400 rounded-sm">#TAG_TIDAK_TERSEDIA</span>
+                    )}
                 </div>
                 {/* Stats & Actions */}
                 <div className="flex items-center gap-4 text-gray-400">
@@ -252,7 +281,7 @@ const FullPostDisplay: React.FC<FullPostDisplayProps> = ({ item }) => {
                            {replies} Balasan
                         </span>
                     ) : (
-                        <Link href={`/knowledge-hub/${post!.id}#comments`} className="flex items-center gap-1 hover:text-coc-gold transition-colors">
+                        <Link href={`/knowledge-hub/${post?.id}#comments`} className="flex items-center gap-1 hover:text-coc-gold transition-colors">
                             {replies} Balasan
                         </Link>
                     )}
@@ -263,3 +292,4 @@ const FullPostDisplay: React.FC<FullPostDisplayProps> = ({ item }) => {
 };
 
 export default FullPostDisplay;
+

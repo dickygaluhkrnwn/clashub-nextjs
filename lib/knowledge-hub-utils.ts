@@ -35,10 +35,16 @@ export type SortOption = 'terbaru' | 'trending';
 
 /**
  * Helper type guard untuk membedakan Post dan Video.
- * PERBAIKAN: Ekspor fungsi ini
+ * PERBAIKAN: Menggunakan operator 'in' untuk memeriksa keberadaan properti unik 'videoId'
+ * yang hanya ada di tipe Video, sehingga aman dari TypeError.
  */
 export function isVideo(item: KnowledgeHubItem): item is Video {
-    return (item as Video).source === 'YouTube';
+    // Kita juga perlu memastikan item tidak null/undefined sebelum pengecekan
+    if (!item) return false;
+    
+    // Video memiliki properti unik 'videoId' (dan 'source'). 
+    // Kita cek 'videoId' untuk penentuan tipe yang aman.
+    return 'videoId' in item;
 }
 
 /**
@@ -54,7 +60,7 @@ export function sortItems(items: KnowledgeHubItem[], sortBy: SortOption): Knowle
     const getItemDate = (item: KnowledgeHubItem): Date => {
         // Video menggunakan publishedAt, Post menggunakan createdAt
         // PERBAIKAN: Pastikan createdAt/publishedAt adalah Date
-        const dateValue = isVideo(item) ? item.publishedAt : item.createdAt;
+        const dateValue = isVideo(item) ? item.publishedAt : (item as Post).createdAt; // Casting di sini aman karena sudah di-narrow
         return dateValue instanceof Date ? dateValue : new Date(dateValue);
     };
 
@@ -66,8 +72,8 @@ export function sortItems(items: KnowledgeHubItem[], sortBy: SortOption): Knowle
         sortedItems.sort((a, b) => {
             // Video (saat ini) tidak memiliki likes/replies, beri skor 0
             // PERBAIKAN: Gunakan type guard 'isVideo'
-            const scoreA = isVideo(a) ? 0 : (a.likes || 0) + (a.replies || 0);
-            const scoreB = isVideo(b) ? 0 : (b.likes || 0) + (b.replies || 0);
+            const scoreA = isVideo(a) ? 0 : ((a as Post).likes || 0) + ((a as Post).replies || 0); // Casting di sini aman
+            const scoreB = isVideo(b) ? 0 : ((b as Post).likes || 0) + ((b as Post).replies || 0); // Casting di sini aman
 
             if (scoreA !== scoreB) {
                 return scoreB - scoreA; // Skor tertinggi di atas
@@ -127,4 +133,3 @@ export function getCategoryDisplayName(category: KnowledgeHubCategory | 'all-pos
      }
      return category; // 'Berita Komunitas', dll.
 }
-
