@@ -3,7 +3,8 @@
 import React, { useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Post, UserProfile } from '@/lib/types';
+// PERBAIKAN: Impor tipe gabungan
+import { Post, Video, KnowledgeHubItem, UserProfile } from '@/lib/types';
 import { Button } from '@/app/components/ui/Button';
 import { formatDistanceToNowStrict } from 'date-fns'; // Use formatDistanceToNowStrict for relative time
 import { id } from 'date-fns/locale';
@@ -11,11 +12,14 @@ import {
     ClockIcon, UserCircleIcon, LinkIcon, ThumbsUpIcon, HomeIcon, CogsIcon
     // MessageSquareIcon removed as it doesn't exist in the provided icons file
 } from '@/app/components/icons'; // Import necessary icons
+// PERBAIKAN: Impor helper isVideo
+import { isVideo } from '@/lib/knowledge-hub-utils';
 
-// --- Helper Functions ---
+// --- Helper Functions (Tetap sama) ---
 
 /**
  * Extracts YouTube Video ID from various URL formats.
+ * (Digunakan untuk Post, BUKAN untuk Video)
  * @param url - The YouTube URL.
  * @returns The video ID or null if not found.
  */
@@ -29,69 +33,109 @@ const getYouTubeVideoId = (url: string | null | undefined): string | null => {
 /**
  * Renders post content, handling line breaks.
  */
-const ContentRenderer = ({ content }: { content: string }) => {
+const ContentRenderer = ({ content }: { content: string | undefined }) => {
+    // Handle konten yang mungkin undefined (dari Video)
+    const safeContent = content || '';
     const contentParts = useMemo(() => {
-        return content.split('\n').map((line, index, arr) => (
+        return safeContent.split('\n').map((line, index, arr) => (
             <React.Fragment key={index}>
                 {line}
                 {index < arr.length - 1 && <br />}
             </React.Fragment>
         ));
-    }, [content]);
+    }, [safeContent]);
     return <p className="text-gray-300 text-sm font-sans leading-relaxed">{contentParts}</p>;
 };
 
 // --- Component Props ---
 interface FullPostDisplayProps {
-    post: Post;
+    // PERBAIKAN: Menerima tipe gabungan
+    item: KnowledgeHubItem;
     // className?: string; // Optional className prop if needed later
 }
 
 // --- Main Component ---
-const FullPostDisplay: React.FC<FullPostDisplayProps> = ({ post }) => {
+const FullPostDisplay: React.FC<FullPostDisplayProps> = ({ item }) => {
+
+    // --- Cek Tipe Item ---
+    const isItemVideo = isVideo(item);
+
+    // Pisahkan item menjadi Post atau Video
+    const post = isItemVideo ? null : (item as Post);
+    const video = isItemVideo ? (item as Video) : null;
+
+    // --- Data Universal ---
+    const authorId = isItemVideo ? video!.channelId : post!.authorId;
+    const authorName = isItemVideo ? video!.channelTitle : post!.authorName;
+    // PERBAIKAN: Avatar untuk Video adalah thumbnail-nya, untuk Post adalah authorAvatarUrl
+    const authorAvatar = isItemVideo ? video!.thumbnailUrl : (post!.authorAvatarUrl || '/images/placeholder-avatar.png');
+    const authorHref = isItemVideo ? `https://www.youtube.com/channel/${video!.channelId}` : `/player/${post!.authorId}`;
+    
+    const category = item.category;
+    const title = item.title;
+    // Link utama item (Tujuan klik judul)
+    const itemLink = isItemVideo ? `https://www.youtube.com/watch?v=${video!.videoId}` : `/knowledge-hub/${post!.id}`;
+    // Tipe link (internal atau eksternal)
+    const isExternalLink = isItemVideo;
 
     const timeAgo = useMemo(() => {
         try {
-            // Ensure createdAt is a Date object
-            const createdAtDate = post.createdAt instanceof Date ? post.createdAt : new Date(post.createdAt);
-            if (isNaN(createdAtDate.getTime())) {
+            // PERBAIKAN: Gunakan createdAt untuk Post, publishedAt untuk Video
+            const dateValue = isItemVideo ? video!.publishedAt : post!.createdAt;
+            const itemDate = dateValue instanceof Date ? dateValue : new Date(dateValue);
+            
+            if (isNaN(itemDate.getTime())) {
                 return 'Invalid date';
             }
-            return formatDistanceToNowStrict(createdAtDate, { addSuffix: true, locale: id });
+            return formatDistanceToNowStrict(itemDate, { addSuffix: true, locale: id });
         } catch (e) {
             console.error("Error formatting date:", e);
             return 'Invalid date';
         }
-    }, [post.createdAt]);
+    }, [isItemVideo, post, video]); // Dependencies diupdate
 
-    const videoId = getYouTubeVideoId(post.videoUrl);
-    // Provide explicit fallback for authorAvatar right here to ensure it's always a string
-    const authorAvatar = post.authorAvatarUrl || '/images/placeholder-avatar.png';
-
-    // Determine which media to display based on priority
+    // --- Data Media (Video Embed atau Gambar Post) ---
+    const videoIdFromPost = getYouTubeVideoId(post?.videoUrl);
+    
     const displayMedia = useMemo(() => {
-        if (post.imageUrl) {
+        // Prioritas 1: Jika item adalah Video, tampilkan video embed
+        if (isItemVideo) {
+            return { type: 'video', id: video!.videoId };
+        }
+        // Prioritas 2: Jika item adalah Post dan punya imageUrl
+        if (post?.imageUrl) {
             return { type: 'image', url: post.imageUrl };
-        } else if (videoId) {
-            return { type: 'video', id: videoId };
-        } else if (post.baseImageUrl) {
+        } 
+        // Prioritas 3: Jika item adalah Post dan punya videoUrl
+        else if (videoIdFromPost) {
+            return { type: 'video', id: videoIdFromPost };
+        } 
+        // Prioritas 4: Jika item adalah Post dan punya baseImageUrl
+        else if (post?.baseImageUrl) {
             return { type: 'baseImage', url: post.baseImageUrl };
         }
-        return null; // No primary media
-    }, [post.imageUrl, videoId, post.baseImageUrl]);
+        return null; // Tidak ada media
+    }, [isItemVideo, video, post, videoIdFromPost]); // Dependencies diupdate
 
-    // Define a fallback image URL for posts, e.g., a generic placeholder or the base placeholder
-    const postImageFallback = '/images/baseth12-placeholder.png'; // Example fallback
+    const postImageFallback = '/images/baseth12-placeholder.png';
+
+    // --- Data Konten (Deskripsi) ---
+    const content = isItemVideo ? video!.description : post!.content;
+
+    // --- Data Footer ---
+    const tags = isItemVideo ? [video!.channelTitle] : post!.tags;
+    const likes = isItemVideo ? 'N/A' : post!.likes;
+    const replies = isItemVideo ? 'N/A' : post!.replies;
+
 
     return (
         <article className="card-stone rounded-lg overflow-hidden shadow-lg border border-coc-gold-dark/20">
             {/* Header: Author Info */}
             <header className="flex items-center gap-3 p-4 bg-coc-stone-light/50 border-b border-coc-gold-dark/20">
-                <Link href={`/player/${post.authorId}`} className="flex-shrink-0">
+                <Link href={authorHref} target={isExternalLink ? "_blank" : "_self"} rel={isExternalLink ? "noopener noreferrer" : ""}>
                     <Image
-                        // Use the authorAvatar variable which already includes the fallback
                         src={authorAvatar}
-                        alt={`${post.authorName}'s avatar`}
+                        alt={`${authorName}'s avatar`}
                         width={40}
                         height={40}
                         className="rounded-full border-2 border-coc-gold object-cover"
@@ -102,11 +146,11 @@ const FullPostDisplay: React.FC<FullPostDisplayProps> = ({ post }) => {
                     />
                 </Link>
                 <div className="flex-grow">
-                    <Link href={`/player/${post.authorId}`} className="font-bold text-white hover:underline text-sm font-clash">
-                        {post.authorName}
+                    <Link href={authorHref} target={isExternalLink ? "_blank" : "_self"} rel={isExternalLink ? "noopener noreferrer" : ""} className="font-bold text-white hover:underline text-sm font-clash">
+                        {authorName}
                     </Link>
                     <p className="text-xs text-gray-400 font-sans flex items-center gap-1">
-                        <ClockIcon className="h-3 w-3" /> {timeAgo} • Kategori: <span className="font-semibold text-coc-gold-dark">{post.category}</span>
+                        <ClockIcon className="h-3 w-3" /> {timeAgo} • Kategori: <span className="font-semibold text-coc-gold-dark">{category}</span>
                     </p>
                 </div>
                 {/* Optional: Add a 'more options' button here later */}
@@ -115,38 +159,19 @@ const FullPostDisplay: React.FC<FullPostDisplayProps> = ({ post }) => {
             {/* Media Section */}
             {displayMedia && (
                 <div className="relative w-full bg-black/20">
-                    {displayMedia.type === 'image' && (
+                    {(displayMedia.type === 'image' || displayMedia.type === 'baseImage') && (
                         <div className="relative w-full aspect-video"> {/* Maintain aspect ratio */}
                              <Image
-                                // Provide fallback directly in src prop
-                                src={displayMedia.url || postImageFallback}
-                                alt={`Post image for ${post.title}`}
+                                src={(displayMedia as { url: string }).url || postImageFallback}
+                                alt={`Media for ${title}`}
                                 layout="fill"
                                 objectFit="contain" // Use 'contain' to show the whole image
                                 className="bg-black/20"
                                 loading="lazy"
-                                onError={(e) => { // Basic fallback display on error
-                                    e.currentTarget.onerror = null; // Prevent infinite loop if fallback fails
-                                    e.currentTarget.src = postImageFallback; // Ensure fallback is set
-                                    e.currentTarget.style.objectFit = 'cover'; // Adjust fit for placeholder
-                                }}
-                            />
-                        </div>
-                    )}
-                     {displayMedia.type === 'baseImage' && ( // Handle base image separately if needed, same logic for now
-                        <div className="relative w-full aspect-video">
-                            <Image
-                                // Provide fallback directly in src prop
-                                src={displayMedia.url || postImageFallback}
-                                alt={`Base image for ${post.title}`}
-                                layout="fill"
-                                objectFit="contain"
-                                className="bg-black/20"
-                                loading="lazy"
-                                onError={(e) => {
-                                    e.currentTarget.onerror = null;
-                                    e.currentTarget.src = postImageFallback;
-                                    e.currentTarget.style.objectFit = 'cover';
+                                onError={(e) => { 
+                                    e.currentTarget.onerror = null; 
+                                    e.currentTarget.src = postImageFallback; 
+                                    e.currentTarget.style.objectFit = 'cover'; 
                                 }}
                             />
                         </div>
@@ -167,14 +192,14 @@ const FullPostDisplay: React.FC<FullPostDisplayProps> = ({ post }) => {
 
             {/* Content Section */}
             <div className="p-4 space-y-3">
-                <Link href={`/knowledge-hub/${post.id}`}>
-                    <h2 className="text-xl font-clash text-white hover:text-coc-gold transition-colors leading-tight">{post.title}</h2>
+                <Link href={itemLink} target={isExternalLink ? "_blank" : "_self"} rel={isExternalLink ? "noopener noreferrer" : ""}>
+                    <h2 className="text-xl font-clash text-white hover:text-coc-gold transition-colors leading-tight">{title}</h2>
                 </Link>
-                {/* Render the main content */}
-                <ContentRenderer content={post.content} />
+                {/* Render the main content (deskripsi post atau video) */}
+                <ContentRenderer content={content} />
 
-                {/* Specific Links Section */}
-                {post.baseLinkUrl && post.category === 'Base Building' && (
+                {/* Specific Links Section (Hanya untuk Post) */}
+                {!isItemVideo && post?.baseLinkUrl && post?.category === 'Base Building' && (
                      <div className="pt-3 border-t border-coc-gold-dark/20">
                          <h4 className="text-xs font-bold text-gray-400 mb-2 flex items-center gap-1"><HomeIcon className="h-4 w-4"/> BASE LINK:</h4>
                          <a href={post.baseLinkUrl} target="_blank" rel="noopener noreferrer">
@@ -184,12 +209,22 @@ const FullPostDisplay: React.FC<FullPostDisplayProps> = ({ post }) => {
                          </a>
                      </div>
                  )}
-                 {post.troopLink && post.category === 'Strategi Serangan' && (
+                 {!isItemVideo && post?.troopLink && post?.category === 'Strategi Serangan' && (
                      <div className="pt-3 border-t border-coc-gold-dark/20">
                          <h4 className="text-xs font-bold text-gray-400 mb-2 flex items-center gap-1"><CogsIcon className="h-4 w-4"/> TROOP LINK:</h4>
                          <a href={post.troopLink} target="_blank" rel="noopener noreferrer">
                               <Button variant="secondary" size="sm" className="w-full">
                                  <LinkIcon className="h-4 w-4 mr-2" /> Salin Komposisi Pasukan
+                             </Button>
+                         </a>
+                     </div>
+                 )}
+                 {/* Link eksternal untuk Video */}
+                 {isItemVideo && (
+                     <div className="pt-3 border-t border-coc-gold-dark/20">
+                         <a href={itemLink} target="_blank" rel="noopener noreferrer">
+                             <Button variant="secondary" size="sm" className="w-full bg-coc-red/20 text-coc-red hover:bg-coc-red/30 border-coc-red/30">
+                                 Tonton di YouTube
                              </Button>
                          </a>
                      </div>
@@ -200,21 +235,27 @@ const FullPostDisplay: React.FC<FullPostDisplayProps> = ({ post }) => {
             <footer className="p-4 border-t border-coc-gold-dark/20 flex flex-wrap items-center justify-between gap-y-2 gap-x-4 text-xs">
                 {/* Tags */}
                 <div className="flex flex-wrap gap-1.5">
-                    {post.tags.map((tag, index) => (
+                    {tags.map((tag, index) => (
                         <span key={index} className="px-2 py-0.5 font-semibold bg-coc-stone-light text-coc-gold rounded-sm border border-coc-gold-dark/30">
                             #{tag.toUpperCase()}
                         </span>
                     ))}
                 </div>
-                {/* Stats & Actions (Placeholder Buttons) */}
+                {/* Stats & Actions */}
                 <div className="flex items-center gap-4 text-gray-400">
-                    <button className="flex items-center gap-1 hover:text-coc-gold transition-colors">
-                        <ThumbsUpIcon className="h-4 w-4" /> {post.likes}
+                    <button className="flex items-center gap-1 hover:text-coc-gold transition-colors" disabled={isItemVideo}>
+                        <ThumbsUpIcon className="h-4 w-4" /> {likes}
                     </button>
-                    {/* Removed MessageSquareIcon */}
-                    <Link href={`/knowledge-hub/${post.id}#comments`} className="flex items-center gap-1 hover:text-coc-gold transition-colors">
-                         {post.replies} Balasan
-                    </Link>
+                    {/* Link ke komentar hanya untuk Post, nonaktifkan untuk Video */}
+                    {isItemVideo ? (
+                        <span className="flex items-center gap-1 text-gray-600">
+                           {replies} Balasan
+                        </span>
+                    ) : (
+                        <Link href={`/knowledge-hub/${post!.id}#comments`} className="flex items-center gap-1 hover:text-coc-gold transition-colors">
+                            {replies} Balasan
+                        </Link>
+                    )}
                 </div>
             </footer>
         </article>
@@ -222,4 +263,3 @@ const FullPostDisplay: React.FC<FullPostDisplayProps> = ({ post }) => {
 };
 
 export default FullPostDisplay;
-

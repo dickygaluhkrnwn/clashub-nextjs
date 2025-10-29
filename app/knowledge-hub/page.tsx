@@ -1,9 +1,11 @@
 import { Metadata } from 'next';
 import { getPosts } from '@/lib/firestore';
-import { Post, PostCategory } from '@/lib/types';
+// PERBAIKAN: Impor KnowledgeHubItem dan hapus Post (tidak digunakan langsung)
+import { KnowledgeHubItem, PostCategory } from '@/lib/types';
 import KnowledgeHubClient from './KnowledgeHubClient';
 // Import utilitas baru untuk parsing URL
-import { parseSearchParams, SortOption } from '@/lib/knowledge-hub-utils';
+// PERBAIKAN: Impor KnowledgeHubCategory
+import { parseSearchParams, SortOption, KnowledgeHubCategory } from '@/lib/knowledge-hub-utils';
 
 // Metadata
 export const metadata: Metadata = {
@@ -24,22 +26,24 @@ interface KnowledgeHubPageProps {
  * Mengambil data postingan berdasarkan URL Search Params.
  */
 const KnowledgeHubPage = async ({ searchParams }: KnowledgeHubPageProps) => {
-    let initialPosts: Post[] = [];
+    // PERBAIKAN: Ubah tipe initialPosts menjadi KnowledgeHubItem[]
+    let initialPosts: KnowledgeHubItem[] = [];
     let error: string | null = null;
 
-    // 1. Parse URL Search Params (Hanya untuk meneruskan nilai awal ke Client)
-    const { category: activeCategory, sortBy: activeSortBy } = parseSearchParams(searchParams);
+    // 1. Parse URL Search Params
+    // PERBAIKAN: Ambil 'queryCategory' yang dikembalikan oleh parseSearchParams
+    const { category: activeCategory, sortBy: activeSortBy, queryCategory } = parseSearchParams(searchParams);
 
     // 2. Tentukan kriteria fetch untuk Firestore
-    // PERUBAHAN: Selalu urutkan berdasarkan 'createdAt' (terbaru) dari Firestore.
-    // Client akan menangani sorting 'trending' jika diperlukan.
-    const firestoreSortBy: 'createdAt' = 'createdAt'; // Selalu 'createdAt'
-    const firestoreSortOrder: 'desc' = 'desc'; // Selalu 'desc' (terbaru dulu)
+    // PERBAIKAN: Gunakan 'likes' jika itu yang diminta, jika tidak, 'createdAt' (untuk post) / 'publishedAt' (untuk video)
+    // Ini memastikan sorting 'trending' diambil dari server jika memungkinkan
+    const firestoreSortBy: 'createdAt' | 'publishedAt' | 'likes' = activeSortBy === 'trending' ? 'likes' : 'createdAt';
+    const firestoreSortOrder: 'desc' | 'asc' = 'desc'; // Selalu 'desc' (terbaru/trending dulu)
 
-    // 3. Ambil data Postingan dari sisi Server (SSR)
+    // 3. Ambil data gabungan dari sisi Server (SSR)
     try {
-        // Mengambil postingan berdasarkan kategori (jika ada) dan selalu diurutkan berdasarkan createdAt
-        initialPosts = await getPosts(activeCategory as PostCategory | 'all', firestoreSortBy, firestoreSortOrder);
+        // PERBAIKAN: Gunakan 'queryCategory' dan 'firestoreSortBy' yang sudah benar untuk memanggil getPosts
+        initialPosts = await getPosts(queryCategory, firestoreSortBy, firestoreSortOrder);
 
     } catch (err) {
         console.error("Error fetching posts on server:", err);
@@ -64,8 +68,8 @@ const KnowledgeHubPage = async ({ searchParams }: KnowledgeHubPageProps) => {
     return (
         <main className="container mx-auto p-4 md:p-8 mt-10">
             <KnowledgeHubClient
-                initialPosts={initialPosts}
-                initialCategory={activeCategory} // Nilai kategori dari URL
+                initialPosts={initialPosts} // <-- Sekarang bertipe KnowledgeHubItem[]
+                initialCategory={activeCategory as KnowledgeHubCategory} // Nilai kategori dari URL
                 initialSortBy={activeSortBy} // Nilai sorting dari URL (untuk UI awal)
                 // Berikan error ke client hanya jika ada error TAPI masih ada postingan (misal gagal fetch sebagian)
                 error={initialPosts.length > 0 ? error : null}
@@ -75,3 +79,4 @@ const KnowledgeHubPage = async ({ searchParams }: KnowledgeHubPageProps) => {
 };
 
 export default KnowledgeHubPage;
+

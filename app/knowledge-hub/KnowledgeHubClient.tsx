@@ -5,18 +5,20 @@ import React, { useState, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/app/components/ui/Button';
-// HAPUS: Impor PostCard tidak lagi diperlukan
-// import { PostCard } from '@/app/components/cards';
-import { Post } from '@/lib/types';
+// PERBAIKAN: Impor KnowledgeHubItem dan Video (Post masih diperlukan untuk casting)
+import { Post, KnowledgeHubItem, Video } from '@/lib/types';
 // Impor ikon untuk loading (opsional)
 import { BookOpenIcon, EditIcon, StarIcon, SortAscIcon, FilterIcon, CogsIcon } from '@/app/components/icons';
-import { POST_CATEGORIES, sortPosts, SortOption } from '@/lib/knowledge-hub-utils';
+// PERBAIKAN: Ganti sortPosts -> sortItems, dan impor tipe KNOWLEDGE_HUB_CATEGORIES
+import { ALL_CATEGORIES, sortItems, SortOption, KnowledgeHubCategory, getCategoryDisplayName, isVideo } from '@/lib/knowledge-hub-utils';
 // --- BARU: Impor komponen FullPostDisplay ---
 import FullPostDisplay from './components/FullPostDisplay';
 
 interface KnowledgeHubClientProps {
-  initialPosts: Post[];
-  initialCategory: string;
+  // PERBAIKAN: Ubah Post[] -> KnowledgeHubItem[]
+  initialPosts: KnowledgeHubItem[];
+  // PERBAIKAN: Gunakan tipe yang lebih spesifik
+  initialCategory: KnowledgeHubCategory;
   initialSortBy: SortOption;
   error: string | null;
 }
@@ -32,19 +34,23 @@ const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, erro
   // State untuk loading filter
   const [isFiltering, setIsFiltering] = useState(false);
 
-  const [activeCategory, setActiveCategory] = useState<string>(initialCategory);
+  // PERBAIKAN: Gunakan tipe KnowledgeHubCategory
+  const [activeCategory, setActiveCategory] = useState<KnowledgeHubCategory>(initialCategory);
   const [activeSort, setActiveSort] = useState<SortOption>(initialSortBy);
-  // displayedPosts sekarang menyimpan *semua* postingan awal
-  const [allPosts] = useState<Post[]>(initialPosts);
+  // PERBAIKAN: Ubah allPosts -> allItems, Post[] -> KnowledgeHubItem[]
+  const [allItems] = useState<KnowledgeHubItem[]>(initialPosts);
 
   // --- State Pagination ---
-  const [visiblePostsCount, setVisiblePostsCount] = useState(ITEMS_PER_LOAD_POSTS);
+  // PERBAIKAN: Ubah nama state
+  const [visibleItemsCount, setVisibleItemsCount] = useState(ITEMS_PER_LOAD_POSTS);
   // --- End State Pagination ---
 
-  const updateUrl = (newCategory: string, newSortBy: SortOption) => {
+  // PERBAIKAN: Gunakan tipe KnowledgeHubCategory
+  const updateUrl = (newCategory: KnowledgeHubCategory, newSortBy: SortOption) => {
     const params = new URLSearchParams(searchParams.toString());
 
-    if (newCategory && newCategory !== 'Semua Diskusi') {
+    // PERBAIKAN: Gunakan 'Semua Konten' sebagai default
+    if (newCategory && newCategory !== 'Semua Konten') {
       params.set('kategori', newCategory);
     } else {
       params.delete('kategori');
@@ -60,21 +66,37 @@ const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, erro
     router.push(`/knowledge-hub?${params.toString()}`, { scroll: false });
   };
 
-  // Logika filter dan sort (tidak berubah)
-  const filteredAndSortedPosts = useMemo(() => {
-    // Filter berdasarkan kategori AKTIF
-    const filtered = allPosts.filter(post =>
-      activeCategory === 'Semua Diskusi' || post.category === activeCategory
-    );
+  // Logika filter dan sort (BERUBAH)
+  const filteredAndSortedItems = useMemo(() => {
+    const filtered = allItems.filter(item => {
+        if (activeCategory === 'Semua Konten') return true; // Tampilkan semua
+        
+        // Logika untuk 'Semua Diskusi' (hanya Post)
+        if (activeCategory === 'Semua Diskusi') return !isVideo(item); // Hanya Post
+        
+        // Logika untuk 'Berita Komunitas' (Post 'Berita Komunitas' + Video)
+        if (activeCategory === 'Berita Komunitas') {
+            if (isVideo(item)) return true; // Semua video YouTube otomatis masuk
+            // Jika post, pastikan kategorinya 'Berita Komunitas'
+            return !isVideo(item) && item.category === 'Berita Komunitas';
+        }
+
+        // Logika untuk kategori spesifik (hanya Post)
+        if (isVideo(item)) return false; 
+        
+        // Jika item adalah Post, cek kategorinya
+        return item.category === activeCategory;
+    });
+    
     // Urutkan hasil filter berdasarkan sort AKTIF
-    return sortPosts(filtered, activeSort);
-  }, [allPosts, activeCategory, activeSort]); // Dependencies: allPosts, activeCategory, activeSort
+    return sortItems(filtered, activeSort);
+  }, [allItems, activeCategory, activeSort]); 
 
 
   // Handler filter diperbarui untuk mereset pagination
-  const handleCategoryChange = (category: string) => {
+  const handleCategoryChange = (category: KnowledgeHubCategory) => { // Gunakan tipe KnowledgeHubCategory
     setIsFiltering(true);
-    setVisiblePostsCount(ITEMS_PER_LOAD_POSTS); // Reset pagination
+    setVisibleItemsCount(ITEMS_PER_LOAD_POSTS); // Reset pagination
     setTimeout(() => {
         setActiveCategory(category);
         updateUrl(category, activeSort);
@@ -84,7 +106,7 @@ const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, erro
 
   const handleSortChange = (sortBy: SortOption) => {
     setIsFiltering(true);
-    setVisiblePostsCount(ITEMS_PER_LOAD_POSTS); // Reset pagination
+    setVisibleItemsCount(ITEMS_PER_LOAD_POSTS); // Reset pagination
     setTimeout(() => {
         setActiveSort(sortBy);
         updateUrl(activeCategory, sortBy);
@@ -93,14 +115,14 @@ const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, erro
   };
 
   // --- Fungsi Load More Posts ---
-  const handleLoadMorePosts = () => {
-        setVisiblePostsCount(prevCount => prevCount + ITEMS_PER_LOAD_POSTS);
+  const handleLoadMoreItems = () => { // Ubah nama fungsi
+        setVisibleItemsCount(prevCount => prevCount + ITEMS_PER_LOAD_POSTS);
   };
   // --- End Fungsi Load More ---
 
   // --- Logika Slice & Show Button Posts ---
-  const postsToShow = useMemo(() => filteredAndSortedPosts.slice(0, visiblePostsCount), [filteredAndSortedPosts, visiblePostsCount]);
-  const showLoadMorePosts = visiblePostsCount < filteredAndSortedPosts.length;
+  const itemsToShow = useMemo(() => filteredAndSortedItems.slice(0, visibleItemsCount), [filteredAndSortedItems, visibleItemsCount]);
+  const showLoadMoreItems = visibleItemsCount < filteredAndSortedItems.length;
   // --- End Logika ---
 
 
@@ -115,7 +137,8 @@ const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, erro
 
         {/* Filter Kategori */}
         <div className="space-y-1 border-b border-coc-gold-dark/20 pb-4">
-          {POST_CATEGORIES.map(category => (
+          {/* PERBAIKAN: Gunakan ALL_CATEGORIES dari utils */}
+          {ALL_CATEGORIES.map(category => (
             <button
               key={category}
               onClick={() => handleCategoryChange(category)} // Panggil handler baru
@@ -126,7 +149,8 @@ const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, erro
                   : 'text-gray-300 hover:bg-coc-stone-light/50'
               }`}
             >
-              {category}
+              {/* PERBAIKAN: Gunakan getCategoryDisplayName */}
+              {getCategoryDisplayName(category)}
             </button>
           ))}
         </div>
@@ -165,7 +189,6 @@ const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, erro
       </aside>
 
       {/* Kolom Tengah: Feed Postingan */}
-      {/* PERUBAHAN: Lebar kolom diubah menjadi lg:col-span-3 karena sidebar kanan dihapus */}
       <section className="lg:col-span-3">
         <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
            {/* Judul akan otomatis font-clash */}
@@ -189,36 +212,49 @@ const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, erro
                 <h2 className="text-2xl font-clash text-coc-red">{error}</h2>
                 <p className="text-gray-400 mt-2">Gagal memuat data dari server.</p>
             </div>
-        ) : postsToShow.length === 0 ? ( // Cek postsToShow
+        // PERBAIKAN: Cek itemsToShow
+        ) : itemsToShow.length === 0 ? ( 
           <div className="text-center py-20 card-stone p-6 rounded-lg">
              {/* Menggunakan font-clash untuk judul */}
-            <h2 className="text-2xl font-clash text-gray-400">Tidak ada postingan di kategori ini.</h2>
+            <h2 className="text-2xl font-clash text-gray-400">Tidak ada konten di kategori ini.</h2>
             <p className="text-gray-500 mt-2">Coba ubah kriteria filter Anda.</p>
           </div>
         ) : (
           // --- PERUBAHAN: Render FullPostDisplay, bukan PostCard ---
           <div className="space-y-6"> {/* Beri jarak antar postingan penuh */}
-            {postsToShow.map(post => (
-              <FullPostDisplay key={post.id} post={post} />
+            {/* PERBAIKAN: Loop 'itemsToShow' dan beri tipe 'item'. Render placeholder untuk Video. */}
+            {itemsToShow.map(item => (
+                <React.Fragment key={item.id}>
+                    {isVideo(item) ? (
+                        // Placeholder sementara untuk Video
+                        <div className="card-stone p-4 text-coc-gold border-l-4 border-blue-500">
+                            <p className="font-bold">VIDEO: {item.title}</p>
+                            <p className="text-xs text-gray-400">Oleh: {(item as Video).channelTitle} | {(item as Video).publishedAt.toLocaleDateString('id-ID')}</p>
+                            {/* Tambahkan link ke video */}
+                            <a href={`https://www.youtube.com/watch?v=${(item as Video).videoId}`} target="_blank" rel="noopener noreferrer" className="text-xs text-coc-gold-dark hover:underline mt-1 block">Tonton di YouTube &rarr;</a>
+                        </div>
+                    ) : (
+                        // Render Post seperti biasa
+                        // Pastikan item di-cast sebagai Post sebelum diteruskan ke FullPostDisplay
+                        <FullPostDisplay post={item as Post} />
+                    )}
+                </React.Fragment>
             ))}
           </div>
         )}
 
          {/* Tombol Load More Posts */}
-         {showLoadMorePosts && (
+         {/* PERBAIKAN: Ganti ke variabel baru */}
+         {showLoadMoreItems && (
             <div className="text-center mt-8">
-                <Button variant="secondary" size="lg" onClick={handleLoadMorePosts} disabled={isFiltering}>
-                    Muat Lebih Banyak Diskusi
+                <Button variant="secondary" size="lg" onClick={handleLoadMoreItems} disabled={isFiltering}>
+                    Muat Lebih Banyak Konten
                 </Button>
             </div>
          )}
       </section>
-
-      {/* Kolom Kanan: Trending Sidebar DIHAPUS karena layout berubah */}
-      {/* <aside className="lg:col-span-1 card-stone p-6 h-fit sticky top-28 space-y-6"> ... </aside> */}
     </div>
   );
 };
 
 export default KnowledgeHubClient;
-

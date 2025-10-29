@@ -5,7 +5,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminFirestore } from '@/lib/firebase-admin'; // Firebase Admin SDK
 import { Timestamp as AdminTimestamp } from 'firebase-admin/firestore';
-import { Video, VideoCategory } from '@/lib/types'; // Tipe data Video dari types.ts
+// PERBAIKAN: Import PostCategory juga
+import { Video, VideoCategory, PostCategory } from '@/lib/types'; // Tipe data Video dari types.ts
 import { COLLECTIONS } from '@/lib/firestore-collections'; // Nama koleksi Firestore
 
 // --- Konfigurasi ---
@@ -17,13 +18,13 @@ const MAX_RESULTS_PER_CHANNEL = 5; // Ambil 5 video terbaru per channel
 const CHANNELS_TO_SYNC = [
     {
         playlistId: 'UUD1Em4q90ZUK2R5HKesszJg', // <-- ID Playlist Uploads Clash of Clans (Diperbarui)
-        category: 'Clash of Clans' as VideoCategory,
+        // category: 'Clash of Clans' as VideoCategory, // Ini tidak lagi digunakan untuk Firestore category
         channelTitle: 'Clash of Clans', // Nama channel untuk metadata
         channelId: 'UCD1Em4q90ZUK2R5HKesszJg' // <-- ID Channel Clash of Clans (Diperbarui)
     },
     // {
     //   playlistId: 'ID_PLAYLIST_BRAWL_STARS', // Ganti dengan ID Playlist Uploads Brawl Stars
-    //   category: 'Brawl Stars' as VideoCategory,
+    //   // category: 'Brawl Stars' as VideoCategory,
     //   channelTitle: 'Brawl Stars',
     //   channelId: 'ID_CHANNEL_BRAWL_STARS'
     // },
@@ -180,7 +181,9 @@ export async function GET(request: NextRequest) {
                     publishedAt: new Date(item.snippet.publishedAt),
                     channelTitle: channel.channelTitle, // Gunakan nama channel dari config
                     channelId: channel.channelId, // Gunakan ID channel dari config
-                    category: channel.category,
+                    // ----- PERBAIKAN DI SINI -----
+                    category: 'Berita Komunitas', // Set kategori ke "Berita Komunitas" (tipe PostCategory)
+                    // -----------------------------
                     source: 'YouTube',
                 };
 
@@ -210,4 +213,3 @@ export async function GET(request: NextRequest) {
         results: results,
     }, { status: errors > 0 ? 500 : 200 });
 }
-
