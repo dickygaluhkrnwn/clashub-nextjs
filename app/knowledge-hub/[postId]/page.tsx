@@ -169,53 +169,52 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                             </div>
                         </header>
                         
-                        {/* START: KONTEN KHUSUS STRATEGI SERANGAN */}
+                        {/* START: KONTEN KHUSUS STRATEGI SERANGAN (Direvisi untuk Video Besar & Link di Bawah) */}
                         {isStrategyPost && (post.troopLink || videoId) && (
-                            <div className="space-y-4 pt-4 border-b border-coc-gold-dark/20 pb-6">
+                            <div className="space-y-6 pt-4 border-b border-coc-gold-dark/20 pb-6">
                                 <h2 className="text-2xl font-clash text-coc-gold-dark flex items-center gap-2">
                                     <CogsIcon className="h-6 w-6"/> Detail Strategi
                                 </h2>
                                 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {/* Kolom Video YouTube */}
-                                    {videoId ? (
-                                        <div className="md:col-span-1">
-                                            <p className="text-sm text-gray-400 mb-2 font-bold flex items-center gap-1">Video Tutorial:</p>
-                                            <div className="relative w-full overflow-hidden rounded-lg border-2 border-coc-gold-dark" style={{ paddingTop: '56.25%' }}>
-                                                <iframe
-                                                    src={`https://www.youtube.com/embed/${videoId}`}
-                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                    allowFullScreen
-                                                    className="absolute top-0 left-0 w-full h-full"
-                                                    title="Embedded YouTube video"
-                                                ></iframe>
-                                            </div>
+                                {/* 1. Video Section (Full Width) */}
+                                {videoId ? (
+                                    <div className="w-full"> 
+                                        <p className="text-sm text-gray-400 mb-2 font-bold flex items-center gap-1">Video Tutorial:</p>
+                                        {/* Container 16:9 yang mengambil lebar penuh kolom (lg:col-span-3) */}
+                                        <div className="relative w-full overflow-hidden rounded-lg border-2 border-coc-gold-dark" style={{ paddingTop: '56.25%' }}> 
+                                            <iframe
+                                                src={`https://www.youtube.com/embed/${videoId}`}
+                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                allowFullScreen
+                                                className="absolute top-0 left-0 w-full h-full"
+                                                title="Embedded YouTube video"
+                                            ></iframe>
                                         </div>
-                                    ) : (
-                                        <div className="md:col-span-1 p-4 bg-coc-stone/50 rounded-lg flex items-center justify-center text-center">
-                                            <p className="text-gray-500 text-sm">Video tutorial tidak tersedia.</p>
-                                        </div>
-                                    )}
+                                    </div>
+                                ) : (
+                                    <div className="p-4 bg-coc-stone/50 rounded-lg flex items-center justify-center text-center">
+                                        <p className="text-gray-500 text-sm">Video tutorial tidak tersedia.</p>
+                                    </div>
+                                )}
 
-                                    {/* Kolom Troop Link */}
-                                    <div className="md:col-span-1 flex flex-col justify-between">
-                                        <p className="text-sm text-gray-400 mb-2 font-bold flex items-center gap-1">Kombinasi Pasukan:</p>
-                                        <div className="flex-grow flex flex-col justify-between p-4 bg-coc-stone/50 rounded-lg border border-coc-gold-dark/30">
-                                            {post.troopLink ? (
-                                                <div className="text-center">
-                                                    {/* Menggunakan image placeholder Barbarian */}
-                                                    <Image src="/images/barbarian.png" alt="Troop Combo Preview" width={80} height={80} className="w-16 h-16 mx-auto mb-3" />
-                                                    <a href={post.troopLink} target="_blank" rel="noopener noreferrer">
-                                                        {/* Tombol Copy Link In-Game */}
-                                                        <Button variant="primary" size="lg" className="w-full text-sm">
-                                                            <LinkIcon className="inline h-5 w-5 mr-2"/> SALIN KOMBINASI PASUKAN
-                                                        </Button>
-                                                    </a>
-                                                </div>
-                                            ) : (
-                                                <p className="text-gray-500 text-sm text-center">Troop Link tidak tersedia.</p>
-                                            )}
-                                        </div>
+                                {/* 2. Troop Link Section (Full Width, di bawah video) */}
+                                <div className="w-full pt-4 border-t border-coc-gold-dark/20">
+                                    <p className="text-sm text-gray-400 mb-4 font-bold flex items-center gap-1">Kombinasi Pasukan (Copy Link):</p>
+                                    <div className="flex flex-col md:flex-row items-center gap-6 p-4 bg-coc-stone/50 rounded-lg border border-coc-gold-dark/30">
+                                        {post.troopLink ? (
+                                            <>
+                                                 {/* Preview Image (Left) */}
+                                                <Image src="/images/barbarian.png" alt="Troop Combo Preview" width={80} height={80} className="w-16 h-16 flex-shrink-0" />
+                                                 {/* Button (Right/Below) */}
+                                                <a href={post.troopLink} target="_blank" rel="noopener noreferrer" className="flex-grow w-full md:w-auto">
+                                                    <Button variant="primary" size="lg" className="w-full text-sm">
+                                                        <LinkIcon className="inline h-5 w-5 mr-2"/> SALIN KOMBINASI PASUKAN
+                                                    </Button>
+                                                </a>
+                                            </>
+                                        ) : (
+                                            <p className="text-gray-500 text-sm text-center w-full">Troop Link tidak tersedia.</p>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -322,7 +321,3 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
 };
 
 export default PostDetailPage;
-
-// --- Komponen Renderer Konten Sederhana (Untuk Menggantikan Markdown/Embed) ---
-// --- [PERBAIKAN ERROR]: Bagian ini (duplikat) telah dihapus. ---
-
