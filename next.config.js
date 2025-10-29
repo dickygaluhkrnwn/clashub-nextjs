@@ -18,6 +18,13 @@ const nextConfig = {
         port: '',
         pathname: '/**', // Izinkan semua path gambar
       },
+      // --- PENAMBAHAN BARU (Langkah 1): Izinkan Thumbnail YouTube ---
+      {
+        protocol: 'https',
+        hostname: 'i.ytimg.com', // Hostname untuk thumbnail YouTube
+        port: '',
+        pathname: '/vi/**', // Path umum untuk thumbnail video (/vi/<videoId>/...)
+      },
       // --- AKHIR PENAMBAHAN ---
       // Anda bisa menambahkan pattern lain di sini jika perlu
       // Contoh: Untuk gambar placeholder jika digunakan di next/image

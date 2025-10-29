@@ -5,11 +5,14 @@ import React, { useState, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/app/components/ui/Button';
-import { PostCard } from '@/app/components/cards';
+// HAPUS: Impor PostCard tidak lagi diperlukan
+// import { PostCard } from '@/app/components/cards';
 import { Post } from '@/lib/types';
 // Impor ikon untuk loading (opsional)
 import { BookOpenIcon, EditIcon, StarIcon, SortAscIcon, FilterIcon, CogsIcon } from '@/app/components/icons';
 import { POST_CATEGORIES, sortPosts, SortOption } from '@/lib/knowledge-hub-utils';
+// --- BARU: Impor komponen FullPostDisplay ---
+import FullPostDisplay from './components/FullPostDisplay';
 
 interface KnowledgeHubClientProps {
   initialPosts: Post[];
@@ -19,7 +22,8 @@ interface KnowledgeHubClientProps {
 }
 
 // --- Konstanta Pagination ---
-const ITEMS_PER_LOAD_POSTS = 5; // Tampilkan 5 postingan per load
+// Mengurangi jumlah item per load karena postingan penuh lebih besar
+const ITEMS_PER_LOAD_POSTS = 3; // Tampilkan 3 postingan per load
 
 const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, error }: KnowledgeHubClientProps) => {
   const router = useRouter();
@@ -161,7 +165,8 @@ const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, erro
       </aside>
 
       {/* Kolom Tengah: Feed Postingan */}
-      <section className="lg:col-span-2">
+      {/* PERUBAHAN: Lebar kolom diubah menjadi lg:col-span-3 karena sidebar kanan dihapus */}
+      <section className="lg:col-span-3">
         <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
            {/* Judul akan otomatis font-clash */}
           <h1 className="text-3xl">Knowledge Hub</h1>
@@ -191,18 +196,10 @@ const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, erro
             <p className="text-gray-500 mt-2">Coba ubah kriteria filter Anda.</p>
           </div>
         ) : (
-          <div className="space-y-4">
-             {/* Render postsToShow */}
+          // --- PERUBAHAN: Render FullPostDisplay, bukan PostCard ---
+          <div className="space-y-6"> {/* Beri jarak antar postingan penuh */}
             {postsToShow.map(post => (
-              <PostCard
-                key={post.id}
-                href={`/knowledge-hub/${post.id}`}
-                category={post.category as string}
-                tag={post.tags.join(', ')}
-                title={post.title}
-                author={post.authorName}
-                stats={`${post.replies} Balasan | ${post.likes} Likes`}
-              />
+              <FullPostDisplay key={post.id} post={post} />
             ))}
           </div>
         )}
@@ -217,35 +214,11 @@ const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, erro
          )}
       </section>
 
-      {/* Kolom Kanan: Trending Sidebar (Menggunakan allPosts untuk simulasi) */}
-      <aside className="lg:col-span-1 card-stone p-6 h-fit sticky top-28 space-y-6">
-         {/* Judul akan otomatis font-clash */}
-        <h2 className="text-xl border-l-4 border-coc-red pl-3 flex items-center gap-2">
-            <StarIcon className="h-5 w-5"/> Trending Sekarang
-        </h2>
-        <div className="space-y-4 text-sm">
-            {/* Menggunakan allPosts untuk menampilkan top 5 trending keseluruhan */}
-            {sortPosts(allPosts, 'trending').slice(0, 5).map((post, index) => (
-                <Link key={index} href={`/knowledge-hub/${post.id}`} className="block p-2 rounded-md hover:bg-coc-stone/50 transition-colors border-b border-coc-gold-dark/10">
-                    <p className="font-bold text-white truncate">{post.title}</p>
-                    <span className="text-xs text-gray-400">
-                        {post.likes + post.replies} Total Interaksi
-                    </span>
-                </Link>
-            ))}
-        </div>
-
-        <div className="pt-4 border-t border-coc-gold-dark/20">
-             {/* Judul akan otomatis font-clash */}
-            <h3 className="text-lg font-clash text-coc-green mb-2">Verified Strategist</h3>
-            <p className="text-sm text-gray-400">Temukan tips terpercaya dari kontributor terbaik komunitas.</p>
-            <Button href="/strategists" variant="secondary" className="w-full mt-4">
-                Lihat Daftar Strategist
-            </Button>
-        </div>
-      </aside>
+      {/* Kolom Kanan: Trending Sidebar DIHAPUS karena layout berubah */}
+      {/* <aside className="lg:col-span-1 card-stone p-6 h-fit sticky top-28 space-y-6"> ... </aside> */}
     </div>
   );
 };
 
 export default KnowledgeHubClient;
+

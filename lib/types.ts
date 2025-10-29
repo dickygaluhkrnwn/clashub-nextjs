@@ -639,6 +639,13 @@ export interface Post {
      * Hanya relevan jika category === 'Base Building'.
      */
     baseLinkUrl?: string | null;
+
+    // --- PENAMBAHAN BARU (Langkah 1): Field Gambar Utama/Thumbnail ---
+    /**
+     * URL gambar utama atau thumbnail untuk ditampilkan di feed.
+     * Bisa diisi otomatis dari videoUrl/baseImageUrl atau secara manual (di masa depan).
+     */
+    imageUrl?: string | null;
     // --- AKHIR PENAMBAHAN ---
 }
 
