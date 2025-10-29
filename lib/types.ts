@@ -162,7 +162,7 @@ export interface CocWarLog {
     clan: CocWarClanInfo;
     opponent: CocWarClanInfo;
     result?: 'win' | 'lose' | 'tie'; // PERBAIKAN: Menambahkan properti result ke CocWarLog
-    
+
     // Properti spesifik CWL War (diambil dari endpoint /clanwarleagues/wars/{warTag})
     warTag?: string; // Hanya ada di CWL War
 
@@ -389,7 +389,7 @@ export interface UserProfile {
     bio?: string;
     // Role Clashub internal: Role yang ditampilkan di Clashub
     // PERBAIKAN: Menggunakan union type baru yang sudah didefinisikan di atas
-    role?: ManagerRole | StandardMemberRole; 
+    role?: ManagerRole | StandardMemberRole;
     playStyle?: 'Attacker Utama' | 'Base Builder' | 'Donatur' | 'Strategist' | null;
     activeHours?: string;
     reputation?: number;
@@ -413,7 +413,7 @@ export interface TopPerformerPlayer {
     // Tambahan properti jika perlu
     thLevel?: number; // Opsional: Level TH
     // PERBAIKAN: Menggunakan union type baru untuk role
-    role?: ClanRole | ManagerRole | StandardMemberRole; 
+    role?: ClanRole | ManagerRole | StandardMemberRole;
 }
 
 /**
@@ -555,7 +555,7 @@ export interface Player {
     thLevel: number;
     reputation: number;
     // PERBAIKAN: Menggunakan union type baru untuk role
-    role: ManagerRole | StandardMemberRole; 
+    role: ManagerRole | StandardMemberRole;
     avatarUrl?: string;
     displayName: string;
     playerTag: string; // Ini adalah playerTag CoC
@@ -623,10 +623,23 @@ export interface Post {
     updatedAt?: Date;
     likes: number;
     replies: number;
-    
+
     // [BARU] Field khusus untuk kategori Strategi Serangan
     troopLink?: string | null; // URL untuk menyalin kombinasi pasukan (coc://)
     videoUrl?: string | null; // URL video YouTube tutorial serangan
+
+    // --- PENAMBAHAN BARU: Field khusus untuk kategori Base Building ---
+    /**
+     * URL gambar base (misalnya dari Imgur).
+     * Hanya relevan jika category === 'Base Building'.
+     */
+    baseImageUrl?: string | null;
+    /**
+     * URL link base Clash of Clans (dimulai dengan https://link.clashofclans.com/).
+     * Hanya relevan jika category === 'Base Building'.
+     */
+    baseLinkUrl?: string | null;
+    // --- AKHIR PENAMBAHAN ---
 }
 
 

@@ -3,9 +3,10 @@
 import React, { useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/Button';
-import { SaveIcon, PaperPlaneIcon, EditIcon, XIcon, InfoIcon, CogsIcon } from '@/app/components/icons';
+// --- PERBAIKAN: Hapus ImageIcon karena tidak ada di icons.tsx ---
+import { SaveIcon, PaperPlaneIcon, EditIcon, XIcon, InfoIcon, CogsIcon, LinkIcon } from '@/app/components/icons';
 import { POST_CATEGORIES } from '@/lib/knowledge-hub-utils';
-import { PostCategory } from '@/lib/types';
+import { PostCategory, Post } from '@/lib/types'; // Import Post untuk type assertion
 import { useAuth } from '@/app/context/AuthContext';
 import { createPost, getUserProfile } from '@/lib/firestore'; // Impor fungsi Firestore
 import { UserProfile } from '@/lib/types';
@@ -21,6 +22,9 @@ interface PostFormProps {
         content: string;
         category: PostCategory;
         tags: string[];
+        // Tambahkan field base jika diedit
+        baseImageUrl?: string | null;
+        baseLinkUrl?: string | null;
     };
     // Menerima className dari parent (page.tsx)
     className?: string;
@@ -48,10 +52,13 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
         title: initialData?.title || '',
         content: initialData?.content || '',
         category: initialData?.category || CATEGORY_OPTIONS[0],
-        tags: initialData?.tags.join(', ') || '',
-        // BARU: Tambahkan field khusus untuk Strategi Serangan
-        troopLink: '', // URL Coc Link (coc://...)
-        videoUrl: '', // URL Video YouTube
+        tags: initialData?.tags?.join(', ') || '', // Perbaiki join jika tags undefined
+        // Field khusus untuk Strategi Serangan
+        troopLink: '', // Diambil dari initialData jika ada di masa depan
+        videoUrl: '', // Diambil dari initialData jika ada di masa depan
+        // --- PENAMBAHAN BARU: Field khusus untuk Base Building ---
+        baseImageUrl: initialData?.baseImageUrl || '', // URL Imgur
+        baseLinkUrl: initialData?.baseLinkUrl || '', // URL Clash of Clans Link
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -64,26 +71,39 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
 
     // Flag untuk menentukan kapan menampilkan field kustom
     const isStrategyPost = formData.category === 'Strategi Serangan';
+    // --- PENAMBAHAN BARU: Flag untuk kategori Base Building ---
+    const isBaseBuildingPost = formData.category === 'Base Building';
 
     // --- Efek Validasi Real-time ---
     useEffect(() => {
         const isTitleValid = formData.title.trim().length > 0;
         const isContentValid = formData.content.trim().length > 0;
-        
-        // Aturan Tambahan: Jika postingan strategi, minimal satu link (troopLink atau videoUrl) harus diisi.
+
+        // Validasi kondisional untuk Strategi Serangan
         let isStrategyLinkValid = true;
         if (isStrategyPost) {
             isStrategyLinkValid = formData.troopLink.trim().length > 0 || formData.videoUrl.trim().length > 0;
         }
 
-        setIsFormValid(isTitleValid && isContentValid && isStrategyLinkValid);
+        // --- PENAMBAHAN BARU: Validasi kondisional untuk Base Building ---
+        let isBaseBuildingLinkValid = true;
+        if (isBaseBuildingPost) {
+            // Minimal salah satu URL harus diisi untuk Base Building
+            isBaseBuildingLinkValid = formData.baseImageUrl.trim().length > 0 || formData.baseLinkUrl.trim().length > 0;
+        }
+        // --- AKHIR PENAMBAHAN ---
+
+        // Form valid jika field dasar valid DAN field kondisional (jika relevan) juga valid
+        setIsFormValid(isTitleValid && isContentValid && isStrategyLinkValid && isBaseBuildingLinkValid);
 
         // Bersihkan error jika kriteria terpenuhi
-        if (isTitleValid && isContentValid && isStrategyLinkValid) {
+        if (isTitleValid && isContentValid && isStrategyLinkValid && isBaseBuildingLinkValid) {
             setFormError(null);
         }
-        
-    }, [formData.title, formData.content, formData.category, formData.troopLink, formData.videoUrl, isStrategyPost]);
+
+    // --- PENAMBAHAN BARU: Tambahkan dependensi field Base Building ---
+    }, [formData.title, formData.content, formData.category, formData.troopLink, formData.videoUrl, formData.baseImageUrl, formData.baseLinkUrl, isStrategyPost, isBaseBuildingPost]);
+    // --- AKHIR PENAMBAHAN ---
     // --- End Efek Validasi ---
 
     // Helper untuk menampilkan notifikasi
@@ -108,20 +128,22 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
         const { id, value } = e.target;
         setFormError(null); // Reset error on input change
 
-        // Khusus untuk category, reset field kustom jika kategori berubah dari 'Strategi Serangan'
+        // --- PENAMBAHAN BARU: Reset field kustom saat kategori berubah ---
         if (id === 'category') {
-             // Jika kategori baru BUKAN strategi serangan, hapus data kustom
-             if (value !== 'Strategi Serangan') {
-                 setFormData(prev => ({
-                     ...prev,
-                     [id]: value as PostCategory,
-                     troopLink: '',
-                     videoUrl: '',
-                 }));
-                 return; // Keluar dari handler
-             }
+             const newCategory = value as PostCategory;
+             setFormData(prev => ({
+                 ...prev,
+                 [id]: newCategory,
+                 // Reset field jika kategori BUKAN yang sesuai
+                 troopLink: newCategory === 'Strategi Serangan' ? prev.troopLink : '',
+                 videoUrl: newCategory === 'Strategi Serangan' ? prev.videoUrl : '',
+                 baseImageUrl: newCategory === 'Base Building' ? prev.baseImageUrl : '',
+                 baseLinkUrl: newCategory === 'Base Building' ? prev.baseLinkUrl : '',
+             }));
+             return; // Keluar dari handler setelah update state kategori
         }
-        
+        // --- AKHIR PENAMBAHAN ---
+
         setFormData(prev => ({
             ...prev,
             [id]: value,
@@ -137,6 +159,11 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
              if (isStrategyPost && !formData.troopLink.trim() && !formData.videoUrl.trim()) {
                  errorMsg = "Untuk kategori Strategi Serangan, minimal salah satu dari 'Troop Link' atau 'Video URL' wajib diisi.";
              }
+             // --- PENAMBAHAN BARU: Pesan error untuk Base Building ---
+             else if (isBaseBuildingPost && !formData.baseImageUrl.trim() && !formData.baseLinkUrl.trim()) {
+                 errorMsg = "Untuk kategori Base Building, minimal salah satu dari 'Base Image URL' atau 'Base Link URL' wajib diisi.";
+             }
+             // --- AKHIR PENAMBAHAN ---
             setFormError(errorMsg);
             return;
         }
@@ -151,25 +178,32 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
 
         try {
             const authorProfile = await getUserProfile(currentUser.uid);
-            
+
             const tagsArray = formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
-            
-            // Sertakan field kustom secara opsional
-            const postData: Parameters<typeof createPost>[0] = {
+
+            // --- PERBAIKAN TIPE (ts2353): Sesuaikan tipe postData agar sesuai dengan parameter createPost, tambahkan field baru ---
+            const postData: Omit<Post, 'id' | 'createdAt' | 'updatedAt' | 'likes' | 'replies' | 'authorId' | 'authorName' | 'authorAvatarUrl'> = {
                 title: formData.title,
                 content: formData.content,
                 category: formData.category as PostCategory,
                 tags: tagsArray,
-                // Sertakan field baru hanya jika isStrategyPost
+                // Sertakan field strategi jika relevan
                 troopLink: isStrategyPost ? (formData.troopLink.trim() || null) : null,
                 videoUrl: isStrategyPost ? (formData.videoUrl.trim() || null) : null,
+                // Sertakan field base building jika relevan
+                baseImageUrl: isBaseBuildingPost ? (formData.baseImageUrl.trim() || null) : null,
+                baseLinkUrl: isBaseBuildingPost ? (formData.baseLinkUrl.trim() || null) : null,
             };
+            // --- AKHIR PERBAIKAN TIPE ---
+
 
             if (!authorProfile) {
                 throw new Error("Gagal memuat profil penulis.");
             }
-
-            const postId = await createPost(postData, authorProfile as UserProfile);
+            
+            // --- PERBAIKAN TIPE: Gunakan assertion untuk argumen pertama createPost ---
+            const postId = await createPost(postData as Parameters<typeof createPost>[0], authorProfile as UserProfile);
+            // --- AKHIR PERBAIKAN TIPE ---
 
             showNotification("Postingan berhasil dipublikasikan! Mengalihkan...", 'success');
 
@@ -266,7 +300,7 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
 
                 {/* START: FIELD KHUSUS STRATEGI SERANGAN */}
                 {isStrategyPost && (
-                    <div className="space-y-6 pt-6 border-t border-coc-gold-dark/20">
+                    <div className="space-y-6 pt-6 border-t border-coc-gold-dark/20 mt-6"> {/* Tambah mt-6 */}
                          <h3 className="text-xl font-clash text-coc-gold-dark flex items-center">
                             <InfoIcon className="h-5 w-5 mr-2"/> Detail Tambahan Strategi (Minimal satu wajib diisi)
                          </h3>
@@ -299,6 +333,46 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
                 )}
                 {/* END: FIELD KHUSUS STRATEGI SERANGAN */}
 
+                 {/* --- PENAMBAHAN BARU: FIELD KHUSUS BASE BUILDING --- */}
+                {isBaseBuildingPost && (
+                    <div className="space-y-6 pt-6 border-t border-coc-gold-dark/20 mt-6"> {/* Tambah mt-6 */}
+                        <h3 className="text-xl font-clash text-coc-gold-dark flex items-center">
+                            <CogsIcon className="h-5 w-5 mr-2"/> Detail Base (Minimal satu wajib diisi)
+                        </h3>
+
+                        <FormGroup label="Base Image URL (Imgur)" htmlFor="baseImageUrl" error={!isFormValid && isBaseBuildingPost && !formData.baseImageUrl.trim() && !formData.baseLinkUrl.trim() ? "Wajib diisi jika tidak ada Base Link URL" : null}>
+                            <input
+                                type="url"
+                                id="baseImageUrl"
+                                value={formData.baseImageUrl}
+                                onChange={handleInputChange}
+                                placeholder="Contoh: https://i.imgur.com/your-image.png"
+                                className={inputClasses(false)}
+                            />
+                            {/* --- PERUBAHAN DI SINI --- */}
+                            <p className='text-xs text-gray-500 font-sans mt-1'>
+                                URL gambar base dari Imgur (format: .png, .jpg).
+                                Anda bisa mengunggah gambar dan mendapatkan URL di <a href="https://imgur.com/" target="_blank" rel="noopener noreferrer" className="text-coc-gold hover:underline">imgur.com</a>.
+                            </p>
+                             {/* --- AKHIR PERUBAHAN --- */}
+                        </FormGroup>
+
+                        <FormGroup label="Base Link URL (Clash of Clans Link)" htmlFor="baseLinkUrl" error={!isFormValid && isBaseBuildingPost && !formData.baseImageUrl.trim() && !formData.baseLinkUrl.trim() ? "Wajib diisi jika tidak ada Base Image URL" : null}>
+                            <input
+                                type="url"
+                                id="baseLinkUrl"
+                                value={formData.baseLinkUrl}
+                                onChange={handleInputChange}
+                                placeholder="Contoh: https://link.clashofclans.com/en?action=OpenLayout&id=..."
+                                className={inputClasses(false)}
+                            />
+                            <p className='text-xs text-gray-500 font-sans mt-1'>Link base dari Clash of Clans (dimulai dengan `https://link.clashofclans.com/`).</p>
+                        </FormGroup>
+                    </div>
+                )}
+                {/* --- AKHIR PENAMBAHAN --- */}
+
+
                 {/* Tombol Aksi */}
                 <div className="flex justify-end gap-4 pt-4 border-t border-coc-gold-dark/20 mt-6">
                     <Button
@@ -319,3 +393,4 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
 };
 
 export default PostForm;
+

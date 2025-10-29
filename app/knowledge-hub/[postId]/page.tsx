@@ -5,7 +5,8 @@ import Image from 'next/image';
 import { getPostById, getUserProfile } from '@/lib/firestore';
 import { Post, UserProfile } from '@/lib/types';
 // FIX: Tambahkan PaperPlaneIcon, LinkIcon, dan TrashIcon
-import { ArrowLeftIcon, StarIcon, EditIcon, BookOpenIcon, UserCircleIcon, ClockIcon, PaperPlaneIcon, LinkIcon, TrashIcon, CogsIcon } from '@/app/components/icons'; // Tambahkan CogsIcon
+// PENAMBAHAN: Tambahkan HomeIcon
+import { ArrowLeftIcon, StarIcon, EditIcon, BookOpenIcon, UserCircleIcon, ClockIcon, PaperPlaneIcon, LinkIcon, TrashIcon, CogsIcon, HomeIcon } from '@/app/components/icons';
 import { Button } from '@/app/components/ui/Button';
 // FIX: Import React untuk ContentRenderer dan CommentCard
 import React, { useMemo } from 'react'; // Tambahkan useMemo
@@ -51,17 +52,23 @@ const ContentRenderer = ({ post }: { post: Post }) => {
             // 2. Deteksi Base Link: Pola umum untuk URL Clash of Clans Base Link
             const baseLinkRegex = /(https?:\/\/(link\.clashofclans\.com)\/(\S+)\/base\/(\S+))/i;
             const linkMatch = line.match(baseLinkRegex);
-    
+
             // Jika ditemukan link base di dalam konten (walaupun ada field khusus), kita tetap tampilkan sebagai link.
             if (linkMatch) {
                 const fullLink = linkMatch[0];
                 return (
-                    <a href={fullLink} target="_blank" rel="noopener noreferrer" className="font-bold hover:underline">
+                    <a
+                        key={index}
+                        href={fullLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-bold hover:underline text-coc-gold" // Tambahkan style link
+                    >
                         {fullLink}
                     </a>
                 );
             }
-            
+
             // Teks biasa hanya dikembalikan sebagai string
             return line;
         }).map((line, index, arr) => (
@@ -85,7 +92,7 @@ const CommentCard = ({ authorName, authorId, content, timestamp }: { authorName:
     return (
         <div className="flex gap-4 p-4 bg-coc-stone/50 rounded-lg border-l-4 border-coc-gold-dark/30">
             <Link href={`/player/${authorId}`} className="flex-shrink-0">
-                <UserCircleIcon className="h-8 w-8 text-coc-gold-dark hover:text-white transition-colors"/>
+                <UserCircleIcon className="h-8 w-8 text-coc-gold-dark hover:text-white transition-colors" />
             </Link>
             <div className="flex-grow">
                 <Link href={`/player/${authorId}`} className="font-bold text-coc-gold hover:text-white text-md">{authorName}</Link>
@@ -133,6 +140,10 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
     const videoId = post.videoUrl ? post.videoUrl.match(youtubeRegex)?.[1] : null;
     // --- AKHIR LOGIKA BARU ---
 
+    // --- PENAMBAHAN BARU (Langkah 4) ---
+    const isBaseBuildingPost = post.category === 'Base Building';
+    // --- AKHIR PENAMBAHAN ---
+
     return (
         <main className="container mx-auto p-4 md:p-8 mt-10">
             <section className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -160,28 +171,28 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                                 </div>
                                 {/* Kategori */}
                                 <span className="font-bold text-coc-gold flex items-center gap-1">
-                                    <BookOpenIcon className='h-4 w-4'/> {post.category}
+                                    <BookOpenIcon className='h-4 w-4' /> {post.category}
                                 </span>
                                 {/* Tanggal */}
                                 <span className="flex items-center gap-1">
-                                    <ClockIcon className='h-4 w-4'/> {format(post.createdAt, 'd MMMM yyyy', { locale: id })}
+                                    <ClockIcon className='h-4 w-4' /> {format(post.createdAt, 'd MMMM yyyy', { locale: id })}
                                 </span>
                             </div>
                         </header>
-                        
+
                         {/* START: KONTEN KHUSUS STRATEGI SERANGAN (Direvisi untuk Video Besar & Link di Bawah) */}
                         {isStrategyPost && (post.troopLink || videoId) && (
                             <div className="space-y-6 pt-4 border-b border-coc-gold-dark/20 pb-6">
                                 <h2 className="text-2xl font-clash text-coc-gold-dark flex items-center gap-2">
-                                    <CogsIcon className="h-6 w-6"/> Detail Strategi
+                                    <CogsIcon className="h-6 w-6" /> Detail Strategi
                                 </h2>
-                                
+
                                 {/* 1. Video Section (Full Width) */}
                                 {videoId ? (
-                                    <div className="w-full"> 
+                                    <div className="w-full">
                                         <p className="text-sm text-gray-400 mb-2 font-bold flex items-center gap-1">Video Tutorial:</p>
                                         {/* Container 16:9 yang mengambil lebar penuh kolom (lg:col-span-3) */}
-                                        <div className="relative w-full overflow-hidden rounded-lg border-2 border-coc-gold-dark" style={{ paddingTop: '56.25%' }}> 
+                                        <div className="relative w-full overflow-hidden rounded-lg border-2 border-coc-gold-dark" style={{ paddingTop: '56.25%' }}>
                                             <iframe
                                                 src={`https://www.youtube.com/embed/${videoId}`}
                                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -203,12 +214,12 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                                     <div className="flex flex-col md:flex-row items-center gap-6 p-4 bg-coc-stone/50 rounded-lg border border-coc-gold-dark/30">
                                         {post.troopLink ? (
                                             <>
-                                                 {/* Preview Image (Left) */}
+                                                {/* Preview Image (Left) */}
                                                 <Image src="/images/barbarian.png" alt="Troop Combo Preview" width={80} height={80} className="w-16 h-16 flex-shrink-0" />
-                                                 {/* Button (Right/Below) */}
+                                                {/* Button (Right/Below) */}
                                                 <a href={post.troopLink} target="_blank" rel="noopener noreferrer" className="flex-grow w-full md:w-auto">
                                                     <Button variant="primary" size="lg" className="w-full text-sm">
-                                                        <LinkIcon className="inline h-5 w-5 mr-2"/> SALIN KOMBINASI PASUKAN
+                                                        <LinkIcon className="inline h-5 w-5 mr-2" /> SALIN KOMBINASI PASUKAN
                                                     </Button>
                                                 </a>
                                             </>
@@ -221,12 +232,62 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                         )}
                         {/* END: KONTEN KHUSUS STRATEGI SERANGAN */}
 
+                        {/* --- PENAMBAHAN BARU (Langkah 4): KONTEN KHUSUS BASE BUILDING --- */}
+                        {isBaseBuildingPost && (post.baseImageUrl || post.baseLinkUrl) && (
+                            <div className="space-y-6 pt-4 border-b border-coc-gold-dark/20 pb-6">
+                                <h2 className="text-2xl font-clash text-coc-gold-dark flex items-center gap-2">
+                                    <HomeIcon className="h-6 w-6" /> Detail Base
+                                </h2>
+
+                                {/* 1. Base Image (Imgur) */}
+                                {post.baseImageUrl && (
+                                    <div className="w-full">
+                                        <p className="text-sm text-gray-400 mb-2 font-bold flex items-center gap-1">Tampilan Base:</p>
+                                        {/* --- PERUBAHAN (Langkah 6): Menggunakan next/image --- */}
+                                        <div className="relative w-full aspect-video overflow-hidden rounded-lg border-2 border-coc-gold-dark bg-black/20">
+                                            {/* Menggunakan next/image setelah 'i.imgur.com' ditambahkan ke next.config.js.
+                                                Kita gunakan 'fill' dan 'objectFit="contain"' di dalam aspect-ratio container
+                                                untuk menggantikan 'w-full h-auto' agar layout stabil (mencegah CLS).
+                                            */}
+                                            <Image
+                                                src={post.baseImageUrl}
+                                                alt={`Tampilan base untuk ${post.title}`}
+                                                layout="fill"
+                                                objectFit="contain"
+                                                className="bg-black/20"
+                                                loading="lazy"
+                                                placeholder="blur" // Menambahkan placeholder blur
+                                                blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN88/JjPQAIiwM/q1QNGwAAAABJRU5ErkJggg=="
+                                                // Hapus onError fallback, next/image akan menangani error (atau tampilkan blur)
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* 2. Base Link (CoC) */}
+                                {post.baseLinkUrl && (
+                                    <div className="w-full pt-4 mt-6 border-t border-coc-gold-dark/20">
+                                        <p className="text-sm text-gray-400 mb-4 font-bold flex items-center gap-1">Link Base (Copy):</p>
+                                        <div className="flex flex-col md:flex-row items-center gap-6 p-4 bg-coc-stone/50 rounded-lg border border-coc-gold-dark/30">
+                                            <Image src="/images/th12.png" alt="Base Link Preview" width={80} height={80} className="w-16 h-16 flex-shrink-0" />
+                                            <a href={post.baseLinkUrl} target="_blank" rel="noopener noreferrer" className="flex-grow w-full md:w-auto">
+                                                <Button variant="primary" size="lg" className="w-full text-sm">
+                                                    <LinkIcon className="inline h-5 w-5 mr-2" /> SALIN LINK BASE
+                                                </Button>
+                                            </a>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        {/* --- AKHIR PENAMBAHAN (Langkah 4) --- */}
+
 
                         {/* Konten Utama (Deskripsi) */}
                         <div className="prose prose-invert prose-lg max-w-none text-gray-300">
                             <h3 className="text-xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2">Deskripsi Lengkap</h3>
                             {/* Memanggil ContentRenderer dengan props yang diperbarui */}
-                            <ContentRenderer post={post} /> 
+                            <ContentRenderer post={post} />
                         </div>
 
                         {/* Tombol Aksi Penulis (Edit/Hapus) */}
@@ -234,17 +295,17 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                             <div className="flex justify-end gap-4 pt-4 border-t border-coc-gold-dark/20">
                                 {/* ASUMSI: Edit page akan dibuat di rute /knowledge-hub/create?postId=... */}
                                 <Button href={`/knowledge-hub/create?postId=${postId}`} variant="secondary" size="sm">
-                                    <EditIcon className="h-4 w-4 mr-2"/> Edit Postingan
+                                    <EditIcon className="h-4 w-4 mr-2" /> Edit Postingan
                                 </Button>
                                 {/* [PERBAIKAN] Hapus onClick yang non-serializable. */}
-                                <Button 
-                                    variant="secondary" 
-                                    size="sm" 
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
                                     disabled={true} // Nonaktifkan sementara
                                     className="bg-coc-red/70 border-coc-red text-white hover:bg-coc-red"
                                     title="Fitur Hapus belum diimplementasikan." // Tambahkan info
                                 >
-                                    <TrashIcon className="h-4 w-4 mr-2"/> Hapus
+                                    <TrashIcon className="h-4 w-4 mr-2" /> Hapus
                                 </Button>
                             </div>
                         )}
@@ -258,7 +319,7 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                             <div className="bg-coc-stone/50 p-4 rounded-lg mb-6">
                                 <textarea placeholder="Tulis komentar atau pertanyaan Anda di sini..." rows={3} className="w-full bg-transparent border-b border-coc-gold-dark/50 p-2 text-white focus:outline-none resize-none font-sans"></textarea>
                                 <Button variant="primary" size="sm" className="mt-3" disabled={!sessionUser}>
-                                    <PaperPlaneIcon className="inline h-4 w-4 mr-2"/> Kirim Komentar
+                                    <PaperPlaneIcon className="inline h-4 w-4 mr-2" /> Kirim Komentar
                                 </Button>
                             </div>
 
@@ -272,9 +333,9 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                 </div>
 
                 {/* Kolom Kanan: Sidebar Penulis */}
-                 {/* PERBAIKAN STYLING: Tambahkan rounded-lg */}
+                {/* PERBAIKAN STYLING: Tambahkan rounded-lg */}
                 <aside className="lg:col-span-1 card-stone p-6 h-fit sticky top-28 space-y-6 text-center rounded-lg">
-                     {/* PERBAIKAN FONT: Terapkan font-clash */}
+                    {/* PERBAIKAN FONT: Terapkan font-clash */}
                     <h2 className="text-xl font-clash border-l-4 border-coc-gold-dark pl-3 mb-4 flex items-center justify-center">Penulis</h2>
 
                     <Image
@@ -284,7 +345,7 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                         height={80}
                         className="w-20 h-20 rounded-full mx-auto border-4 border-coc-gold object-cover flex-shrink-0"
                     />
-                     {/* PERBAIKAN FONT: font-supercell -> font-clash */}
+                    {/* PERBAIKAN FONT: font-supercell -> font-clash */}
                     <h3 className="text-2xl text-white font-clash m-0">{post.authorName}</h3>
 
                     <p className="text-xs text-gray-400 mt-1">
@@ -292,9 +353,9 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                     </p>
 
                     <div className="pt-4 border-t border-coc-gold-dark/20">
-                         {/* PERBAIKAN FONT: font-supercell -> font-clash */}
+                        {/* PERBAIKAN FONT: font-supercell -> font-clash */}
                         <h3 className="text-lg font-clash text-coc-gold-dark">Reputasi</h3>
-                         {/* PERBAIKAN FONT: font-supercell -> font-clash */}
+                        {/* PERBAIKAN FONT: font-supercell -> font-clash */}
                         <p className="text-4xl font-clash text-coc-gold my-1">
                             {authorProfile?.reputation ? authorProfile.reputation.toFixed(1) : '5.0'} <StarIcon className="inline h-6 w-6" />
                         </p>
@@ -306,7 +367,7 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
 
                     {/* Diskusi Terkait (Statis) */}
                     <div className="pt-4 border-t border-coc-gold-dark/20 text-left">
-                         {/* PERBAIKAN FONT: font-supercell -> font-clash */}
+                        {/* PERBAIKAN FONT: font-supercell -> font-clash */}
                         <h3 className="text-lg font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2">Diskusi Terkait</h3>
                         <ul className="text-sm space-y-3 mt-3">
                             <li className="text-gray-300 hover:text-coc-gold transition-colors"><Link href="#">Base Building Anti-Hydrid</Link></li>
@@ -321,3 +382,4 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
 };
 
 export default PostDetailPage;
+
