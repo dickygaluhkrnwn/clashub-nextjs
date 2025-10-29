@@ -4,8 +4,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { getPostById, getUserProfile } from '@/lib/firestore';
 import { Post, UserProfile } from '@/lib/types';
-// FIX: Tambahkan PaperPlaneIcon dan LinkIcon
-import { ArrowLeftIcon, StarIcon, EditIcon, BookOpenIcon, UserCircleIcon, ClockIcon, PaperPlaneIcon, LinkIcon } from '@/app/components/icons';
+// FIX: Tambahkan PaperPlaneIcon, LinkIcon, dan TrashIcon
+import { ArrowLeftIcon, StarIcon, EditIcon, BookOpenIcon, UserCircleIcon, ClockIcon, PaperPlaneIcon, LinkIcon, TrashIcon } from '@/app/components/icons';
 import { Button } from '@/app/components/ui/Button';
 // FIX: Import React untuk ContentRenderer dan CommentCard
 import React from 'react';
@@ -112,12 +112,19 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                         {/* Tombol Aksi Penulis (Edit/Hapus) */}
                         {isAuthor && (
                             <div className="flex justify-end gap-4 pt-4 border-t border-coc-gold-dark/20">
-                                {/* ASUMSI: Edit page akan dibuat di rute /knowledge-hub/edit/[postId] */}
+                                {/* ASUMSI: Edit page akan dibuat di rute /knowledge-hub/create?postId=... */}
                                 <Button href={`/knowledge-hub/create?postId=${postId}`} variant="secondary" size="sm">
                                     <EditIcon className="h-4 w-4 mr-2"/> Edit Postingan
                                 </Button>
-                                <Button onClick={() => alert('Fitur Hapus belum diimplementasikan.')} variant="secondary" size="sm" className="bg-coc-red/70 border-coc-red text-white hover:bg-coc-red">
-                                    Hapus
+                                {/* [PERBAIKAN] Hapus onClick yang non-serializable. */}
+                                <Button 
+                                    variant="secondary" 
+                                    size="sm" 
+                                    disabled={true} // Nonaktifkan sementara
+                                    className="bg-coc-red/70 border-coc-red text-white hover:bg-coc-red"
+                                    title="Fitur Hapus belum diimplementasikan." // Tambahkan info
+                                >
+                                    <TrashIcon className="h-4 w-4 mr-2"/> Hapus
                                 </Button>
                             </div>
                         )}
@@ -130,7 +137,7 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                             {/* Area Input Komentar (Statis) */}
                             <div className="bg-coc-stone/50 p-4 rounded-lg mb-6">
                                 <textarea placeholder="Tulis komentar atau pertanyaan Anda di sini..." rows={3} className="w-full bg-transparent border-b border-coc-gold-dark/50 p-2 text-white focus:outline-none resize-none font-sans"></textarea>
-                                <Button variant="primary" size="sm" className="mt-3">
+                                <Button variant="primary" size="sm" className="mt-3" disabled={!sessionUser}>
                                     <PaperPlaneIcon className="inline h-4 w-4 mr-2"/> Kirim Komentar
                                 </Button>
                             </div>
@@ -168,7 +175,7 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                          {/* PERBAIKAN FONT: font-supercell -> font-clash */}
                         <h3 className="text-lg font-clash text-coc-gold-dark">Reputasi</h3>
                          {/* PERBAIKAN FONT: font-supercell -> font-clash */}
-                        <p className="text-3xl font-clash text-coc-gold my-1">
+                        <p className="text-4xl font-clash text-coc-gold my-1">
                             {authorProfile?.reputation ? authorProfile.reputation.toFixed(1) : '5.0'} <StarIcon className="inline h-6 w-6" />
                         </p>
                     </div>

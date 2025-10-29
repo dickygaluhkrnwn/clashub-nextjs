@@ -79,9 +79,9 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
          hover:border-coc-gold/70
          focus:ring-2 focus:ring-coc-gold focus:border-coc-gold focus:outline-none
          ${hasError
-            ? 'border-coc-red focus:border-coc-red focus:ring-coc-red/50' // Error state
-            : 'border-coc-gold-dark/50' // Default state
-        }`
+             ? 'border-coc-red focus:border-coc-red focus:ring-coc-red/50' // Error state
+             : 'border-coc-gold-dark/50' // Default state
+         }`
     );
     // --- End Style input ---
 
@@ -132,8 +132,8 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
             showNotification("Postingan berhasil dipublikasikan! Mengalihkan...", 'success');
 
             setTimeout(() => {
+                // [PERBAIKAN] Hapus router.refresh() yang menyebabkan masalah serialisasi
                 router.push(`/knowledge-hub/${postId}`);
-                router.refresh(); // Menambahkan refresh untuk memastikan data baru dimuat jika pengguna kembali
             }, 1000);
 
 

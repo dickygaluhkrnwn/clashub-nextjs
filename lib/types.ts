@@ -623,6 +623,10 @@ export interface Post {
     updatedAt?: Date;
     likes: number;
     replies: number;
+    
+    // [BARU] Field khusus untuk kategori Strategi Serangan
+    troopLink?: string | null; // URL untuk menyalin kombinasi pasukan (coc://)
+    videoUrl?: string | null; // URL video YouTube tutorial serangan
 }
 
 
@@ -701,3 +705,4 @@ export interface CwlArchive {
     rounds: CocWarLog[]; // Menyimpan detail setiap war dalam musim CWL (CocWarLog tanpa 'items')
     // Bisa ditambahkan data ringkasan musim jika perlu (misal: total stars, placement)
 }
+
