@@ -5,10 +5,10 @@ import Image from 'next/image';
 import { getPostById, getUserProfile } from '@/lib/firestore';
 import { Post, UserProfile } from '@/lib/types';
 // FIX: Tambahkan PaperPlaneIcon, LinkIcon, dan TrashIcon
-import { ArrowLeftIcon, StarIcon, EditIcon, BookOpenIcon, UserCircleIcon, ClockIcon, PaperPlaneIcon, LinkIcon, TrashIcon } from '@/app/components/icons';
+import { ArrowLeftIcon, StarIcon, EditIcon, BookOpenIcon, UserCircleIcon, ClockIcon, PaperPlaneIcon, LinkIcon, TrashIcon, CogsIcon } from '@/app/components/icons'; // Tambahkan CogsIcon
 import { Button } from '@/app/components/ui/Button';
 // FIX: Import React untuk ContentRenderer dan CommentCard
-import React from 'react';
+import React, { useMemo } from 'react'; // Tambahkan useMemo
 // FIX: Pastikan date-fns dan locale diimpor jika sudah diinstal
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
@@ -42,6 +42,65 @@ export async function generateMetadata({ params }: PostDetailPageProps): Promise
     };
 }
 
+// --- Komponen Renderer Konten Sederhana (untuk mengatasi line break) ---
+// Menerima data Post lengkap
+const ContentRenderer = ({ post }: { post: Post }) => {
+    // Memproses konten utama untuk line break
+    const contentParts = useMemo(() => {
+        return post.content.split('\n').map((line, index) => {
+            // 2. Deteksi Base Link: Pola umum untuk URL Clash of Clans Base Link
+            const baseLinkRegex = /(https?:\/\/(link\.clashofclans\.com)\/(\S+)\/base\/(\S+))/i;
+            const linkMatch = line.match(baseLinkRegex);
+    
+            // Jika ditemukan link base di dalam konten (walaupun ada field khusus), kita tetap tampilkan sebagai link.
+            if (linkMatch) {
+                const fullLink = linkMatch[0];
+                return (
+                    <a href={fullLink} target="_blank" rel="noopener noreferrer" className="font-bold hover:underline">
+                        {fullLink}
+                    </a>
+                );
+            }
+            
+            // Teks biasa hanya dikembalikan sebagai string
+            return line;
+        }).map((line, index, arr) => (
+            // Tambahkan <br /> secara eksplisit kecuali untuk baris terakhir
+            <React.Fragment key={index}>
+                {line}
+                {index < arr.length - 1 && <br />}
+            </React.Fragment>
+        ));
+    }, [post.content]);
+
+    return <div className="prose prose-invert prose-lg max-w-none text-gray-300 font-sans">{contentParts}</div>;
+};
+
+
+// --- Komponen Kartu Komentar (Statis) ---
+const CommentCard = ({ authorName, authorId, content, timestamp }: { authorName: string, authorId: string, content: string, timestamp: Date }) => {
+    // FIX: locale: id ditambahkan
+    const formattedTime = format(timestamp, 'HH:mm dd/MM/yyyy', { locale: id });
+
+    return (
+        <div className="flex gap-4 p-4 bg-coc-stone/50 rounded-lg border-l-4 border-coc-gold-dark/30">
+            <Link href={`/player/${authorId}`} className="flex-shrink-0">
+                <UserCircleIcon className="h-8 w-8 text-coc-gold-dark hover:text-white transition-colors"/>
+            </Link>
+            <div className="flex-grow">
+                <Link href={`/player/${authorId}`} className="font-bold text-coc-gold hover:text-white text-md">{authorName}</Link>
+                {/* Pastikan konten komentar menggunakan font sans */}
+                <p className="text-gray-300 text-sm mt-1 font-sans">{content}</p>
+                <span className="text-xs text-gray-500 block mt-1">
+                    {formattedTime}
+                </span>
+            </div>
+        </div>
+    );
+};
+// --- End Komponen Kartu Komentar ---
+
+
 /**
  * @component PostDetailPage (Server Component)
  * Menampilkan detail lengkap sebuah postingan.
@@ -64,6 +123,15 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
 
     // Cek apakah pengguna saat ini adalah penulis postingan
     const isAuthor = sessionUser && sessionUser.uid === post.authorId;
+
+    // --- LOGIKA BARU UNTUK STRATEGI SERANGAN ---
+    const isStrategyPost = post.category === 'Strategi Serangan';
+
+    // Mendapatkan Video ID YouTube dari videoUrl field baru
+    const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)(\w+)/i;
+    // Cek field videoUrl yang baru
+    const videoId = post.videoUrl ? post.videoUrl.match(youtubeRegex)?.[1] : null;
+    // --- AKHIR LOGIKA BARU ---
 
     return (
         <main className="container mx-auto p-4 md:p-8 mt-10">
@@ -100,13 +168,66 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                                 </span>
                             </div>
                         </header>
+                        
+                        {/* START: KONTEN KHUSUS STRATEGI SERANGAN */}
+                        {isStrategyPost && (post.troopLink || videoId) && (
+                            <div className="space-y-4 pt-4 border-b border-coc-gold-dark/20 pb-6">
+                                <h2 className="text-2xl font-clash text-coc-gold-dark flex items-center gap-2">
+                                    <CogsIcon className="h-6 w-6"/> Detail Strategi
+                                </h2>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Kolom Video YouTube */}
+                                    {videoId ? (
+                                        <div className="md:col-span-1">
+                                            <p className="text-sm text-gray-400 mb-2 font-bold flex items-center gap-1">Video Tutorial:</p>
+                                            <div className="relative w-full overflow-hidden rounded-lg border-2 border-coc-gold-dark" style={{ paddingTop: '56.25%' }}>
+                                                <iframe
+                                                    src={`https://www.youtube.com/embed/${videoId}`}
+                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                    allowFullScreen
+                                                    className="absolute top-0 left-0 w-full h-full"
+                                                    title="Embedded YouTube video"
+                                                ></iframe>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="md:col-span-1 p-4 bg-coc-stone/50 rounded-lg flex items-center justify-center text-center">
+                                            <p className="text-gray-500 text-sm">Video tutorial tidak tersedia.</p>
+                                        </div>
+                                    )}
 
-                        {/* Konten Utama */}
-                        <div className="prose prose-invert prose-lg max-w-none text-gray-300">
-                            {/* Menggunakan paragraph karena ContentRenderer akan menghasilkan <br> */}
-                            <div className="whitespace-pre-line leading-relaxed">
-                                <ContentRenderer content={post.content} />
+                                    {/* Kolom Troop Link */}
+                                    <div className="md:col-span-1 flex flex-col justify-between">
+                                        <p className="text-sm text-gray-400 mb-2 font-bold flex items-center gap-1">Kombinasi Pasukan:</p>
+                                        <div className="flex-grow flex flex-col justify-between p-4 bg-coc-stone/50 rounded-lg border border-coc-gold-dark/30">
+                                            {post.troopLink ? (
+                                                <div className="text-center">
+                                                    {/* Menggunakan image placeholder Barbarian */}
+                                                    <Image src="/images/barbarian.png" alt="Troop Combo Preview" width={80} height={80} className="w-16 h-16 mx-auto mb-3" />
+                                                    <a href={post.troopLink} target="_blank" rel="noopener noreferrer">
+                                                        {/* Tombol Copy Link In-Game */}
+                                                        <Button variant="primary" size="lg" className="w-full text-sm">
+                                                            <LinkIcon className="inline h-5 w-5 mr-2"/> SALIN KOMBINASI PASUKAN
+                                                        </Button>
+                                                    </a>
+                                                </div>
+                                            ) : (
+                                                <p className="text-gray-500 text-sm text-center">Troop Link tidak tersedia.</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
+                        )}
+                        {/* END: KONTEN KHUSUS STRATEGI SERANGAN */}
+
+
+                        {/* Konten Utama (Deskripsi) */}
+                        <div className="prose prose-invert prose-lg max-w-none text-gray-300">
+                            <h3 className="text-xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2">Deskripsi Lengkap</h3>
+                            {/* Memanggil ContentRenderer dengan props yang diperbarui */}
+                            <ContentRenderer post={post} /> 
                         </div>
 
                         {/* Tombol Aksi Penulis (Edit/Hapus) */}
@@ -203,85 +324,5 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
 export default PostDetailPage;
 
 // --- Komponen Renderer Konten Sederhana (Untuk Menggantikan Markdown/Embed) ---
+// --- [PERBAIKAN ERROR]: Bagian ini (duplikat) telah dihapus. ---
 
-/**
- * @component ContentRenderer
- * Komponen ini hanya melakukan konversi dasar Line Break, Base Link, dan YouTube Embed.
- */
-const ContentRenderer = ({ content }: { content: string }) => {
-    // 1. Konversi baris baru menjadi <br>
-    const htmlContent = content.split('\n').map((line, index) => {
-
-        // 2. Deteksi Base Link: Pola umum untuk URL Clash of Clans Base Link
-        const baseLinkRegex = /(https?:\/\/(link\.clashofclans\.com)\/(\S+)\/base\/(\S+))/i;
-        const linkMatch = line.match(baseLinkRegex);
-
-        if (linkMatch) {
-            const fullLink = linkMatch[0];
-            return (
-                <p key={index} className="my-4">
-                    <Image src="/images/baseth12-placeholder.png" alt="Base Layout Preview" width={600} height={300} className="rounded-lg border-2 border-coc-gold-dark" />
-                    <a href={fullLink} target="_blank" rel="noopener noreferrer" className="btn-3d-gold w-full mt-4 text-center block px-4 py-3 text-sm">
-                        <LinkIcon className="inline h-5 w-5 mr-2"/> SALIN TAUTAN BASE KE DALAM GAME
-                    </a>
-                </p>
-            );
-        }
-
-        // 3. Deteksi Video YouTube (sangat sederhana)
-        const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)(\w+)/i;
-        const videoMatch = line.match(youtubeRegex);
-
-        if (videoMatch) {
-             const videoId = videoMatch[1];
-             // Embed YouTube menggunakan iframe dengan aspect ratio 16:9
-             return (
-                 <div key={index} className="relative w-full overflow-hidden rounded-lg border-2 border-coc-gold-dark my-4" style={{ paddingTop: '56.25%' }}>
-                    <iframe
-                        src={`https://www.youtube.com/embed/${videoId}`}
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                        className="absolute top-0 left-0 w-full h-full"
-                        title="Embedded YouTube video"
-                    ></iframe>
-                 </div>
-             );
-        }
-
-        // Teks biasa hanya dikembalikan sebagai string, <p> wrapper akan menangani <br>
-        return line;
-    }).map((line, index, arr) => (
-        // Tambahkan <br /> secara eksplisit kecuali untuk baris terakhir
-        <React.Fragment key={index}>
-            {line}
-            {index < arr.length - 1 && <br />}
-        </React.Fragment>
-    ));
-
-
-    // Gunakan div dengan prose style di sini agar link dan list di dalam konten asli (jika ada) ter-render dengan baik
-    return <div className="prose prose-invert prose-lg max-w-none text-gray-300 font-sans">{htmlContent}</div>;
-};
-
-
-// --- Komponen Kartu Komentar (Statis) ---
-const CommentCard = ({ authorName, authorId, content, timestamp }: { authorName: string, authorId: string, content: string, timestamp: Date }) => {
-    // FIX: locale: id ditambahkan
-    const formattedTime = format(timestamp, 'HH:mm dd/MM/yyyy', { locale: id });
-
-    return (
-        <div className="flex gap-4 p-4 bg-coc-stone/50 rounded-lg border-l-4 border-coc-gold-dark/30">
-            <Link href={`/player/${authorId}`} className="flex-shrink-0">
-                <UserCircleIcon className="h-8 w-8 text-coc-gold-dark hover:text-white transition-colors"/>
-            </Link>
-            <div className="flex-grow">
-                <Link href={`/player/${authorId}`} className="font-bold text-coc-gold hover:text-white text-md">{authorName}</Link>
-                {/* Pastikan konten komentar menggunakan font sans */}
-                <p className="text-gray-300 text-sm mt-1 font-sans">{content}</p>
-                <span className="text-xs text-gray-500 block mt-1">
-                    {formattedTime}
-                </span>
-            </div>
-        </div>
-    );
-};

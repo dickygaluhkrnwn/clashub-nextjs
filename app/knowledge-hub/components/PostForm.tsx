@@ -1,15 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, ReactNode } from 'react'; // Import ReactNode
+import React, { useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/Button';
-import { SaveIcon, PaperPlaneIcon, EditIcon, XIcon, InfoIcon, CogsIcon } from '@/app/components/icons'; // Import ikon yang relevan
+import { SaveIcon, PaperPlaneIcon, EditIcon, XIcon, InfoIcon, CogsIcon } from '@/app/components/icons';
 import { POST_CATEGORIES } from '@/lib/knowledge-hub-utils';
 import { PostCategory } from '@/lib/types';
 import { useAuth } from '@/app/context/AuthContext';
 import { createPost, getUserProfile } from '@/lib/firestore'; // Impor fungsi Firestore
 import { UserProfile } from '@/lib/types';
-import Notification, { NotificationProps } from '@/app/components/ui/Notification'; // Import Notification
+import Notification, { NotificationProps } from '@/app/components/ui/Notification';
 
 // Opsi kategori yang tersedia (difilter agar tidak termasuk 'Semua Diskusi')
 const CATEGORY_OPTIONS: PostCategory[] = POST_CATEGORIES.filter(c => c !== 'Semua Diskusi') as PostCategory[];
@@ -23,7 +23,7 @@ interface PostFormProps {
         tags: string[];
     };
     // Menerima className dari parent (page.tsx)
-    className?: string; 
+    className?: string;
 }
 
 // --- Inline Component: FormGroup (untuk tampilan error yang konsisten) ---
@@ -42,13 +42,16 @@ const FormGroup: React.FC<{ children: ReactNode, error?: string | null, label: s
 // Komponen form client-side
 const PostForm = ({ initialData, className = '' }: PostFormProps) => {
     const router = useRouter();
-    const { currentUser } = useAuth(); // Menggunakan AuthContext untuk mendapatkan user
+    const { currentUser } = useAuth();
 
     const [formData, setFormData] = useState({
         title: initialData?.title || '',
         content: initialData?.content || '',
         category: initialData?.category || CATEGORY_OPTIONS[0],
         tags: initialData?.tags.join(', ') || '',
+        // BARU: Tambahkan field khusus untuk Strategi Serangan
+        troopLink: '', // URL Coc Link (coc://...)
+        videoUrl: '', // URL Video YouTube
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -59,12 +62,28 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
     const [isFormValid, setIsFormValid] = useState(false);
     // --- End State Validasi ---
 
+    // Flag untuk menentukan kapan menampilkan field kustom
+    const isStrategyPost = formData.category === 'Strategi Serangan';
+
     // --- Efek Validasi Real-time ---
     useEffect(() => {
         const isTitleValid = formData.title.trim().length > 0;
         const isContentValid = formData.content.trim().length > 0;
-        setIsFormValid(isTitleValid && isContentValid);
-    }, [formData.title, formData.content]);
+        
+        // Aturan Tambahan: Jika postingan strategi, minimal satu link (troopLink atau videoUrl) harus diisi.
+        let isStrategyLinkValid = true;
+        if (isStrategyPost) {
+            isStrategyLinkValid = formData.troopLink.trim().length > 0 || formData.videoUrl.trim().length > 0;
+        }
+
+        setIsFormValid(isTitleValid && isContentValid && isStrategyLinkValid);
+
+        // Bersihkan error jika kriteria terpenuhi
+        if (isTitleValid && isContentValid && isStrategyLinkValid) {
+            setFormError(null);
+        }
+        
+    }, [formData.title, formData.content, formData.category, formData.troopLink, formData.videoUrl, isStrategyPost]);
     // --- End Efek Validasi ---
 
     // Helper untuk menampilkan notifikasi
@@ -89,6 +108,20 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
         const { id, value } = e.target;
         setFormError(null); // Reset error on input change
 
+        // Khusus untuk category, reset field kustom jika kategori berubah dari 'Strategi Serangan'
+        if (id === 'category') {
+             // Jika kategori baru BUKAN strategi serangan, hapus data kustom
+             if (value !== 'Strategi Serangan') {
+                 setFormData(prev => ({
+                     ...prev,
+                     [id]: value as PostCategory,
+                     troopLink: '',
+                     videoUrl: '',
+                 }));
+                 return; // Keluar dari handler
+             }
+        }
+        
         setFormData(prev => ({
             ...prev,
             [id]: value,
@@ -98,8 +131,13 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
+        // Cek validitas form di sini juga
         if (!isFormValid) {
-            setFormError("Judul dan Konten wajib diisi.");
+            let errorMsg = "Judul dan Konten wajib diisi.";
+             if (isStrategyPost && !formData.troopLink.trim() && !formData.videoUrl.trim()) {
+                 errorMsg = "Untuk kategori Strategi Serangan, minimal salah satu dari 'Troop Link' atau 'Video URL' wajib diisi.";
+             }
+            setFormError(errorMsg);
             return;
         }
 
@@ -115,12 +153,16 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
             const authorProfile = await getUserProfile(currentUser.uid);
             
             const tagsArray = formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
-
-            const postData = {
+            
+            // Sertakan field kustom secara opsional
+            const postData: Parameters<typeof createPost>[0] = {
                 title: formData.title,
                 content: formData.content,
                 category: formData.category as PostCategory,
                 tags: tagsArray,
+                // Sertakan field baru hanya jika isStrategyPost
+                troopLink: isStrategyPost ? (formData.troopLink.trim() || null) : null,
+                videoUrl: isStrategyPost ? (formData.videoUrl.trim() || null) : null,
             };
 
             if (!authorProfile) {
@@ -132,7 +174,6 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
             showNotification("Postingan berhasil dipublikasikan! Mengalihkan...", 'success');
 
             setTimeout(() => {
-                // [PERBAIKAN] Hapus router.refresh() yang menyebabkan masalah serialisasi
                 router.push(`/knowledge-hub/${postId}`);
             }, 1000);
 
@@ -203,10 +244,10 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
                             value={formData.category}
                             onChange={handleInputChange}
                             required
-                            className={inputClasses(false) + ' appearance-none'} // Terapkan styling
+                            className={inputClasses(false) + ' appearance-none'}
                         >
                             {CATEGORY_OPTIONS.map(cat => (
-                                <option key={cat} value={cat} className="bg-coc-stone text-white font-sans">{cat}</option> // Terapkan styling
+                                <option key={cat} value={cat} className="bg-coc-stone text-white font-sans">{cat}</option>
                             ))}
                         </select>
                     </FormGroup>
@@ -218,13 +259,48 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
                             value={formData.tags}
                             onChange={handleInputChange}
                             placeholder="Contoh: TH16, Hybrid, CWL"
-                            className={inputClasses(false)} // Terapkan styling
+                            className={inputClasses(false)}
                         />
                     </FormGroup>
                 </div>
 
+                {/* START: FIELD KHUSUS STRATEGI SERANGAN */}
+                {isStrategyPost && (
+                    <div className="space-y-6 pt-6 border-t border-coc-gold-dark/20">
+                         <h3 className="text-xl font-clash text-coc-gold-dark flex items-center">
+                            <InfoIcon className="h-5 w-5 mr-2"/> Detail Tambahan Strategi (Minimal satu wajib diisi)
+                         </h3>
+
+                         <FormGroup label="Troop Link (COC API Link)" htmlFor="troopLink" error={!isFormValid && isStrategyPost && !formData.troopLink.trim() && !formData.videoUrl.trim() ? "Wajib diisi jika tidak ada Video URL" : null}>
+                            <input
+                                type="url"
+                                id="troopLink"
+                                value={formData.troopLink}
+                                onChange={handleInputChange}
+                                placeholder="Contoh: coc://open-troop-link?troop=..."
+                                className={inputClasses(false)}
+                            />
+                            <p className='text-xs text-gray-500 font-sans mt-1'>Link untuk menyalin kombinasi pasukan langsung ke game (dimulai dengan `coc://`).</p>
+                        </FormGroup>
+
+                        <FormGroup label="Video URL (YouTube)" htmlFor="videoUrl" error={!isFormValid && isStrategyPost && !formData.troopLink.trim() && !formData.videoUrl.trim() ? "Wajib diisi jika tidak ada Troop Link" : null}>
+                            <input
+                                type="url"
+                                id="videoUrl"
+                                value={formData.videoUrl}
+                                onChange={handleInputChange}
+                                placeholder="Contoh: https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                                className={inputClasses(false)}
+                            />
+                            <p className='text-xs text-gray-500 font-sans mt-1'>Link ke video YouTube yang menampilkan cara menggunakan strategi ini.</p>
+                        </FormGroup>
+
+                    </div>
+                )}
+                {/* END: FIELD KHUSUS STRATEGI SERANGAN */}
+
                 {/* Tombol Aksi */}
-                <div className="flex justify-end gap-4 pt-4 border-t border-coc-gold-dark/20">
+                <div className="flex justify-end gap-4 pt-4 border-t border-coc-gold-dark/20 mt-6">
                     <Button
                         type="button"
                         variant="secondary"

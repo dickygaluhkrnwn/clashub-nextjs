@@ -299,50 +299,50 @@ export const getManagedClans = async (): Promise<
 
 // --- FUNGSI BARU: Mengambil ManagedClan berdasarkan TAG ---
 /**
- * Mengambil data ManagedClan berdasarkan Clan Tag CoC.
- * Catatan: Ini memerlukan indeks Firestore pada field 'tag'.
- * Menggunakan Client SDK.
- */
+ * Mengambil data ManagedClan berdasarkan Clan Tag CoC.
+ * Catatan: Ini memerlukan indeks Firestore pada field 'tag'.
+ * Menggunakan Client SDK.
+ */
 export const getManagedClanByTag = async (
-	clanTag: string
+    clanTag: string
 ): Promise<FirestoreDocument<ManagedClan> | null> => {
-	// Normalisasi tag (pastikan diawali '#')
-	const normalizedTag = clanTag.startsWith('#')
-		? clanTag.toUpperCase()
-		: `#${clanTag.toUpperCase()}`;
+    // Normalisasi tag (pastikan diawali '#')
+    const normalizedTag = clanTag.startsWith('#')
+        ? clanTag.toUpperCase()
+        : `#${clanTag.toUpperCase()}`;
 
-	try {
-		const clansRef = clientCollection(firestore, COLLECTIONS.MANAGED_CLANS);
-		const q = clientQuery(
-			clansRef,
-			clientWhere('tag', '==', normalizedTag),
-			clientLimit(1) // Hanya perlu satu hasil
-		);
-		const snapshot = await clientGetDocs(q);
+    try {
+        const clansRef = clientCollection(firestore, COLLECTIONS.MANAGED_CLANS);
+        const q = clientQuery(
+            clansRef,
+            clientWhere('tag', '==', normalizedTag),
+            clientLimit(1) // Hanya perlu satu hasil
+        );
+        const snapshot = await clientGetDocs(q);
 
-		if (snapshot.docs.length > 0) {
-			const doc = snapshot.docs[0];
-			const data = doc.data() as DocumentData;
-			// Konversi Timestamp
-			Object.keys(data).forEach((key) => {
-				if (data[key] instanceof ClientTimestamp) {
-					data[key] = (data[key] as ClientTimestamp).toDate();
-				}
-			});
-			return { id: doc.id, ...data } as FirestoreDocument<ManagedClan>;
-		}
+        if (snapshot.docs.length > 0) {
+            const doc = snapshot.docs[0];
+            const data = doc.data() as DocumentData;
+            // Konversi Timestamp
+            Object.keys(data).forEach((key) => {
+                if (data[key] instanceof ClientTimestamp) {
+                    data[key] = (data[key] as ClientTimestamp).toDate();
+                }
+            });
+            return { id: doc.id, ...data } as FirestoreDocument<ManagedClan>;
+        }
 
-		console.log(
-			`Firestore Info [getManagedClanByTag - Client(${normalizedTag})]: Managed Clan not found.`
-		);
-		return null;
-	} catch (error) {
-		console.error(
-			`Firestore Error [getManagedClanByTag - Client(${normalizedTag})]:`,
-			error
-		);
-		return null;
-	}
+        console.log(
+            `Firestore Info [getManagedClanByTag - Client(${normalizedTag})]: Managed Clan not found.`
+        );
+        return null;
+    } catch (error) {
+        console.error(
+            `Firestore Error [getManagedClanByTag - Client(${normalizedTag})]:`,
+            error
+        );
+        return null;
+    }
 };
 // -----------------------------------------------------------
 
@@ -560,6 +560,9 @@ export const createPost = async (
     content: string;
     category: PostCategory;
     tags: string[];
+    // BARU: Tambahkan field kustom untuk Strategi Serangan
+    troopLink?: string | null;
+    videoUrl?: string | null;
   },
   authorProfile: UserProfile
 ): Promise<string> => {
@@ -594,9 +597,20 @@ export const createPost = async (
       replies: 0,
       createdAt: now,
       updatedAt: now,
+      // BARU: Tambahkan field kustom (akan undefined jika tidak dikirim)
+      troopLink: data.troopLink,
+      videoUrl: data.videoUrl,
     };
+    
+    // Hapus field undefined sebelum kirim ke firestore client sdk
+    Object.keys(newPostData).forEach((key) => {
+      if ((newPostData as any)[key] === undefined) {
+        delete (newPostData as any)[key];
+      }
+    });
 
-    const docRef = await clientAddDoc(postsRef, newPostData);
+
+    const docRef = await clientAddDoc(postsRef, newPostData as any);
     return docRef.id;
   } catch (error) {
     console.error(
