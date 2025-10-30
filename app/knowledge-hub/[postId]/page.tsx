@@ -1,19 +1,18 @@
-import { notFound } from 'next/navigation';
+// File: app/knowledge-hub/[postId]/page.tsx
+
+import { notFound, useRouter } from 'next/navigation'; // <-- Import useRouter
 import { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { getPostById, getUserProfile } from '@/lib/firestore';
 import { Post, UserProfile } from '@/lib/types';
-// FIX: Tambahkan PaperPlaneIcon, LinkIcon, dan TrashIcon
-// PENAMBAHAN: Tambahkan HomeIcon
-import { ArrowLeftIcon, StarIcon, EditIcon, BookOpenIcon, UserCircleIcon, ClockIcon, PaperPlaneIcon, LinkIcon, TrashIcon, CogsIcon, HomeIcon } from '@/app/components/icons';
-import { Button } from '@/app/components/ui/Button';
-// FIX: Import React untuk ContentRenderer dan CommentCard
-import React, { useMemo } from 'react'; // Tambahkan useMemo
-// FIX: Pastikan date-fns dan locale diimpor jika sudah diinstal
+import Notification, { ConfirmationProps, NotificationProps } from '@/app/components/ui/Notification'; // <-- Import Notification dan Tipe-nya
+import React, { useMemo, useState } from 'react'; // <-- Import useState
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { getSessionUser } from '@/lib/server-auth';
+import { ArrowLeftIcon, StarIcon, EditIcon, BookOpenIcon, UserCircleIcon, ClockIcon, PaperPlaneIcon, LinkIcon, TrashIcon, CogsIcon, HomeIcon, AlertTriangleIcon, RefreshCwIcon } from '@/app/components/icons';
+import { Button } from '@/app/components/ui/Button';
 
 // Definisikan tipe untuk parameter rute dinamis
 interface PostDetailPageProps {
@@ -21,6 +20,161 @@ interface PostDetailPageProps {
         postId: string;
     };
 }
+
+// --- Komponen Client: PostActionButtons ---
+
+interface PostActionButtonsProps {
+    postId: string;
+    isAuthor: boolean;
+}
+
+// Tambahkan direktif 'use client' di sini
+const PostActionButtons: React.FC<PostActionButtonsProps> = ({ postId, isAuthor }) => {
+    'use client'; // Deklarasi eksplisit sebagai Client Component
+    
+    // Gunakan hook yang diimpor di atas secara normal (karena ada 'use client')
+    const router = useRouter();
+    
+    // Menggunakan TIPE yang diimpor dari atas
+    const [notification, setNotification] = useState<NotificationProps | null>(null);
+    const [confirmation, setConfirmation] = useState<ConfirmationProps | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    // Helper untuk menampilkan notifikasi
+    const showNotification = (message: string, type: NotificationProps['type']) => {
+        setNotification({ message, type, onClose: () => setNotification(null) });
+    };
+
+    // Handler untuk menampilkan konfirmasi sebelum menghapus
+    const confirmDelete = () => {
+        setConfirmation({
+            message: "Apakah Anda yakin ingin menghapus postingan ini? Aksi ini tidak dapat dibatalkan.",
+            confirmText: "Ya, Hapus Permanen",
+            cancelText: "Batal",
+            onConfirm: handleDelete,
+            onCancel: () => setConfirmation(null),
+        });
+    };
+
+    // Handler penghapusan (memanggil API DELETE)
+    const handleDelete = async () => {
+        setConfirmation(null); // Tutup modal
+        setIsDeleting(true);
+        showNotification("Menghapus postingan...", 'info');
+        
+        try {
+            const response = await fetch(`/api/posts/${postId}`, {
+                method: 'DELETE',
+            });
+
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.message || 'Gagal menghapus postingan.');
+            }
+
+            showNotification(result.message, 'success');
+            // Redirect ke Knowledge Hub setelah berhasil dihapus
+            setTimeout(() => router.push('/knowledge-hub'), 1500);
+
+        } catch (err) {
+            const errorMessage = (err as Error).message || "Terjadi kesalahan saat menghapus postingan.";
+            showNotification(errorMessage, 'error');
+            setIsDeleting(false);
+        }
+    };
+
+    if (!isAuthor) return null;
+
+    return (
+        <React.Fragment>
+            {/* Menggunakan komponen Notification yang diimpor di Server Component */}
+            {notification && <Notification notification={notification} />}
+            {confirmation && <Notification confirmation={confirmation} />}
+
+            <div className="flex justify-end gap-4 pt-4 border-t border-coc-gold-dark/20">
+                {/* Tombol Edit: Link (tidak perlu 'disabled') */}
+                <Button 
+                    href={`/knowledge-hub/create?postId=${postId}`} 
+                    variant="secondary" 
+                    size="sm" 
+                    className={isDeleting ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''} 
+                >
+                    <EditIcon className="h-4 w-4 mr-2" /> Edit Postingan
+                </Button>
+                
+                {/* Tombol Hapus: Button (menggunakan 'disabled') */}
+                <Button
+                    onClick={confirmDelete}
+                    variant="secondary"
+                    size="sm"
+                    disabled={isDeleting} 
+                    className="bg-coc-red/70 border-coc-red text-white hover:bg-coc-red"
+                >
+                    {isDeleting ? <RefreshCwIcon className="h-4 w-4 mr-2 animate-spin" /> : <TrashIcon className="h-4 w-4 mr-2" />}
+                    {isDeleting ? 'Menghapus...' : 'Hapus'}
+                </Button>
+            </div>
+        </React.Fragment>
+    );
+};
+
+// --- Komponen Renderer Konten Sederhana (untuk mengatasi line break) ---
+const ContentRenderer = ({ post }: { post: Post }) => {
+    const contentParts = useMemo(() => {
+        return post.content.split('\n').map((line, index) => {
+            const baseLinkRegex = /(https?:\/\/(link\.clashofclans\.com)\/(\S+)\/base\/(\S+))/i;
+            const linkMatch = line.match(baseLinkRegex);
+
+            if (linkMatch) {
+                const fullLink = linkMatch[0];
+                return (
+                    <a
+                        key={index}
+                        href={fullLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-bold hover:underline text-coc-gold"
+                    >
+                        {fullLink}
+                    </a>
+                );
+            }
+
+            return line;
+        }).map((line, index, arr) => (
+            <React.Fragment key={index}>
+                {line}
+                {index < arr.length - 1 && <br />}
+            </React.Fragment>
+        ));
+    }, [post.content]);
+
+    return <div className="prose prose-invert prose-lg max-w-none text-gray-300 font-sans">{contentParts}</div>;
+};
+
+
+// --- Komponen Kartu Komentar (Statis) ---
+const CommentCard = ({ authorName, authorId, content, timestamp }: { authorName: string, authorId: string, content: string, timestamp: Date }) => {
+    const formattedTime = format(timestamp, 'HH:mm dd/MM/yyyy', { locale: id });
+
+    return (
+        <div className="flex gap-4 p-4 bg-coc-stone/50 rounded-lg border-l-4 border-coc-gold-dark/30">
+            <Link href={`/player/${authorId}`} className="flex-shrink-0">
+                <UserCircleIcon className="h-8 w-8 text-coc-gold-dark hover:text-white transition-colors" />
+            </Link>
+            <div className="flex-grow">
+                <Link href={`/player/${authorId}`} className="font-bold text-coc-gold hover:text-white text-md">{authorName}</Link>
+                <p className="text-gray-300 text-sm mt-1 font-sans">{content}</p>
+                <span className="text-xs text-gray-500 block mt-1">
+                    {formattedTime}
+                </span>
+            </div>
+        </div>
+    );
+};
+// --- End Komponen Kartu Komentar ---
+
 
 /**
  * @function generateMetadata
@@ -42,70 +196,6 @@ export async function generateMetadata({ params }: PostDetailPageProps): Promise
         description: description,
     };
 }
-
-// --- Komponen Renderer Konten Sederhana (untuk mengatasi line break) ---
-// Menerima data Post lengkap
-const ContentRenderer = ({ post }: { post: Post }) => {
-    // Memproses konten utama untuk line break
-    const contentParts = useMemo(() => {
-        return post.content.split('\n').map((line, index) => {
-            // 2. Deteksi Base Link: Pola umum untuk URL Clash of Clans Base Link
-            const baseLinkRegex = /(https?:\/\/(link\.clashofclans\.com)\/(\S+)\/base\/(\S+))/i;
-            const linkMatch = line.match(baseLinkRegex);
-
-            // Jika ditemukan link base di dalam konten (walaupun ada field khusus), kita tetap tampilkan sebagai link.
-            if (linkMatch) {
-                const fullLink = linkMatch[0];
-                return (
-                    <a
-                        key={index}
-                        href={fullLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-bold hover:underline text-coc-gold" // Tambahkan style link
-                    >
-                        {fullLink}
-                    </a>
-                );
-            }
-
-            // Teks biasa hanya dikembalikan sebagai string
-            return line;
-        }).map((line, index, arr) => (
-            // Tambahkan <br /> secara eksplisit kecuali untuk baris terakhir
-            <React.Fragment key={index}>
-                {line}
-                {index < arr.length - 1 && <br />}
-            </React.Fragment>
-        ));
-    }, [post.content]);
-
-    return <div className="prose prose-invert prose-lg max-w-none text-gray-300 font-sans">{contentParts}</div>;
-};
-
-
-// --- Komponen Kartu Komentar (Statis) ---
-const CommentCard = ({ authorName, authorId, content, timestamp }: { authorName: string, authorId: string, content: string, timestamp: Date }) => {
-    // FIX: locale: id ditambahkan
-    const formattedTime = format(timestamp, 'HH:mm dd/MM/yyyy', { locale: id });
-
-    return (
-        <div className="flex gap-4 p-4 bg-coc-stone/50 rounded-lg border-l-4 border-coc-gold-dark/30">
-            <Link href={`/player/${authorId}`} className="flex-shrink-0">
-                <UserCircleIcon className="h-8 w-8 text-coc-gold-dark hover:text-white transition-colors" />
-            </Link>
-            <div className="flex-grow">
-                <Link href={`/player/${authorId}`} className="font-bold text-coc-gold hover:text-white text-md">{authorName}</Link>
-                {/* Pastikan konten komentar menggunakan font sans */}
-                <p className="text-gray-300 text-sm mt-1 font-sans">{content}</p>
-                <span className="text-xs text-gray-500 block mt-1">
-                    {formattedTime}
-                </span>
-            </div>
-        </div>
-    );
-};
-// --- End Komponen Kartu Komentar ---
 
 
 /**
@@ -129,7 +219,8 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
     const authorProfile: UserProfile | null = await getUserProfile(post.authorId);
 
     // Cek apakah pengguna saat ini adalah penulis postingan
-    const isAuthor = sessionUser && sessionUser.uid === post.authorId;
+    // [FIX 2] Pastikan nilai di-convert ke boolean (menghilangkan boolean | null)
+    const isAuthor = !!(sessionUser && sessionUser.uid === post.authorId);
 
     // --- LOGIKA BARU UNTUK STRATEGI SERANGAN ---
     const isStrategyPost = post.category === 'Strategi Serangan';
@@ -291,25 +382,9 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                         </div>
 
                         {/* Tombol Aksi Penulis (Edit/Hapus) */}
-                        {isAuthor && (
-                            <div className="flex justify-end gap-4 pt-4 border-t border-coc-gold-dark/20">
-                                {/* ASUMSI: Edit page akan dibuat di rute /knowledge-hub/create?postId=... */}
-                                <Button href={`/knowledge-hub/create?postId=${postId}`} variant="secondary" size="sm">
-                                    <EditIcon className="h-4 w-4 mr-2" /> Edit Postingan
-                                </Button>
-                                {/* [PERBAIKAN] Hapus onClick yang non-serializable. */}
-                                <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    disabled={true} // Nonaktifkan sementara
-                                    className="bg-coc-red/70 border-coc-red text-white hover:bg-coc-red"
-                                    title="Fitur Hapus belum diimplementasikan." // Tambahkan info
-                                >
-                                    <TrashIcon className="h-4 w-4 mr-2" /> Hapus
-                                </Button>
-                            </div>
-                        )}
-
+                        {/* Ganti dengan Client Component PostActionButtons */}
+                        <PostActionButtons postId={postId} isAuthor={isAuthor} />
+                        
                         {/* Bagian Komentar */}
                         <div className="mt-10 pt-6 border-t-2 border-coc-gold-dark/30">
                             {/* PERBAIKAN FONT: Terapkan font-clash */}
@@ -318,7 +393,7 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                             {/* Area Input Komentar (Statis) */}
                             <div className="bg-coc-stone/50 p-4 rounded-lg mb-6">
                                 <textarea placeholder="Tulis komentar atau pertanyaan Anda di sini..." rows={3} className="w-full bg-transparent border-b border-coc-gold-dark/50 p-2 text-white focus:outline-none resize-none font-sans"></textarea>
-                                <Button variant="primary" size="sm" className="mt-3" disabled={!sessionUser}>
+                                <Button variant="primary" size="sm" disabled={!sessionUser}>
                                     <PaperPlaneIcon className="inline h-4 w-4 mr-2" /> Kirim Komentar
                                 </Button>
                             </div>
@@ -382,4 +457,3 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
 };
 
 export default PostDetailPage;
-

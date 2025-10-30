@@ -4,7 +4,7 @@ import React, { useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/Button';
 // --- PERBAIKAN: Hapus ImageIcon karena tidak ada di icons.tsx ---
-import { SaveIcon, PaperPlaneIcon, EditIcon, XIcon, InfoIcon, CogsIcon, LinkIcon, HomeIcon } from '@/app/components/icons'; // Added HomeIcon
+import { SaveIcon, PaperPlaneIcon, EditIcon, XIcon, InfoIcon, CogsIcon, LinkIcon, HomeIcon, RefreshCwIcon } from '@/app/components/icons'; // Added HomeIcon, RefreshCwIcon
 import { POST_CATEGORIES } from '@/lib/knowledge-hub-utils';
 import { PostCategory, Post } from '@/lib/types'; // Import Post untuk type assertion
 import { useAuth } from '@/app/context/AuthContext';
@@ -17,18 +17,7 @@ const CATEGORY_OPTIONS: PostCategory[] = POST_CATEGORIES.filter(c => c !== 'Semu
 
 interface PostFormProps {
     // Digunakan untuk mode edit di masa depan
-    initialData?: {
-        title: string;
-        content: string;
-        category: PostCategory;
-        tags: string[];
-        // Tambahkan field base jika diedit
-        baseImageUrl?: string | null;
-        baseLinkUrl?: string | null;
-        // Include potential strategy fields if editing
-        troopLink?: string | null;
-        videoUrl?: string | null;
-    };
+    initialData?: (Post & { id: string }) | null; // Tambahkan ID dan izinkan null
     // Menerima className dari parent (page.tsx)
     className?: string;
 }
@@ -50,16 +39,20 @@ const FormGroup: React.FC<{ children: ReactNode, error?: string | null, label: s
 const PostForm = ({ initialData, className = '' }: PostFormProps) => {
     const router = useRouter();
     const { currentUser } = useAuth();
+    
+    // Tentukan mode: EDIT atau CREATE
+    const isEditMode = !!initialData;
+    const initialTagsString = initialData?.tags?.join(', ') || '';
 
     const [formData, setFormData] = useState({
         title: initialData?.title || '',
         content: initialData?.content || '',
         category: initialData?.category || CATEGORY_OPTIONS[0],
-        tags: initialData?.tags?.join(', ') || '',
-        // Field khusus untuk Strategi Serangan - Initialize from initialData if present
+        tags: initialTagsString,
+        // Field khusus untuk Strategi Serangan
         troopLink: initialData?.troopLink || '',
         videoUrl: initialData?.videoUrl || '',
-        // Field khusus untuk Base Building - Initialize from initialData if present
+        // Field khusus untuk Base Building
         baseImageUrl: initialData?.baseImageUrl || '',
         baseLinkUrl: initialData?.baseLinkUrl || '',
     });
@@ -68,13 +61,13 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
     const [formError, setFormError] = useState<string | null>(null);
     const [notification, setNotification] = useState<NotificationProps | null>(null);
 
-    // --- State Validasi Sederhana ---
-    const [isFormValid, setIsFormValid] = useState(false);
-    // --- End State Validasi ---
-
     // Flag untuk menentukan kapan menampilkan field kustom
     const isStrategyPost = formData.category === 'Strategi Serangan';
     const isBaseBuildingPost = formData.category === 'Base Building';
+    
+    // --- State Validasi Sederhana ---
+    const [isFormValid, setIsFormValid] = useState(false);
+    // --- End State Validasi ---
 
     // --- Efek Validasi Real-time ---
     useEffect(() => {
@@ -172,66 +165,87 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
         setFormError(null);
 
         try {
-            // --- BARU: Logika "Jalan Tengah" untuk imageUrl ---
+            // --- Logika "Jalan Tengah" untuk imageUrl ---
             let autoImageUrl: string | null = null;
             if (isStrategyPost && formData.videoUrl.trim()) {
-                // Ekstrak ID video YouTube
                 const videoIdRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)(\w+)/i;
                 const match = formData.videoUrl.trim().match(videoIdRegex);
                 if (match && match[1]) {
-                    // Gunakan thumbnail YouTube kualitas tinggi
                     autoImageUrl = `https://i.ytimg.com/vi/${match[1]}/hqdefault.jpg`;
                 }
             } else if (isBaseBuildingPost && formData.baseImageUrl.trim()) {
-                // Gunakan baseImageUrl sebagai imageUrl
                 autoImageUrl = formData.baseImageUrl.trim();
             }
-            // --- AKHIR LOGIKA BARU ---
-
-            const authorProfile = await getUserProfile(currentUser.uid);
+            // --- AKHIR LOGIKA AUTO IMAGE ---
 
             const tagsArray = formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
-
-            // Sesuaikan tipe postData agar sesuai dengan parameter createPost, tambahkan field baru
-            const postData: Omit<Post, 'id' | 'createdAt' | 'updatedAt' | 'likes' | 'replies' | 'authorId' | 'authorName' | 'authorAvatarUrl'> = {
+            
+            // Data yang akan dikirim (Common structure for create and update)
+            const postDataPayload: Partial<Post> = {
                 title: formData.title,
                 content: formData.content,
                 category: formData.category as PostCategory,
                 tags: tagsArray,
-                // --- BARU: Tambahkan imageUrl yang dibuat otomatis ---
                 imageUrl: autoImageUrl,
-                // Sertakan field strategi jika relevan
                 troopLink: isStrategyPost ? (formData.troopLink.trim() || null) : null,
                 videoUrl: isStrategyPost ? (formData.videoUrl.trim() || null) : null,
-                // Sertakan field base building jika relevan
                 baseImageUrl: isBaseBuildingPost ? (formData.baseImageUrl.trim() || null) : null,
                 baseLinkUrl: isBaseBuildingPost ? (formData.baseLinkUrl.trim() || null) : null,
             };
 
 
-            if (!authorProfile) {
-                throw new Error("Gagal memuat profil penulis.");
+            let postId: string;
+            let response;
+            let result;
+
+            if (isEditMode) {
+                // --- MODE EDIT (Memanggil API PUT) ---
+                postId = initialData!.id;
+                showNotification("Memperbarui postingan...", 'info');
+                
+                // Panggil API PUT
+                response = await fetch(`/api/posts/${postId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(postDataPayload),
+                });
+                result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.message || 'Gagal memperbarui postingan.');
+                }
+                
+                showNotification("Postingan berhasil diperbarui! Mengalihkan...", 'success');
+            
+            } else {
+                // --- MODE CREATE (Memanggil createPost Client Firestore) ---
+                const authorProfile = await getUserProfile(currentUser.uid);
+
+                if (!authorProfile) {
+                    throw new Error("Gagal memuat profil penulis.");
+                }
+
+                // Field spesifik untuk CREATE (authorId, likes, createdAt, etc.) akan ditambahkan di lib/firestore.ts
+                postId = await createPost(postDataPayload as Parameters<typeof createPost>[0], authorProfile as UserProfile);
+
+                showNotification("Postingan berhasil dipublikasikan! Mengalihkan...", 'success');
             }
 
-            // Gunakan assertion untuk argumen pertama createPost
-            const postId = await createPost(postData as Parameters<typeof createPost>[0], authorProfile as UserProfile);
-
-            showNotification("Postingan berhasil dipublikasikan! Mengalihkan...", 'success');
-
+            // Redirect ke halaman detail setelah sukses
             setTimeout(() => {
                 router.push(`/knowledge-hub/${postId}`);
             }, 1000);
 
 
         } catch (err) {
-            console.error("Gagal memublikasikan postingan:", err);
-            const errorMessage = (err as Error).message || "Gagal menyimpan postingan ke database.";
+            console.error("Gagal memublikasikan/memperbarui postingan:", err);
+            const errorMessage = (err as Error).message || `Gagal ${isEditMode ? 'memperbarui' : 'memublikasikan'} postingan ke database.`;
 
             if (errorMessage.includes("E-Sports CV Anda belum lengkap")) {
                 setFormError(errorMessage + " Silakan klik Batal dan lengkapi CV Anda.");
                 showNotification("Aksi diblokir: Profil belum lengkap.", 'warning');
             } else {
-                setFormError("Terjadi kesalahan server saat memublikasikan.");
+                setFormError(`Terjadi kesalahan: ${errorMessage}`);
                 showNotification(errorMessage, 'error');
             }
 
@@ -239,6 +253,16 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
             setIsSubmitting(false);
         }
     };
+    
+    // Teks tombol submit dinamis
+    const submitText = isEditMode 
+        ? (isSubmitting ? 'Menyimpan...' : 'Simpan Perubahan') 
+        : (isSubmitting ? 'Memublikasikan...' : 'Publikasikan');
+    // Ikon tombol submit dinamis
+    const submitIcon = isEditMode 
+        ? (isSubmitting ? <RefreshCwIcon className="inline h-5 w-5 mr-2 animate-spin" /> : <SaveIcon className="inline h-5 w-5 mr-2" />)
+        : (isSubmitting ? <RefreshCwIcon className="inline h-5 w-5 mr-2 animate-spin" /> : <PaperPlaneIcon className="inline h-5 w-5 mr-2" />);
+
 
     return (
         // Wrapper <main> dipindahkan ke page.tsx
@@ -250,7 +274,7 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
             <form onSubmit={handleSubmit} className={`${className} max-w-4xl mx-auto`}>
                 <h1 className="text-3xl md:text-4xl text-center mb-6 font-clash flex items-center justify-center">
                     <EditIcon className="inline h-7 w-7 mr-3 text-coc-gold" />
-                    {initialData ? 'Edit Postingan' : 'Buat Postingan Baru'}
+                    {isEditMode ? 'Edit Postingan' : 'Buat Postingan Baru'}
                 </h1>
 
                 {formError && <p className="bg-coc-red/20 text-red-400 text-center text-sm p-3 rounded-md mb-4 border border-coc-red font-sans">{formError}</p>}
@@ -387,13 +411,13 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
                     <Button
                         type="button"
                         variant="secondary"
-                        href="/knowledge-hub"
+                        href={isEditMode ? `/knowledge-hub/${initialData!.id}` : "/knowledge-hub"}
                     >
                         <XIcon className="inline h-5 w-5 mr-2" /> Batal
                     </Button>
                     <Button type="submit" variant="primary" disabled={isSubmitting || !isFormValid}>
-                        <PaperPlaneIcon className="inline h-5 w-5 mr-2" />
-                        {isSubmitting ? 'Memublikasikan...' : 'Publikasikan'}
+                        {submitIcon}
+                        {submitText}
                     </Button>
                 </div>
             </form>
@@ -402,4 +426,3 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
 };
 
 export default PostForm;
-
