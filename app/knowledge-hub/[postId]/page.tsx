@@ -1,16 +1,19 @@
 // File: app/knowledge-hub/[postId]/page.tsx
 
-import { notFound, useRouter } from 'next/navigation'; // <-- Import useRouter
+import { notFound } from 'next/navigation'; // <-- Menghapus useRouter
 import { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { getPostById, getUserProfile } from '@/lib/firestore';
 import { Post, UserProfile } from '@/lib/types';
-import Notification, { ConfirmationProps, NotificationProps } from '@/app/components/ui/Notification'; // <-- Import Notification dan Tipe-nya
-import React, { useMemo, useState } from 'react'; // <-- Import useState
+// import Notification, { ConfirmationProps, NotificationProps } from '@/app/components/ui/Notification'; // <-- Menghapus import Notification
+import React, { useMemo } from 'react'; // <-- Menghapus useState
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { getSessionUser } from '@/lib/server-auth';
+// Import komponen Client Component yang baru
+import PostActionButtons from './components/PostActionButtons'; 
+
 import { ArrowLeftIcon, StarIcon, EditIcon, BookOpenIcon, UserCircleIcon, ClockIcon, PaperPlaneIcon, LinkIcon, TrashIcon, CogsIcon, HomeIcon, AlertTriangleIcon, RefreshCwIcon } from '@/app/components/icons';
 import { Button } from '@/app/components/ui/Button';
 
@@ -21,108 +24,17 @@ interface PostDetailPageProps {
     };
 }
 
-// --- Komponen Client: PostActionButtons ---
+// --- Komponen Client: PostActionButtons (Dihapus dan dipindahkan) ---
+// Logika PostActionButtons sudah dipindahkan ke components/PostActionButtons.tsx
+// --- Komponen Renderer Konten Sederhana (tetap di sini, menggunakan useMemo aman) ---
 
-interface PostActionButtonsProps {
-    postId: string;
-    isAuthor: boolean;
-}
-
-// Tambahkan direktif 'use client' di sini
-const PostActionButtons: React.FC<PostActionButtonsProps> = ({ postId, isAuthor }) => {
-    'use client'; // Deklarasi eksplisit sebagai Client Component
-    
-    // Gunakan hook yang diimpor di atas secara normal (karena ada 'use client')
-    const router = useRouter();
-    
-    // Menggunakan TIPE yang diimpor dari atas
-    const [notification, setNotification] = useState<NotificationProps | null>(null);
-    const [confirmation, setConfirmation] = useState<ConfirmationProps | null>(null);
-    const [isDeleting, setIsDeleting] = useState(false);
-
-    // Helper untuk menampilkan notifikasi
-    const showNotification = (message: string, type: NotificationProps['type']) => {
-        setNotification({ message, type, onClose: () => setNotification(null) });
-    };
-
-    // Handler untuk menampilkan konfirmasi sebelum menghapus
-    const confirmDelete = () => {
-        setConfirmation({
-            message: "Apakah Anda yakin ingin menghapus postingan ini? Aksi ini tidak dapat dibatalkan.",
-            confirmText: "Ya, Hapus Permanen",
-            cancelText: "Batal",
-            onConfirm: handleDelete,
-            onCancel: () => setConfirmation(null),
-        });
-    };
-
-    // Handler penghapusan (memanggil API DELETE)
-    const handleDelete = async () => {
-        setConfirmation(null); // Tutup modal
-        setIsDeleting(true);
-        showNotification("Menghapus postingan...", 'info');
-        
-        try {
-            const response = await fetch(`/api/posts/${postId}`, {
-                method: 'DELETE',
-            });
-
-            const result = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(result.message || 'Gagal menghapus postingan.');
-            }
-
-            showNotification(result.message, 'success');
-            // Redirect ke Knowledge Hub setelah berhasil dihapus
-            setTimeout(() => router.push('/knowledge-hub'), 1500);
-
-        } catch (err) {
-            const errorMessage = (err as Error).message || "Terjadi kesalahan saat menghapus postingan.";
-            showNotification(errorMessage, 'error');
-            setIsDeleting(false);
-        }
-    };
-
-    if (!isAuthor) return null;
-
-    return (
-        <React.Fragment>
-            {/* Menggunakan komponen Notification yang diimpor di Server Component */}
-            {notification && <Notification notification={notification} />}
-            {confirmation && <Notification confirmation={confirmation} />}
-
-            <div className="flex justify-end gap-4 pt-4 border-t border-coc-gold-dark/20">
-                {/* Tombol Edit: Link (tidak perlu 'disabled') */}
-                <Button 
-                    href={`/knowledge-hub/create?postId=${postId}`} 
-                    variant="secondary" 
-                    size="sm" 
-                    className={isDeleting ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''} 
-                >
-                    <EditIcon className="h-4 w-4 mr-2" /> Edit Postingan
-                </Button>
-                
-                {/* Tombol Hapus: Button (menggunakan 'disabled') */}
-                <Button
-                    onClick={confirmDelete}
-                    variant="secondary"
-                    size="sm"
-                    disabled={isDeleting} 
-                    className="bg-coc-red/70 border-coc-red text-white hover:bg-coc-red"
-                >
-                    {isDeleting ? <RefreshCwIcon className="h-4 w-4 mr-2 animate-spin" /> : <TrashIcon className="h-4 w-4 mr-2" />}
-                    {isDeleting ? 'Menghapus...' : 'Hapus'}
-                </Button>
-            </div>
-        </React.Fragment>
-    );
-};
-
-// --- Komponen Renderer Konten Sederhana (untuk mengatasi line break) ---
 const ContentRenderer = ({ post }: { post: Post }) => {
+    // NOTE: useMemo adalah hook React, tapi di Server Component (RSC), 
+    // ia akan diabaikan atau berjalan di server untuk optimasi,
+    // asalkan tidak menggunakan state/context/lifecycle client-side. Ini umumnya aman di RSC.
     const contentParts = useMemo(() => {
         return post.content.split('\n').map((line, index) => {
+            // Regex untuk menemukan link base CoC
             const baseLinkRegex = /(https?:\/\/(link\.clashofclans\.com)\/(\S+)\/base\/(\S+))/i;
             const linkMatch = line.match(baseLinkRegex);
 
@@ -219,10 +131,9 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
     const authorProfile: UserProfile | null = await getUserProfile(post.authorId);
 
     // Cek apakah pengguna saat ini adalah penulis postingan
-    // [FIX 2] Pastikan nilai di-convert ke boolean (menghilangkan boolean | null)
     const isAuthor = !!(sessionUser && sessionUser.uid === post.authorId);
 
-    // --- LOGIKA BARU UNTUK STRATEGI SERANGAN ---
+    // --- LOGIKA UNTUK STRATEGI SERANGAN ---
     const isStrategyPost = post.category === 'Strategi Serangan';
 
     // Mendapatkan Video ID YouTube dari videoUrl field baru
@@ -231,11 +142,12 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
     const videoId = post.videoUrl ? post.videoUrl.match(youtubeRegex)?.[1] : null;
     // --- AKHIR LOGIKA BARU ---
 
-    // --- PENAMBAHAN BARU (Langkah 4) ---
+    // --- LOGIKA KHUSUS BASE BUILDING ---
     const isBaseBuildingPost = post.category === 'Base Building';
-    // --- AKHIR PENAMBAHAN ---
+    // --- AKHIR LOGIKA BASE BUILDING ---
 
     return (
+        // NOTE: Notification dan Confirmation di PostActionButtons.tsx yang baru akan di-handle di level Client Component tersebut
         <main className="container mx-auto p-4 md:p-8 mt-10">
             <section className="grid grid-cols-1 lg:grid-cols-4 gap-8">
 
@@ -246,10 +158,9 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                             <ArrowLeftIcon className="h-4 w-4 mr-2" /> Kembali ke Hub
                         </Button>
                     </div>
-                    {/* PERBAIKAN STYLING: Tambahkan rounded-lg */}
+                    
                     <div className="card-stone p-8 space-y-6 rounded-lg">
                         <header>
-                            {/* PERBAIKAN FONT: font-supercell -> font-clash */}
                             <h1 className="text-4xl text-white font-clash m-0 leading-tight">{post.title}</h1>
 
                             {/* Meta Detail */}
@@ -271,18 +182,17 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                             </div>
                         </header>
 
-                        {/* START: KONTEN KHUSUS STRATEGI SERANGAN (Direvisi untuk Video Besar & Link di Bawah) */}
+                        {/* START: KONTEN KHUSUS STRATEGI SERANGAN */}
                         {isStrategyPost && (post.troopLink || videoId) && (
                             <div className="space-y-6 pt-4 border-b border-coc-gold-dark/20 pb-6">
                                 <h2 className="text-2xl font-clash text-coc-gold-dark flex items-center gap-2">
                                     <CogsIcon className="h-6 w-6" /> Detail Strategi
                                 </h2>
 
-                                {/* 1. Video Section (Full Width) */}
+                                {/* 1. Video Section */}
                                 {videoId ? (
                                     <div className="w-full">
                                         <p className="text-sm text-gray-400 mb-2 font-bold flex items-center gap-1">Video Tutorial:</p>
-                                        {/* Container 16:9 yang mengambil lebar penuh kolom (lg:col-span-3) */}
                                         <div className="relative w-full overflow-hidden rounded-lg border-2 border-coc-gold-dark" style={{ paddingTop: '56.25%' }}>
                                             <iframe
                                                 src={`https://www.youtube.com/embed/${videoId}`}
@@ -299,15 +209,13 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                                     </div>
                                 )}
 
-                                {/* 2. Troop Link Section (Full Width, di bawah video) */}
+                                {/* 2. Troop Link Section */}
                                 <div className="w-full pt-4 border-t border-coc-gold-dark/20">
                                     <p className="text-sm text-gray-400 mb-4 font-bold flex items-center gap-1">Kombinasi Pasukan (Copy Link):</p>
                                     <div className="flex flex-col md:flex-row items-center gap-6 p-4 bg-coc-stone/50 rounded-lg border border-coc-gold-dark/30">
                                         {post.troopLink ? (
                                             <>
-                                                {/* Preview Image (Left) */}
                                                 <Image src="/images/barbarian.png" alt="Troop Combo Preview" width={80} height={80} className="w-16 h-16 flex-shrink-0" />
-                                                {/* Button (Right/Below) */}
                                                 <a href={post.troopLink} target="_blank" rel="noopener noreferrer" className="flex-grow w-full md:w-auto">
                                                     <Button variant="primary" size="lg" className="w-full text-sm">
                                                         <LinkIcon className="inline h-5 w-5 mr-2" /> SALIN KOMBINASI PASUKAN
@@ -323,7 +231,7 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                         )}
                         {/* END: KONTEN KHUSUS STRATEGI SERANGAN */}
 
-                        {/* --- PENAMBAHAN BARU (Langkah 4): KONTEN KHUSUS BASE BUILDING --- */}
+                        {/* --- KONTEN KHUSUS BASE BUILDING --- */}
                         {isBaseBuildingPost && (post.baseImageUrl || post.baseLinkUrl) && (
                             <div className="space-y-6 pt-4 border-b border-coc-gold-dark/20 pb-6">
                                 <h2 className="text-2xl font-clash text-coc-gold-dark flex items-center gap-2">
@@ -334,12 +242,7 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                                 {post.baseImageUrl && (
                                     <div className="w-full">
                                         <p className="text-sm text-gray-400 mb-2 font-bold flex items-center gap-1">Tampilan Base:</p>
-                                        {/* --- PERUBAHAN (Langkah 6): Menggunakan next/image --- */}
                                         <div className="relative w-full aspect-video overflow-hidden rounded-lg border-2 border-coc-gold-dark bg-black/20">
-                                            {/* Menggunakan next/image setelah 'i.imgur.com' ditambahkan ke next.config.js.
-                                                Kita gunakan 'fill' dan 'objectFit="contain"' di dalam aspect-ratio container
-                                                untuk menggantikan 'w-full h-auto' agar layout stabil (mencegah CLS).
-                                            */}
                                             <Image
                                                 src={post.baseImageUrl}
                                                 alt={`Tampilan base untuk ${post.title}`}
@@ -347,9 +250,8 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                                                 objectFit="contain"
                                                 className="bg-black/20"
                                                 loading="lazy"
-                                                placeholder="blur" // Menambahkan placeholder blur
+                                                placeholder="blur" 
                                                 blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN88/JjPQAIiwM/q1QNGwAAAABJRU5ErkJggg=="
-                                                // Hapus onError fallback, next/image akan menangani error (atau tampilkan blur)
                                             />
                                         </div>
                                     </div>
@@ -371,23 +273,21 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                                 )}
                             </div>
                         )}
-                        {/* --- AKHIR PENAMBAHAN (Langkah 4) --- */}
+                        {/* --- AKHIR KONTEN KHUSUS BASE BUILDING --- */}
 
 
                         {/* Konten Utama (Deskripsi) */}
                         <div className="prose prose-invert prose-lg max-w-none text-gray-300">
                             <h3 className="text-xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2">Deskripsi Lengkap</h3>
-                            {/* Memanggil ContentRenderer dengan props yang diperbarui */}
+                            {/* Memanggil ContentRenderer */}
                             <ContentRenderer post={post} />
                         </div>
 
-                        {/* Tombol Aksi Penulis (Edit/Hapus) */}
-                        {/* Ganti dengan Client Component PostActionButtons */}
+                        {/* Tombol Aksi Penulis (Edit/Hapus) - MENGGUNAKAN CLIENT COMPONENT BARU */}
                         <PostActionButtons postId={postId} isAuthor={isAuthor} />
                         
                         {/* Bagian Komentar */}
                         <div className="mt-10 pt-6 border-t-2 border-coc-gold-dark/30">
-                            {/* PERBAIKAN FONT: Terapkan font-clash */}
                             <h2 className="text-2xl font-clash border-l-4 border-coc-gold pl-3 mb-6">Balasan ({post.replies})</h2>
 
                             {/* Area Input Komentar (Statis) */}
@@ -400,6 +300,7 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
 
                             {/* Daftar Komentar (Statis) */}
                             <div className="space-y-4">
+                                {/* Komponen CommentCard (tetap di Server) */}
                                 <CommentCard authorName="KaptenX" authorId="uid_xena" content="Strategi yang bagus, saya coba semalam di War Clan dan hasilnya 3-bintang! Terima kasih atas panduannya." timestamp={new Date(Date.now() - 3600000)} />
                                 <CommentCard authorName="BaseMaster" authorId="uid_ghost" content="Sudah coba, tapi funneling-nya agak sulit. Ada tips untuk pemula, LordZ?" timestamp={new Date(Date.now() - 7200000)} />
                             </div>
@@ -408,9 +309,7 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                 </div>
 
                 {/* Kolom Kanan: Sidebar Penulis */}
-                {/* PERBAIKAN STYLING: Tambahkan rounded-lg */}
                 <aside className="lg:col-span-1 card-stone p-6 h-fit sticky top-28 space-y-6 text-center rounded-lg">
-                    {/* PERBAIKAN FONT: Terapkan font-clash */}
                     <h2 className="text-xl font-clash border-l-4 border-coc-gold-dark pl-3 mb-4 flex items-center justify-center">Penulis</h2>
 
                     <Image
@@ -420,7 +319,6 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                         height={80}
                         className="w-20 h-20 rounded-full mx-auto border-4 border-coc-gold object-cover flex-shrink-0"
                     />
-                    {/* PERBAIKAN FONT: font-supercell -> font-clash */}
                     <h3 className="text-2xl text-white font-clash m-0">{post.authorName}</h3>
 
                     <p className="text-xs text-gray-400 mt-1">
@@ -428,9 +326,7 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
                     </p>
 
                     <div className="pt-4 border-t border-coc-gold-dark/20">
-                        {/* PERBAIKAN FONT: font-supercell -> font-clash */}
                         <h3 className="text-lg font-clash text-coc-gold-dark">Reputasi</h3>
-                        {/* PERBAIKAN FONT: font-supercell -> font-clash */}
                         <p className="text-4xl font-clash text-coc-gold my-1">
                             {authorProfile?.reputation ? authorProfile.reputation.toFixed(1) : '5.0'} <StarIcon className="inline h-6 w-6" />
                         </p>
@@ -442,7 +338,6 @@ const PostDetailPage = async ({ params }: PostDetailPageProps) => {
 
                     {/* Diskusi Terkait (Statis) */}
                     <div className="pt-4 border-t border-coc-gold-dark/20 text-left">
-                        {/* PERBAIKAN FONT: font-supercell -> font-clash */}
                         <h3 className="text-lg font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2">Diskusi Terkait</h3>
                         <ul className="text-sm space-y-3 mt-3">
                             <li className="text-gray-300 hover:text-coc-gold transition-colors"><Link href="#">Base Building Anti-Hydrid</Link></li>
