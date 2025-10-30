@@ -37,7 +37,10 @@ async function fetchCocApi<T>(endpoint: string): Promise<T> {
                     'Authorization': `Bearer ${apiKey}`,
                     'Accept': 'application/json',
                 },
-                next: { revalidate: 60 } // Revalidate setelah 60 detik
+                // PERBAIKAN: Mengganti 'next: { revalidate: 60 }' dengan 'cache: 'no-store''
+                // Ini memaksa Next.js untuk selalu mengambil data baru (fresh) dari API CoC
+                // dan tidak menggunakan cache internal, yang mengatasi masalah data basi.
+                cache: 'no-store'
             });
 
             if (response.status === 404) {
@@ -208,3 +211,4 @@ export default {
     verifyPlayerToken,
     // searchClans DIHAPUS DARI EXPORT
 };
+

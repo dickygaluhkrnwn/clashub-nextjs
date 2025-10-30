@@ -15,7 +15,8 @@ import {
     CwlArchive,
     RaidArchive, // BARU: Import RaidArchive
     Post, // <--- FIX: Tambahkan import untuk tipe Post
-    JoinRequest // <--- FIX: Tambahkan import untuk tipe JoinRequest
+    JoinRequest, // <--- FIX: Tambahkan import untuk tipe JoinRequest
+    CocWarLog // <-- PERBAIKAN: Tambahkan impor CocWarLog yang hilang
 } from './types';
 
 // =========================================================================
@@ -239,25 +240,28 @@ export const getCwlArchivesByClanId = async (
 
             // Rekursif konversi Timestamp di dalam rounds ke ISO string untuk serialisasi
             const roundsWithDates = data.rounds?.map(round => {
-                const convertedRound = { ...round };
+                // PERBAIKAN ERROR TS2352:
+                // Kita cast 'round' ke 'any' di sini agar bisa memeriksa 'instanceof'
+                // tanpa TypeScript mengeluh bahwa tipenya adalah 'string'.
+                const convertedRound = { ...round } as any;
                 
                 // Konversi startTime/endTime di objek CocWarLog di dalam array rounds
-                if ((convertedRound.endTime as any) instanceof AdminTimestamp) {
+                if (convertedRound.endTime instanceof AdminTimestamp) {
                     // FIX: Gunakan .toDate() untuk konversi, lalu .toISOString() untuk serialisasi
-                    convertedRound.endTime = ((convertedRound.endTime as any) as AdminTimestamp).toDate().toISOString();
-                } else if ((convertedRound.endTime as any) instanceof Date) {
+                    convertedRound.endTime = (convertedRound.endTime as AdminTimestamp).toDate().toISOString();
+                } else if (convertedRound.endTime instanceof Date) {
                     convertedRound.endTime = (convertedRound.endTime as Date).toISOString();
                 }
 
-                if ((convertedRound.startTime as any) instanceof AdminTimestamp) {
+                if (convertedRound.startTime instanceof AdminTimestamp) {
                     // FIX: Gunakan .toDate() untuk konversi, lalu .toISOString() untuk serialisasi
-                    convertedRound.startTime = ((convertedRound.startTime as any) as AdminTimestamp).toDate().toISOString();
-                } else if ((convertedRound.startTime as any) instanceof Date) {
+                    convertedRound.startTime = (convertedRound.startTime as AdminTimestamp).toDate().toISOString();
+                } else if (convertedRound.startTime instanceof Date) {
                     convertedRound.startTime = (convertedRound.startTime as Date).toISOString();
                 }
 
                 // Kita asumsikan properti lain di CocWarLog juga aman (string/number/boolean)
-                return convertedRound;
+                return convertedRound as CocWarLog; // Cast kembali ke CocWarLog
             }) || [];
 
 
@@ -301,17 +305,19 @@ export const getRaidArchivesByClanId = async (
             if (Object.prototype.hasOwnProperty.call(data, 'startTime')) {
                 const rawStartTime = (data as any).startTime;
                  if (rawStartTime instanceof AdminTimestamp) {
-                    // FIX: Simpan sebagai Date, TypeScript akan menerimanya karena deklarasi awal kita 'Date | undefined'
                     startTime = rawStartTime.toDate();
-                }
+                 } else if (rawStartTime instanceof Date) { // Tambahkan cek jika sudah Date
+                    startTime = rawStartTime;
+                 }
             }
 
             // Memeriksa dan mengonversi properti `endTime`
             if (Object.prototype.hasOwnProperty.call(data, 'endTime')) {
                 const rawEndTime = (data as any).endTime;
                 if (rawEndTime instanceof AdminTimestamp) {
-                    // FIX: Simpan sebagai Date
                     endTime = rawEndTime.toDate();
+                } else if (rawEndTime instanceof Date) { // Tambahkan cek jika sudah Date
+                    endTime = rawEndTime;
                 }
             }
             
@@ -319,13 +325,13 @@ export const getRaidArchivesByClanId = async (
             return {
                 id: doc.id, 
                 ...data, 
-                // FIX KRITIS TS2352: Karena kita mendeklarasikan startTime/endTime di RaidArchive 
-                // sebagai Date di types.ts dan kita mengonversinya di sini menjadi Date, kita bisa menggunakan 
-                // non-null assertion '!' untuk memastikan tipe kembalian
-                startTime: startTime!, // Asumsi data Firestore selalu lengkap jika ada
-                endTime: endTime!,   
+                // PERBAIKAN: Hapus non-null assertion (!)
+                // Karena startTime/endTime sekarang opsional di tipe RaidArchive, kita bisa biarkan undefined
+                startTime: startTime,
+                endTime: endTime,   
                  // Members sudah seharusnya bertipe CocRaidMember[]
             } as FirestoreDocument<RaidArchive>; 
+        // Filter item yang tidak memiliki endTime (data korup/belum selesai)
         }).filter(item => item !== null && item.endTime !== undefined) as FirestoreDocument<RaidArchive>[]; 
 
     } catch (error) {
@@ -664,3 +670,4 @@ export const updatePostAdmin = async (
 };
 
 export { adminFirestore }; // Ekspor adminFirestore di akhir
+
