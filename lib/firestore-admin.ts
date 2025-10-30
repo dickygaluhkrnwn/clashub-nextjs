@@ -15,6 +15,7 @@ import {
     CwlArchive,
     RaidArchive, // BARU: Import RaidArchive
     Post, // <--- FIX: Tambahkan import untuk tipe Post
+    JoinRequest // <--- FIX: Tambahkan import untuk tipe JoinRequest
 } from './types';
 
 // =========================================================================
@@ -66,9 +67,111 @@ function cleanDataForAdminSDK<T extends object>(
     return cleaned;
 }
 
+// Helper internal untuk mengonversi snapshot dokumen Firestore ke objek dengan ID dan konversi Timestamp
+function docToDataAdmin<T>(doc: FirebaseFirestore.DocumentSnapshot): FirestoreDocument<T> | null {
+    if (!doc.exists) {
+        return null;
+    }
+    const data = doc.data() as any;
+    // Konversi Timestamp ke Date
+    Object.keys(data).forEach((key) => {
+        if (data[key] instanceof AdminTimestamp) {
+            data[key] = (data[key] as AdminTimestamp).toDate();
+        }
+    });
+    return { id: doc.id, ...data } as FirestoreDocument<T>;
+}
+// -----------------------------------------------------------
+
 // =========================================================================
 // FUNGSI SERVER READ UTILITY BARU (ADMIN SDK)
 // =========================================================================
+
+/**
+ * Mengambil dokumen UserProfile berdasarkan UID (Admin).
+ */
+export const getUserProfileAdmin = async (
+    uid: string
+): Promise<FirestoreDocument<UserProfile> | null> => {
+    try {
+        const docRef = adminFirestore.collection(COLLECTIONS.USERS).doc(uid);
+        const docSnap = await docRef.get();
+        return docToDataAdmin<UserProfile>(docSnap);
+    } catch (error) {
+        console.error(`Firestore Error [getUserProfileAdmin - Admin(${uid})]:`, error);
+        return null;
+    }
+};
+
+/**
+ * Mengambil data ManagedClan berdasarkan ID internal Clashub (Admin).
+ */
+export const getManagedClanDataAdmin = async (
+    clanId: string
+): Promise<FirestoreDocument<ManagedClan> | null> => {
+    try {
+        const docRef = adminFirestore.collection(COLLECTIONS.MANAGED_CLANS).doc(clanId);
+        const docSnap = await docRef.get();
+        return docToDataAdmin<ManagedClan>(docSnap);
+    } catch (error) {
+        console.error(`Firestore Error [getManagedClanDataAdmin - Admin(${clanId})]:`, error);
+        return null;
+    }
+};
+
+/**
+ * Mengambil cache API klan (sub-koleksi) (Admin).
+ */
+export const getClanApiCacheAdmin = async (
+    clanId: string
+): Promise<ClanApiCache | null> => {
+    try {
+        const cacheRef = adminFirestore
+            .collection(COLLECTIONS.MANAGED_CLANS).doc(clanId)
+            .collection('clanApiCache').doc('current');
+        const docSnap = await cacheRef.get();
+        return docToDataAdmin<ClanApiCache>(docSnap);
+    } catch (error) {
+        console.error(`Firestore Error [getClanApiCacheAdmin - Admin(${clanId})]:`, error);
+        return null;
+    }
+};
+
+/**
+ * Mengambil daftar permintaan bergabung yang tertunda untuk tim tertentu (Admin).
+ */
+export const getJoinRequestsAdmin = async (
+    clanId: string
+): Promise<FirestoreDocument<JoinRequest>[]> => {
+    try {
+        const requestsRef = adminFirestore.collection(
+            `${COLLECTIONS.MANAGED_CLANS}/${clanId}/joinRequests`
+        );
+        const q = requestsRef
+            .where('status', '==', 'pending')
+            .orderBy('timestamp', 'desc');
+        const snapshot = await q.get();
+        return snapshot.docs.map(doc => docToDataAdmin<JoinRequest>(doc)).filter(Boolean) as FirestoreDocument<JoinRequest>[];
+    } catch (error) {
+        console.error(`Firestore Error [getJoinRequestsAdmin - Admin(${clanId})]:`, error);
+        return [];
+    }
+};
+
+/**
+ * Mengambil daftar anggota tim (UserProfile) berdasarkan clanId (Admin).
+ */
+export const getTeamMembersAdmin = async (clanId: string): Promise<UserProfile[]> => {
+    try {
+        const usersRef = adminFirestore.collection(COLLECTIONS.USERS);
+        const q = usersRef.where('clanId', '==', clanId);
+        const snapshot = await q.get();
+        return snapshot.docs.map(doc => docToDataAdmin<UserProfile>(doc)).filter(Boolean) as UserProfile[]; // Filter null results
+    } catch (error) {
+        console.error(`Firestore Error [getTeamMembersAdmin - Admin(${clanId})]:`, error);
+        return [];
+    }
+};
 
 /**
  * Mengambil semua log perubahan role untuk Clan tertentu.
