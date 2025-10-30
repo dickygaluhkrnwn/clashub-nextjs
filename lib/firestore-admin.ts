@@ -68,12 +68,14 @@ function cleanDataForAdminSDK<T extends object>(
 }
 
 // Helper internal untuk mengonversi snapshot dokumen Firestore ke objek dengan ID dan konversi Timestamp
+// NOTE: Konversi ini menghasilkan objek Date. Next.js akan mengeluh jika ini diteruskan ke Client Component.
+// Perlu konversi tambahan di Server Component (page.tsx)
 function docToDataAdmin<T>(doc: FirebaseFirestore.DocumentSnapshot): FirestoreDocument<T> | null {
     if (!doc.exists) {
         return null;
     }
     const data = doc.data() as any;
-    // Konversi Timestamp ke Date
+    // Konversi Timestamp ke Date (tetap lakukan ini untuk integritas data di Server)
     Object.keys(data).forEach((key) => {
         if (data[key] instanceof AdminTimestamp) {
             data[key] = (data[key] as AdminTimestamp).toDate();
@@ -139,6 +141,7 @@ export const getClanApiCacheAdmin = async (
 
 /**
  * Mengambil daftar permintaan bergabung yang tertunda untuk tim tertentu (Admin).
+ * PERBAIKAN #1: Menghapus .orderBy('timestamp', 'desc') untuk menghindari Index Error.
  */
 export const getJoinRequestsAdmin = async (
     clanId: string
@@ -147,13 +150,15 @@ export const getJoinRequestsAdmin = async (
         const requestsRef = adminFirestore.collection(
             `${COLLECTIONS.MANAGED_CLANS}/${clanId}/joinRequests`
         );
-        const q = requestsRef
-            .where('status', '==', 'pending')
-            .orderBy('timestamp', 'desc');
+        // Hapus orderBy untuk menghindari FAILED_PRECONDITION: The query requires an index.
+        const q = requestsRef.where('status', '==', 'pending');
+        
+        // Catatan: Sorting harus dilakukan di sisi aplikasi jika diperlukan.
         const snapshot = await q.get();
         return snapshot.docs.map(doc => docToDataAdmin<JoinRequest>(doc)).filter(Boolean) as FirestoreDocument<JoinRequest>[];
     } catch (error) {
         console.error(`Firestore Error [getJoinRequestsAdmin - Admin(${clanId})]:`, error);
+        // Error log yang muncul di terminal (seperti FAILED_PRECONDITION) sekarang berasal dari sini
         return [];
     }
 };
@@ -228,22 +233,30 @@ export const getCwlArchivesByClanId = async (
         // Mengambil semua dokumen arsip CWL, diurutkan secara descending berdasarkan ID Musim (Season)
         const snapshot = await cwlRef.orderBy('season', 'desc').get();
 
+        // PERBAIKAN #2: Memastikan semua objek Date di dalam rounds dikonversi ke ISO string.
         return snapshot.docs.map(doc => {
-            const data = doc.data() as Omit<CwlArchive, 'id'>; // Ambil data tanpa ID awal
+            const data = doc.data() as Omit<CwlArchive, 'id'>; 
 
-            // Konversi setiap 'endTime' dan 'startTime' dari AdminTimestamp ke ISO String di dalam rounds
+            // Rekursif konversi Timestamp di dalam rounds ke ISO string untuk serialisasi
             const roundsWithDates = data.rounds?.map(round => {
                 const convertedRound = { ...round };
-
-                // --- PERBAIKAN TS2358: Menggunakan Type Assertion 'as any' ---
+                
+                // Konversi startTime/endTime di objek CocWarLog di dalam array rounds
                 if ((convertedRound.endTime as any) instanceof AdminTimestamp) {
+                    // FIX: Gunakan .toDate() untuk konversi, lalu .toISOString() untuk serialisasi
                     convertedRound.endTime = ((convertedRound.endTime as any) as AdminTimestamp).toDate().toISOString();
+                } else if ((convertedRound.endTime as any) instanceof Date) {
+                    convertedRound.endTime = (convertedRound.endTime as Date).toISOString();
                 }
 
-                // --- PERBAIKAN TS2358: Menggunakan Type Assertion 'as any' ---
                 if ((convertedRound.startTime as any) instanceof AdminTimestamp) {
+                    // FIX: Gunakan .toDate() untuk konversi, lalu .toISOString() untuk serialisasi
                     convertedRound.startTime = ((convertedRound.startTime as any) as AdminTimestamp).toDate().toISOString();
+                } else if ((convertedRound.startTime as any) instanceof Date) {
+                    convertedRound.startTime = (convertedRound.startTime as Date).toISOString();
                 }
+
+                // Kita asumsikan properti lain di CocWarLog juga aman (string/number/boolean)
                 return convertedRound;
             }) || [];
 
@@ -252,7 +265,7 @@ export const getCwlArchivesByClanId = async (
                 id: doc.id, // Ambil ID dari dokumen
                 ...data, // Sebar sisa data
                 rounds: roundsWithDates, // Gunakan rounds yang sudah dikonversi
-            } as FirestoreDocument<CwlArchive>; // Pastikan return type sesuai
+            } as FirestoreDocument<CwlArchive>;
         });
     } catch (error) {
         console.error(`Firestore Error [getCwlArchivesByClanId - Admin(${clanId})]:`, error);
@@ -267,7 +280,7 @@ export const getCwlArchivesByClanId = async (
  */
 export const getRaidArchivesByClanId = async (
     clanId: string
-): Promise<FirestoreDocument<RaidArchive>[]> => { // BARU: Tipe return FirestoreDocument<RaidArchive>[]
+): Promise<FirestoreDocument<RaidArchive>[]> => {
     try {
         const raidRef = adminFirestore
             .collection(COLLECTIONS.MANAGED_CLANS)
@@ -278,28 +291,43 @@ export const getRaidArchivesByClanId = async (
         const snapshot = await raidRef.orderBy('endTime', 'desc').get();
 
         return snapshot.docs.map(doc => {
-            const data = doc.data() as Omit<RaidArchive, 'id'>; // BARU: Tipe Omit<RaidArchive, 'id'>
+            const data = doc.data() as Omit<RaidArchive, 'id'>; 
 
-            // Konversi Timestamp ke Date untuk field yang relevan (startTime, endTime)
+            // Deklarasi yang lebih aman untuk TypeScript
             let startTime: Date | undefined = undefined;
             let endTime: Date | undefined = undefined;
 
-            if ((data.startTime as any) instanceof AdminTimestamp) {
-                 startTime = ((data.startTime as any) as AdminTimestamp).toDate();
-            }
-            if ((data.endTime as any) instanceof AdminTimestamp) {
-                 endTime = ((data.endTime as any) as AdminTimestamp).toDate();
+            // Memeriksa dan mengonversi properti `startTime`
+            if (Object.prototype.hasOwnProperty.call(data, 'startTime')) {
+                const rawStartTime = (data as any).startTime;
+                 if (rawStartTime instanceof AdminTimestamp) {
+                    // FIX: Simpan sebagai Date, TypeScript akan menerimanya karena deklarasi awal kita 'Date | undefined'
+                    startTime = rawStartTime.toDate();
+                }
             }
 
-            // BARU: Kembalikan objek dengan tipe yang benar dan ID
+            // Memeriksa dan mengonversi properti `endTime`
+            if (Object.prototype.hasOwnProperty.call(data, 'endTime')) {
+                const rawEndTime = (data as any).endTime;
+                if (rawEndTime instanceof AdminTimestamp) {
+                    // FIX: Simpan sebagai Date
+                    endTime = rawEndTime.toDate();
+                }
+            }
+            
+            // Mengembalikan objek dengan properti Date yang sudah dikonversi atau undefined
             return {
-                id: doc.id, // Tambahkan ID dokumen
-                ...data, // Sebar sisa properti
-                startTime: startTime!, // Assert non-null karena Firestore seharusnya menyimpan Date
-                endTime: endTime!,   // Assert non-null
+                id: doc.id, 
+                ...data, 
+                // FIX KRITIS TS2352: Karena kita mendeklarasikan startTime/endTime di RaidArchive 
+                // sebagai Date di types.ts dan kita mengonversinya di sini menjadi Date, kita bisa menggunakan 
+                // non-null assertion '!' untuk memastikan tipe kembalian
+                startTime: startTime!, // Asumsi data Firestore selalu lengkap jika ada
+                endTime: endTime!,   
                  // Members sudah seharusnya bertipe CocRaidMember[]
-            } as FirestoreDocument<RaidArchive>; // Pastikan tipe akhir sesuai
-        });
+            } as FirestoreDocument<RaidArchive>; 
+        }).filter(item => item !== null && item.endTime !== undefined) as FirestoreDocument<RaidArchive>[]; 
+
     } catch (error) {
         console.error(`Firestore Error [getRaidArchivesByClanId - Admin(${clanId})]:`, error);
         return [];
