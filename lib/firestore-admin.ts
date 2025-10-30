@@ -16,7 +16,8 @@ import {
     RaidArchive, // BARU: Import RaidArchive
     Post, // <--- FIX: Tambahkan import untuk tipe Post
     JoinRequest, // <--- FIX: Tambahkan import untuk tipe JoinRequest
-    CocWarLog // <-- PERBAIKAN: Tambahkan impor CocWarLog yang hilang
+    CocWarLog, // <-- PERBAIKAN: Tambahkan impor CocWarLog yang hilang
+    WarArchive // <<< TAMBAHKAN BARIS INI
 } from './types';
 
 // =========================================================================
@@ -336,6 +337,76 @@ export const getRaidArchivesByClanId = async (
 
     } catch (error) {
         console.error(`Firestore Error [getRaidArchivesByClanId - Admin(${clanId})]:`, error);
+        return [];
+    }
+};
+
+/**
+ * Mengambil semua arsip War Classic (War Klasik) untuk Clan tertentu.
+ * Diurutkan berdasarkan waktu selesai (warEndTime) secara descending (terbaru di atas).
+ */
+export const getWarArchivesByClanId = async (
+    clanId: string
+): Promise<FirestoreDocument<WarArchive>[]> => {
+    try {
+        const warRef = adminFirestore
+            .collection(COLLECTIONS.MANAGED_CLANS)
+            .doc(clanId)
+            .collection('warArchives'); // Nama koleksi yang benar
+
+        // Mengambil arsip, diurutkan berdasarkan warEndTime (descending)
+        // Kita batasi 50 untuk performa
+        const snapshot = await warRef.orderBy('warEndTime', 'desc').limit(50).get(); 
+
+        return snapshot.docs.map(doc => {
+            const data = doc.data() as Omit<WarArchive, 'id'>;
+            
+            // Konversi manual timestamp ke Date
+            let warEndTime: Date | undefined = undefined;
+            if (Object.prototype.hasOwnProperty.call(data, 'warEndTime')) {
+                const rawEndTime = (data as any).warEndTime;
+                if (rawEndTime instanceof AdminTimestamp) {
+                    warEndTime = rawEndTime.toDate();
+                } else if (rawEndTime instanceof Date) {
+                    warEndTime = rawEndTime;
+                } else if (typeof rawEndTime === 'string') {
+                    warEndTime = new Date(rawEndTime); // Fallback jika disimpan sebagai string
+                }
+            }
+            
+            let startTime: Date | undefined = undefined;
+            if (Object.prototype.hasOwnProperty.call(data, 'startTime')) {
+                const rawStartTime = (data as any).startTime;
+                if (rawStartTime instanceof AdminTimestamp) {
+                    startTime = rawStartTime.toDate();
+                } else if (rawStartTime instanceof Date) {
+                    startTime = rawStartTime;
+                } else if (typeof rawStartTime === 'string') {
+                    startTime = new Date(rawStartTime); // Fallback
+                }
+            }
+
+            // --- PERBAIKAN: Cast ke 'unknown' terlebih dahulu ---
+            // Ini memaksa TypeScript untuk menerima bahwa objek yang kita buat
+            // sudah sesuai dengan tipe FirestoreDocument<WarArchive>,
+            // dan ...data (yang berisi clanTag) sudah termasuk.
+            const returnObj = {
+                id: doc.id,
+                ...data,
+                warEndTime: warEndTime, // Pastikan ini adalah objek Date
+                startTime: startTime, // Pastikan ini adalah objek Date
+            };
+            
+            // Hapus properti 'endTime' (string) warisan dari CocWarLog
+            delete (returnObj as any).endTime;
+
+            return returnObj as unknown as FirestoreDocument<WarArchive>;
+            // --- AKHIR PERBAIKAN ---
+            
+        }).filter(item => item !== null) as FirestoreDocument<WarArchive>[];
+
+    } catch (error) {
+        console.error(`Firestore Error [getWarArchivesByClanId - Admin(${clanId})]:`, error);
         return [];
     }
 };
@@ -670,4 +741,5 @@ export const updatePostAdmin = async (
 };
 
 export { adminFirestore }; // Ekspor adminFirestore di akhir
+
 

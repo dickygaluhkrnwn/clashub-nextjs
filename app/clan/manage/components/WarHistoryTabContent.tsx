@@ -7,6 +7,8 @@ interface WarHistoryTabContentProps {
     clanId: string; // ID Internal Klan Firestore
     clanTag: string; // Tag Klan CoC
     onRefresh: () => void;
+    // --- PERUBAHAN: Menerima data riwayat dari server ---
+    initialWarHistory: WarSummary[];
 }
 
 // Definisikan tipe untuk kolom yang dapat diurutkan
@@ -20,7 +22,9 @@ type SortDirection = 'asc' | 'desc';
 const WarHistoryRow: React.FC<{ war: WarSummary }> = ({ war }) => {
     const resultClass = war.result === 'win' ? 'bg-coc-green text-black' : war.result === 'lose' ? 'bg-coc-red text-white' : 'bg-coc-blue text-white';
 
-    const formattedDate = war.endTime.toLocaleDateString('id-ID', {
+    // --- PERBAIKAN: Konversi string ISO (dari props) ke Date untuk pemformatan ---
+    // Kita bisa asumsikan 'war.endTime' di sini sudah dikonversi menjadi Date oleh komponen utama
+    const formattedDate = (war.endTime instanceof Date ? war.endTime : new Date(war.endTime)).toLocaleDateString('id-ID', {
         day: '2-digit', month: 'short', year: 'numeric'
     });
 
@@ -81,13 +85,23 @@ const WarHistoryRow: React.FC<{ war: WarSummary }> = ({ war }) => {
 // Main Component: WarHistoryTabContent
 // ======================================================================================================
 
-const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({ clanId, clanTag, onRefresh }) => {
-    const [history, setHistory] = useState<WarSummary[] | null>(null); 
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({ clanId, clanTag, onRefresh, initialWarHistory }) => {
+    
+    // --- PERUBAHAN: State diinisialisasi dari props dan mengonversi endTime ke Date ---
+    const [history, setHistory] = useState<WarSummary[]>(
+        initialWarHistory.map(war => ({
+            ...war,
+            endTime: new Date(war.endTime), // Konversi string ISO ke Date
+        }))
+    ); 
+    
+    // --- PERUBAHAN: Hapus state isLoading dan error ---
+    // const [isLoading, setIsLoading] = useState(true); // Dihapus
+    // const [error, setError] = useState<string | null>(null); // Dihapus
+    
     const [sort, setSort] = useState<{ key: SortKey, direction: SortDirection }>({ key: 'endTime', direction: 'desc' });
     
-    // --- FUNGSI SORTIR UTAMA ---
+    // --- FUNGSI SORTIR UTAMA --- (Tetap sama)
     const handleSort = useCallback((key: SortKey) => {
         setSort(prev => ({
             key,
@@ -95,60 +109,17 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({ clanId, cla
         }));
     }, []);
 
-    // --- SIMULASI PENGAMBILAN DATA (FIXED TS ERROR) ---
-    const fetchWarHistory = useCallback(async () => {
-        setIsLoading(true);
-        setError(null);
-        
-        // FIX TS ERROR: Memastikan nilai 'result' sesuai dengan WarResult
-        const mockData: WarSummary[] = [
-            {
-                id: 'w1', opponentName: 'DIETARY', teamSize: 15, result: 'lose', 
-                ourStars: 45, opponentStars: 45, 
-                ourDestruction: 100, opponentDestruction: 100, endTime: new Date('2025-10-12T05:00:00Z')
-            },
-            {
-                id: 'w2', opponentName: 'PREDATOR ™', teamSize: 20, result: 'tie', 
-                ourStars: 60, opponentStars: 60, 
-                ourDestruction: 100, opponentDestruction: 100, endTime: new Date('2025-10-22T08:00:00Z')
-            },
-            {
-                id: 'w3', opponentName: 'SURXONSILA 75', teamSize: 15, result: 'win', 
-                ourStars: 45, opponentStars: 43, 
-                ourDestruction: 100, opponentDestruction: 97.8, endTime: new Date('2025-10-20T12:00:00Z')
-            },
-            {
-                id: 'w4', opponentName: 'VIETNAM PRO', teamSize: 15, result: 'lose', 
-                ourStars: 30, opponentStars: 45, 
-                ourDestruction: 80.5, opponentDestruction: 100, endTime: new Date('2025-10-01T12:00:00Z')
-            },
-            {
-                id: 'w5', opponentName: 'CLAN ALPHA', teamSize: 20, result: 'win', 
-                ourStars: 58, opponentStars: 55, 
-                ourDestruction: 98.1, opponentDestruction: 95.0, endTime: new Date('2025-10-05T12:00:00Z')
-            },
-            {
-                id: 'w6', opponentName: 'CLAN BETA', teamSize: 15, result: 'unknown', // Contoh WarResult 'unknown'
-                ourStars: 0, opponentStars: 0, 
-                ourDestruction: 0, opponentDestruction: 0, endTime: new Date('2025-09-25T12:00:00Z')
-            },
-        ];
+    // --- PERUBAHAN: Hapus fetchWarHistory dan mockData ---
+    // const fetchWarHistory = useCallback(...) // Dihapus
 
-        try {
-            // NOTE: Di masa depan, ganti ini dengan fetch API yang mengambil WarSummary dari Firestore.
-            await new Promise(resolve => setTimeout(resolve, 500)); 
-            setHistory(mockData);
-        } catch (e) {
-            console.error("Error fetching war history mock:", e);
-            setError("Gagal memuat data riwayat perang.");
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
-
+    // --- PERUBAHAN: Ganti useEffect fetch data dengan useEffect untuk update dari props ---
     useEffect(() => {
-        fetchWarHistory();
-    }, [clanId, fetchWarHistory]); 
+        // Jika props initialWarHistory berubah (misalnya setelah onRefresh), update state
+        setHistory(initialWarHistory.map(war => ({
+            ...war,
+            endTime: new Date(war.endTime),
+        })));
+    }, [initialWarHistory]); // Bergantung pada initialWarHistory
 
     // --- LOGIKA SORTIR DATA ---
     const sortedHistory = useMemo(() => {
@@ -172,11 +143,11 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({ clanId, cla
                 // Logika khusus untuk string
                 comparison = String(valueA).localeCompare(String(valueB));
             } else if (sort.key === 'endTime') {
-                 // Logika khusus untuk Date
+                 // Logika khusus untuk Date (state 'history' sudah dipastikan berisi Date)
                 comparison = valueA.getTime() - valueB.getTime();
             } else {
                 // Logika umum untuk angka (stars, destruction, teamSize)
-                if (valueA === undefined || valueA === null) return sort.direction === 'asc' ? -1 : 1; // Taruh undefined di akhir/awal
+                if (valueA === undefined || valueA === null) return sort.direction === 'asc' ? -1 : 1;
                 if (valueB === undefined || valueB === null) return sort.direction === 'asc' ? 1 : -1;
                 comparison = valueA - valueB;
             }
@@ -187,7 +158,7 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({ clanId, cla
         return sortedData;
     }, [history, sort]);
 
-    // --- HELPER UNTUK TAMPILAN HEADER SORT ---
+    // --- HELPER UNTUK TAMPILAN HEADER SORT --- (Tetap sama)
     const getSortIcon = (key: SortKey) => {
         if (sort.key !== key) return null;
         return sort.direction === 'asc' ? <ArrowUpIcon className="h-3 w-3 ml-1" /> : <ArrowDownIcon className="h-3 w-3 ml-1" />;
@@ -199,26 +170,12 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({ clanId, cla
         }`;
     
 
-    if (isLoading) {
-        return (
-            <div className="p-8 text-center bg-coc-stone/40 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
-                <RefreshCwIcon className="h-8 w-8 text-coc-gold animate-spin mb-3" />
-                <p className="text-lg font-clash text-white">Memuat Riwayat Perang...</p>
-            </div>
-        );
-    }
-    
-    if (error) {
-        return (
-            <div className="p-8 text-center bg-coc-red/20 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
-                <AlertTriangleIcon className="h-12 w-12 text-coc-red mb-3" />
-                <p className="text-lg font-clash text-coc-red">Error Memuat Data</p>
-                <p className="text-sm text-gray-400 font-sans mt-1">{error}</p>
-            </div>
-        );
-    }
+    // --- PERUBAHAN: Hapus tampilan isLoading dan error ---
+    // if (isLoading) { ... } // Dihapus
+    // if (error) { ... } // Dihapus
 
-    if (!history || history.length === 0) {
+    // --- PERUBAHAN: Kondisi empty state sekarang berdasarkan sortedHistory ---
+    if (!sortedHistory || sortedHistory.length === 0) {
         return (
             <div className="p-8 text-center bg-coc-stone/40 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
                 <BookOpenIcon className="h-12 w-12 text-coc-gold/50 mb-3" />
@@ -313,3 +270,4 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({ clanId, cla
 };
 
 export default WarHistoryTabContent;
+

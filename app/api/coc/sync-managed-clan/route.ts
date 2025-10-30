@@ -331,15 +331,19 @@ export async function GET(request: NextRequest) {
                     const warId = `${opponentTag.replace('#', '')}-${warEndTime.toISOString()}`;
                     const archiveDocRef = warArchivesRef.doc(warId);
 
+                    // --- PERBAIKAN LOGIKA PENGARSIPAN WAR CLASSIC ---
+                    // Buat objek baru berdasarkan warEntry, tambahkan state dan field kustom
+                    // Tipe Omit sekarang didasarkan pada tipe WarArchive yang (diasumsikan) sudah benar
                     const warArchiveData: Omit<WarArchive, 'id' | 'clanTag' | 'warEndTime'> = {
-                       state: 'warEnded', 
-                       teamSize: warEntry.teamSize,
-                       clan: warEntry.clan, 
-                       opponent: warEntry.opponent, 
-                       startTime: undefined, 
-                       endTime: warEntry.endTime, 
-                       result: warEntry.result,
+                        // Salin semua properti dari CocWarLogEntry (warEntry)
+                        ...warEntry,
+                        
+                        // Tambahkan/Timpa properti kustom WarArchive
+                        state: 'warEnded',
+                        // startTime tidak ada di CocWarLogEntry, jadi biarkan undefined (akan dihapus oleh cleanData)
+                        startTime: undefined, 
                     };
+                    // --- AKHIR PERBAIKAN ---
 
                     batch.set(archiveDocRef, cleanDataForAdminSDK({
                         ...warArchiveData,
@@ -455,3 +459,4 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: errorMessage }, { status: statusCode });
     }
 }
+

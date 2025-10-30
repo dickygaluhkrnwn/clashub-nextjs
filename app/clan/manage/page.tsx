@@ -12,10 +12,20 @@ import {
     getTeamMembersAdmin,      // <-- Menggantikan getTeamMembers
     getCwlArchivesByClanId,   // Sudah Admin SDK
     getRaidArchivesByClanId,  // Sudah Admin SDK
+    getWarArchivesByClanId, // <<< TAMBAHKAN BARIS INI
     FirestoreDocument,        // Import FirestoreDocument
 } from '@/lib/firestore-admin'; 
 
-import { ManagedClan, ClanApiCache, UserProfile, JoinRequest, CwlArchive, RaidArchive } from '@/lib/types'; 
+import { 
+    ManagedClan, 
+    ClanApiCache, 
+    UserProfile, 
+    JoinRequest, 
+    CwlArchive, 
+    RaidArchive, 
+    WarArchive, // <<< TAMBAHKAN BARIS INI
+    WarSummary  // <<< TAMBAHKAN BARIS INI
+} from '@/lib/types'; 
 import ManageClanClient from './ManageClanClient';
 import React from 'react';
 
@@ -36,6 +46,7 @@ export interface ClanManagementProps {
     profile: UserProfile; // Mengandung Date (lastVerified)
     cwlArchives: CwlArchive[]; // Mengandung Date (di rounds-nya, sudah diubah string di firestore-admin.ts)
     raidArchives: RaidArchive[]; // Mengandung Date (startTime, endTime)
+    warHistory: WarSummary[]; // <<< TAMBAHKAN BARIS INI
 }
 
 // =========================================================================
@@ -100,6 +111,7 @@ const ClanManagementPage = async () => {
     let membersData: ClanManagementProps['members'] = [];
     let cwlArchivesData: ClanManagementProps['cwlArchives'] = [];
     let raidArchivesData: ClanManagementProps['raidArchives'] = []; 
+    let warHistoryData: ClanManagementProps['warHistory'] = []; // <<< TAMBAHKAN BARIS INI
     let serverError: string | null = null;
 
     // 2. Validasi Status Verifikasi dan Penautan Klan
@@ -128,14 +140,16 @@ const ClanManagementPage = async () => {
             joinRequests,
             teamMembers,
             cwlArchives,
-            raidArchives 
+            raidArchives, 
+            warArchives // <<< TAMBAHKAN BARIS INI
         ] = await Promise.all([
             getManagedClanDataAdmin(clanId), 
             getClanApiCacheAdmin(clanId),
             getJoinRequestsAdmin(clanId), // FIX: Sudah tanpa orderBy di firestore-admin.ts
             getTeamMembersAdmin(clanId),
             getCwlArchivesByClanId(clanId), 
-            getRaidArchivesByClanId(clanId) 
+            getRaidArchivesByClanId(clanId),
+            getWarArchivesByClanId(clanId) // <<< TAMBAHKAN BARIS INI
         ]);
 
         if (managedClan) {
@@ -145,6 +159,29 @@ const ClanManagementPage = async () => {
             membersData = teamMembers as UserProfile[];
             cwlArchivesData = cwlArchives as CwlArchive[];
             raidArchivesData = raidArchives as RaidArchive[]; 
+
+            // --- TAMBAHAN: Format Data WarArchive mentah menjadi WarSummary ---
+            warHistoryData = (warArchives as FirestoreDocument<WarArchive>[]).map(archive => {
+                // Pastikan kita memiliki data clan dan opponent
+                const clanStars = archive.clan?.stars ?? 0;
+                const clanDestruction = archive.clan?.destructionPercentage ?? 0;
+                const opponentStars = archive.opponent?.stars ?? 0;
+                const opponentDestruction = archive.opponent?.destructionPercentage ?? 0;
+
+                return {
+                    id: archive.id,
+                    opponentName: archive.opponent?.name || 'Nama Lawan Tdk Diketahui',
+                    teamSize: archive.teamSize,
+                    result: archive.result || 'unknown',
+                    ourStars: clanStars,
+                    opponentStars: opponentStars,
+                    ourDestruction: clanDestruction,
+                    opponentDestruction: opponentDestruction,
+                    // Pastikan endTime adalah objek Date yang valid
+                    endTime: archive.warEndTime instanceof Date ? archive.warEndTime : new Date(archive.warEndTime || 0),
+                };
+            });
+            // --- AKHIR TAMBAHAN ---
 
         } else {
             serverError =
@@ -172,6 +209,7 @@ const ClanManagementPage = async () => {
             profile: userProfile, 
             cwlArchives: cwlArchivesData,
             raidArchives: raidArchivesData,
+            warHistory: warHistoryData, // <<< TAMBAHKAN BARIS INI
         });
     }
 
@@ -186,3 +224,4 @@ const ClanManagementPage = async () => {
 };
 
 export default ClanManagementPage;
+

@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/Button';
 // Import Tipe Data
-import { ManagedClan, ClanApiCache, UserProfile, JoinRequest, ClanRole, CocWarLog, CwlArchive, RaidArchive, ManagerRole, StandardMemberRole } from '@/lib/types'; // Mengimpor tipe baru
+import { ManagedClan, ClanApiCache, UserProfile, JoinRequest, ClanRole, CocWarLog, CwlArchive, RaidArchive, ManagerRole, StandardMemberRole, WarSummary } from '@/lib/types'; // Mengimpor tipe baru
 // Import Ikon
 import {
     UserCircleIcon, ShieldIcon, AlertTriangleIcon, CogsIcon, ClockIcon, InfoIcon,
@@ -267,6 +267,7 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
                     <WarHistoryTabContent
                         clanId={clan.id}
                         clanTag={clan.tag}
+                        initialWarHistory={data.warHistory || []} // <<< BARIS INI DIPERBARUI
                         onRefresh={handleRefreshData}
                     />
                 );
@@ -365,3 +366,4 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
 };
 
 export default ManageClanClient;
+
