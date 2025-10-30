@@ -323,6 +323,7 @@ export interface WarSummary {
     ourDestruction: number; // Persentase
     opponentDestruction: number; // Persentase
     endTime: Date;
+    hasDetails?: boolean; // <-- [PENAMBAHAN BARU] Menandakan jika data detail tersedia
 }
 
 /**
@@ -333,6 +334,7 @@ export interface WarArchive extends Omit<CocWarLog, 'items'> { // Omit 'items' j
     id: string; // ID Dokumen Firestore (selalu ada saat dibaca)
     clanTag: string; // Tag klan kita untuk query
     warEndTime: Date; // Simpan sebagai Date untuk query Firestore
+    hasDetails?: boolean; // <-- [PENAMBAHAN BARU] Menandakan jika data detail tersedia
 }
 
 /**
