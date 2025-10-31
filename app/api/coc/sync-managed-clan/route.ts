@@ -43,8 +43,8 @@ import { parseCocDate } from '@/lib/th-utils';
 
 // Batas waktu untuk menganggap cache 'fresh' (30 menit)
 const CACHE_STALE_MS = 1000 * 60 * 30;
-// [DIHAPUS] Batas waktu retensi War Ended (dipindahkan ke page.tsx)
-// const WAR_ENDED_RETENTION_MS = 1000 * 60 * 60 * 12;
+// --- [BARU] Tambahkan toleransi waktu untuk pencocokan data migrasi ---
+const MIGRATION_TIME_TOLERANCE_MS = 1000 * 60 * 10; // Toleransi 10 menit
 
 // =========================================================================
 // FUNGSI HELPER BARU & PERBAIKAN ID
@@ -207,7 +207,7 @@ export async function GET(request: NextRequest) {
             cwlArchives, 
             raidLogData, 
             allUsersSnapshot,
-            existingWarArchives 
+            existingWarArchives // <-- [PENTING] Ini adalah data yang sudah ada (termasuk migrasi)
         ] = await Promise.all([
             cocApi.getClanData(encodedClanTag),
             cocApi.getClanWarLog(encodedClanTag), 
@@ -392,15 +392,19 @@ export async function GET(request: NextRequest) {
         // --- LOGIKA PENGARSIPAN WAR (HYBRID) ---
         // =========================================================================
 
-        // Buat Set (peta) dari ID arsip yang sudah ada untuk pengecekan cepat
-        const existingWarIds = new Set(existingWarArchives.map(war => {
-            const endTime = war.warEndTime instanceof Date 
-                    ? war.warEndTime 
-                    : (war.warEndTime as unknown as AdminTimestamp).toDate();
-                    
-            const isDetail = war.hasDetails || !!war.members;
-            return getWarArchiveId(war.opponent?.tag || '', endTime, isDetail); 
+        // --- PERBAIKAN LOGIKA ANTI-DUPLIKASI (Bagian 1) ---
+        // Buat Set (peta) dari ID arsip yang *dihasilkan oleh skrip ini*
+        const generatedWarIds = new Set(existingWarArchives
+            .filter(war => !war.id.startsWith(war.clanTag)) // <-- Hanya ambil ID yang digenerate (bukan dari migrasi CSV)
+            .map(war => {
+                const endTime = war.warEndTime instanceof Date 
+                        ? war.warEndTime 
+                        : (war.warEndTime as unknown as AdminTimestamp).toDate();
+                        
+                const isDetail = war.hasDetails || !!war.members;
+                return getWarArchiveId(war.opponent?.tag || '', endTime, isDetail); 
         }));
+        // --- AKHIR PERBAIKAN (Bagian 1) ---
         
 
         const warArchivesRef = managedClanRef.collection('warArchives');
@@ -417,7 +421,8 @@ export async function GET(request: NextRequest) {
                 // Selalu arsipkan data dari API sebagai 'detail' (isDetailArchive: true)
                 const warId = getWarArchiveId(opponentTag, warEndTime, true); 
                 
-                if (!existingWarIds.has(warId)) {
+                // Cek hanya terhadap ID yang digenerate
+                if (!generatedWarIds.has(warId)) {
                     console.log(`[SYNC ARCHIVE-DETAIL] New war found (ID: ${warId}). Archiving with details...`);
                     const archiveDocRef = warArchivesRef.doc(warId); 
 
@@ -444,7 +449,7 @@ export async function GET(request: NextRequest) {
                     }), { merge: true });
                     
                     archivedWarCount++; 
-                    existingWarIds.add(warId); 
+                    generatedWarIds.add(warId); // Tambahkan ID baru ke Set
                     console.log(`[SYNC ARCHIVE-DETAIL] War successfully archived with ID: ${warId}`);
                 } else {
                     console.log(`[SYNC ARCHIVE-DETAIL] War ID: ${warId} already exists. Skipping.`);
@@ -462,36 +467,60 @@ export async function GET(request: NextRequest) {
 
                 // [PERBAIKAN] Cek warEndTime (pastikan Date, bukan null) SEBELUM memanggil .getTime()
                 if (warEndTime && !isNaN(warEndTime.getTime()) && warEntry.result && opponentTag) {
-                    const warId = getWarArchiveId(opponentTag, warEndTime, false);
                     
-                    if (!existingWarIds.has(warId)) {
-                        const potentialDetailId = getWarArchiveId(opponentTag, warEndTime, true);
-                        if(existingWarIds.has(potentialDetailId)) {
-                            console.log(`[SYNC ARCHIVE-SUMMARY] Skipping summary ID ${warId} because detail ID ${potentialDetailId} already exists.`);
-                            return; 
-                        }
+                    // --- PERBAIKAN LOGIKA ANTI-DUPLIKASI (Bagian 2) ---
+                    // Cek #1: Cek semantik (berdasarkan waktu dan tag) terhadap data yang ada (termasuk data migrasi)
+                    // untuk melihat apakah kita sudah memiliki data DETAIL untuk perang ini.
+                    const warEndTimeMs = warEndTime.getTime();
+                    const hasExistingDetail = existingWarArchives.some(archive => {
+                        const archiveEndTime = archive.warEndTime instanceof Date 
+                            ? archive.warEndTime 
+                            : (archive.warEndTime as unknown as AdminTimestamp).toDate();
                         
-                        console.log(`[SYNC ARCHIVE-SUMMARY] New summary war found (ID: ${warId}). Archiving...`);
-                        const archiveDocRef = warArchivesRef.doc(warId);
-
-                        const warArchiveData: Omit<WarArchive, 'id' | 'clanTag' | 'warEndTime'> = {
-                            ...warEntry,
-                            state: 'warEnded',
-                            preparationStartTime: undefined,
-                            attacksPerMember: undefined,
-                            members: undefined, 
-                        };
-
-                        batch.set(archiveDocRef, cleanDataForAdminSDK({
-                            ...warArchiveData,
-                            clanTag: rawClanTag, 
-                            warEndTime: warEndTime,
-                            hasDetails: false // <-- [PENANDA BARU]
-                        }), { merge: true }); 
+                        const timeDiff = Math.abs(archiveEndTime.getTime() - warEndTimeMs);
                         
-                        archivedWarCount++; 
-                        existingWarIds.add(warId); // Tambahkan ID summary (menit) ke Set.
+                        // Cek jika tag lawan sama DAN waktu berakhirnya mirip (toleransi 10 menit) DAN punya detail
+                        return archive.opponent?.tag === opponentTag && 
+                               timeDiff < MIGRATION_TIME_TOLERANCE_MS && 
+                               (archive.hasDetails === true);          
+                    });
+
+                    if (hasExistingDetail) {
+                        console.log(`[SYNC ARCHIVE-SUMMARY] Skipping summary for ${opponentTag} (ended ${warEndTime}) because a detailed archive (migrated or synced) already exists.`);
+                        return; // LEWATI (JANGAN BUAT DUPLIKAT SUMMARY)
                     }
+
+                    // Cek #2: Cek ID yang digenerate (logika asli)
+                    const summaryId = getWarArchiveId(opponentTag, warEndTime, false); // ID Summary (HH:MM)
+                    const detailId = getWarArchiveId(opponentTag, warEndTime, true);   // ID Detail (HH:MM:SS)
+
+                    // Cek di 'generatedWarIds' (ID yang dibuat skrip ini), BUKAN 'existingWarIds'
+                    if (generatedWarIds.has(summaryId) || generatedWarIds.has(detailId)) {
+                         console.log(`[SYNC ARCHIVE-SUMMARY] Skipping summary ID ${summaryId} because a matching generated ID already exists in Firestore.`);
+                        return; // Sudah ada (dari sync sebelumnya)
+                    }
+                    // --- AKHIR PERBAIKAN (Bagian 2) ---
+                    
+                    console.log(`[SYNC ARCHIVE-SUMMARY] New summary war found (ID: ${summaryId}). Archiving...`);
+                    const archiveDocRef = warArchivesRef.doc(summaryId);
+
+                    const warArchiveData: Omit<WarArchive, 'id' | 'clanTag' | 'warEndTime'> = {
+                        ...warEntry,
+                        state: 'warEnded',
+                        preparationStartTime: undefined,
+                        attacksPerMember: undefined,
+                        members: undefined, 
+                    };
+
+                    batch.set(archiveDocRef, cleanDataForAdminSDK({
+                        ...warArchiveData,
+                        clanTag: rawClanTag, 
+                        warEndTime: warEndTime,
+                        hasDetails: false // <-- [PENANDA BARU]
+                    }), { merge: true }); 
+                    
+                    archivedWarCount++; 
+                    generatedWarIds.add(summaryId); // Tambahkan ID summary (menit) ke Set.
                 }
             });
         }
