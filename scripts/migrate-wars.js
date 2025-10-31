@@ -1,5 +1,5 @@
 /*
- * SKRIP MIGRASI DATA PERANG (ONE-TIME USE) - V3 (Perbaikan Opponent Tag)
+ * SKRIP MIGRASI DATA PERANG (ONE-TIME USE) - V4 (Perbaikan Data Serangan & Pertahanan)
  *
  * TUJUAN:
  * 1. Membaca 'Pengaturan.csv' untuk mendapatkan daftar klan yang akan dimigrasi.
@@ -8,13 +8,15 @@
  * 4. Untuk SETIAP klan di 'Pengaturan.csv':
  * a. Menemukan ID Firestore-nya.
  * b. Menggabungkan data ringkasan dan detail (TERMASUK OPONENT TAG DARI DETAIL).
- * c. Menyimpan (Menimpa) data ke sub-koleksi 'warArchives' klan tersebut.
+ * c. [PERBAIKAN] Membuat mock 'attacks' dan 'bestOpponentAttack' dari data CSV.
+ * d. Menyimpan (Menimpa) data ke sub-koleksi 'warArchives' klan tersebut.
  *
  * CARA MENGGUNAKAN:
  * 1. Pastikan Anda sudah menjalankan: npm install csv-parser
  * 2. Pastikan file .env.local Anda berisi FIREBASE_SERVICE_ACCOUNT_KEY.
  * 3. Pastikan 3 file CSV ada di 'scripts/data/'.
- * 4. Jalankan dari terminal: node scripts/migrate-wars.js
+ * 4. HAPUS subkoleksi 'warArchives' yang ada di Firestore.
+ * 5. Jalankan dari terminal: node scripts/migrate-wars.js
  */
 
 const fs = require('fs');
@@ -67,6 +69,8 @@ const DETAIL_ARCHIVE_PATH = path.resolve(DATA_DIR, 'Dasboard Clan CoC - Main (2)
 
 // Helper untuk konversi Tipe data (mirip di route.ts)
 function cleanDataForAdminSDK(data) {
+// ... (Fungsi cleanDataForAdminSDK tetap sama) ...
+// ... existing code ...
     const cleaned = {};
     for (const key in data) {
         const value = data[key];
@@ -95,6 +99,8 @@ function cleanDataForAdminSDK(data) {
 
 // Helper untuk menemukan ID Dokumen Firestore dari ManagedClan
 async function getFirestoreClanId(clanTag) {
+// ... (Fungsi getFirestoreClanId tetap sama) ...
+// ... existing code ...
     try {
         const snapshot = await adminFirestore.collection(COLLECTIONS.MANAGED_CLANS)
             .where('tag', '==', clanTag)
@@ -117,6 +123,8 @@ async function getFirestoreClanId(clanTag) {
 
 // Fungsi untuk mem-parse tanggal yang mungkin tidak standar
 function parseDate(dateString) {
+// ... (Fungsi parseDate tetap sama) ...
+// ... existing code ...
     const date = new Date(dateString);
     if (!isNaN(date.getTime())) {
         return date;
@@ -126,6 +134,8 @@ function parseDate(dateString) {
 
 // Fungsi untuk mem-parse status serangan (misal: "✔️ 2/2" atau "❌ 0/2")
 function parseAttackStatus(statusString) {
+// ... (Fungsi parseAttackStatus tetap sama) ...
+// ... existing code ...
     if (!statusString || typeof statusString !== 'string') return 0;
     const match = statusString.match(/(\d+)\/\d+/);
     return match ? parseInt(match[1], 10) : 0;
@@ -135,6 +145,8 @@ function parseAttackStatus(statusString) {
  * LANGKAH 1: Membaca file Pengaturan.csv untuk mendapatkan daftar klan
  */
 async function readSettings() {
+// ... (Fungsi readSettings tetap sama) ...
+// ... existing code ...
     console.log(`Membaca file pengaturan: ${PENGATURAN_CSV_PATH}`);
     const clansToMigrate = [];
     const stream = fs.createReadStream(PENGATURAN_CSV_PATH).pipe(csv());
@@ -154,6 +166,8 @@ async function readSettings() {
  * LANGKAH 2: Membaca 'Log Perang.csv' (Data Ringkasan) ke Memori
  */
 async function readSummaryLog() {
+// ... (Fungsi readSummaryLog tetap sama) ...
+// ... existing code ...
     console.log(`Membaca file ringkasan: ${SUMMARY_LOG_PATH}`);
     const warsData = new Map();
     const summaryStream = fs.createReadStream(SUMMARY_LOG_PATH).pipe(csv());
@@ -196,6 +210,8 @@ async function readSummaryLog() {
  * LANGKAH 3: Membaca 'Arsip Perang.csv' (Data Detail) ke Memori
  */
 async function readDetailArchive() {
+// ... (Fungsi readDetailArchive tetap sama, mapHeaders sudah benar) ...
+// ... existing code ...
     console.log(`Membaca file arsip detail: ${DETAIL_ARCHIVE_PATH}`);
     const detailsByWarId = new Map();
     
@@ -239,6 +255,8 @@ async function readDetailArchive() {
  * FUNGSI UTAMA MIGRASI
  */
 async function startMigration() {
+// ... (Bagian awal startMigration tetap sama) ...
+// ... existing code ...
     console.log("Memulai migrasi multi-klan...");
 
     // Muat semua data ke memori
@@ -291,6 +309,8 @@ async function startMigration() {
                 summaryData.opponent.members = []; // Reset array
                 
                 // --- PERBAIKAN V3: Ambil info lawan dari baris pertama ---
+// ... (Logika V3 opponent tag tetap sama) ...
+// ... existing code ...
                 const firstDetailRow = detailRows[0];
                 if (firstDetailRow['Nama Klan Lawan'] && firstDetailRow['Nama Klan Lawan'].trim() !== '') {
                     summaryData.opponent.name = firstDetailRow['Nama Klan Lawan'].trim();
@@ -309,24 +329,75 @@ async function startMigration() {
                 // Proses penggabungan detail
                 for (const row of detailRows) {
                     
-                    // --- PERBAIKAN: Tambahkan fallback ke null atau string kosong ---
+                    // --- [PERBAIKAN V4: MEMASUKKAN DATA SERANGAN/BINTANG DARI CSV] ---
+
+                    // 1. Data Serangan KITA (yang kita lakukan)
+                    const attacksUsedCount = parseAttackStatus(row['Status Kita']);
+                    const ourAttacks = [];
+                    // Cek jika bintang valid DAN serangan digunakan
+                    if (row['Bintang Kita'] && row['Bintang Kita'] !== '—' && attacksUsedCount > 0) {
+                        const mockAttack = {
+                            attackerTag: row['Tag'] || '#UNKNOWN_ATTACKER',
+                            defenderTag: row['Target Kita'] || '#UNKNOWN_DEFENDER', 
+                            stars: parseInt(row['Bintang Kita'], 10) || 0,
+                            destructionPercentage: parseFloat(String(row['Persen Kita']).replace(',', '.')) || 0, // Ganti koma dgn titik
+                            order: 1, // Asumsikan ini serangan pertama/terbaik
+                            duration: 180 // Mock duration
+                        };
+                        ourAttacks.push(mockAttack);
+                    }
+                    
+                    // 2. Data Pertahanan KITA (serangan lawan terhadap kita)
+                    const ourBestDefense = (row['Bintang Lawan'] && row['Bintang Lawan'] !== '—') ? {
+                         attackerTag: row['Tag Lawan'] || '#UNKNOWN_ATTACKER',
+                         defenderTag: row['Tag'] || '#UNKNOWN_DEFENDER', // Targetnya adalah kita
+                         stars: parseInt(row['Bintang Lawan'], 10) || 0,
+                         destructionPercentage: parseFloat(String(row['Persen Lawan']).replace(',', '.')) || 0, // Ganti koma dgn titik
+                         order: 1, 
+                         duration: 180
+                    } : null;
+                    
+                    // 3. Data Serangan LAWAN
+                    const opponentAttackCount = parseAttackStatus(row['Status Lawan']);
+                    const opponentAttacks = [];
+                    // Jika lawan menyerang (punya bintang) DAN menggunakan serangan
+                    if (ourBestDefense && opponentAttackCount > 0) {
+                        // Serangan lawan = pertahanan terbaik kita
+                        opponentAttacks.push({ ...ourBestDefense });
+                    }
+                    
+                    // 4. Data Pertahanan LAWAN (serangan kita terhadap mereka)
+                    const opponentBestDefense = (row['Bintang Kita'] && row['Bintang Kita'] !== '—') ? {
+                         attackerTag: row['Tag'] || '#UNKNOWN_ATTACKER',
+                         defenderTag: row['Tag Lawan'] || '#UNKNOWN_DEFENDER', // Targetnya adalah mereka
+                         stars: parseInt(row['Bintang Kita'], 10) || 0,
+                         destructionPercentage: parseFloat(String(row['Persen Kita']).replace(',', '.')) || 0, // Ganti koma
+                         order: 1, 
+                         duration: 180
+                    } : null;
+
+                    // 5. Buat Objek Member (Sesuai Tipe CocWarMember)
                     const ourMember = {
                         tag: row['Tag'] || null,
                         name: row['Nama'] || 'Nama Tidak Ditemukan',
                         townhallLevel: parseInt(row['TH'], 10) || 0,
                         mapPosition: summaryData.clan.members.length + 1, 
-                        opponentAttacks: 0, 
-                        // attacks: [] // Data serangan individu tidak ada di CSV
+                        opponentAttacks: opponentAttackCount, // Jumlah serangan DARI lawan
+                        bestOpponentAttack: ourBestDefense, // Serangan terbaik DARI lawan
+                        attacks: ourAttacks, // Serangan YANG KITA LAKUKAN
                     };
+
                     const opponentMember = {
                         tag: row['Tag Lawan'] || null,
-                        name: row['Nama Pemain Lawan'] || 'Lawan Tidak Dikenal', // Menggunakan header yang sudah diperbaiki
+                        name: row['Nama Pemain Lawan'] || 'Lawan Tidak Dikenal',
                         townhallLevel: parseInt(row['TH Lawan'], 10) || 0,
                         mapPosition: summaryData.opponent.members.length + 1,
-                        opponentAttacks: parseAttackStatus(row['Status Kita']),
-                        bestOpponentAttack: null
+                        opponentAttacks: attacksUsedCount, // Jumlah serangan DARI kita
+                        bestOpponentAttack: opponentBestDefense, // Serangan terbaik DARI kita
+                        attacks: opponentAttacks, // Serangan YANG DILAKUKAN lawan
                     };
-                    // --- AKHIR PERBAIKAN ---
+                    // --- [AKHIR PERBAIKAN V4] ---
+
 
                     summaryData.clan.members.push(ourMember);
                     summaryData.opponent.members.push(opponentMember);
@@ -372,4 +443,3 @@ startMigration().catch(console.error).finally(() => {
     // opsional: tutup koneksi jika skrip tidak otomatis keluar
     // admin.app().delete(); 
 });
-
