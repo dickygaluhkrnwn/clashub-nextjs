@@ -85,7 +85,7 @@ function parseCocDate(cocDate: string | undefined): Date {
     }
     
     try {
-        // Input:  20251030T122129.000Z
+        // Input:  20251030T122129.000Z
         // Output: 2025-10-30T12:21:29.000Z (Format ISO 8601 standar)
         const year = cocDate.substring(0, 4);
         const month = cocDate.substring(4, 6);
@@ -311,16 +311,49 @@ export async function GET(request: NextRequest) {
             topDonator,
         };
 
-        // 5. Buat Payload Cache & ManagedClan Metadata (Logika dipertahankan)
+        // 5. Buat Payload Cache & ManagedClan Metadata
+        
+        // --- LOGIKA PERBAIKAN MASALAH UTAMA: War Ended Harus Ditampilkan Hingga War Baru Dimulai ---
+        
+        let warToCache: CocWarLog | null = null;
+        
+        if (currentWarData) {
+            const state = currentWarData.state;
+            
+            if (state === 'inWar' || state === 'preparation') {
+                // Jika ada War aktif atau persiapan, SELALU tampilkan ini.
+                warToCache = currentWarData;
+                console.log(`[SYNC CACHE] Storing NEW Active War (State: ${state}).`);
+            } else if (state === 'warEnded') {
+                // Jika War sudah ended, kita perlu cek cache yang sudah ada
+                const existingCache = await adminFirestore.collection(COLLECTIONS.MANAGED_CLANS).doc(clanId)
+                    .collection('clanApiCache').doc('current').get();
+                const existingCurrentWar: CocWarLog | null = existingCache.data()?.currentWar || null;
+                
+                // Jika WarENDED ini adalah War yang sama dengan yang ada di cache (berdasarkan tag lawan atau waktu),
+                // ATAU jika di cache tidak ada war aktif, simpan WarENDED ini.
+                // Ini memastikan WarENDED tetap terlihat sampai API mengembalikan 'notInWar' atau War baru.
+                const isSameWar = existingCurrentWar?.opponent.tag === currentWarData.opponent.tag;
+
+                if (!existingCurrentWar || existingCurrentWar.state === 'warEnded' || isSameWar) {
+                    warToCache = currentWarData;
+                    console.log(`[SYNC CACHE] Storing War Ended (ID: ${getWarArchiveId(currentWarData.opponent.tag || '', parseCocDate(currentWarData.endTime), true)}) to keep it visible.`);
+                }
+            }
+        } 
+        
+        // Catatan: Jika currentWarData adalah 'notInWar' (cocApi.getClanCurrentWar mengembalikan null jika notInWar), 
+        // dan warToCache tetap null, maka cache akan di-null-kan, yang merupakan perilaku yang benar untuk "tidak ada war aktif".
+
         const newCacheData: Omit<ClanApiCache, 'id' | 'lastUpdated'> = {
-            // Simpan data jika inWar, preparation, ATAU warEnded
-            currentWar: (currentWarData?.state === 'inWar' || currentWarData?.state === 'preparation' || currentWarData?.state === 'warEnded') 
-                        ? currentWarData 
-                        : null,
+            // FIX: Menggunakan warToCache yang sudah melalui logika validasi di atas
+            currentWar: warToCache, 
             currentRaid: raidLogData || null, 
             members: participationMembers,
             topPerformers: topPerformersData, 
         };
+
+        // --- AKHIR LOGIKA PERBAIKAN MASALAH UTAMA ---
 
         const totalThLevel = currentMembersApi.reduce(
             (sum, member) => sum + member.townHallLevel,
@@ -383,29 +416,19 @@ export async function GET(request: NextRequest) {
 
 
         // =========================================================================
-        // --- [PERBAIKAN UTAMA] LOGIKA PENGARSIPAN WAR (HYBRID) ---
+        // --- LOGIKA PENGARSIPAN WAR (HYBRID) ---
         // =========================================================================
 
         // Buat Set (peta) dari ID arsip yang sudah ada untuk pengecekan cepat
-        // Perhatian: ID di Set ini harus menggunakan format ID yang SAMA dengan format yang Anda gunakan untuk cek/tulis.
         const existingWarIds = new Set(existingWarArchives.map(war => {
-            // War Detail Archive menggunakan ID dengan presisi detik
-            // Jika War Summary (hanya punya presisi menit), kita tetap buat ID detail (detik) untuk membandingkan.
-            // Namun, untuk WarSummary, kita hanya dapat memastikan ID Summary (menit) sudah ada.
-            
-            // Kita harus membuat ID WarDetail untuk memverifikasi apakah DETAIL sudah diarsip.
             const endTime = war.warEndTime instanceof Date 
                  ? war.warEndTime 
                  : (war.warEndTime as unknown as AdminTimestamp).toDate();
                  
-            // Jika war ini sudah punya detail (seharusnya punya warTag/members), gunakan ID detail (detik)
-            // Jika war ini hanya summary (war.members undefined), gunakan ID summary (menit)
             const isDetail = war.hasDetails || !!war.members;
             return getWarArchiveId(war.opponent?.tag || '', endTime, isDetail); 
         }));
         
-        // Memastikan ID yang dihasilkan oleh getWarArchiveId (detik) dari WarEnded/Current War
-        // akan dicocokkan dengan ID di existingWarIds.
 
         const warArchivesRef = managedClanRef.collection('warArchives');
         let archivedWarCount = 0;
@@ -416,15 +439,12 @@ export async function GET(request: NextRequest) {
             
             if (!isNaN(warEndTime.getTime()) && currentWarData.opponent?.tag) {
                 const opponentTag = currentWarData.opponent.tag;
-                // --- [PERBAIKAN: GUNAKAN isDetailArchive = true (presisi detik)] ---
                 const warId = getWarArchiveId(opponentTag, warEndTime, true);
                 
-                // Cek apakah war DETAIL ini SUDAH diarsip (dengan ID detik)
                 if (!existingWarIds.has(warId)) {
                     console.log(`[SYNC ARCHIVE-DETAIL] New war found (ID: ${warId}). Archiving with details...`);
                     const archiveDocRef = warArchivesRef.doc(warId); 
 
-                    // Salin data DETAIL dari currentWarData
                     const warArchiveData: Omit<WarArchive, 'id'|'clanTag'|'warEndTime'> = {
                         state: 'warEnded',
                         teamSize: currentWarData.teamSize,
@@ -464,24 +484,18 @@ export async function GET(request: NextRequest) {
                 const opponentTag = warEntry.opponent?.tag;
 
                 if (!isNaN(warEndTime.getTime()) && warEntry.result && opponentTag) {
-                    // --- [PERBAIKAN: GUNAKAN isDetailArchive = false (presisi menit)] ---
                     const warId = getWarArchiveId(opponentTag, warEndTime, false);
                     
-                    // Cek lagi: Jika ID ini TIDAK ADA di 'existingWarIds'
                     if (!existingWarIds.has(warId)) {
-                        // Namun, sebelum mengarsipkan Summary, kita harus memastikan ID Detail (detik)
-                        // yang mungkin sama (jika sync sebelumnya gagal) juga tidak ada.
                         const potentialDetailId = getWarArchiveId(opponentTag, warEndTime, true);
                         if(existingWarIds.has(potentialDetailId)) {
                             console.log(`[SYNC ARCHIVE-SUMMARY] Skipping summary ID ${warId} because detail ID ${potentialDetailId} already exists.`);
-                            return; // Skip Summary jika Detail (detik) sudah ada
+                            return; 
                         }
                         
-                        // Ini adalah war SUMMARY baru yang belum kita miliki (dengan presisi menit)
                         console.log(`[SYNC ARCHIVE-SUMMARY] New summary war found (ID: ${warId}). Archiving...`);
                         const archiveDocRef = warArchivesRef.doc(warId);
 
-                        // Buat objek arsip HANYA dari data summary
                         const warArchiveData: Omit<WarArchive, 'id' | 'clanTag' | 'warEndTime'> = {
                             ...warEntry,
                             state: 'warEnded',
@@ -503,9 +517,7 @@ export async function GET(request: NextRequest) {
                 }
             });
         }
-        // --- [AKHIR PERBAIKAN UTAMA] ---
         
-
         // e. Simpan Arsip Raid (Logika dipertahankan)
         let archivedRaid = false;
         if (raidLogData && raidLogData.state === 'ended') {
