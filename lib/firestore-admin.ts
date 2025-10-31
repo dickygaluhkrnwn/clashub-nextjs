@@ -58,8 +58,10 @@ function cleanDataForAdminSDK<T extends object>(
             data[key] !== null // Tambahkan pengecekan null
         ) {
             // Khusus untuk Date, konversi ke AdminTimestamp
-            if (data[key] instanceof Date) {
-                cleaned[key] = AdminTimestamp.fromDate(data[key] as Date);
+            // [FIX TS2352 & TS2358] Ganti 'instanceof Date' dengan pengecekan yang lebih aman
+            if (Object.prototype.toString.call(data[key]) === '[object Date]') {
+                // [FIX TS2352] Cast ke 'unknown' terlebih dahulu
+                cleaned[key] = AdminTimestamp.fromDate(data[key] as unknown as Date);
             } else {
                 // Konversi Enum/string/number/boolean biasa
                 cleaned[key] = data[key];
@@ -79,7 +81,8 @@ function docToDataAdmin<T>(doc: FirebaseFirestore.DocumentSnapshot): FirestoreDo
     const data = doc.data() as any;
     // Konversi Timestamp ke Date (tetap lakukan ini untuk integritas data di Server)
     Object.keys(data).forEach((key) => {
-        if (data[key] instanceof AdminTimestamp) {
+        // [FIX TS2358] Ganti 'instanceof AdminTimestamp' dengan pengecekan metode .toDate()
+        if (data[key] && typeof data[key].toDate === 'function') {
             data[key] = (data[key] as AdminTimestamp).toDate();
         }
     });
@@ -90,7 +93,6 @@ function docToDataAdmin<T>(doc: FirebaseFirestore.DocumentSnapshot): FirestoreDo
 // =========================================================================
 // FUNGSI SERVER READ UTILITY BARU (ADMIN SDK)
 // =========================================================================
-
 /**
  * Mengambil dokumen UserProfile berdasarkan UID (Admin).
  */
@@ -199,7 +201,8 @@ export const getRoleLogsByClanId = async (
         return snapshot.docs.map(doc => {
             const data = doc.data() as any;
             // Pastikan konversi Timestamp ke Date saat membaca
-            if (data.changedAt instanceof AdminTimestamp) {
+            // [FIX TS2358] Ganti 'instanceof'
+            if (data.changedAt && typeof data.changedAt.toDate === 'function') { 
                 data.changedAt = data.changedAt.toDate();
             }
             // Kembalikan objek yang sesuai dengan tipe RoleChangeLog
@@ -247,18 +250,22 @@ export const getCwlArchivesByClanId = async (
                 const convertedRound = { ...round } as any;
                 
                 // Konversi startTime/endTime di objek CocWarLog di dalam array rounds
-                if (convertedRound.endTime instanceof AdminTimestamp) {
+                // [FIX TS2358] Ganti 'instanceof'
+                if (convertedRound.endTime && typeof convertedRound.endTime.toDate === 'function') {
                     // FIX: Gunakan .toDate() untuk konversi, lalu .toISOString() untuk serialisasi
                     convertedRound.endTime = (convertedRound.endTime as AdminTimestamp).toDate().toISOString();
-                } else if (convertedRound.endTime instanceof Date) {
-                    convertedRound.endTime = (convertedRound.endTime as Date).toISOString();
+                // [FIX TS2352] Ganti 'instanceof'
+                } else if (Object.prototype.toString.call(convertedRound.endTime) === '[object Date]') {
+                    convertedRound.endTime = (convertedRound.endTime as unknown as Date).toISOString();
                 }
 
-                if (convertedRound.startTime instanceof AdminTimestamp) {
+                // [FIX TS2358] Ganti 'instanceof'
+                if (convertedRound.startTime && typeof convertedRound.startTime.toDate === 'function') {
                     // FIX: Gunakan .toDate() untuk konversi, lalu .toISOString() untuk serialisasi
                     convertedRound.startTime = (convertedRound.startTime as AdminTimestamp).toDate().toISOString();
-                } else if (convertedRound.startTime instanceof Date) {
-                    convertedRound.startTime = (convertedRound.startTime as Date).toISOString();
+                // [FIX TS2352] Ganti 'instanceof'
+                } else if (Object.prototype.toString.call(convertedRound.startTime) === '[object Date]') {
+                    convertedRound.startTime = (convertedRound.startTime as unknown as Date).toISOString();
                 }
 
                 // Kita asumsikan properti lain di CocWarLog juga aman (string/number/boolean)
@@ -305,20 +312,24 @@ export const getRaidArchivesByClanId = async (
             // Memeriksa dan mengonversi properti `startTime`
             if (Object.prototype.hasOwnProperty.call(data, 'startTime')) {
                 const rawStartTime = (data as any).startTime;
-                 if (rawStartTime instanceof AdminTimestamp) {
+                 // [FIX TS2358] Ganti 'instanceof'
+                 if (rawStartTime && typeof rawStartTime.toDate === 'function') {
                     startTime = rawStartTime.toDate();
-                 } else if (rawStartTime instanceof Date) { // Tambahkan cek jika sudah Date
-                    startTime = rawStartTime;
+                 // [FIX TS2352] Ganti 'instanceof'
+                 } else if (Object.prototype.toString.call(rawStartTime) === '[object Date]') { // Tambahkan cek jika sudah Date
+                    startTime = rawStartTime as unknown as Date;
                  }
             }
 
             // Memeriksa dan mengonversi properti `endTime`
             if (Object.prototype.hasOwnProperty.call(data, 'endTime')) {
                 const rawEndTime = (data as any).endTime;
-                if (rawEndTime instanceof AdminTimestamp) {
+                // [FIX TS2358] Ganti 'instanceof'
+                if (rawEndTime && typeof rawEndTime.toDate === 'function') {
                     endTime = rawEndTime.toDate();
-                } else if (rawEndTime instanceof Date) { // Tambahkan cek jika sudah Date
-                    endTime = rawEndTime;
+                // [FIX TS2352] Ganti 'instanceof'
+                } else if (Object.prototype.toString.call(rawEndTime) === '[object Date]') { // Tambahkan cek jika sudah Date
+                    endTime = rawEndTime as unknown as Date;
                 }
             }
             
@@ -365,10 +376,12 @@ export const getWarArchivesByClanId = async (
             let warEndTime: Date | undefined = undefined;
             if (Object.prototype.hasOwnProperty.call(data, 'warEndTime')) {
                 const rawEndTime = (data as any).warEndTime;
-                if (rawEndTime instanceof AdminTimestamp) {
+                // [FIX TS2358] Ganti 'instanceof'
+                if (rawEndTime && typeof rawEndTime.toDate === 'function') {
                     warEndTime = rawEndTime.toDate();
-                } else if (rawEndTime instanceof Date) {
-                    warEndTime = rawEndTime;
+                // [FIX TS2352] Ganti 'instanceof'
+                } else if (Object.prototype.toString.call(rawEndTime) === '[object Date]') {
+                    warEndTime = rawEndTime as unknown as Date;
                 } else if (typeof rawEndTime === 'string') {
                     warEndTime = new Date(rawEndTime); // Fallback jika disimpan sebagai string
                 }
@@ -377,10 +390,12 @@ export const getWarArchivesByClanId = async (
             let startTime: Date | undefined = undefined;
             if (Object.prototype.hasOwnProperty.call(data, 'startTime')) {
                 const rawStartTime = (data as any).startTime;
-                if (rawStartTime instanceof AdminTimestamp) {
+                // [FIX TS2358] Ganti 'instanceof'
+                if (rawStartTime && typeof rawStartTime.toDate === 'function') {
                     startTime = rawStartTime.toDate();
-                } else if (rawStartTime instanceof Date) {
-                    startTime = rawStartTime;
+                // [FIX TS2352] Ganti 'instanceof'
+                } else if (Object.prototype.toString.call(rawStartTime) === '[object Date]') {
+                    startTime = rawStartTime as unknown as Date;
                 } else if (typeof rawStartTime === 'string') {
                     startTime = new Date(rawStartTime); // Fallback
                 }
@@ -414,7 +429,6 @@ export const getWarArchivesByClanId = async (
 // =========================================================================
 // FUNGSI SPESIFIK MANAGED CLANS (managedClans) - ADMIN SDK
 // =========================================================================
-
 /**
  * Mencatat perubahan role ke sub-koleksi managedClans/{clanId}/roleChanges.
  * Dipanggil dari API Routes manajemen role.
@@ -556,7 +570,6 @@ export const updateClanApiCache = async (
 // =========================================================================
 // FUNGSI SPESIFIK PUBLIC CLANS (publicClanIndex) - ADMIN SDK
 // =========================================================================
-
 /**
  * Memperbarui atau membuat dokumen indeks klan publik.
  * Menggunakan Admin SDK. Dipanggil dari server (pencarian / cron job).
@@ -612,7 +625,6 @@ export const updatePublicClanIndex = async (
 // =========================================================================
 // FUNGSI SPESIFIK LAINNYA - ADMIN SDK
 // =========================================================================
-
 /**
  * Memperbarui status permintaan bergabung.
  * Menggunakan Admin SDK. Dipanggil dari server.
@@ -741,5 +753,4 @@ export const updatePostAdmin = async (
 };
 
 export { adminFirestore }; // Ekspor adminFirestore di akhir
-
 

@@ -15,10 +15,19 @@ const formatWarTime = (war: CocWarLog): { text: string; isEnded: boolean } => {
     if (war.state === 'warEnded') {
         try {
             const endTime = new Date(war.endTime);
-            const formattedDate = endTime.toLocaleDateString('id-ID', {
-                day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
-            });
-            return { text: `Selesai: ${formattedDate}`, isEnded: true };
+            // Tambahkan 12 jam (retensi) untuk menampilkan pesan retensi jika perlu.
+            const retentionTime = new Date(endTime.getTime() + (12 * 60 * 60 * 1000));
+            
+            if (Date.now() < retentionTime.getTime()) {
+                // War baru selesai dalam periode retensi
+                 const formattedDate = endTime.toLocaleDateString('id-ID', {
+                    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+                return { text: `Selesai: ${formattedDate}`, isEnded: true };
+            } else {
+                 // War Ended tapi sudah melewati masa retensi (seharusnya API sudah mengembalikan null, tapi untuk jaga-jaga)
+                 return { text: 'War Selesai & Data Diarsip', isEnded: true };
+            }
         } catch (e) {
              return { text: 'Selesai', isEnded: true };
         }
@@ -32,7 +41,7 @@ const formatWarTime = (war: CocWarLog): { text: string; isEnded: boolean } => {
     const timeRemainingMs = endTime.getTime() - Date.now();
     
     if (timeRemainingMs <= 0) {
-         // Harusnya sudah diarsip, tapi untuk jaga-jaga
+         // Harusnya logic retensi di API yang mengontrol ini
          return { text: 'War Selesai', isEnded: true }; 
     }
     
@@ -59,20 +68,19 @@ interface WarMemberRowProps {
     member: CocWarMember;
     isOurClan: boolean;
     clanTag: string;
+    isCwl: boolean; // BARU: Tentukan apakah ini CWL
 }
 
-const WarMemberRow: React.FC<WarMemberRowProps> = ({ member, isOurClan, clanTag }) => {
+const WarMemberRow: React.FC<WarMemberRowProps> = ({ member, isOurClan, clanTag, isCwl }) => {
     // Cari attack terbaik yang diterima (jika ada)
     const bestAttackReceived = member.bestOpponentAttack;
 
     // Total serangan yang dilakukan (hanya untuk klan kita)
     const attacksDone = member.attacks?.length || 0;
-    // --- PERBAIKAN: Deteksi tipe war untuk max attacks ---
-    // Sementara kita belum punya tipe war eksplisit di CocWarLog, kita bisa coba tebak dari teamSize
-    // CWL biasanya 15v15 atau 30v30, Classic bisa bervariasi
-    // Atau kita bisa asumsikan 2 untuk Classic sementara
-    const isPotentiallyCWL = member.attacks?.length === 1 && member.opponentAttacks <= 1; // Heuristik sederhana
-    const maxAttacks = isPotentiallyCWL ? 1 : 2; // Default 2 untuk Classic
+    
+    // --- PERBAIKAN LOGIKA MAX ATTACKS ---
+    const maxAttacks = isCwl ? 1 : 2; // CWL: 1, Classic: 2
+    // --- AKHIR PERBAIKAN ---
 
     // Tentukan status serangan/pertahanan
     let defenseStatus = 'Belum Diserang';
@@ -163,41 +171,41 @@ const WarMemberRow: React.FC<WarMemberRowProps> = ({ member, isOurClan, clanTag 
 
 /**
  * @component ActiveWarTabContent
- * Menampilkan detail penuh dari War Aktif klan.
+ * Menampilkan detail penuh dari War Aktif klan (Persiapan, Berjalan, atau Selesai dalam masa retensi).
  */
 const ActiveWarTabContent: React.FC<ActiveWarTabContentProps> = ({
     clan, currentWar, onRefresh
 }) => {
-    // Periksa status war (DIPINDAHKAN KE ATAS useState)
+    // Periksa status war
     const war = currentWar;
     
-    // State untuk mengontrol Waktu Tersisa real-time (hanya untuk War Aktif)
-    // FIX: Gunakan 'war' yang sudah dideklarasikan
+    // State untuk mengontrol Waktu Tersisa real-time
     const [timeInfo, setTimeInfo] = useState(() => war ? formatWarTime(war) : { text: 'N/A', isEnded: true });
 
-    // --- LOGIKA UTAMA PERBAIKAN: Sertakan 'warEnded' untuk Tampilan Sementara ---
-    // War dianggap 'Aktif' untuk tampilan jika statusnya 'preparation', 'inWar', ATAU 'warEnded'.
+    // War dianggap 'Aktif' untuk tampilan jika statusnya 'preparation', 'inWar', ATAU 'warEnded' (karena retensi API)
     const isWarActive = war && (war.state === 'preparation' || war.state === 'inWar' || war.state === 'warEnded');
     const isEnded = war && war.state === 'warEnded';
+    
+    // BARU: Cek apakah War adalah CWL (WarTag biasanya hanya ada di CWL yang aktif, tapi kita cek untuk CWL Ended juga)
+    const isCwl = !!war?.warTag;
 
     // Effect untuk update waktu tersisa (hanya berjalan jika War belum berakhir)
     useEffect(() => {
         if (!war || war.state === 'warEnded') {
-            // Jika War Ended, set status akhir (tidak perlu timer)
             if (war) {
+                // Set status akhir (memperhitungkan masa retensi)
                 setTimeInfo(formatWarTime(war));
             }
-            return;
+            // Hentikan timer jika war ended
+            return; 
         }
 
-        // Setup timer untuk War yang masih berjalan atau persiapan
         const timer = setInterval(() => {
             setTimeInfo(formatWarTime(war));
-        }, 1000); // Update setiap detik
+        }, 1000); 
 
         return () => clearInterval(timer);
     }, [war]);
-    // --- AKHIR LOGIKA TIMER ---
     
 
     if (!war || !isWarActive) {
@@ -255,7 +263,7 @@ const ActiveWarTabContent: React.FC<ActiveWarTabContentProps> = ({
                         </h2>
                         
                         <p className="text-gray-300 mt-1">
-                            Status: <span className={`font-semibold capitalize ${headerClass}`}>{statusText}</span> | Tipe: {war.warTag ? 'CWL' : 'Classic War'} ({ourClan.members.length} vs {opponentClan.members.length})
+                            Status: <span className={`font-semibold capitalize ${headerClass}`}>{statusText}</span> | Tipe: {isCwl ? 'CWL' : 'Classic War'} ({ourClan.members.length} vs {opponentClan.members.length})
                         </p>
                     </div>
                      
@@ -293,12 +301,8 @@ const ActiveWarTabContent: React.FC<ActiveWarTabContentProps> = ({
             </div>
 
             {/* Detail Anggota War */}
-            {/* Kita hanya menampilkan detail anggota jika war sedang berlangsung/persiapan. 
-               Jika war ended, biasanya detailnya langsung dipindahkan ke War History.
-               Untuk menghindari kerancuan, kita sembunyikan tabel detail jika statusnya warEnded 
-               dan sarankan untuk melihat War History, kecuali War itu adalah CWL (CWL tetap di cache 7 hari)
-            */}
-            {(!isEnded || (war.warTag && isEnded)) ? (
+            {/* PERBAIKAN LOGIKA: Selalu tampilkan detail jika isWarActive (yaitu jika ada di cache: Prep, InWar, atau Ended) */}
+            {isWarActive ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
                     {/* Kolom Klan Kita */}
@@ -319,7 +323,7 @@ const ActiveWarTabContent: React.FC<ActiveWarTabContentProps> = ({
                                 </thead>
                                 <tbody className="divide-y divide-coc-gold-dark/10">
                                     {ourClan.members.map(member => (
-                                        <WarMemberRow key={member.tag} member={member} isOurClan={true} clanTag={clan.tag}/>
+                                        <WarMemberRow key={member.tag} member={member} isOurClan={true} clanTag={clan.tag} isCwl={isCwl}/>
                                     ))}
                                 </tbody>
                             </table>
@@ -344,7 +348,7 @@ const ActiveWarTabContent: React.FC<ActiveWarTabContentProps> = ({
                                 </thead>
                                 <tbody className="divide-y divide-coc-red/10">
                                     {opponentClan.members.map(member => (
-                                        <WarMemberRow key={member.tag} member={member} isOurClan={false} clanTag={clan.tag}/>
+                                        <WarMemberRow key={member.tag} member={member} isOurClan={false} clanTag={clan.tag} isCwl={isCwl}/>
                                     ))}
                                 </tbody>
                             </table>
@@ -352,12 +356,12 @@ const ActiveWarTabContent: React.FC<ActiveWarTabContentProps> = ({
                     </div>
                 </div>
             ) : (
-                // Pesan peringatan jika War Ended dan bukan CWL
+                // Pesan ini hanya akan ditampilkan jika isWarActive == false
                  <div className="p-8 text-center bg-coc-stone/40 rounded-lg flex flex-col justify-center items-center space-y-4">
                      <BookOpenIcon className="h-10 w-10 text-coc-gold mx-auto mb-3" />
                      <p className="text-lg font-clash text-white">Detail War Telah Berakhir</p>
                      <p className="text-sm text-gray-400 font-sans">
-                         War Classic yang telah selesai akan dipindahkan ke **Riwayat War Klasik**. Silakan cek tab tersebut untuk detail serangan anggota.
+                         War yang telah selesai (dan melewati masa retensi) telah dipindahkan ke **Riwayat War Klasik**.
                      </p>
                      <Button href="/clan/manage?tab=war-history" variant="secondary" size="sm">
                          <ArrowRightIcon className='h-4 w-4 mr-2'/> Lihat Riwayat War

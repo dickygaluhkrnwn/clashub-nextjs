@@ -15,6 +15,7 @@ import {
     getCwlArchivesByClanId,
     getWarArchivesByClanId, // <-- [BARU] Impor fungsi deduplikasi
     FirestoreDocument, // Import FirestoreDocument jika belum ada
+    // getClanApiCacheAdmin // <-- Dihapus, tidak perlu pre-fetch cache
 } from '@/lib/firestore-admin';
 import { Timestamp as AdminTimestamp } from 'firebase-admin/firestore'; // Import Admin Timestamp
 import { getSessionUser } from '@/lib/server-auth'; // Untuk otentikasi Server-Side
@@ -22,24 +23,28 @@ import {
     ManagedClan,
     ClanApiCache,
     CocMember,
-    CocWarLog,      // Tipe dari CoC API Wrapper
+    CocWarLog,       // Tipe dari CoC API Wrapper
     CocWarLogEntry, // Tipe spesifik untuk War Log Item
     UserProfile,
     ClanRole,
     TopPerformerPlayer, // Tipe untuk Top Performers
     CocRaidLog,       // Tipe untuk Raid Log API
-    RaidArchive,      // Tipe untuk Arsip Raid
-    WarArchive,       // Tipe untuk Arsip CWL
-    CwlArchive,       // Tipe untuk Arsip CWL
+    RaidArchive,       // Tipe untuk Arsip Raid
+    WarArchive,        // Tipe untuk Arsip CWL
+    CwlArchive,        // Tipe untuk Arsip CWL
 } from '@/lib/types';
 import { getAggregatedParticipationData } from './logic/participationAggregator';
 // Import tipe data dari file lokal yang baru dibuat
 // ClanWarLog dan CwlWarLog dari logic/types digunakan untuk input aggregator
 import { ClanWarLog as AggregatorClanWarLog, CwlWarLog as AggregatorCwlWarLog } from './logic/types';
 import { COLLECTIONS } from '@/lib/firestore-collections'; // Import nama koleksi
+// [PERBAIKAN] Impor parseCocDate dari utilitas
+import { parseCocDate } from '@/lib/th-utils';
 
 // Batas waktu untuk menganggap cache 'fresh' (30 menit)
 const CACHE_STALE_MS = 1000 * 60 * 30;
+// [DIHAPUS] Batas waktu retensi War Ended (dipindahkan ke page.tsx)
+// const WAR_ENDED_RETENTION_MS = 1000 * 60 * 60 * 12;
 
 // =========================================================================
 // FUNGSI HELPER BARU & PERBAIKAN ID
@@ -58,8 +63,9 @@ function cleanDataForAdminSDK<T extends object>(
             data[key] !== undefined &&
             data[key] !== null // Hapus null juga, kecuali diizinkan secara eksplisit
         ) {
-            if (data[key] instanceof Date) {
-                cleaned[key] = AdminTimestamp.fromDate(data[key] as Date);
+            // [FIX TS2352/TS2358] Ganti 'instanceof Date' dengan pengecekan yang lebih aman
+            if (Object.prototype.toString.call(data[key]) === '[object Date]') {
+                cleaned[key] = AdminTimestamp.fromDate(data[key] as unknown as Date);
             } else {
                 cleaned[key] = data[key];
             }
@@ -73,36 +79,7 @@ function cleanDataForAdminSDK<T extends object>(
     return cleaned;
 }
 
-/**
- * Mengonversi string tanggal CoC (YYYYMMDDTHHMMSS.mmmZ) ke objek Date yang valid.
- * @param cocDate String tanggal dari CoC API.
- * @returns Objek Date yang valid, atau Invalid Date jika format salah.
- */
-function parseCocDate(cocDate: string | undefined): Date {
-    // Cek ini sekarang menangani 'undefined', 'null', dan string kosong
-    if (!cocDate || cocDate.length < 15) {
-        return new Date(NaN); // Handle string tidak valid
-    }
-    
-    try {
-        // Input:  20251030T122129.000Z
-        // Output: 2025-10-30T12:21:29.000Z (Format ISO 8601 standar)
-        const year = cocDate.substring(0, 4);
-        const month = cocDate.substring(4, 6);
-        const day = cocDate.substring(6, 8);
-        const hour = cocDate.substring(9, 11);
-        const minute = cocDate.substring(11, 13);
-        const second = cocDate.substring(13, 15);
-        const rest = cocDate.substring(15); // .000Z
-
-        const isoString = `${year}-${month}-${day}T${hour}:${minute}:${second}${rest}`;
-        
-        return new Date(isoString);
-    } catch (e) {
-        console.error(`[parseCocDate] Failed to parse date string: ${cocDate}`, e);
-        return new Date(NaN); // Kembalikan Invalid Date jika parsing gagal
-    }
-}
+// [DIHAPUS] Fungsi parseCocDate dipindahkan ke lib/th-utils.ts
 
 /**
  * @function getWarArchiveId
@@ -196,7 +173,8 @@ export async function GET(request: NextRequest) {
         const lastSyncedDate =
             managedClan.lastSynced instanceof Date
                 ? managedClan.lastSynced
-                : new Date(managedClan.lastSynced); 
+                // [FIX] Arahkan ke toDate() jika ini adalah AdminTimestamp (meskipun seharusnya Date)
+                : new Date((managedClan.lastSynced as any).seconds ? (managedClan.lastSynced as any).toDate() : managedClan.lastSynced); 
 
         if (
             !userUid && 
@@ -217,6 +195,8 @@ export async function GET(request: NextRequest) {
         );
 
         console.log(`[SYNC START] Fetching API data for clan: ${rawClanTag}`);
+        
+        // [DIHAPUS] Pengambilan existingCurrentWar dipindahkan ke page.tsx
 
         // Parallel fetch data dari CoC API dan Firestore
         const [
@@ -265,10 +245,12 @@ export async function GET(request: NextRequest) {
 
         const promotions = participationMembers
             .filter(m => m.participationStatus === 'Promosi')
+            // FIX TYPO: Mengganti townhallLevel menjadi townHallLevel
             .map(m => ({ tag: m.tag, name: m.name, value: 'Promosi', thLevel: m.townHallLevel, role: m.role as ClanRole } as TopPerformerPlayer));
 
         const demotions = participationMembers
             .filter(m => m.participationStatus === 'Demosi')
+            // FIX TYPO: Mengganti townhallLevel menjadi townHallLevel
             .map(m => ({ tag: m.tag, name: m.name, value: 'Demosi', thLevel: m.townHallLevel, role: m.role as ClanRole } as TopPerformerPlayer));
 
         // Top Donator
@@ -281,6 +263,7 @@ export async function GET(request: NextRequest) {
                     tag: topApiDonator.tag,
                     name: topApiDonator.name,
                     value: topApiDonator.donations,
+                    // FIX TYPO: Mengganti townhallLevel menjadi townHallLevel
                     thLevel: topApiDonator.townHallLevel,
                     role: topApiDonator.role as ClanRole 
                 };
@@ -298,6 +281,7 @@ export async function GET(request: NextRequest) {
                     tag: topApiLooter.tag,
                     name: topApiLooter.name,
                     value: topApiLooter.capitalResourcesLooted,
+                    // FIX TYPO: Mengganti townhallLevel menjadi townHallLevel
                     thLevel: looterProfile?.townHallLevel,
                     role: looterProfile?.role as ClanRole 
                 };
@@ -313,47 +297,36 @@ export async function GET(request: NextRequest) {
 
         // 5. Buat Payload Cache & ManagedClan Metadata
         
-        // --- LOGIKA PERBAIKAN MASALAH UTAMA: War Ended Harus Ditampilkan Hingga War Baru Dimulai ---
+        // --- [PERBAIKAN] LOGIKA PENYIMPANAN WAR DISERAHKAN ---
+        // Logic retensi 12 jam dipindahkan ke page.tsx.
+        // API Sync HANYA menyimpan data mentah yang didapat dari API CoC.
         
         let warToCache: CocWarLog | null = null;
         
         if (currentWarData) {
             const state = currentWarData.state;
             
-            if (state === 'inWar' || state === 'preparation') {
-                // Jika ada War aktif atau persiapan, SELALU tampilkan ini.
+            if (state === 'inWar' || state === 'preparation' || state === 'warEnded') {
+                // [KASUS 1, 2]: War AKTIF / PERSIAPAN / ENDED (dari API)
                 warToCache = currentWarData;
-                console.log(`[SYNC CACHE] Storing NEW Active War (State: ${state}).`);
-            } else if (state === 'warEnded') {
-                // Jika War sudah ended, kita perlu cek cache yang sudah ada
-                const existingCache = await adminFirestore.collection(COLLECTIONS.MANAGED_CLANS).doc(clanId)
-                    .collection('clanApiCache').doc('current').get();
-                const existingCurrentWar: CocWarLog | null = existingCache.data()?.currentWar || null;
-                
-                // Jika WarENDED ini adalah War yang sama dengan yang ada di cache (berdasarkan tag lawan atau waktu),
-                // ATAU jika di cache tidak ada war aktif, simpan WarENDED ini.
-                // Ini memastikan WarENDED tetap terlihat sampai API mengembalikan 'notInWar' atau War baru.
-                const isSameWar = existingCurrentWar?.opponent.tag === currentWarData.opponent.tag;
-
-                if (!existingCurrentWar || existingCurrentWar.state === 'warEnded' || isSameWar) {
-                    warToCache = currentWarData;
-                    console.log(`[SYNC CACHE] Storing War Ended (ID: ${getWarArchiveId(currentWarData.opponent.tag || '', parseCocDate(currentWarData.endTime), true)}) to keep it visible.`);
-                }
+                console.log(`[SYNC CACHE] Storing API War data (State: ${state}).`);
             }
-        } 
-        
-        // Catatan: Jika currentWarData adalah 'notInWar' (cocApi.getClanCurrentWar mengembalikan null jika notInWar), 
-        // dan warToCache tetap null, maka cache akan di-null-kan, yang merupakan perilaku yang benar untuk "tidak ada war aktif".
+            // (Jika state lain, warToCache tetap null)
+        } else {
+             // [KASUS 3]: API mengembalikan null (notInWar)
+             warToCache = null;
+             console.log(`[SYNC WAR] API returned 'notInWar'. Storing null.`);
+        }
 
         const newCacheData: Omit<ClanApiCache, 'id' | 'lastUpdated'> = {
-            // FIX: Menggunakan warToCache yang sudah melalui logika validasi di atas
+            // FIX: Menggunakan warToCache yang sudah disederhanakan
             currentWar: warToCache, 
             currentRaid: raidLogData || null, 
             members: participationMembers,
             topPerformers: topPerformersData, 
         };
 
-        // --- AKHIR LOGIKA PERBAIKAN MASALAH UTAMA ---
+        // --- AKHIR PERBAIKAN LOGIKA ---
 
         const totalThLevel = currentMembersApi.reduce(
             (sum, member) => sum + member.townHallLevel,
@@ -422,9 +395,9 @@ export async function GET(request: NextRequest) {
         // Buat Set (peta) dari ID arsip yang sudah ada untuk pengecekan cepat
         const existingWarIds = new Set(existingWarArchives.map(war => {
             const endTime = war.warEndTime instanceof Date 
-                 ? war.warEndTime 
-                 : (war.warEndTime as unknown as AdminTimestamp).toDate();
-                 
+                    ? war.warEndTime 
+                    : (war.warEndTime as unknown as AdminTimestamp).toDate();
+                    
             const isDetail = war.hasDetails || !!war.members;
             return getWarArchiveId(war.opponent?.tag || '', endTime, isDetail); 
         }));
@@ -434,34 +407,38 @@ export async function GET(request: NextRequest) {
         let archivedWarCount = 0;
         
         // --- [LANGKAH 1: Arsipkan Data DETAIL dari currentWar] ---
-        if (currentWarData?.warTag && currentWarData.state === 'warEnded') {
-            const warEndTime = parseCocDate(currentWarData.endTime);
+        // [PERBAIKAN] Gunakan warToCache (data yang sudah divalidasi)
+        if (warToCache && warToCache.state === 'warEnded') {
+            const warEndTime = parseCocDate(warToCache.endTime);
             
-            if (!isNaN(warEndTime.getTime()) && currentWarData.opponent?.tag) {
-                const opponentTag = currentWarData.opponent.tag;
-                const warId = getWarArchiveId(opponentTag, warEndTime, true);
+            // [PERBAIKAN] Cek warEndTime (pastikan Date, bukan null) SEBELUM memanggil .getTime()
+            if (warEndTime && !isNaN(warEndTime.getTime()) && warToCache.opponent?.tag) {
+                const opponentTag = warToCache.opponent.tag;
+                // Selalu arsipkan data dari API sebagai 'detail' (isDetailArchive: true)
+                const warId = getWarArchiveId(opponentTag, warEndTime, true); 
                 
                 if (!existingWarIds.has(warId)) {
                     console.log(`[SYNC ARCHIVE-DETAIL] New war found (ID: ${warId}). Archiving with details...`);
                     const archiveDocRef = warArchivesRef.doc(warId); 
 
+                    // Gunakan warToCache sebagai sumber
                     const warArchiveData: Omit<WarArchive, 'id'|'clanTag'|'warEndTime'> = {
                         state: 'warEnded',
-                        teamSize: currentWarData.teamSize,
-                        clan: currentWarData.clan,
-                        opponent: currentWarData.opponent,
-                        startTime: currentWarData.startTime, 
-                        endTime: currentWarData.endTime,
-                        result: currentWarData.result,
-                        preparationStartTime: currentWarData.preparationStartTime,
-                        attacksPerMember: currentWarData.attacksPerMember,
-                        members: currentWarData.members, // Menyimpan detail attacks
+                        teamSize: warToCache.teamSize,
+                        clan: warToCache.clan,
+                        opponent: warToCache.opponent,
+                        startTime: warToCache.startTime, 
+                        endTime: warToCache.endTime,
+                        result: warToCache.result,
+                        preparationStartTime: warToCache.preparationStartTime,
+                        attacksPerMember: warToCache.attacksPerMember,
+                        members: warToCache.members, // Menyimpan detail attacks
                     };
 
                     batch.set(archiveDocRef, cleanDataForAdminSDK({
                         ...warArchiveData,
                         clanTag: rawClanTag,
-                        startTime: parseCocDate(currentWarData.startTime),
+                        startTime: parseCocDate(warToCache.startTime), // Ini juga harus di-parse
                         warEndTime: warEndTime,
                         hasDetails: true // <-- [PENANDA BARU]
                     }), { merge: true });
@@ -483,7 +460,8 @@ export async function GET(request: NextRequest) {
                 const warEndTime = parseCocDate(warEntry.endTime);
                 const opponentTag = warEntry.opponent?.tag;
 
-                if (!isNaN(warEndTime.getTime()) && warEntry.result && opponentTag) {
+                // [PERBAIKAN] Cek warEndTime (pastikan Date, bukan null) SEBELUM memanggil .getTime()
+                if (warEndTime && !isNaN(warEndTime.getTime()) && warEntry.result && opponentTag) {
                     const warId = getWarArchiveId(opponentTag, warEndTime, false);
                     
                     if (!existingWarIds.has(warId)) {
@@ -523,14 +501,16 @@ export async function GET(request: NextRequest) {
         if (raidLogData && raidLogData.state === 'ended') {
             const raidArchivesRef = managedClanRef.collection('raidArchives');
             const raidEndTime = parseCocDate(raidLogData.endTime);
-            if (!isNaN(raidEndTime.getTime())) {
+            // [PERBAIKAN] Cek raidEndTime (pastikan Date, bukan null) SEBELUM memanggil .getTime()
+            if (raidEndTime && !isNaN(raidEndTime.getTime())) {
                 const raidId = `${rawClanTag.replace('#', '')}-${raidEndTime.toISOString()}`; 
                 const archiveDocRef = raidArchivesRef.doc(raidId);
                 
                 const raidArchiveData: Omit<RaidArchive, 'id'|'clanTag'> = {
                     raidId: raidId, 
-                    startTime: parseCocDate(raidLogData.startTime),
-                    endTime: raidEndTime,
+                    // [PERBAIKAN] Ubah 'null' menjadi 'undefined' agar sesuai tipe RaidArchive
+                    startTime: parseCocDate(raidLogData.startTime) || undefined,
+                    endTime: raidEndTime, // Ini aman karena 'raidEndTime' sudah dipastikan Date di 'if'
                     capitalTotalLoot: raidLogData.capitalTotalLoot,
                     totalAttacks: raidLogData.totalAttacks,
                     members: raidLogData.members, 
@@ -596,3 +576,4 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: errorMessage }, { status: statusCode });
     }
 }
+
