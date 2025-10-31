@@ -101,14 +101,14 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
 
     // --- Kondisi jika initialData null (seharusnya tidak terjadi jika serverError null) ---
     if (!initialData || !profile) {
-         // Tampilkan loading atau pesan error yang sesuai
-         return (
-             <main className="container mx-auto p-4 md:p-8 mt-10 min-h-[60vh]">
-                 <div className="flex justify-center items-center">
-                    <p>Memuat data klan...</p> {/* Atau komponen loading */}
-                 </div>
-             </main>
-         );
+           // Tampilkan loading atau pesan error yang sesuai
+           return (
+               <main className="container mx-auto p-4 md:p-8 mt-10 min-h-[60vh]">
+                   <div className="flex justify-center items-center">
+                       <p>Memuat data klan...</p> {/* Atau komponen loading */}
+                   </div>
+               </main>
+           );
     }
 
     // Data dari Server Component (sudah divalidasi tidak null)
@@ -267,7 +267,7 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
                     <WarHistoryTabContent
                         clanId={clan.id}
                         clanTag={clan.tag}
-                        initialWarHistory={data.warHistory || []} // <<< BARIS INI DIPERBARUI
+                        // FIXED: Hapus prop initialWarHistory karena komponen anak sudah mengambil data sendiri
                         onRefresh={handleRefreshData}
                     />
                 );
@@ -347,8 +347,8 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
                                     tabName={tab.tabName} 
                                     icon={tab.icon} 
                                     label={tab.tabName === 'members' ? `Anggota (${data.members.length})` : 
-                                           tab.tabName === 'requests' ? `Permintaan Gabung (${data.joinRequests.length})` : 
-                                           tab.label} 
+                                            tab.tabName === 'requests' ? `Permintaan Gabung (${data.joinRequests.length})` : 
+                                            tab.label} 
                                 />
                             ))}
 
@@ -366,4 +366,3 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
 };
 
 export default ManageClanClient;
-

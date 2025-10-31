@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-// PERBAIKAN 4: Menambahkan ArrowUpIcon/ArrowDownIcon ke import icons
 import { XIcon, StarIcon, AlertTriangleIcon, TrophyIcon, ShieldIcon, ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, ArrowDownIcon } from '@/app/components/icons';
-// PERBAIKAN AKHIR: Menghapus CocWarLogClan dari import karena menyebabkan error eksport dan tidak digunakan langsung di komponen.
 import { WarArchive, CocWarMember, CocWarAttack } from '@/lib/types'; 
 import { getWarArchive } from '@/lib/firestore'; 
 import Image from 'next/image';
@@ -87,6 +85,7 @@ interface MemberRowProps {
 
 const MemberRow: React.FC<MemberRowProps> = ({ member, isClanMember, opponentMembersMap }) => {
     // PERBAIKAN: Penanganan undefined
+    // War Classic memungkinkan 2 serangan, jadi total serangan bisa > 1
     const totalStars = member.attacks?.reduce((sum, attack) => sum + (attack.stars || 0), 0) || 0;
     const totalAttacks = member.attacks?.length || 0;
     // PERBAIKAN: Menggunakan getThImage
@@ -101,7 +100,6 @@ const MemberRow: React.FC<MemberRowProps> = ({ member, isClanMember, opponentMem
     // [PERBAIKAN] Lookup defender details di AttackRow
     const renderAttackRows = () => member.attacks!.map((attack, index) => {
         // Cari detail defender di map lawan
-        // CocWarAttack di API hanya punya defenderTag, kita harus lookup TH, MapPosition
         const defender = opponentMembersMap.get(attack.defenderTag || '');
         
         const defenderDetails = defender ? { 
@@ -123,8 +121,8 @@ const MemberRow: React.FC<MemberRowProps> = ({ member, isClanMember, opponentMem
         <div className={`border-b border-coc-gold-dark/10 ${bgClass} transition-colors`}>
             {/* Baris Utama Pemain */}
             <div 
-                className={`flex items-center p-3 cursor-pointer ${isExpanded ? 'border-b border-coc-gold-dark/20' : ''}`}
-                onClick={() => setIsExpanded(!isExpanded)}
+                className={`flex items-center p-3 cursor-pointer ${totalAttacks > 0 ? 'hover:bg-coc-gold/5' : ''} ${isExpanded ? 'border-b border-coc-gold-dark/20' : ''}`}
+                onClick={() => totalAttacks > 0 && setIsExpanded(!isExpanded)} // Hanya bisa di-klik jika ada serangan
             >
                 {/* Posisi Peta / ID */}
                 <div className="w-1/12 text-center text-sm font-bold text-coc-gold/80 hidden sm:block">{member.mapPosition}</div>
@@ -151,7 +149,7 @@ const MemberRow: React.FC<MemberRowProps> = ({ member, isClanMember, opponentMem
 
                 {/* Total Serangan */}
                 <div className="w-2/12 text-center text-sm text-gray-300">
-                    {totalAttacks} {totalAttacks > 1 ? 'Serangan' : 'Serangan'}
+                    {totalAttacks} {totalAttacks === 1 ? 'Serangan' : 'Serangan'}
                 </div>
                 
                 {/* Tanda Detail (Panah) */}
@@ -202,21 +200,21 @@ const WarDetailModal: React.FC<WarDetailModalProps> = ({ clanId, warId, onClose 
                 // Catatan: getWarArchive sudah diimplementasikan di lib/firestore.ts
                 const data = await getWarArchive(clanId, warId);
                 
-                if (data?.hasDetails) {
-                    // PERBAIKAN: Mengonversi Date object dari Firestore Timestamp di client
+                if (data?.hasDetails && data.clan?.members && data.opponent?.members) {
+                    // PERBAIKAN KRITIS #1: Hapus konversi startTime/endTime yang salah
+                    // Cukup pastikan warEndTime adalah Date (sudah dijamin oleh lib/firestore.ts)
                     const cleanedData: WarArchive = {
                         ...data,
+                        // Konversi ini hanya memastikan tipe, tapi sebenarnya sudah terjadi di docToData
                         warEndTime: data.warEndTime instanceof Date ? data.warEndTime : new Date(data.warEndTime),
-                        // startTime dan endTime dari CocWarLog juga mungkin perlu dikonversi
-                        startTime: data.startTime ? new Date(data.startTime) : undefined,
-                        endTime: data.endTime ? new Date(data.endTime) : undefined,
                     };
 
                     setWarData(cleanedData);
                 } else if (data && !data.hasDetails) {
                     setError("Detail serangan tidak tersedia untuk arsip ini (Hanya ringkasan).");
                 } else {
-                    setError("Arsip perang tidak ditemukan di database.");
+                    // Ini mencakup: data null, atau hasDetails true tapi member/clan data missing (data korup)
+                    setError("Arsip perang tidak ditemukan di database, atau data detail tidak lengkap.");
                 }
 
             } catch (err) {
@@ -234,8 +232,8 @@ const WarDetailModal: React.FC<WarDetailModalProps> = ({ clanId, warId, onClose 
     const opponentMembersMap = useMemo(() => {
         const map = new Map<string, CocWarMember>();
         if (warData?.opponent.members) {
-            // PERBAIKAN 3: Menambahkan tipe eksplisit ke sort
-            warData.opponent.members.sort((a: CocWarMember, b: CocWarMember) => a.mapPosition - b.mapPosition).forEach((member: CocWarMember) => {
+            // Memberikan tipe eksplisit agar TypeScript senang
+            (warData.opponent.members as CocWarMember[]).sort((a, b) => a.mapPosition - b.mapPosition).forEach((member) => {
                 if (member.tag) {
                     map.set(member.tag, member);
                 }
@@ -244,7 +242,7 @@ const WarDetailModal: React.FC<WarDetailModalProps> = ({ clanId, warId, onClose 
         return map;
     }, [warData]);
 
-    // PERBAIKAN 5 & 6: Menambahkan tipe eksplisit ke sort
+    // Memberikan tipe eksplisit ke sort agar tidak ada error di useMemo
     const ourMembers = useMemo(() => warData?.clan.members?.sort((a: CocWarMember, b: CocWarMember) => a.mapPosition - b.mapPosition) || [], [warData]);
     const opponentMembers = useMemo(() => warData?.opponent.members?.sort((a: CocWarMember, b: CocWarMember) => a.mapPosition - b.mapPosition) || [], [warData]);
     
@@ -254,8 +252,10 @@ const WarDetailModal: React.FC<WarDetailModalProps> = ({ clanId, warId, onClose 
     return (
         // Modal Container (fixed position)
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm transition-opacity duration-300" 
-             aria-modal="true" role="dialog" 
-             onClick={onClose} // Tutup modal saat klik backdrop
+            // PERBAIKAN #3: Tambahkan penanganan escape key
+             onKeyDown={(e) => e.key === 'Escape' && onClose()}
+             tabIndex={-1} // Penting untuk menangkap keydown
+            onClick={onClose} // Tutup modal saat klik backdrop
         >
             {/* Konten Modal (Centered) */}
             <div className="flex min-h-full items-center justify-center p-4 text-center">
@@ -270,10 +270,10 @@ const WarDetailModal: React.FC<WarDetailModalProps> = ({ clanId, warId, onClose 
                         <h3 className="text-2xl font-clash font-bold leading-6 text-white border-b border-coc-gold-dark/30 pb-3 mb-4 flex justify-between items-center">
                             Rincian War Classic: {warData?.clan.name || '...'} vs {warData?.opponent.name || '...'}
                             <Button
-                                // PERBAIKAN 4: Ganti size="icon" dengan size="sm" dan sesuaikan padding class
+                                // PERBAIKAN #2: Perbaikan CSS Tombol Tutup
                                 size="sm"
                                 variant="tertiary"
-                                className="inline-flex justify-center rounded-full text-white bg-coc-stone-light p-2 hover:bg-coc-red focus:outline-none focus-visible:ring-2 focus-visible:ring-coc-red focus-visible:ring-offset-2"
+                                className="inline-flex justify-center rounded-full text-white bg-coc-stone-light p-2 hover:bg-coc-red/70 focus:outline-none"
                                 onClick={onClose}
                             >
                                 <XIcon className="h-5 w-5" aria-hidden="true" />
