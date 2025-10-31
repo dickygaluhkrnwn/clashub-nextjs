@@ -168,12 +168,13 @@ const WarMemberRow: React.FC<WarMemberRowProps> = ({ member, isOurClan, clanTag 
 const ActiveWarTabContent: React.FC<ActiveWarTabContentProps> = ({
     clan, currentWar, onRefresh
 }) => {
-    // State untuk mengontrol Waktu Tersisa real-time (hanya untuk War Aktif)
-    const [timeInfo, setTimeInfo] = useState(() => war ? formatWarTime(war) : { text: 'N/A', isEnded: true });
-
-    // Periksa status war
+    // Periksa status war (DIPINDAHKAN KE ATAS useState)
     const war = currentWar;
     
+    // State untuk mengontrol Waktu Tersisa real-time (hanya untuk War Aktif)
+    // FIX: Gunakan 'war' yang sudah dideklarasikan
+    const [timeInfo, setTimeInfo] = useState(() => war ? formatWarTime(war) : { text: 'N/A', isEnded: true });
+
     // --- LOGIKA UTAMA PERBAIKAN: Sertakan 'warEnded' untuk Tampilan Sementara ---
     // War dianggap 'Aktif' untuk tampilan jika statusnya 'preparation', 'inWar', ATAU 'warEnded'.
     const isWarActive = war && (war.state === 'preparation' || war.state === 'inWar' || war.state === 'warEnded');
