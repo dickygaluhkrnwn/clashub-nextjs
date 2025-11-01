@@ -334,3 +334,26 @@ export interface CocRaidDefenseLogEntry {
     districts: CocRaidDistrict[]; // Detail distrik kita yang diserang oleh klan ini
 }
 
+// --- [PERBAIKAN ERROR: Tambahkan Tipe CocCurrentWar] ---
+
+/**
+ * @interface CocCurrentWar
+ * Data untuk endpoint /clans/{clanTag}/currentwar.
+ * Strukturnya SANGAT mirip with CocWarLog, tapi ini adalah root object,
+ * bukan item di dalam array 'items'.
+ *
+ * Kita extend CocWarLog dan tambahkan properti spesifik 'currentwar'
+ * yang tidak ada di 'warlog'.
+ */
+export interface CocCurrentWar extends Omit<CocWarLog, 'items'> {
+    // 'state', 'teamSize', 'startTime', 'endTime', 'clan', 'opponent', 'result'
+    // semua di-inherit dari CocWarLog.
+    
+    // Properti tambahan yang ada di currentwar tapi tidak di warlog entry:
+    preparationStartTime: string; // ISO Date String
+    attacksPerMember?: number;
+
+    // CATATAN: 'members' (data detail serangan) berada di dalam
+    // properti 'clan.members' and 'opponent.members' (tipe CocWarClanInfo),
+    // bukan di top-level.
+}

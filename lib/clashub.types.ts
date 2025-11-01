@@ -5,7 +5,10 @@
 // PERBAIKAN: Impor tipe Enum/Bantuan dari file 'enums.ts'
 import { ClanRole, ManagerRole, StandardMemberRole, WarResult, PostCategory } from './enums';
 // PERBAIKAN: Impor tipe CoC dari file 'coc.types.ts'
-import { CocWarLog, CocRaidLog, CocMember, CocIconUrls, CocRaidMember, CocRaidAttackLogEntry, CocRaidDefenseLogEntry } from './coc.types';
+// --- [PERBAIKAN ERROR V6] ---
+// Impor CocCurrentWar, bukan hanya CocWarLog
+import { CocWarLog, CocRaidLog, CocMember, CocIconUrls, CocRaidMember, CocRaidAttackLogEntry, CocRaidDefenseLogEntry, CocCurrentWar } from './coc.types';
+// --- [AKHIR PERBAIKAN ERROR V6] ---
 
 
 // =========================================================================
@@ -106,7 +109,13 @@ export interface ManagedClan {
 export interface ClanApiCache {
     id: 'current'; // ID dokumen tunggal
     lastUpdated: Date;
-    currentWar?: CocWarLog | null; // Referensi tipe dari file baru
+    
+    // --- [PERBAIKAN ERROR V6] ---
+    // Mengganti tipe CocWarLog dengan CocCurrentWar agar cocok
+    // dengan tipe data yang digunakan di route.ts
+    currentWar?: CocCurrentWar | null; // Referensi tipe dari file baru
+    // --- [AKHIR PERBAIKAN ERROR V6] ---
+
     currentRaid?: CocRaidLog | null; // Referensi tipe dari file baru
     // Daftar anggota yang diperbarui dari API Coc, termasuk Partisipasi
     members: Array<
@@ -276,7 +285,7 @@ export type VideoCategory = ...
  * Mendefinisikan struktur data untuk video YouTube yang disimpan di koleksi 'videos' Firestore.
  */
 export interface Video {
-    id: string;       // ID dokumen Firestore (unik, bisa di-generate otomatis)
+    id: string;      // ID dokumen Firestore (unik, bisa di-generate otomatis)
     videoId: string;    // ID unik video dari YouTube (digunakan sebagai primary key logis)
     title: string;      // Judul video
     description?: string; // Deskripsi singkat video (opsional)
@@ -368,3 +377,4 @@ export interface CwlArchive {
     rounds: CocWarLog[]; // Referensi tipe dari file baru
     // Bisa ditambahkan data ringkasan musim jika perlu (misal: total stars, placement)
 }
+

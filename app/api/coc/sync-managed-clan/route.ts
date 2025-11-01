@@ -1,6 +1,6 @@
 // File: app/api/coc/sync-managed-clan/route.ts
 // Deskripsi: API Route untuk menyinkronkan data ManagedClan internal dengan API CoC.
-// (VERSI DIPERBARUI - Implementasi Roadmap V5)
+// (VERSI DIPERBARUI - Implementasi Roadmap V5 + Perbaikan Arsip V9)
 
 import { NextRequest, NextResponse } from 'next/server';
 // Menggunakan default export dari lib/coc-api
@@ -24,15 +24,16 @@ import {
     ManagedClan,
     ClanApiCache,
     CocMember,
-    CocWarLog,      // Tipe dari CoC API Wrapper
+    CocWarLog,       // Tipe dari CoC API Wrapper
     CocWarLogEntry, // Tipe spesifik untuk War Log Item
     UserProfile,
     ClanRole,
     TopPerformerPlayer, // Tipe untuk Top Performers
-    CocRaidLog,       // Tipe untuk Raid Log API
-    RaidArchive,      // Tipe untuk Arsip Raid
-    WarArchive,       // Tipe untuk Arsip CWL
-    CwlArchive,       // Tipe untuk Arsip CWL
+    CocRaidLog,         // Tipe untuk Raid Log API
+    RaidArchive,        // Tipe untuk Arsip Raid
+    WarArchive,         // Tipe untuk Arsip CWL
+    CwlArchive,         // Tipe untuk Arsip CWL
+    CocCurrentWar,      // <-- [FIX V6] Import tipe CocCurrentWar
 } from '@/lib/types';
 import { getAggregatedParticipationData } from './logic/participationAggregator';
 // Import tipe data dari file lokal yang baru dibuat
@@ -44,8 +45,10 @@ import { parseCocDate } from '@/lib/th-utils';
 
 // Batas waktu untuk menganggap cache 'fresh' (30 menit)
 const CACHE_STALE_MS = 1000 * 60 * 30;
-// [DIHAPUS] Toleransi waktu migrasi tidak diperlukan lagi dengan ID baru
-// const MIGRATION_TIME_TOLERANCE_MS = 1000 * 60 * 10; 
+// [FIX V6] Toleransi retensi 12 jam untuk data 'warEnded' di cache
+const WAR_ENDED_CACHE_RETENTION_MS = 1000 * 60 * 60 * 12;
+// [FIX V9] Toleransi waktu untuk fuzzy matching duplikat (48 jam)
+const WAR_DEDUPE_TIME_TOLERANCE_MS = 1000 * 60 * 60 * 48; 
 
 // =========================================================================
 // FUNGSI HELPER BARU & PERBAIKAN ID
@@ -81,6 +84,8 @@ function cleanDataForAdminSDK<T extends object>(
         }
 
     }
+    // --- [PERBAIKAN ERROR V8] ---
+    // Mengembalikan 'return' yang tidak sengaja terhapus
     return cleaned;
 }
 
@@ -111,17 +116,21 @@ export async function GET(request: NextRequest) {
     const clanId = request.nextUrl.searchParams.get('clanId');
     const userUid = request.headers.get('X-Request-UID'); // Untuk otorisasi manual sync
 
-    if (!clanId) {
-        return NextResponse.json(
-            { error: 'Missing clanId parameter.' },
-            { status: 400 }
-        );
-    }
-
-    let managedClan: ManagedClan | null = null;
-    let allUserProfiles: FirestoreDocument<UserProfile>[] = []; // BARU: Untuk cache UID
-
+    // --- [PERBAIKAN ERROR V8] ---
+    // Memindahkan blok 'try' ke atas untuk mencakup *semua* logika,
+    // termasuk 'if (!clanId)'
     try {
+        if (!clanId) {
+            return NextResponse.json(
+                { error: 'Missing clanId parameter.' },
+                { status: 400 }
+            );
+        }
+
+        let managedClan: ManagedClan | null = null;
+        let allUserProfiles: FirestoreDocument<UserProfile>[] = []; // BARU: Untuk cache UID
+        let existingCache: ClanApiCache | null = null; // <-- [FIX V6] Definisikan di scope atas
+
         // 1. Otorisasi & Ambil ManagedClan (Gunakan Client SDK untuk get)
         managedClan = await getManagedClanData(clanId);
 
@@ -181,13 +190,23 @@ export async function GET(request: NextRequest) {
 
         console.log(`[SYNC START] Fetching API data for clan: ${rawClanTag}`);
 
-        // [DIHAPUS] Pengambilan existingCurrentWar dipindahkan ke page.tsx
+        // --- [FIX V6] Ambil Cache YANG ADA DULU (Gunakan Admin SDK) ---
+        // Ini adalah langkah kunci untuk membandingkan data 'warEnded'
+        const existingCacheRef = adminFirestore
+            .collection(COLLECTIONS.MANAGED_CLANS).doc(clanId)
+            .collection('clanApiCache').doc('current');
+        
+        const existingCacheDoc = await existingCacheRef.get();
+        existingCache = existingCacheDoc.exists ? (existingCacheDoc.data() as ClanApiCache) : null;
+        console.log(`[SYNC CACHE] Existing cache found: ${existingCache !== null}.`);
+        // --- [AKHIR FIX V6] ---
+
 
         // Parallel fetch data dari CoC API dan Firestore
         const [
             clanData,
             warLogResponse,
-            currentWarData, // <- Sumber data detail
+            currentWarData, // <- Sumber data detail (bisa null jika baru berakhir)
             roleLogs,
             cwlArchives,
             raidLogData,
@@ -283,6 +302,27 @@ export async function GET(request: NextRequest) {
         // [DIHAPUS] Logika warToCache (penyimpanan di subkoleksi cache) dihapus
         // dan diganti dengan [MASALAH 2] di bawah.
 
+        // --- [FIX V6] Logika Retensi Cache 12 Jam ---
+        // --- [PERBAIKAN ERROR V7] ---
+        // 'currentWarData' mungkin bertipe CocWarLog (dari API) tapi 'warDataForCache'
+        // bertipe CocCurrentWar. Kita gunakan 'as any' untuk bypass cek TypeScript
+        // sesuai catatan Anda (data mungkin tidak lengkap).
+        let warDataForCache: CocCurrentWar | null = (currentWarData as any) || null;
+
+        // Jika data API live adalah null, cek apakah cache lama kita punya data 'warEnded'
+        if (warDataForCache === null && existingCache?.currentWar?.state === 'warEnded') {
+            const warEndTime = parseCocDate(existingCache.currentWar.endTime);
+            // Cek apakah data 'warEnded' ini masih dalam 12 jam terakhir
+            if (warEndTime && (Date.now() - warEndTime.getTime()) < WAR_ENDED_CACHE_RETENTION_MS) {
+                warDataForCache = existingCache.currentWar; // Pertahankan data 'warEnded' di cache
+                console.log(`[SYNC CACHE] Retaining "warEnded" state in cache for 12-hour window.`);
+            } else {
+                console.log(`[SYNC CACHE] "warEnded" state in cache is older than 12 hours. Clearing.`);
+            }
+        }
+        // --- [AKHIR FIX V6] ---
+
+
         // Persiapan data untuk cache
         // TUGAS 1.1: Hapus 'currentWar' dari Omit
         const newCacheData: Omit<ClanApiCache, 'id' | 'lastUpdated'> = {
@@ -290,7 +330,8 @@ export async function GET(request: NextRequest) {
             members: participationMembers,
             topPerformers: topPerformersData,
             // TUGAS 1.1: Kembalikan data war aktif ke cache
-            currentWar: currentWarData || null,
+            // currentWar: currentWarData || null, // <-- [FIX V6] Diganti dengan logika retensi
+            currentWar: warDataForCache,
         };
 
         const totalThLevel = currentMembersApi.reduce(
@@ -373,7 +414,7 @@ export async function GET(request: NextRequest) {
 
 
         // =========================================================================
-        // --- [MASALAH 1: LOGIKA PENGARSIPAN WAR (PERBAIKAN V5)] ---
+        // --- [MASALAH 1: LOGIKA PENGARSIPAN WAR (PERBAIKAN V5 + V6 + V9)] ---
         // Sesuai roadmap: Tulis data warLog DAN currentWar (jika ended) 
         // ke sub-koleksi 'managedClans/{clanId}/clanWarHistory'
         // =========================================================================
@@ -398,128 +439,191 @@ export async function GET(request: NextRequest) {
         const existingWarArchivesSnap = await warHistoryCollectionRef
             .get(); // <-- TUGAS 2.1 (Filter .where() dihapus)
 
-        // Buat Set dari ID yang sudah ada untuk deduplikasi
+        // --- [FIX V9] Modifikasi Logika Deduplikasi ---
+        // Buat Set dari ID yang sudah ada UNTUK DATA DETAIL (Cek Cepat)
         const existingWarIds = new Set<string>();
+        
+        // Buat Array Ref untuk Fuzzy Matching DATA SUMMARY
+        interface SimpleWarRef {
+            opponentName: string;
+            warEndTime: Date;
+            teamSize: number;
+        }
+        const existingWarRefs: SimpleWarRef[] = [];
+        
         existingWarArchivesSnap.docs.forEach(doc => {
-            existingWarIds.add(doc.id);
+            existingWarIds.add(doc.id); // Add ID for exact match
+            
+            const data = doc.data();
+            // Pastikan warEndTime adalah Date (disimpan sebagai Timestamp)
+            const endTime = data.warEndTime?.toDate ? data.warEndTime.toDate() : new Date(0);
+            
+            existingWarRefs.push({
+                // Fallback jika opponentName belum ada (data lama)
+                opponentName: data.opponentName || data.opponent?.name || 'Unknown',
+                warEndTime: endTime,
+                teamSize: data.teamSize || 0
+            });
         });
 
-        // TUGAS 2.1: Perbarui pesan log
-        console.log(`[SYNC WAR HISTORY] Found ${existingWarIds.size} existing wars in 'managedClans/${clanId}/clanWarHistory' for clan ${rawClanTag}.`);
+        console.log(`[SYNC WAR HISTORY V9] Found ${existingWarIds.size} existing war IDs and ${existingWarRefs.length} refs for fuzzy matching.`);
+        // --- [AKHIR FIX V9] ---
 
         let archivedWarCount = 0;
 
-        // --- [LANGKAH 1: Arsipkan Data DETAIL dari currentWar jika 'warEnded'] ---
-        // Ini adalah sumber data DENGAN DETAIL (anggota, serangan)
-        if (currentWarData && currentWarData.state === 'warEnded') {
-            const warEndTime = parseCocDate(currentWarData.endTime);
+        // --- [LANGKAH 1A: (FIX V6) Tentukan data detail yang akan diarsipkan] ---
+        let warToArchive: CocCurrentWar | null = null;
+        let sourceDescription: string = "";
 
-            // Pastikan kita punya data valid
-            if (warEndTime && !isNaN(warEndTime.getTime()) && currentWarData.clan?.tag) {
-                const clanTag = currentWarData.clan.tag;
-                // Buat ID baru sesuai roadmap
+        // Skenario 1: API live masih 'warEnded' (jarang, tapi mungkin)
+        if (currentWarData && currentWarData.state === 'warEnded') {
+            // --- [PERBAIKAN ERROR V7] ---
+            // 'currentWarData' mungkin bertipe CocWarLog, kita paksa 'as any'
+            warToArchive = currentWarData as any;
+            sourceDescription = "from live API (currentWar)";
+        } 
+        // Skenario 2: API live null/lain, TAPI cache kita punya 'warEnded'
+        else if (existingCache?.currentWar?.state === 'warEnded' && 
+                   (!currentWarData || currentWarData.state !== 'warEnded')
+        ) {
+            warToArchive = existingCache.currentWar;
+            sourceDescription = "from Firestore Cache (existingCache.currentWar)";
+        }
+
+        // --- [LANGKAH 1B: Arsipkan Data DETAIL (jika ditemukan)] ---
+        if (warToArchive && warToArchive.clan?.tag) {
+            const warEndTime = parseCocDate(warToArchive.endTime);
+            const clanTag = warToArchive.clan.tag;
+
+            if (warEndTime && !isNaN(warEndTime.getTime())) {
                 const warId = getWarHistoryId(clanTag, warEndTime);
 
-                // Hanya simpan jika ID ini belum ada di database
                 if (!existingWarIds.has(warId)) {
-                    console.log(`[SYNC WAR HISTORY] Archiving detailed war (from currentWar): ${warId}`);
+                    console.log(`[SYNC WAR HISTORY V9] Archiving detailed war ${sourceDescription}: ${warId}`);
 
-                    // [PERBAIKAN ERROR] Gunakan Omit<WarArchive, 'id'>
-                    // Tipe WarArchive tidak secara eksplisit memiliki 'ourStars', 'opponentStars', dll.
-                    // Kita tambahkan '& { [key: string]: any }' untuk mengatasi error TypeScript
                     const warHistoryData: Omit<WarArchive, 'id'> & { [key: string]: any } = {
-                        // id: warId, // ID tidak perlu di dalam data
-                        clanTag: clanTag, // Untuk query
-                        warEndTime: warEndTime, // Untuk query/sort (sudah jadi Date)
+                        clanTag: clanTag,
+                        warEndTime: warEndTime,
                         hasDetails: true, // Penanda penting
 
                         // Data lengkap dari currentWar
                         state: 'warEnded',
-                        teamSize: currentWarData.teamSize,
-                        attacksPerMember: currentWarData.attacksPerMember,
-                        clan: currentWarData.clan,
-                        opponent: currentWarData.opponent,
-                        startTime: parseCocDate(currentWarData.startTime), // Konversi Date
-                        endTime: currentWarData.endTime, // Simpan string ISO asli
-                        preparationStartTime: parseCocDate(currentWarData.preparationStartTime), // Konversi Date
-                        result: currentWarData.result,
-                        members: currentWarData.members, // Data detail serangan
+                        teamSize: warToArchive.teamSize,
+                        attacksPerMember: warToArchive.attacksPerMember,
+                        clan: warToArchive.clan,
+                        opponent: warToArchive.opponent,
+                        startTime: parseCocDate(warToArchive.startTime), // Konversi Date
+                        endTime: warToArchive.endTime, // Simpan string ISO asli
+                        preparationStartTime: parseCocDate(warToArchive.preparationStartTime), // Konversi Date
+                        result: warToArchive.result,
+                        // members: warToArchive.members, // [FIX V6] DIHAPUS. Data detail serangan ada di dalam 'clan' dan 'opponent'
                         
                         // --- PERBAIKAN (Tugas 3.1): Tambahkan pemetaan field untuk WarSummary ---
-                        // Data DETAIL sudah memiliki ini di dalam 'clan' dan 'opponent', 
-                        // tapi kita tambahkan di top level agar konsisten dengan data SUMMARY
-                        ourStars: currentWarData.clan?.stars || 0,
-                        ourDestruction: currentWarData.clan?.destructionPercentage || 0,
-                        opponentStars: currentWarData.opponent?.stars || 0,
-                        opponentDestruction: currentWarData.opponent?.destructionPercentage || 0,
+                        ourStars: warToArchive.clan?.stars || 0,
+                        ourDestruction: warToArchive.clan?.destructionPercentage || 0,
+                        opponentStars: warToArchive.opponent?.stars || 0,
+                        opponentDestruction: warToArchive.opponent?.destructionPercentage || 0,
+                        opponentName: warToArchive.opponent?.name || 'Lawan Tidak Diketahui', // [FIX V6] Tambahkan opponentName
                         // --- AKHIR PERBAIKAN ---
                     };
 
                     const docRef = warHistoryCollectionRef.doc(warId);
-                    // Gunakan cleanDataForAdminSDK untuk konversi Date -> Timestamp
                     batch.set(docRef, cleanDataForAdminSDK(warHistoryData));
 
                     archivedWarCount++;
-                    existingWarIds.add(warId); // Tambahkan ke set agar tidak diduplikasi oleh Log
+                    // [FIX V9] Tambahkan ke *kedua* list agar tidak diduplikasi oleh summary
+                    existingWarIds.add(warId); 
+                    existingWarRefs.push({
+                        opponentName: warToArchive.opponent?.name || 'Lawan Tidak Diketahui',
+                        warEndTime: warEndTime,
+                        teamSize: warToArchive.teamSize
+                    });
                 }
             }
         }
+        // --- [AKHIR LANGKAH 1] ---
 
-        // --- [LANGKAH 2: Arsipkan Data SUMMARY dari warLog] ---
+
+        // --- [LANGKAH 2: Arsipkan Data SUMMARY dari warLog (FIX V9)] ---
         // Ini adalah sumber data TANPA DETAIL (hanya hasil akhir)
         if (warLogResponse?.items && Array.isArray(warLogResponse.items)) {
-            console.log(`[SYNC WAR HISTORY] Checking ${warLogResponse.items.length} summary wars from API warLog.`);
+            console.log(`[SYNC WAR HISTORY V9] Checking ${warLogResponse.items.length} summary wars from API warLog.`);
 
             warLogResponse.items.forEach((warEntry: CocWarLogEntry) => {
                 const warEndTime = parseCocDate(warEntry.endTime);
                 // Kita butuh clanTag dari klan *kita* di log, bukan lawan
                 const clanTag = warEntry.clan?.tag;
+                
+                // [FIX V9] Ambil data untuk fuzzy matching
+                const opponentName = warEntry.opponent?.name || 'Unknown';
+                const teamSize = warEntry.teamSize;
 
                 if (warEndTime && !isNaN(warEndTime.getTime()) && warEntry.result && clanTag) {
 
                     // Buat ID baru sesuai roadmap
                     const warId = getWarHistoryId(clanTag, warEndTime);
 
-                    // Hanya tambahkan jika ID ini BELUM ada
-                    // (Baik dari sync sebelumnya, atau dari 'currentWar' di atas)
-                    if (!existingWarIds.has(warId)) {
-                        console.log(`[SYNC WAR HISTORY] Archiving summary war (from warLog): ${warId}`);
-
-                        // [PERBAIKAN ERROR] Gunakan Omit<WarArchive, 'id'> & { [key: string]: any }
-                        const warHistoryData: Omit<WarArchive, 'id'> & { [key: string]: any } = {
-                            // id: warId,
-                            clanTag: clanTag,
-                            warEndTime: warEndTime, // (sudah jadi Date)
-                            hasDetails: false, // Penanda penting
-
-                            // Data summary dari warLog
-                            state: 'warEnded',
-                            teamSize: warEntry.teamSize,
-                            clan: warEntry.clan,
-                            opponent: warEntry.opponent,
-                            result: warEntry.result,
-
-                            // --- PERBAIKAN (Tugas 3.1): Tambahkan pemetaan field untuk WarSummary ---
-                            ourStars: warEntry.clan?.stars || 0,
-                            ourDestruction: warEntry.clan?.destructionPercentage || 0,
-                            opponentStars: warEntry.opponent?.stars || 0,
-                            opponentDestruction: warEntry.opponent?.destructionPercentage || 0,
-                            // --- AKHIR PERBAIKAN ---
-
-                            // Field detail di-set ke undefined
-                            attacksPerMember: undefined,
-                            startTime: undefined, // warLog tidak punya startTime
-                            preparationStartTime: undefined,
-                            endTime: warEntry.endTime, // String ISO asli
-                            members: undefined,
-                        };
-
-                        const docRef = warHistoryCollectionRef.doc(warId);
-                        batch.set(docRef, cleanDataForAdminSDK(warHistoryData));
-
-                        archivedWarCount++;
-                        existingWarIds.add(warId); // Tambahkan ke set
+                    // [FIX V9] Cek 1: ID Tepat (Paling Cepat)
+                    if (existingWarIds.has(warId)) {
+                        return; // ID sudah ada, lewati
                     }
+
+                    // [FIX V9] Cek 2: Fuzzy Duplicate Check
+                    const isFuzzyDuplicate = existingWarRefs.some(existingWar => {
+                        const opponentMatch = existingWar.opponentName === opponentName;
+                        const teamSizeMatch = existingWar.teamSize === teamSize;
+                        const timeDiff = Math.abs(existingWar.warEndTime.getTime() - warEndTime.getTime());
+                        const timeMatch = timeDiff < WAR_DEDUPE_TIME_TOLERANCE_MS;
+                        
+                        return opponentMatch && teamSizeMatch && timeMatch;
+                    });
+
+                    if (isFuzzyDuplicate) {
+                        console.log(`[SYNC WAR HISTORY V9] Skipping summary war (Fuzzy duplicate found): ${opponentName} @ ${warEndTime.toISOString()}`);
+                        return; // Ini duplikat, lewati
+                    }
+
+                    // --- Jika Lolos Dua Cek ---
+                    // Ini adalah data summary yang benar-benar baru. Arsipkan.
+                    console.log(`[SYNC WAR HISTORY V9] Archiving summary war (from warLog): ${warId}`);
+
+                    // [PERBAIKAN ERROR] Gunakan Omit<WarArchive, 'id'> & { [key: string]: any }
+                    const warHistoryData: Omit<WarArchive, 'id'> & { [key: string]: any } = {
+                        // id: warId,
+                        clanTag: clanTag,
+                        warEndTime: warEndTime, // (sudah jadi Date)
+                        hasDetails: false, // Penanda penting
+
+                        // Data summary dari warLog
+                        state: 'warEnded',
+                        teamSize: warEntry.teamSize,
+                        clan: warEntry.clan,
+                        opponent: warEntry.opponent,
+                        result: warEntry.result,
+
+                        // --- PERBAIKAN (Tugas 3.1): Tambahkan pemetaan field untuk WarSummary ---
+                        ourStars: warEntry.clan?.stars || 0,
+                        ourDestruction: warEntry.clan?.destructionPercentage || 0,
+                        opponentStars: warEntry.opponent?.stars || 0,
+                        opponentDestruction: warEntry.opponent?.destructionPercentage || 0,
+                        opponentName: opponentName, // [FIX V9] Gunakan var yang sudah didefinisi
+                        // --- AKHIR PERBAIKAN ---
+
+                        // Field detail di-set ke undefined
+                        attacksPerMember: undefined,
+                        startTime: undefined, // warLog tidak punya startTime
+                        preparationStartTime: undefined,
+                        endTime: warEntry.endTime, // String ISO asli
+                        members: undefined,
+                    };
+
+                    const docRef = warHistoryCollectionRef.doc(warId);
+                    batch.set(docRef, cleanDataForAdminSDK(warHistoryData));
+
+                    archivedWarCount++;
+                    // [FIX V9] Tambahkan ke set agar tidak diproses lagi
+                    existingWarIds.add(warId); 
+                    existingWarRefs.push({ opponentName, warEndTime, teamSize });
                 }
             });
         }
@@ -583,7 +687,10 @@ export async function GET(request: NextRequest) {
         );
     } catch (error) {
         // Logging error yang lebih informatif
-        const clanTagForLog = managedClan?.tag || `ID: ${clanId}`;
+        // --- [PERBAIKAN ERROR V8] ---
+        // Pindahkan 'clanTagForLog' ke dalam blok catch karena 'managedClan'
+        // hanya terdefinisi di dalam 'try'
+        const clanTagForLog = (error as any)?.config?.clanTag || (request ? request.nextUrl.searchParams.get('clanId') : 'Unknown Clan');
         console.error(`Error during clan sync for ${clanTagForLog}:`, error);
 
         // Penanganan error spesifik dari API atau Batch
@@ -605,3 +712,4 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: errorMessage }, { status: statusCode });
     }
 }
+
