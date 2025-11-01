@@ -1,6 +1,6 @@
 // File: app/api/coc/sync-managed-clan/route.ts
 // Deskripsi: API Route untuk menyinkronkan data ManagedClan internal dengan API CoC.
-// Dipanggil secara manual (oleh manager) atau otomatis (oleh Cron Job).
+// (VERSI DIPERBARUI - Implementasi Roadmap Pemisahan War Aktif & Arsip)
 
 import { NextRequest, NextResponse } from 'next/server';
 // Menggunakan default export dari lib/coc-api
@@ -13,25 +13,26 @@ import {
     RoleChangeLog,
     getRoleLogsByClanId,
     getCwlArchivesByClanId,
-    getWarArchivesByClanId, // <-- [BARU] Impor fungsi deduplikasi
+    // [DIHAPUS] getWarArchivesByClanId, // <-- Dihapus, kita akan query koleksi top-level baru
     FirestoreDocument, // Import FirestoreDocument jika belum ada
     // getClanApiCacheAdmin // <-- Dihapus, tidak perlu pre-fetch cache
 } from '@/lib/firestore-admin';
-import { Timestamp as AdminTimestamp } from 'firebase-admin/firestore'; // Import Admin Timestamp
+// [PERBAIKAN ERROR] Impor Admin Timestamp dan FieldValue
+import { Timestamp as AdminTimestamp, FieldValue } from 'firebase-admin/firestore';
 import { getSessionUser } from '@/lib/server-auth'; // Untuk otentikasi Server-Side
 import {
     ManagedClan,
     ClanApiCache,
     CocMember,
-    CocWarLog,       // Tipe dari CoC API Wrapper
+    CocWarLog,      // Tipe dari CoC API Wrapper
     CocWarLogEntry, // Tipe spesifik untuk War Log Item
     UserProfile,
     ClanRole,
     TopPerformerPlayer, // Tipe untuk Top Performers
     CocRaidLog,       // Tipe untuk Raid Log API
-    RaidArchive,       // Tipe untuk Arsip Raid
-    WarArchive,        // Tipe untuk Arsip CWL
-    CwlArchive,        // Tipe untuk Arsip CWL
+    RaidArchive,      // Tipe untuk Arsip Raid
+    WarArchive,       // Tipe untuk Arsip CWL
+    CwlArchive,       // Tipe untuk Arsip CWL
 } from '@/lib/types';
 import { getAggregatedParticipationData } from './logic/participationAggregator';
 // Import tipe data dari file lokal yang baru dibuat
@@ -43,8 +44,8 @@ import { parseCocDate } from '@/lib/th-utils';
 
 // Batas waktu untuk menganggap cache 'fresh' (30 menit)
 const CACHE_STALE_MS = 1000 * 60 * 30;
-// --- [BARU] Tambahkan toleransi waktu untuk pencocokan data migrasi ---
-const MIGRATION_TIME_TOLERANCE_MS = 1000 * 60 * 10; // Toleransi 10 menit
+// [DIHAPUS] Toleransi waktu migrasi tidak diperlukan lagi dengan ID baru
+// const MIGRATION_TIME_TOLERANCE_MS = 1000 * 60 * 10; 
 
 // =========================================================================
 // FUNGSI HELPER BARU & PERBAIKAN ID
@@ -70,8 +71,9 @@ function cleanDataForAdminSDK<T extends object>(
                 cleaned[key] = data[key];
             }
         }
-        // --- PERBAIKAN: Izinkan null secara eksplisit untuk currentWar dan currentRaid ---
-        else if ((key === 'currentWar' || key === 'currentRaid') && data[key] === null) {
+        // --- PERBAIKAN: Izinkan null secara eksplisit untuk currentRaid ---
+        // (currentWar tidak lagi di-cache di sini)
+        else if (key === 'currentRaid' && data[key] === null) {
             cleaned[key] = null;
         }
 
@@ -79,28 +81,8 @@ function cleanDataForAdminSDK<T extends object>(
     return cleaned;
 }
 
-// [DIHAPUS] Fungsi parseCocDate dipindahkan ke lib/th-utils.ts
-
-/**
- * @function getWarArchiveId
- * Fungsi untuk membuat ID War yang konsisten.
- * @param opponentTag Tag klan lawan.
- * @param endTime Objek Date waktu selesai war.
- * @param isDetailArchive Apakah ini arsip detail (gunakan presisi detik).
- * @returns ID unik arsip.
- */
-const getWarArchiveId = (opponentTag: string, endTime: Date, isDetailArchive: boolean = false): string => {
-    // Presisi menit (YYYY-MM-DDTHH:MM) untuk Summary lama
-    let standardizedTime = endTime.toISOString().substring(0, 16); 
-    
-    if (isDetailArchive) {
-        // Presisi detik (YYYY-MM-DDTHH:MM:SS) untuk Detail baru (War Ended)
-        standardizedTime = endTime.toISOString().substring(0, 19); 
-    }
-    
-    const safeOpponentTag = opponentTag.replace(/[^a-zA-Z0-9]/g, '');
-    return `${safeOpponentTag}-${standardizedTime}`; 
-};
+// [DIHAPUS] Fungsi getWarArchiveId yang lama (berbasis opponentTag) dihapus.
+// Kita akan membuat helper baru di dalam logika pengarsipan.
 // --- AKHIR HELPER BARU & PERBAIKAN ID ---
 
 // Helper untuk memetakan role CoC API ke Clashub Role internal
@@ -202,19 +184,19 @@ export async function GET(request: NextRequest) {
         const [
             clanData, 
             warLogResponse, 
-            currentWarData, 
+            currentWarData, // <- Sumber data detail
             roleLogs, 
             cwlArchives, 
             raidLogData, 
             allUsersSnapshot,
-            existingWarArchives // <-- [PENTING] Ini adalah data yang sudah ada (termasuk migrasi)
+            // [DIHAPUS] existingWarArchives (dari subkoleksi lama)
         ] = await Promise.all([
             cocApi.getClanData(encodedClanTag),
             cocApi.getClanWarLog(encodedClanTag), 
-            cocApi.getClanCurrentWar(encodedClanTag, rawClanTag), // <- Sumber data detail
+            cocApi.getClanCurrentWar(encodedClanTag, rawClanTag), 
             getRoleLogsByClanId(clanId),
             getCwlArchivesByClanId(clanId), 
-            Promise.resolve(null as CocRaidLog | null)
+            Promise.resolve(null as CocRaidLog | null) // Ganti jadi cocApi.getClanRaidLog nanti
                 .catch(err => { console.warn(`Failed to fetch Raid Log for ${rawClanTag}:`, err); return null; }), 
             
             // BARU: Ambil semua UserProfile (Admin SDK) untuk auto-link
@@ -223,16 +205,14 @@ export async function GET(request: NextRequest) {
                 .where('clanTag', '==', rawClanTag) 
                 .get(),
             
-            getWarArchivesByClanId(clanId) 
+            // [DIHAPUS] getWarArchivesByClanId(clanId) - diganti dengan query baru nanti
         ]);
         
         // Konversi snapshot user ke array yang mudah diakses
         allUserProfiles = allUsersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as FirestoreDocument<UserProfile>[];
 
-
         const currentMembersApi = (clanData.memberList || []) as CocMember[];
         const memberCountActual = currentMembersApi.length;
-
 
         // 4. Hitung Metrik Partisipasi & Top Performers (Logika dipertahankan)
         const participationMembers: ClanApiCache['members'] =
@@ -297,36 +277,15 @@ export async function GET(request: NextRequest) {
 
         // 5. Buat Payload Cache & ManagedClan Metadata
         
-        // --- [PERBAIKAN] LOGIKA PENYIMPANAN WAR DISERAHKAN ---
-        // Logic retensi 12 jam dipindahkan ke page.tsx.
-        // API Sync HANYA menyimpan data mentah yang didapat dari API CoC.
-        
-        let warToCache: CocWarLog | null = null;
-        
-        if (currentWarData) {
-            const state = currentWarData.state;
-            
-            if (state === 'inWar' || state === 'preparation' || state === 'warEnded') {
-                // [KASUS 1, 2]: War AKTIF / PERSIAPAN / ENDED (dari API)
-                warToCache = currentWarData;
-                console.log(`[SYNC CACHE] Storing API War data (State: ${state}).`);
-            }
-            // (Jika state lain, warToCache tetap null)
-        } else {
-             // [KASUS 3]: API mengembalikan null (notInWar)
-             warToCache = null;
-             console.log(`[SYNC WAR] API returned 'notInWar'. Storing null.`);
-        }
+        // [DIHAPUS] Logika warToCache (penyimpanan di subkoleksi cache) dihapus
+        // dan diganti dengan [MASALAH 2] di bawah.
 
-        const newCacheData: Omit<ClanApiCache, 'id' | 'lastUpdated'> = {
-            // FIX: Menggunakan warToCache yang sudah disederhanakan
-            currentWar: warToCache, 
-            currentRaid: raidLogData || null, 
+        // Persiapan data untuk cache LAMA (hanya members, performers, raid)
+        const newCacheData: Omit<ClanApiCache, 'id' | 'lastUpdated' | 'currentWar'> = {
+            currentRaid: raidLogData || null, // Tetap simpan raid di cache lama
             members: participationMembers,
             topPerformers: topPerformersData, 
         };
-
-        // --- AKHIR PERBAIKAN LOGIKA ---
 
         const totalThLevel = currentMembersApi.reduce(
             (sum, member) => sum + member.townHallLevel,
@@ -347,23 +306,65 @@ export async function GET(request: NextRequest) {
         // 6. Simpan ke Firestore (Cache, Metadata, Arsip & **AUTO-LINK MEMBER**)
         const batch = adminFirestore.batch();
         const now = new Date();
+        const safeClanTag = rawClanTag.replace('#', ''); // ID dokumen aman
 
-        // a. Update Cache
+        // =========================================================================
+        // --- [MASALAH 2: PEMISAHAN PERANG AKTIF] ---
+        // Sesuai roadmap: Tulis data currentWar ke koleksi top-level 'clanActiveWar'
+        // =========================================================================
+
+        // a. Kelola Dokumen Perang Aktif (Koleksi BARU: clanActiveWar)
+        const activeWarRef = adminFirestore
+            .collection('clanActiveWar') // <-- KOLEKSI BARU (Top-Level)
+            .doc(safeClanTag); // <-- ID Dokumen: [clanTag]
+
+        if (currentWarData && (currentWarData.state === 'inWar' || currentWarData.state === 'preparation')) {
+            // KASUS 1: Sedang perang atau persiapan
+            console.log(`[SYNC ACTIVE WAR] State is '${currentWarData.state}'. Writing to clanActiveWar/${safeClanTag}`);
+            
+            // Kita perlu mengonversi tanggal COC ke AdminTimestamp
+            const activeWarPayload = {
+                ...currentWarData,
+                // Konversi manual tanggal-tanggal penting ke Date (lalu cleanData)
+                startTime: parseCocDate(currentWarData.startTime),
+                endTime: parseCocDate(currentWarData.endTime),
+                preparationStartTime: parseCocDate(currentWarData.preparationStartTime),
+                // Simpan juga clanId internal kita untuk referensi
+                clanId: clanId,
+                // Tandai data ini disinkronkan
+                lastSynced: now 
+            };
+            batch.set(activeWarRef, cleanDataForAdminSDK(activeWarPayload), { merge: true });
+
+        } else {
+            // KASUS 2: 'warEnded' atau 'notInWar' (API mengembalikan null)
+            console.log(`[SYNC ACTIVE WAR] State is '${currentWarData?.state || 'notInWar'}'. Deleting from clanActiveWar/${safeClanTag}`);
+            // Hapus dokumen perang aktif karena sudah selesai atau tidak ada.
+            batch.delete(activeWarRef);
+        }
+
+        // b. Update Cache LAMA (Hapus 'currentWar' dari subkoleksi cache)
         const cacheRef = adminFirestore
             .collection(COLLECTIONS.MANAGED_CLANS).doc(clanId)
             .collection('clanApiCache').doc('current');
-        const cachePayload = { ...newCacheData, id: 'current', lastUpdated: now };
-        batch.set(cacheRef, cleanDataForAdminSDK(cachePayload));
+        
+        const cachePayload = { 
+            ...newCacheData, 
+            id: 'current', 
+            lastUpdated: now,
+            currentWar: FieldValue.delete(), // <-- [PERBAIKAN ERROR] HAPUS field 'currentWar' dari cache LAMA
+        };
+        // Gunakan set + merge:true agar deleteField berfungsi tanpa menimpa field lain
+        batch.set(cacheRef, cleanDataForAdminSDK(cachePayload), { merge: true });
 
-
-        // b. Update Metadata ManagedClan
+        // c. Update Metadata ManagedClan (Tetap sama)
         const managedClanRef = adminFirestore.collection(COLLECTIONS.MANAGED_CLANS).doc(clanId);
         const clanUpdatePayload = cleanDataForAdminSDK({ ...updatedManagedClanFields, lastSynced: now });
         if (Object.keys(clanUpdatePayload).length > 0) {
             batch.update(managedClanRef, clanUpdatePayload);
         }
         
-        // c. AUTO-LINK PROFIL ANGGOTA CLASHUB
+        // d. AUTO-LINK PROFIL ANGGOTA CLASHUB (Tetap sama)
         let linkedMemberCount = 0;
         
         currentMembersApi.forEach(cocMember => {
@@ -389,195 +390,139 @@ export async function GET(request: NextRequest) {
 
 
         // =========================================================================
-        // --- LOGIKA PENGARSIPAN WAR (HYBRID) ---
+        // --- [MASALAH 1: LOGIKA PENGARSIPAN WAR (BARU)] ---
+        // Sesuai roadmap: Tulis data warLog DAN currentWar (jika ended) 
+        // ke koleksi top-level 'clanWarHistory' dengan ID: [clanTag]-[warEndTimeISO]
         // =========================================================================
 
-        // --- PERBAIKAN LOGIKA ANTI-DUPLIKASI (Bagian 1) ---
-        // Buat Set (peta) dari ID arsip yang *dihasilkan oleh skrip ini* (Format Sinkronisasi)
-        const generatedWarIds = new Set<string>();
-        // Buat Peta (Map) dari arsip migrasi (Format Migrasi) untuk pencocokan semantik
-        const migrationWarMap = new Map<string, FirestoreDocument<WarArchive>>();
+        // Helper baru untuk ID arsip, sesuai roadmap: [clanTag]-[warEndTime]
+        // clanTag: #2G8PU0GLJ, endTime: Date object
+        // Hasil: 2G8PU0GLJ-2025-10-30T10:00:00.000Z (Format ISO 8601 Penuh)
+        const getWarHistoryId = (clanTag: string, endTime: Date): string => {
+            const safeTag = clanTag.replace('#', '');
+            const standardizedTime = endTime.toISOString(); // Format ISO 8601 penuh
+            return `${safeTag}-${standardizedTime}`;
+        };
+
+        // Ambil data arsip yang sudah ada dari koleksi BARU (top-level)
+        const warHistoryCollectionRef = adminFirestore.collection('clanWarHistory'); // <-- KOLEKSI BARU
         
-        // --- [PERBAIKAN V6] ---
-        // Set ini akan melacak ID arsip yang *sudah memiliki detail* (baik dari migrasi V4 atau dari update V6)
-        // Kunci: "OpponentTag-YYYY-MM-DD"
-        const detailedWarKeys = new Set<string>();
-
-        existingWarArchives.forEach(war => {
-            const opponentTag = war.opponent?.tag || '#UNKNOWN';
-            const endTime = war.warEndTime; // Ini adalah Date object
-            
-            // Hanya proses jika endTime valid
-            if (endTime && !isNaN(endTime.getTime())) {
-                const semanticKey = `${opponentTag}-${endTime.toISOString().substring(0, 10)}`;
-                
-                // (ID Format Migrasi: #2G8PU0GLJ-20251030-BLACKLIST)
-                if (war.id.startsWith(rawClanTag)) {
-                    if (!migrationWarMap.has(semanticKey)) {
-                        migrationWarMap.set(semanticKey, war);
-                    }
-                } else {
-                    // (ID Format Sinkronisasi: BLACKLIST-2025-10-30T10:00:00)
-                    const isDetail = war.hasDetails || !!war.members;
-                    const generatedId = getWarArchiveId(opponentTag, endTime, isDetail);
-                    generatedWarIds.add(generatedId);
-                }
-
-                // [PERBAIKAN V6] Jika arsip ini (format apapun) memiliki detail, tandai kuncinya
-                if (war.hasDetails === true) {
-                    detailedWarKeys.add(semanticKey);
-                }
-            }
+        const existingWarArchivesSnap = await warHistoryCollectionRef
+            .where('clan.tag', '==', rawClanTag) // Filter berdasarkan tag klan
+            .get();
+        
+        // Buat Set dari ID yang sudah ada untuk deduplikasi
+        const existingWarIds = new Set<string>();
+        existingWarArchivesSnap.docs.forEach(doc => {
+            existingWarIds.add(doc.id);
         });
-        console.log(`[SYNC DE-DUPE] Loaded ${generatedWarIds.size} sync IDs, ${migrationWarMap.size} migration candidates, and ${detailedWarKeys.size} known detailed wars.`);
-        // --- AKHIR PERBAIKAN (Bagian 1) ---
         
+        console.log(`[SYNC WAR HISTORY] Found ${existingWarIds.size} existing wars in 'clanWarHistory' for clan ${rawClanTag}.`);
 
-        const warArchivesRef = managedClanRef.collection('warArchives');
         let archivedWarCount = 0;
-        
-        // --- [LANGKAH 1: Arsipkan Data DETAIL dari currentWar] ---
-        if (warToCache && warToCache.state === 'warEnded') {
-            const warEndTime = parseCocDate(warToCache.endTime);
+
+        // --- [LANGKAH 1: Arsipkan Data DETAIL dari currentWar jika 'warEnded'] ---
+        // Ini adalah sumber data DENGAN DETAIL (anggota, serangan)
+        if (currentWarData && currentWarData.state === 'warEnded') {
+            const warEndTime = parseCocDate(currentWarData.endTime);
             
-            if (warEndTime && !isNaN(warEndTime.getTime()) && warToCache.opponent?.tag) {
-                const opponentTag = warToCache.opponent.tag;
-                const warEndTimeMs = warEndTime.getTime();
-                
-                // Definisikan data payload detail satu kali
-                const warArchiveData: Omit<WarArchive, 'id'|'clanTag'|'warEndTime'> = {
-                    state: 'warEnded',
-                    teamSize: warToCache.teamSize,
-                    clan: warToCache.clan,
-                    opponent: warToCache.opponent,
-                    startTime: warToCache.startTime, 
-                    endTime: warToCache.endTime,
-                    result: warToCache.result,
-                    preparationStartTime: warToCache.preparationStartTime,
-                    attacksPerMember: warToCache.attacksPerMember,
-                    members: warToCache.members, // Menyimpan detail attacks
-                };
+            // Pastikan kita punya data valid
+            if (warEndTime && !isNaN(warEndTime.getTime()) && currentWarData.clan?.tag) {
+                const clanTag = currentWarData.clan.tag;
+                // Buat ID baru sesuai roadmap
+                const warId = getWarHistoryId(clanTag, warEndTime);
 
-                // --- PERBAIKAN BARU (Mencari duplikat migrasi) ---
-                // Buat kunci pencarian semantik
-                const semanticKey = `${opponentTag}-${warEndTime.toISOString().substring(0, 10)}`;
-                const matchingMigrationDoc = migrationWarMap.get(semanticKey);
-                let migrationMatchFound = false;
-
-                if (matchingMigrationDoc) {
-                    // Jika kunci tanggal ditemukan, cek toleransi waktu
-                    const archiveEndTime = matchingMigrationDoc.warEndTime; // Ini Date
-                    const timeDiff = Math.abs(archiveEndTime.getTime() - warEndTimeMs);
+                // Hanya simpan jika ID ini belum ada di database
+                if (!existingWarIds.has(warId)) {
+                    console.log(`[SYNC WAR HISTORY] Archiving detailed war (from currentWar): ${warId}`);
                     
-                    // --- PERBAIKAN V5: Logika Anti-Duplikasi ---
-                    // Cek: Apakah tag lawan cocok, waktunya dalam toleransi, 
-                    // DAN ID-nya adalah format migrasi (dimulai dengan #TAGKLAN)?
-                    // Kita TIDAK LAGI peduli dengan status !hasDetails.
-                    if (timeDiff < MIGRATION_TIME_TOLERANCE_MS && matchingMigrationDoc.id.startsWith(rawClanTag)) {
-                        migrationMatchFound = true;
+                    // [PERBAIKAN ERROR] Gunakan Omit<WarArchive, 'id'>
+                    const warHistoryData: Omit<WarArchive, 'id'> = {
+                        // id: warId, // ID tidak perlu di dalam data
+                        clanTag: clanTag, // Untuk query
+                        warEndTime: warEndTime, // Untuk query/sort (sudah jadi Date)
+                        hasDetails: true, // Penanda penting
                         
-                        // --- KASUS A: DITEMUKAN DUPLIKAT MIGRASI ---
-                        // Kita *memperbarui* dokumen migrasi yang ada.
-                        console.log(`[SYNC ARCHIVE-UPDATE] Found matching migration doc (ID: ${matchingMigrationDoc.id}). Updating with details...`);
-                        
-                        const archiveDocRef = warArchivesRef.doc(matchingMigrationDoc.id); 
-
-                        batch.update(archiveDocRef, cleanDataForAdminSDK({
-                            ...warArchiveData,
-                            clanTag: rawClanTag,
-                            startTime: parseCocDate(warToCache.startTime), // Konversi ke Date
-                            warEndTime: warEndTime, // Konversi ke Date
-                            hasDetails: true // <-- Ini yang paling penting
-                        }));
-                        
-                        archivedWarCount++; 
-                        detailedWarKeys.add(semanticKey); // [PERBAIKAN V6] Tandai bahwa kunci ini sekarang punya detail
-                    }
-                }
-                // --- AKHIR PERBAIKAN V5 ---
-
-                const warId_SyncFormat = getWarArchiveId(opponentTag, warEndTime, true); // "Sync Format" ID
-
-                if (!migrationMatchFound && !generatedWarIds.has(warId_SyncFormat)) { 
-                    // --- KASUS B: TIDAK ADA DUPLIKAT (PERANG BARU) ---
-                    console.log(`[SYNC ARCHIVE-DETAIL] New war found (ID: ${warId_SyncFormat}). Archiving with details...`);
-                    const archiveDocRef = warArchivesRef.doc(warId_SyncFormat); 
-
-                    batch.set(archiveDocRef, cleanDataForAdminSDK({
-                        ...warArchiveData,
-                        clanTag: rawClanTag,
-                        startTime: parseCocDate(warToCache.startTime),
-                        warEndTime: warEndTime,
-                        hasDetails: true
-                    }), { merge: true });
+                        // Data lengkap dari currentWar
+                        state: 'warEnded',
+                        teamSize: currentWarData.teamSize,
+                        attacksPerMember: currentWarData.attacksPerMember,
+                        clan: currentWarData.clan,
+                        opponent: currentWarData.opponent,
+                        startTime: parseCocDate(currentWarData.startTime), // Konversi Date
+                        endTime: currentWarData.endTime, // Simpan string ISO asli
+                        preparationStartTime: parseCocDate(currentWarData.preparationStartTime), // Konversi Date
+                        result: currentWarData.result,
+                        members: currentWarData.members, // Data detail serangan
+                    };
                     
-                    archivedWarCount++; 
-                    generatedWarIds.add(warId_SyncFormat); // Tambahkan ID baru ke Set
-                    detailedWarKeys.add(semanticKey); // [PERBAIKAN V6] Tandai bahwa kunci ini sekarang punya detail
-                    console.log(`[SYNC ARCHIVE-DETAIL] War successfully archived with ID: ${warId_SyncFormat}`);
-                } else if (!migrationMatchFound) {
-                    // --- KASUS C: DUPLIKAT "SYNC FORMAT" DITEMUKAN ---
-                    console.log(`[SYNC ARCHIVE-DETAIL] War ID (Sync Format): ${warId_SyncFormat} already exists. Skipping.`);
+                    const docRef = warHistoryCollectionRef.doc(warId);
+                    // Gunakan cleanDataForAdminSDK untuk konversi Date -> Timestamp
+                    batch.set(docRef, cleanDataForAdminSDK(warHistoryData));
+                    
+                    archivedWarCount++;
+                    existingWarIds.add(warId); // Tambahkan ke set agar tidak diduplikasi oleh Log
                 }
             }
         }
 
         // --- [LANGKAH 2: Arsipkan Data SUMMARY dari warLog] ---
+        // Ini adalah sumber data TANPA DETAIL (hanya hasil akhir)
         if (warLogResponse?.items && Array.isArray(warLogResponse.items)) {
-            console.log(`[SYNC ARCHIVE-SUMMARY] Checking ${warLogResponse.items.length} summary wars from API.`);
+            console.log(`[SYNC WAR HISTORY] Checking ${warLogResponse.items.length} summary wars from API warLog.`);
             
             warLogResponse.items.forEach((warEntry: CocWarLogEntry) => {
                 const warEndTime = parseCocDate(warEntry.endTime);
-                const opponentTag = warEntry.opponent?.tag;
+                // Kita butuh clanTag dari klan *kita* di log, bukan lawan
+                const clanTag = warEntry.clan?.tag; 
 
-                if (warEndTime && !isNaN(warEndTime.getTime()) && warEntry.result && opponentTag) {
+                if (warEndTime && !isNaN(warEndTime.getTime()) && warEntry.result && clanTag) {
                     
-                    // --- PERBAIKAN LOGIKA ANTI-DUPLIKASI (Bagian 2) ---
-                    // [PERBAIKAN V6] Gunakan Set 'detailedWarKeys' yang sudah kita siapkan
-                    const semanticKey = `${opponentTag}-${warEndTime.toISOString().substring(0, 10)}`;
-                    
-                    // Cek #1: Jika kunci semantik ini sudah ditandai memiliki detail (baik dari migrasi atau dari LANGKAH 1)
-                    // JANGAN buat arsip summary.
-                    if (detailedWarKeys.has(semanticKey)) {
-                        // console.log(`[SYNC ARCHIVE-SUMMARY] Skipping summary for ${opponentTag} (ended ${warEndTime}) because a detailed archive (migrated or synced) already exists.`);
-                        return; // LEWATI (JANGAN BUAT DUPLIKAT SUMMARY)
+                    // Buat ID baru sesuai roadmap
+                    const warId = getWarHistoryId(clanTag, warEndTime);
+
+                    // Hanya tambahkan jika ID ini BELUM ada
+                    // (Baik dari sync sebelumnya, atau dari 'currentWar' di atas)
+                    if (!existingWarIds.has(warId)) {
+                        console.log(`[SYNC WAR HISTORY] Archiving summary war (from warLog): ${warId}`);
+
+                        // [PERBAIKAN ERROR] Gunakan Omit<WarArchive, 'id'>
+                        const warHistoryData: Omit<WarArchive, 'id'> = {
+                            // id: warId,
+                            clanTag: clanTag,
+                            warEndTime: warEndTime, // (sudah jadi Date)
+                            hasDetails: false, // Penanda penting
+                            
+                            // Data summary dari warLog
+                            state: 'warEnded',
+                            teamSize: warEntry.teamSize,
+                            clan: warEntry.clan,
+                            opponent: warEntry.opponent,
+                            result: warEntry.result,
+                            
+                            // Field detail di-set ke undefined
+                            attacksPerMember: undefined,
+                            startTime: undefined, // warLog tidak punya startTime
+                            preparationStartTime: undefined,
+                            endTime: warEntry.endTime, // String ISO asli
+                            members: undefined,
+                        };
+
+                        const docRef = warHistoryCollectionRef.doc(warId);
+                        batch.set(docRef, cleanDataForAdminSDK(warHistoryData));
+                        
+                        archivedWarCount++;
+                        existingWarIds.add(warId); // Tambahkan ke set
                     }
-
-                    // Cek #2: Cek ID yang digenerate (Format Sinkronisasi)
-                    const summaryId = getWarArchiveId(opponentTag, warEndTime, false); // ID Summary (HH:MM)
-                    const detailId = getWarArchiveId(opponentTag, warEndTime, true);   // ID Detail (HH:MM:SS)
-
-                    if (generatedWarIds.has(summaryId) || generatedWarIds.has(detailId)) {
-                        // console.log(`[SYNC ARCHIVE-SUMMARY] Skipping summary ID ${summaryId} because a matching generated ID already exists in Firestore.`);
-                        return; // Sudah ada (dari sync sebelumnya)
-                    }
-                    // --- AKHIR PERBAIKAN V6 ---
-                    
-                    console.log(`[SYNC ARCHIVE-SUMMARY] New summary war found (ID: ${summaryId}). Archiving...`);
-                    const archiveDocRef = warArchivesRef.doc(summaryId);
-
-                    const warArchiveData: Omit<WarArchive, 'id' | 'clanTag' | 'warEndTime'> = {
-                        ...warEntry,
-                        state: 'warEnded',
-                        preparationStartTime: undefined,
-                        attacksPerMember: undefined,
-                        members: undefined, 
-                    };
-
-                    batch.set(archiveDocRef, cleanDataForAdminSDK({
-                        ...warArchiveData,
-                        clanTag: rawClanTag, 
-                        warEndTime: warEndTime,
-                        hasDetails: false // <-- [PENANDA BARU]
-                    }), { merge: true }); 
-                    
-                    archivedWarCount++; 
-                    generatedWarIds.add(summaryId); // Tambahkan ID summary (menit) ke Set.
                 }
             });
         }
         
-        // e. Simpan Arsip Raid (Logika dipertahankan)
+        // --- AKHIR [MASALAH 1] ---
+
+
+        // e. Simpan Arsip Raid (Logika dipertahankan, MASIH MENGGUNAKAN SUBKOLEKSI LAMA)
+        // (Ini di luar scope roadmap kita saat ini, jadi biarkan apa adanya)
         let archivedRaid = false;
         if (raidLogData && raidLogData.state === 'ended') {
             const raidArchivesRef = managedClanRef.collection('raidArchives');
@@ -624,7 +569,7 @@ export async function GET(request: NextRequest) {
             {
                 message: `Managed Clan ${managedClan.name} synced successfully. Linked ${linkedMemberCount} verified members. Archived ${archivedWarCount} new wars.`,
                 syncedAt: now,
-                archivedWarCount: archivedWarCount, 
+                archivedWarCount: archivedWarCount, // <-- Menggunakan hitungan baru
                 memberCount: memberCountActual,
                 topPerformers: topPerformersData, 
             },
