@@ -263,17 +263,17 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
                     />
                 );
             case 'active-war':
-                // --- PERBAIKAN TYPESCRIPT ERROR (TS2322) ---
-                // Hapus prop 'currentWar' karena ActiveWarTabContent
-                // sekarang mengambil data sendiri dari listener Firestore.
+                // --- PERBAIKAN TUGAS 1.3 ---
+                // Mengirimkan data 'currentWar' dari cache ke komponen ActiveWarTabContent
+                // Ini akan memperbaiki error TS2741.
                 return (
                     <ActiveWarTabContent
                         clan={clan}
-                        // currentWar={cache?.currentWar} <-- DIHAPUS
+                        currentWar={cache?.currentWar} // <-- DIKEMBALIKAN (Tugas 1.3)
                         onRefresh={handleRefreshData}
                     />
                 );
-                // --- AKHIR PERBAIKAN TS ---
+                // --- AKHIR PERBAIKAN TUGAS 1.3 ---
             case 'war-history':
                 return (
                     <WarHistoryTabContent

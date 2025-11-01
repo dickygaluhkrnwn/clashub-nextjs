@@ -287,7 +287,7 @@ const WarDetailModal: React.FC<WarDetailModalProps> = ({ clanId, warId, onClose 
              // PERBAIKAN #3: Tambahkan penanganan escape key
              onKeyDown={(e) => e.key === 'Escape' && onClose()}
              tabIndex={-1} // Penting untuk menangkap keydown
-            onClick={onClose} // Tutup modal saat klik backdrop
+             onClick={onClose} // Tutup modal saat klik backdrop
         >
             {/* Konten Modal (Centered) */}
             <div className="flex min-h-full items-center justify-center p-4 text-center">
@@ -323,6 +323,7 @@ const WarDetailModal: React.FC<WarDetailModalProps> = ({ clanId, warId, onClose 
                             <div className="py-12 text-center bg-coc-red/20 rounded-lg">
                                 <AlertTriangleIcon className="h-8 w-8 text-coc-red mx-auto" />
                                 <p className="mt-2 text-coc-red font-semibold">{error}</p>
+
                                 <Button onClick={onClose} variant="secondary" size="sm" className='mt-4'>Tutup</Button>
                             </div>
                         )}
@@ -398,4 +399,3 @@ const WarDetailModal: React.FC<WarDetailModalProps> = ({ clanId, warId, onClose 
 };
 
 export default WarDetailModal;
-
