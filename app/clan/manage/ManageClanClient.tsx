@@ -99,17 +99,25 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
         );
     }
 
-    // --- Kondisi jika initialData null (seharusnya tidak terjadi jika serverError null) ---
+    // --- PERBAIKAN RUNTIME ERROR (PENYEBAB LOGOUT) ---
+    // Kita harus mengaktifkan loading state ini.
+    // Jika profile (dari AuthContext) atau initialData (dari server) belum siap,
+    // kita harus berhenti di sini agar tidak terjadi crash 'cannot read properties of null'.
     if (!initialData || !profile) {
-           // Tampilkan loading atau pesan error yang sesuai
-           return (
-               <main className="container mx-auto p-4 md:p-8 mt-10 min-h-[60vh]">
-                   <div className="flex justify-center items-center">
-                       <p>Memuat data klan...</p> {/* Atau komponen loading */}
-                   </div>
-               </main>
-           );
+         // Tampilkan loading atau pesan error yang sesuai
+         return (
+             <main className="container mx-auto p-4 md:p-8 mt-10 min-h-[60vh]">
+                 <div className="flex justify-center items-center h-full flex-col">
+                     <RefreshCwIcon className="h-12 w-12 text-coc-gold animate-spin mb-3" />
+                     <p className="text-lg font-clash text-white">Memuat Data Pengguna...</p>
+                     <p className="text-sm text-gray-400 font-sans mt-1">
+                         Jika Anda terlempar, silakan login kembali.
+                     </p>
+                 </div>
+             </main>
+         );
     }
+    // --- AKHIR PERBAIKAN RUNTIME ERROR ---
 
     // Data dari Server Component (sudah divalidasi tidak null)
     const data = initialData;
@@ -255,13 +263,17 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
                     />
                 );
             case 'active-war':
+                // --- PERBAIKAN TYPESCRIPT ERROR (TS2322) ---
+                // Hapus prop 'currentWar' karena ActiveWarTabContent
+                // sekarang mengambil data sendiri dari listener Firestore.
                 return (
                     <ActiveWarTabContent
                         clan={clan}
-                        currentWar={cache?.currentWar}
+                        // currentWar={cache?.currentWar} <-- DIHAPUS
                         onRefresh={handleRefreshData}
                     />
                 );
+                // --- AKHIR PERBAIKAN TS ---
             case 'war-history':
                 return (
                     <WarHistoryTabContent
@@ -347,8 +359,8 @@ const ManageClanClient = ({ initialData, serverError, profile }: ManageClanClien
                                     tabName={tab.tabName} 
                                     icon={tab.icon} 
                                     label={tab.tabName === 'members' ? `Anggota (${data.members.length})` : 
-                                            tab.tabName === 'requests' ? `Permintaan Gabung (${data.joinRequests.length})` : 
-                                            tab.label} 
+                                           tab.tabName === 'requests' ? `Permintaan Gabung (${data.joinRequests.length})` : 
+                                           tab.label} 
                                 />
                             ))}
 

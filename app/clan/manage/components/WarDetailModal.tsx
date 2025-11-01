@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { XIcon, StarIcon, AlertTriangleIcon, TrophyIcon, ShieldIcon, ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, ArrowDownIcon } from '@/app/components/icons';
 import { WarArchive, CocWarMember, CocWarAttack } from '@/lib/types'; 
-import { getWarArchive } from '@/lib/firestore'; 
+// --- PERBAIKAN ROADMAP ---
+// Hapus 'getWarArchive' dari lib/firestore
+import { doc, getDoc, Timestamp } from 'firebase/firestore'; // Import fungsi firestore
+import { firestore } from '@/lib/firebase'; // Import firestore (klien)
+import { COLLECTIONS } from '@/lib/firestore-collections'; // Import nama koleksi
+// --- AKHIR PERBAIKAN ---
 import Image from 'next/image';
 import { getThImage } from '@/lib/th-utils'; 
 import { Button } from '@/app/components/ui/Button';
@@ -197,24 +202,51 @@ const WarDetailModal: React.FC<WarDetailModalProps> = ({ clanId, warId, onClose 
             setError(null);
             
             try {
-                // Catatan: getWarArchive sudah diimplementasikan di lib/firestore.ts
-                const data = await getWarArchive(clanId, warId);
+                // --- PERBAIKAN ROADMAP ---
+                // Hentikan penggunaan getWarArchive, ganti dengan getDoc langsung
+                // ke koleksi 'clanWarHistory'
+                const docRef = doc(
+                    firestore, 
+                    COLLECTIONS.MANAGED_CLANS, 
+                    clanId, 
+                    'clanWarHistory', // Koleksi baru sesuai roadmap
+                    warId // ID dokumen (e.g., #TAG-YYYYMMDDTHHMMSS.000Z)
+                );
+                const docSnap = await getDoc(docRef);
+                // --- AKHIR PERBAIKAN ---
                 
-                if (data?.hasDetails && data.clan?.members && data.opponent?.members) {
-                    // PERBAIKAN KRITIS #1: Hapus konversi startTime/endTime yang salah
-                    // Cukup pastikan warEndTime adalah Date (sudah dijamin oleh lib/firestore.ts)
-                    const cleanedData: WarArchive = {
-                        ...data,
-                        // Konversi ini hanya memastikan tipe, tapi sebenarnya sudah terjadi di docToData
-                        warEndTime: data.warEndTime instanceof Date ? data.warEndTime : new Date(data.warEndTime),
-                    };
+                if (docSnap.exists()) {
+                    const data = docSnap.data() as any; // Tipe data adalah CocWarLog
+                    
+                    // Konversi 'endTime' (dari CocWarLog) ke 'warEndTime' (untuk tipe WarArchive)
+                    let warEndTime: Date;
+                    if (data.endTime instanceof Timestamp) {
+                        warEndTime = data.endTime.toDate();
+                    } else if (typeof data.endTime === 'string') {
+                        warEndTime = new Date(data.endTime);
+                    } else {
+                        warEndTime = data.endTime || new Date(0); // Fallback
+                    }
 
-                    setWarData(cleanedData);
-                } else if (data && !data.hasDetails) {
-                    setError("Detail serangan tidak tersedia untuk arsip ini (Hanya ringkasan).");
+                    // Asumsikan data dari API Log (clanWarHistory) selalu punya detail
+                    const hasDetails = data.hasDetails !== undefined ? data.hasDetails : true;
+
+                    if (hasDetails && data.clan?.members && data.opponent?.members) {
+                        // Set data agar sesuai dengan Tipe WarArchive yang diharapkan
+                        const cleanedData: WarArchive = {
+                            ...data,
+                            id: docSnap.id, // Tambahkan ID dokumen
+                            warEndTime: warEndTime, // Penuhi kebutuhan tipe WarArchive
+                            // Pastikan 'endTime' juga di-set jika tipe WarArchive mewarisi CocWarLog
+                            endTime: warEndTime, 
+                        };
+                        setWarData(cleanedData);
+                    } else {
+                        setError("Data detail (anggota/serangan) tidak lengkap untuk arsip ini.");
+                    }
                 } else {
-                    // Ini mencakup: data null, atau hasDetails true tapi member/clan data missing (data korup)
-                    setError("Arsip perang tidak ditemukan di database, atau data detail tidak lengkap.");
+                    // Data tidak ditemukan di koleksi baru
+                    setError(`Arsip perang tidak ditemukan di database (ID: ${warId}).`);
                 }
 
             } catch (err) {
@@ -252,7 +284,7 @@ const WarDetailModal: React.FC<WarDetailModalProps> = ({ clanId, warId, onClose 
     return (
         // Modal Container (fixed position)
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm transition-opacity duration-300" 
-            // PERBAIKAN #3: Tambahkan penanganan escape key
+             // PERBAIKAN #3: Tambahkan penanganan escape key
              onKeyDown={(e) => e.key === 'Escape' && onClose()}
              tabIndex={-1} // Penting untuk menangkap keydown
             onClick={onClose} // Tutup modal saat klik backdrop
@@ -366,3 +398,4 @@ const WarDetailModal: React.FC<WarDetailModalProps> = ({ clanId, warId, onClose 
 };
 
 export default WarDetailModal;
+

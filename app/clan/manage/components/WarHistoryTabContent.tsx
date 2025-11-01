@@ -1,18 +1,27 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { WarSummary, WarResult } from '@/lib/types'; 
-// [BARU] Import fungsi pengambilan data dari Client SDK
-// FirestoreDocument kini diekspor dari lib/firestore
-import { getWarSummaries, FirestoreDocument } from '@/lib/firestore'; 
-// FIXED: Hapus Loader2Icon yang tidak ter-ekspor. Kita akan menggunakan RefreshCwIcon sebagai spinner.
+// --- PERBAIKAN ROADMAP ---
+// Hapus 'getWarSummaries' dan 'FirestoreDocument' dari 'lib/firestore'
+import { firestore } from '@/lib/firebase'; // Import firestore (klien)
+import { COLLECTIONS } from '@/lib/firestore-collections'; // Import nama koleksi
+import { 
+    collection, query, orderBy, limit, getDocs, Timestamp, DocumentData, QueryDocumentSnapshot 
+} from 'firebase/firestore'; // Import fungsi query Firestore
+// --- AKHIR PERBAIKAN ---
+
 import { BookOpenIcon, ClockIcon, StarIcon, SwordsIcon, AlertTriangleIcon, RefreshCwIcon, ArrowUpIcon, ArrowDownIcon } from '@/app/components/icons';
 import { Button } from '@/app/components/ui/Button';
 import WarDetailModal from './WarDetailModal'; 
+
+// --- PERBAIKAN ROADMAP ---
+// Definisikan FirestoreDocument di sini karena kita tidak lagi mengimpornya dari lib/firestore
+export type FirestoreDocument<T> = T & { id: string };
+// --- AKHIR PERBAIKAN ---
 
 interface WarHistoryTabContentProps {
     clanId: string; // ID Internal Klan Firestore
     clanTag: string; // Tag Klan CoC
     onRefresh: () => void;
-    // initialWarHistory dihapus karena komponen akan mengambil data sendiri
 }
 
 // Definisikan tipe untuk kolom yang dapat diurutkan
@@ -24,7 +33,7 @@ type SortDirection = 'asc' | 'desc';
 // ======================================================================================================
 
 interface WarHistoryRowProps {
-    war: FirestoreDocument<WarSummary>; // Menggunakan FirestoreDocument<WarSummary>
+    war: FirestoreDocument<WarSummary>; 
     onViewDetails: (warId: string) => void;
 }
 
@@ -37,11 +46,13 @@ const WarHistoryRow: React.FC<WarHistoryRowProps> = ({ war, onViewDetails }) => 
         'bg-gray-600 text-white';
 
     // Pastikan war.endTime adalah objek Date sebelum pemformatan
+    // Logika ini sudah aman karena fetchWarHistory baru akan mengonversinya ke Date
     const formattedDate = (war.endTime instanceof Date ? war.endTime : new Date(war.endTime)).toLocaleDateString('id-ID', {
         day: '2-digit', month: 'short', year: 'numeric'
     });
     
-    // Menggunakan properti hasDetails yang sudah tersedia di WarSummary
+    // Menggunakan properti hasDetails (kita asumsikan data di clanWarHistory memilikinya)
+    // Jika tidak, kita bisa anggap semua 'true' karena ini adalah arsip log
     const hasDetails = war.hasDetails === true; 
 
     return (
@@ -89,9 +100,10 @@ const WarHistoryRow: React.FC<WarHistoryRowProps> = ({ war, onViewDetails }) => 
             {/* Kolom Aksi */}
             <td className="px-3 py-3 whitespace-nowrap text-center w-[120px]">
                 {/* --- Kontrol tombol berdasarkan hasDetails --- */}
+                {/* Kita asumsikan semua data dari clanWarHistory punya detail */}
                 <Button 
                     size="sm" 
-                    variant="secondary" // FIXED: Menggunakan variant yang valid ('secondary') untuk menghindari error 2322
+                    variant="secondary" 
                     disabled={!hasDetails}
                     title={hasDetails ? "Lihat detail serangan dan pemain." : "Hanya ringkasan log tersedia (Data lama)."}
                     className={`text-xs ${!hasDetails ? 'bg-gray-700 hover:bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-coc-gold hover:bg-coc-gold-dark text-black'}`}
@@ -108,6 +120,37 @@ const WarHistoryRow: React.FC<WarHistoryRowProps> = ({ war, onViewDetails }) => 
 // Main Component: WarHistoryTabContent
 // ======================================================================================================
 
+// --- PERBAIKAN ROADMAP: Fungsi helper untuk konversi data Firestore ---
+/**
+ * Mengonversi snapshot dokumen Firestore ke tipe WarSummary,
+ * dan memastikan 'endTime' adalah objek Date.
+ */
+const docToWarSummary = (doc: QueryDocumentSnapshot<DocumentData>): FirestoreDocument<WarSummary> => {
+    const data = doc.data() as any;
+    let endTime: Date;
+
+    if (data.endTime instanceof Timestamp) {
+        // Konversi Firestore Timestamp ke Date
+        endTime = data.endTime.toDate();
+    } else if (typeof data.endTime === 'string') {
+        // Konversi string ISO ke Date
+        endTime = new Date(data.endTime);
+    } else {
+        // Fallback jika sudah Date (atau tidak terdefinisi)
+        endTime = data.endTime || new Date(0); 
+    }
+    
+    // Kita paksakan 'hasDetails: true' karena kita membaca dari koleksi arsip utama
+    return {
+        ...data,
+        id: doc.id,
+        endTime: endTime, // Pastikan ini adalah objek Date
+        hasDetails: data.hasDetails !== undefined ? data.hasDetails : true, // Asumsikan true jika tidak ada
+    } as FirestoreDocument<WarSummary>;
+};
+// --- AKHIR PERBAIKAN ---
+
+
 const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({ clanId, clanTag, onRefresh }) => {
     const [history, setHistory] = useState<FirestoreDocument<WarSummary>[]>([]); 
     const [isLoading, setIsLoading] = useState(true); // State Loading
@@ -117,22 +160,56 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({ clanId, cla
     
     const [sort, setSort] = useState<{ key: SortKey, direction: SortDirection }>({ key: 'endTime', direction: 'desc' });
     
-    // --- FUNGSI PENGAMBILAN DATA BARU ---
+    // --- FUNGSI PENGAMBILAN DATA DIPERBARUI (ROADMAP) ---
     const fetchWarHistory = useCallback(async () => {
         setIsLoading(true);
         setError(null);
+        
+        if (!clanId) {
+             setError("ID Klan tidak ditemukan.");
+             setIsLoading(false);
+             return;
+        }
+
         try {
-            // Menggunakan fungsi Client SDK yang baru
-            const data = await getWarSummaries(clanId, 50);
-            setHistory(data);
+            // Sesuai roadmap, koleksi arsip adalah 'clanWarHistory' (sub-koleksi)
+            const historyCollectionRef = collection(
+                firestore, 
+                COLLECTIONS.MANAGED_CLANS, 
+                clanId, 
+                'clanWarHistory' // NAMA KOLEKSI BARU SESUAI ROADMAP
+            );
+
+            // Buat query (berdasarkan state 'sort' saat ini, tapi kita default ke 'endTime' untuk fetch)
+            const q = query(
+                historyCollectionRef, 
+                orderBy('endTime', 'desc'), // Asumsi field 'endTime' (bukan 'warEndTime')
+                limit(50)
+            );
+
+            const snapshot = await getDocs(q);
+            
+            if (snapshot.empty) {
+                setHistory([]);
+            } else {
+                 // Gunakan helper baru untuk memproses data dan konversi Timestamp
+                const data = snapshot.docs.map(docToWarSummary);
+                setHistory(data);
+            }
+
         } catch (err) {
             console.error("Failed to fetch war history:", err);
-            setError("Gagal memuat riwayat perang dari database.");
+            // Cek error spesifik jika indeks 'endTime' tidak ada
+            if (err instanceof Error && (err as any).code === 'failed-precondition') {
+                 setError("Database memerlukan indeks untuk 'endTime'. Silakan buat di Firebase Console.");
+            } else {
+                 setError("Gagal memuat riwayat perang dari database.");
+            }
             setHistory([]);
         } finally {
             setIsLoading(false);
         }
-    }, [clanId]);
+    }, [clanId]); // Hanya bergantung pada clanId
 
     // Panggil fetchWarHistory saat komponen dimuat atau clanId berubah
     useEffect(() => {
@@ -154,9 +231,13 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({ clanId, cla
     // Menggabungkan onRefresh prop dengan fetchWarHistory untuk tombol "Muat Ulang"
     const handleFullRefresh = useCallback(() => {
         onRefresh(); // Memanggil sync di page.tsx
-        // Tunggu sebentar (delay simulasi) lalu refresh data lokal
+        
+        // Tampilkan loading spinner segera
+        setIsLoading(true); 
+
+        // Tunggu sebentar (delay simulasi agar sync API sempat berjalan)
         setTimeout(() => {
-            fetchWarHistory();
+            fetchWarHistory(); // Ambil data baru dari koleksi 'clanWarHistory'
         }, 3000); 
     }, [onRefresh, fetchWarHistory]);
 
@@ -174,21 +255,33 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({ clanId, cla
 
         const sortedData = [...history];
 
+        // Urutan default untuk 'result'
         const resultOrder: Record<WarResult, number> = { 'win': 4, 'tie': 3, 'lose': 2, 'unknown': 1 };
 
         sortedData.sort((a, b) => {
-            let valueA: any = a[sort.key as keyof WarSummary];
-            let valueB: any = b[sort.key as keyof WarSummary];
+            // --- PERBAIKAN ERROR TS2367 ---
+            // Gunakan key dari state sort
+            const sortKey = sort.key; // Hapus cast 'as keyof WarSummary'
+            
+            // Cek 'none' terlebih dahulu. Ini sekarang valid.
+            if (sortKey === 'none') return 0; 
+            
+            // Pindahkan pengambilan nilai SETELAH cek 'none'
+            let valueA: any = a[sortKey];
+            let valueB: any = b[sortKey];
+            // --- AKHIR PERBAIKAN ---
+
             let comparison = 0;
 
-            if (sort.key === 'result') {
+            if (sortKey === 'result') {
                 comparison = resultOrder[valueA as WarResult] - resultOrder[valueB as WarResult];
-            } else if (sort.key === 'opponentName' || sort.key === 'id') {
+            } else if (sortKey === 'opponentName' || sortKey === 'id') {
                 comparison = String(valueA).localeCompare(String(valueB));
-            } else if (sort.key === 'endTime') {
+            } else if (sortKey === 'endTime') {
                  // endTime di state kini dipastikan berupa Date karena dimapping di fetchWarHistory
                 comparison = valueA.getTime() - valueB.getTime();
             } else {
+                // Fallback untuk 'teamSize', 'ourStars', 'opponentStars', dll.
                 if (valueA === undefined || valueA === null) return sort.direction === 'asc' ? -1 : 1;
                 if (valueB === undefined || valueB === null) return sort.direction === 'asc' ? 1 : -1;
                 comparison = valueA - valueB;
@@ -198,7 +291,7 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({ clanId, cla
         });
 
         return sortedData;
-    }, [history, sort]);
+    }, [history, sort]); // Bereaksi terhadap 'history' atau 'sort'
 
     // --- HELPER UNTUK TAMPILAN HEADER SORT ---
     const getSortIcon = (key: SortKey) => {
@@ -216,7 +309,7 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({ clanId, cla
     if (isLoading) {
         return (
             <div className="p-8 text-center bg-coc-stone/40 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
-                <RefreshCwIcon className="h-8 w-8 text-coc-gold animate-spin mb-3" /> {/* FIXED: Menggunakan RefreshCwIcon sebagai fallback spinner */}
+                <RefreshCwIcon className="h-8 w-8 text-coc-gold animate-spin mb-3" /> 
                 <p className="text-lg font-clash text-white">Memuat Riwayat War...</p>
                 <p className="text-sm text-gray-400 font-sans mt-1">Mengambil data arsip War Classic terbaru.</p>
             </div>
@@ -229,7 +322,7 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({ clanId, cla
             <div className="p-8 text-center bg-coc-red/20 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
                 <AlertTriangleIcon className="h-12 w-12 text-coc-red mb-3" />
                 <p className="text-lg font-clash text-white">Error Memuat Data</p>
-                <p className="text-sm text-gray-400 font-sans mt-1">{error}</p>
+                <p className="text-sm text-gray-400 font-sans mt-1 max-w-md mx-auto">{error}</p>
                 <Button onClick={handleFullRefresh} variant="secondary" size="sm" className='mt-4'>
                     <RefreshCwIcon className='h-4 w-4 mr-2'/> Coba Muat Ulang
                 </Button>
@@ -342,3 +435,4 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({ clanId, cla
 };
 
 export default WarHistoryTabContent;
+
