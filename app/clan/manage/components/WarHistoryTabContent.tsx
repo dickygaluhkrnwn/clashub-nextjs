@@ -87,9 +87,11 @@ const WarHistoryRow: React.FC<WarHistoryRowProps> = ({ war, onViewDetails }) => 
                         {war.opponentStars} <StarIcon className="h-4 w-4 ml-1 fill-coc-red" />
                     </span>
                 </div>
+                {/* --- PERBAIKAN TUGAS 3.2 (Sudah ada dari sebelumnya) --- */}
                 <span className="text-xs text-gray-400 block mt-0.5">
-                    {war.ourDestruction.toFixed(2)}% vs {war.opponentDestruction.toFixed(2)}%
+                    {(war.ourDestruction || 0).toFixed(2)}% vs {(war.opponentDestruction || 0).toFixed(2)}%
                 </span>
+                {/* --- PERBAIKAN TUGAS 3.2 SELESAI --- */}
             </td>
             
             {/* Kolom Tanggal Selesai */}
@@ -120,7 +122,7 @@ const WarHistoryRow: React.FC<WarHistoryRowProps> = ({ war, onViewDetails }) => 
 // Main Component: WarHistoryTabContent
 // ======================================================================================================
 
-// --- PERBAIKAN ROADMAP: Fungsi helper untuk konversi data Firestore ---
+// --- PERBAIKAN TUGAS 5.1: Fungsi helper untuk konversi data Firestore ---
 /**
  * Mengonversi snapshot dokumen Firestore ke tipe WarSummary,
  * dan memastikan 'endTime' adalah objek Date.
@@ -129,26 +131,66 @@ const docToWarSummary = (doc: QueryDocumentSnapshot<DocumentData>): FirestoreDoc
     const data = doc.data() as any;
     let endTime: Date;
 
-    if (data.endTime instanceof Timestamp) {
-        // Konversi Firestore Timestamp ke Date
-        endTime = data.endTime.toDate();
-    } else if (typeof data.endTime === 'string') {
-        // Konversi string ISO ke Date
-        endTime = new Date(data.endTime);
+    // (FIX 5.1 - ENDTIME): Cek 'endTime' (API baru/summary) ATAU 'warEndTime' (Migrasi CSV)
+    const dateSource = data.endTime || data.warEndTime;
+
+    if (typeof dateSource === 'object' && dateSource !== null && dateSource.seconds !== undefined) {
+        // 1. Handle Objek Timestamp POJO (dari server)
+        endTime = new Date(dateSource.seconds * 1000);
+    } else if (typeof dateSource === 'string') {
+        // 2. Handle String ISO
+        endTime = new Date(dateSource);
+    } else if (dateSource instanceof Date) { 
+        // 3. Handle jika sudah Date (jarang terjadi di client)
+        endTime = dateSource;
+    } else if (dateSource instanceof Timestamp) { // Fallback jika Tipe Timestamp Klien lolos
+        endTime = dateSource.toDate();
     } else {
-        // Fallback jika sudah Date (atau tidak terdefinisi)
-        endTime = data.endTime || new Date(0); 
+        // 4. Fallback
+        endTime = new Date(0); 
     }
     
-    // Kita paksakan 'hasDetails: true' karena kita membaca dari koleksi arsip utama
+    // (FIX 5.1 - HASDETAILS): Baca 'hasDetails'.
+    // 'true' HANYA jika data migrasi detail.
+    // 'false' untuk data summary (baik yg lama/undefined atau yg baru).
+    const hasDetails = data.hasDetails === true; 
+
+    // (FIX 5.1 - FLATTENING): Tentukan field berdasarkan hasDetails
+    const opponentName = hasDetails 
+        ? (data.opponent?.name || 'Nama Lawan (Detail?)') // Data Detail: Ambil dari nested
+        : (data.opponentName || data.opponent?.name || 'Nama Lawan (Summary?)'); // Data Summary: Ambil dari flat (hasil script 4.2) ATAU fallback ke nested (hasil script 3.3)
+
+    const ourStars = hasDetails
+        ? (data.clan?.stars || 0)
+        : (data.ourStars !== undefined ? data.ourStars : (data.clan?.stars || 0));
+
+    const ourDestruction = hasDetails
+        ? (data.clan?.destructionPercentage || 0)
+        : (data.ourDestruction !== undefined ? data.ourDestruction : (data.clan?.destructionPercentage || 0));
+
+    const opponentStars = hasDetails
+        ? (data.opponent?.stars || 0)
+        : (data.opponentStars !== undefined ? data.opponentStars : (data.opponent?.stars || 0));
+
+    const opponentDestruction = hasDetails
+        ? (data.opponent?.destructionPercentage || 0)
+        : (data.opponentDestruction !== undefined ? data.opponentDestruction : (data.opponent?.destructionPercentage || 0));
+
+    // Buat objek 'rata' (flat) untuk WarSummary
     return {
-        ...data,
         id: doc.id,
-        endTime: endTime, // Pastikan ini adalah objek Date
-        hasDetails: data.hasDetails !== undefined ? data.hasDetails : true, // Asumsikan true jika tidak ada
+        opponentName: opponentName,
+        endTime: endTime,
+        hasDetails: hasDetails, 
+        result: data.result || 'unknown',
+        teamSize: data.teamSize || 0,
+        ourStars: ourStars,
+        ourDestruction: ourDestruction,
+        opponentStars: opponentStars,
+        opponentDestruction: opponentDestruction,
     } as FirestoreDocument<WarSummary>;
 };
-// --- AKHIR PERBAIKAN ---
+// --- AKHIR PERBAIKAN TUGAS 5.1 ---
 
 
 const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({ clanId, clanTag, onRefresh }) => {
@@ -181,9 +223,11 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({ clanId, cla
             );
 
             // Buat query (berdasarkan state 'sort' saat ini, tapi kita default ke 'endTime' untuk fetch)
+            // (FIX 4.1): Ubah orderBy ke 'warEndTime' (jika data migrasi) atau 'endTime'
+            // Kita akan konsisten menggunakan 'endTime' karena 'docToWarSummary' sudah menanganinya
             const q = query(
                 historyCollectionRef, 
-                orderBy('endTime', 'desc'), // Asumsi field 'endTime' (bukan 'warEndTime')
+                orderBy('endTime', 'desc'), // (FIX 5.1) Menggunakan 'endTime' (hasil konversi)
                 limit(50)
             );
 

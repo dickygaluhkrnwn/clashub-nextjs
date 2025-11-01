@@ -322,34 +322,7 @@ export async function GET(request: NextRequest) {
         
         // a. Kelola Dokumen Perang Aktif (Koleksi BARU: clanActiveWar)
         /*
-        const activeWarRef = adminFirestore
-            .collection('clanActiveWar') // <-- KOLEKSI BARU (Top-Level)
-            .doc(safeClanTag); // <-- ID Dokumen: [clanTag]
-
-        if (currentWarData && (currentWarData.state === 'inWar' || currentWarData.state === 'preparation')) {
-            // KASUS 1: Sedang perang atau persiapan
-            console.log(`[SYNC ACTIVE WAR] State is '${currentWarData.state}'. Writing to clanActiveWar/${safeClanTag}`);
-            
-            // Kita perlu mengonversi tanggal COC ke AdminTimestamp
-            const activeWarPayload = {
-                ...currentWarData,
-                // Konversi manual tanggal-tanggal penting ke Date (lalu cleanData)
-                startTime: parseCocDate(currentWarData.startTime),
-                endTime: parseCocDate(currentWarData.endTime),
-                preparationStartTime: parseCocDate(currentWarData.preparationStartTime),
-                // Simpan juga clanId internal kita untuk referensi
-                clanId: clanId,
-                // Tandai data ini disinkronkan
-                lastSynced: now 
-            };
-            batch.set(activeWarRef, cleanDataForAdminSDK(activeWarPayload), { merge: true });
-
-        } else {
-            // KASUS 2: 'warEnded' atau 'notInWar' (API mengembalikan null)
-            console.log(`[SYNC ACTIVE WAR] State is '${currentWarData?.state || 'notInWar'}'. Deleting from clanActiveWar/${safeClanTag}`);
-            // Hapus dokumen perang aktif karena sudah selesai atau tidak ada.
-            batch.delete(activeWarRef);
-        }
+        ... (Logika V4 yang dihapus) ...
         */
 
         // b. Update Cache (Sekarang termasuk currentWar)
@@ -452,7 +425,9 @@ export async function GET(request: NextRequest) {
                     console.log(`[SYNC WAR HISTORY] Archiving detailed war (from currentWar): ${warId}`);
 
                     // [PERBAIKAN ERROR] Gunakan Omit<WarArchive, 'id'>
-                    const warHistoryData: Omit<WarArchive, 'id'> = {
+                    // Tipe WarArchive tidak secara eksplisit memiliki 'ourStars', 'opponentStars', dll.
+                    // Kita tambahkan '& { [key: string]: any }' untuk mengatasi error TypeScript
+                    const warHistoryData: Omit<WarArchive, 'id'> & { [key: string]: any } = {
                         // id: warId, // ID tidak perlu di dalam data
                         clanTag: clanTag, // Untuk query
                         warEndTime: warEndTime, // Untuk query/sort (sudah jadi Date)
@@ -469,6 +444,15 @@ export async function GET(request: NextRequest) {
                         preparationStartTime: parseCocDate(currentWarData.preparationStartTime), // Konversi Date
                         result: currentWarData.result,
                         members: currentWarData.members, // Data detail serangan
+                        
+                        // --- PERBAIKAN (Tugas 3.1): Tambahkan pemetaan field untuk WarSummary ---
+                        // Data DETAIL sudah memiliki ini di dalam 'clan' dan 'opponent', 
+                        // tapi kita tambahkan di top level agar konsisten dengan data SUMMARY
+                        ourStars: currentWarData.clan?.stars || 0,
+                        ourDestruction: currentWarData.clan?.destructionPercentage || 0,
+                        opponentStars: currentWarData.opponent?.stars || 0,
+                        opponentDestruction: currentWarData.opponent?.destructionPercentage || 0,
+                        // --- AKHIR PERBAIKAN ---
                     };
 
                     const docRef = warHistoryCollectionRef.doc(warId);
@@ -501,8 +485,8 @@ export async function GET(request: NextRequest) {
                     if (!existingWarIds.has(warId)) {
                         console.log(`[SYNC WAR HISTORY] Archiving summary war (from warLog): ${warId}`);
 
-                        // [PERBAIKAN ERROR] Gunakan Omit<WarArchive, 'id'>
-                        const warHistoryData: Omit<WarArchive, 'id'> = {
+                        // [PERBAIKAN ERROR] Gunakan Omit<WarArchive, 'id'> & { [key: string]: any }
+                        const warHistoryData: Omit<WarArchive, 'id'> & { [key: string]: any } = {
                             // id: warId,
                             clanTag: clanTag,
                             warEndTime: warEndTime, // (sudah jadi Date)
@@ -514,6 +498,13 @@ export async function GET(request: NextRequest) {
                             clan: warEntry.clan,
                             opponent: warEntry.opponent,
                             result: warEntry.result,
+
+                            // --- PERBAIKAN (Tugas 3.1): Tambahkan pemetaan field untuk WarSummary ---
+                            ourStars: warEntry.clan?.stars || 0,
+                            ourDestruction: warEntry.clan?.destructionPercentage || 0,
+                            opponentStars: warEntry.opponent?.stars || 0,
+                            opponentDestruction: warEntry.opponent?.destructionPercentage || 0,
+                            // --- AKHIR PERBAIKAN ---
 
                             // Field detail di-set ke undefined
                             attacksPerMember: undefined,
@@ -614,4 +605,3 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: errorMessage }, { status: statusCode });
     }
 }
-
