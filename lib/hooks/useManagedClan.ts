@@ -6,7 +6,8 @@ import {
   CocWarLogEntry,
   CocLeagueGroup,
   CocRaidSeasons,
-  UserProfile, // <-- DITAMBAHKAN: Tipe untuk hook members
+  UserProfile,
+  JoinRequestWithProfile, // <-- DITAMBAHKAN: Tipe untuk hook requests
 } from '@/lib/types'; // Mengimpor tipe dari barrel file utama
 
 /**
@@ -128,7 +129,6 @@ export const useManagedClanRaid = (clanId: string) => {
   };
 };
 
-// --- [BARU DITAMBAHKAN] ---
 /**
  * @hook useManagedClanMembers
  * Hook SWR untuk mengambil data internal UserProfile anggota klan.
@@ -146,6 +146,27 @@ export const useManagedClanMembers = (clanId: string) => {
     isLoading: isLoading,
     isError: error,
     mutateMembers: mutate,
+  };
+};
+
+// --- [BARU DITAMBAHKAN] ---
+/**
+ * @hook useManagedClanRequests
+ * Hook SWR untuk mengambil data permintaan (Join Requests) klan.
+ * Menggunakan tipe data JoinRequestWithProfile[].
+ * @param clanId - ID internal (document ID) dari ManagedClan.
+ */
+export const useManagedClanRequests = (clanId: string) => {
+  const { data, error, isLoading, mutate } = useSWR<JoinRequestWithProfile[]>(
+    clanId ? `/api/clan/manage/${clanId}/requests` : null,
+    fetcher
+  );
+
+  return {
+    requestsData: data, // Ini adalah JoinRequestWithProfile[]
+    isLoading: isLoading,
+    isError: error,
+    mutateRequests: mutate,
   };
 };
 // --- [AKHIR TAMBAHAN] ---
