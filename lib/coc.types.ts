@@ -2,14 +2,7 @@
 // Deskripsi: Mendefinisikan semua struktur data (interface) TypeScript
 // yang berhubungan langsung dengan data mentah dari API Clash of Clans.
 
-// PERBAIKAN: Impor tipe Enum dari file 'enums.ts' (bukan types.ts)
 import { ClanRole } from './enums';
-
-// =========================================================================
-// 0. ENUMERASI KONSTANTA (Berdasarkan API CoC)
-// =========================================================================
-
-// (ENUM DIPINDAHKAN KE lib/enums.ts)
 
 // =========================================================================
 // 1. TIPE DATA CLASH OF CLANS API MENTAH (COCAPIType)
@@ -166,7 +159,6 @@ export interface CocWarClanInfo {
     destructionPercentage: number;
     expEarned?: number;
     members: CocWarMember[];
-    // --- PERBAIKAN TS2339: Menambahkan warLeague ---
     warLeague?: {
         id: number;
         name: string;
@@ -226,7 +218,6 @@ export interface CocWarLogEntry {
         stars: number;
         destructionPercentage: number;
     };
-    // Kita mungkin tidak butuh detail member di sini untuk arsip ringkasan
 }
 
 
@@ -257,7 +248,6 @@ export interface CocRaidLog {
     members?: CocRaidMember[]; // Daftar partisipasi anggota (jika API menyediakannya)
     attackLog: CocRaidAttackLogEntry[]; // Log serangan distrik klan musuh
     defenseLog: CocRaidDefenseLogEntry[]; // Log pertahanan distrik klan kita
-    // Properti lain mungkin ada
 }
 
 /**
@@ -282,7 +272,6 @@ export interface CocRaidAttackLogEntry {
         tag: string;
         name: string;
         level: number; // Level Clan Capital musuh
-        // districts?: CocRaidDistrict[]; // Detail distrik musuh mungkin tidak ada di log serangan
     };
     attackCount: number; // Jumlah serangan pada klan musuh ini
     districtCount: number; // Jumlah distrik klan musuh ini
@@ -334,7 +323,58 @@ export interface CocRaidDefenseLogEntry {
     districts: CocRaidDistrict[]; // Detail distrik kita yang diserang oleh klan ini
 }
 
-// --- [PERBAIKAN ERROR: Tambahkan Tipe CocCurrentWar] ---
+/**
+ * @interface CocRaidSeasons
+ * Tipe data pembungkus untuk endpoint /capitalraidseasons.
+ * Ini adalah respons API, berisi daftar log raid.
+ */
+export interface CocRaidSeasons {
+    items: CocRaidLog[];
+    paging?: {
+      cursors: {};
+    };
+}
+
+
+// --- [PENAMBAHAN BARU UNTUK CWL/LEAGUE GROUP] ---
+
+/**
+ * @interface CocLeagueGroupClanMember
+ * Info anggota di roster CWL (dari League Group API).
+ */
+export interface CocLeagueGroupClanMember {
+    tag: string;
+    name: string;
+    townHallLevel: number;
+}
+
+/**
+ * @interface CocLeagueGroupClan
+ * Info klan di dalam League Group API.
+ */
+export interface CocLeagueGroupClan {
+    tag: string;
+    name: string;
+    clanLevel: number;
+    badgeUrls: CocIconUrls;
+    members: CocLeagueGroupClanMember[];
+}
+
+/**
+ * @interface CocLeagueGroup
+ * Data untuk endpoint /clans/{clanTag}/currentwar/leaguegroup.
+ */
+export interface CocLeagueGroup {
+    state: 'preparation' | 'inWar' | 'ended' | string; // 'string' sebagai fallback jika ada state lain
+    season: string; // Format "YYYY-MM"
+    clans: CocLeagueGroupClan[];
+    rounds: {
+        warTags: string[]; // Daftar warTag untuk setiap match di ronde itu
+    }[];
+}
+
+// --- [AKHIR PENAMBAHAN BARU] ---
+
 
 /**
  * @interface CocCurrentWar
@@ -357,3 +397,4 @@ export interface CocCurrentWar extends Omit<CocWarLog, 'items'> {
     // properti 'clan.members' and 'opponent.members' (tipe CocWarClanInfo),
     // bukan di top-level.
 }
+

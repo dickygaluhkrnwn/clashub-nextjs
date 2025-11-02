@@ -6,18 +6,15 @@ import {
 } from "@/lib/firestore-admin/management";
 import { getManagedClanDataAdmin } from "@/lib/firestore-admin/clans";
 import cocApi from "@/lib/coc-api";
-import { CocWarLog, CocWarLogEntry, WarArchive } from "@/lib/types"; // Import tipe log dan entri
+import { CocRaidSeasons, RaidArchive, CocRaidLog } from "@/lib/types"; // Impor tipe kita
 import { adminFirestore } from "@/lib/firebase-admin";
 import { COLLECTIONS } from "@/lib/firestore-collections";
-import {
-  FieldValue,
-  Timestamp as AdminTimestamp,
-} from "firebase-admin/firestore";
+import { FieldValue, Timestamp as AdminTimestamp } from "firebase-admin/firestore";
 
 /**
- * API route handler for POST /api/clan/manage/[clanId]/sync/warlog
+ * API route handler for POST /api/clan/manage/[clanId]/sync/raid
  *
- * Sinkronisasi data Log Perang (War History) dari CoC API ke sub-koleksi arsip Firestore.
+ * Sinkronisasi data Capital Raid Seasons dari CoC API ke sub-koleksi arsip Firestore.
  *
  * @param {Request} req Request object.
  * @param {{ params: { clanId: string } }} context Konteks route, berisi clanId.
@@ -74,53 +71,59 @@ export async function POST(
     }
 
     console.log(
-      `[Sync WarLog - Admin] Starting war log sync for ${clanName} (${clanTag})...`
+      `[Sync Raid - Admin] Starting Raid sync for ${clanName} (${clanTag})...`
     );
 
-    // 5. Panggil CoC API (Hanya getClanWarLog)
-    const warLogData: CocWarLog = await cocApi.getClanWarLog(
+    // 5. Panggil CoC API (getClanRaidSeasons)
+    const raidSeasonsData: CocRaidSeasons = await cocApi.getClanRaidSeasons(
       encodeURIComponent(clanTag)
     );
 
-    if (!warLogData || !warLogData.items || warLogData.items.length === 0) {
+    if (
+      !raidSeasonsData ||
+      !raidSeasonsData.items ||
+      raidSeasonsData.items.length === 0
+    ) {
       return NextResponse.json({
-        message: `No war log data found for ${clanName}.`,
+        message: `No raid seasons data found for ${clanName}.`,
         processedCount: 0,
       });
     }
 
-    // 6. Proses dan Arsipkan War Log ke Firestore menggunakan Batch
+    // 6. Proses dan Arsipkan Raid Seasons ke Firestore menggunakan Batch
     const batch = adminFirestore.batch();
     const archivesRef = adminFirestore
       .collection(COLLECTIONS.MANAGED_CLANS)
       .doc(clanId)
-      .collection("warArchives"); // Asumsi nama koleksi 'warArchives'
+      .collection(COLLECTIONS.RAID_ARCHIVES); // Menggunakan konstanta baru
 
     let processedCount = 0;
 
-    for (const item of warLogData.items) {
-      const warItem = item as CocWarLogEntry; // Tipe entri log perang
+    for (const item of raidSeasonsData.items) {
+      const raidItem = item as CocRaidLog;
 
-      // Buat ID unik untuk dokumen arsip
-      const warEndTime = new Date(warItem.endTime);
-      const docId = `${warItem.endTime}_${warItem.opponent.tag.replace("#", "")}`;
+      // Buat ID unik untuk dokumen arsip berdasarkan endTime
+      const raidEndTime = new Date(raidItem.endTime);
+      // Gunakan startTime jika endTime tidak valid (meskipun seharusnya selalu ada)
+      const raidStartTime = new Date(raidItem.startTime);
+
+      // Buat ID unik berdasarkan startTime (lebih konsisten untuk memulai raid)
+      const docId = `${raidItem.startTime}_${clanTag.replace("#", "")}`;
       const docRef = archivesRef.doc(docId);
 
-      // Siapkan data untuk disimpan
-      // [PERBAIKAN] Tipe 'WarArchive' sekarang sudah benar (extends CocWarLogEntry)
-      // Kita membuat objek yang sesuai dengan tipe WarArchive (Firestore version)
-      const archiveData: Omit<WarArchive, "id"> = {
-        ...warItem,
+      // Siapkan data untuk disimpan (sesuai interface RaidArchive)
+      // Kita perlu konversi string ISO date ke objek Date/Timestamp Firestore
+      // [PERBAIKAN ERROR TYPESCRIPT] Ubah Omit agar hanya menghapus 'id'
+      const archiveData: Omit<RaidArchive, "id"> = {
+        ...raidItem,
         clanTag: clanTag, // Tambahkan tag klan kita untuk query
-        // --- [PERBAIKAN ERROR TYPESCRIPT] ---
-        // Tipe WarArchive mengharapkan 'Date', bukan 'AdminTimestamp'.
-        // Firebase Admin SDK akan otomatis mengonversi 'Date' menjadi 'Timestamp' saat penulisan batch.
-        warEndTime: warEndTime, // Tetap sebagai objek Date
-        // Properti 'id' akan di-assign oleh Firestore
-        // Properti 'hasDetails' akan default undefined (opsional)
+        startTime: raidStartTime, // Biarkan sebagai objek Date
+        endTime: raidEndTime, // Biarkan sebagai objek Date
+        // 'id' akan di-assign oleh Firestore saat dibaca
+        // 'raidId' akan kita set sama dengan docId untuk referensi
+        raidId: docId,
       };
 
-      // [PERBAIKAN] Hapus 'as any'
       batch.set(docRef, archiveData, { merge: true });
       processedCount++;
     }
@@ -130,31 +133,32 @@ export async function POST(
 
     // 8. Update timestamp sinkronisasi di dokumen klan utama
     await clanDoc.ref.update({
-      lastSyncedWarLog: FieldValue.serverTimestamp(),
+      lastSyncedRaid: FieldValue.serverTimestamp(), // Buat field baru
     });
 
     console.log(
-      `[Sync WarLog - Admin] Successfully synced and archived ${processedCount} war log entries for ${clanName}.`
+      `[Sync Raid - Admin] Successfully synced and archived ${processedCount} raid seasons for ${clanName}.`
     );
 
     // 9. Kembalikan respons sukses
     return NextResponse.json({
-      message: `War log successfully synced for ${clanName}.`,
+      message: `Raid seasons successfully synced for ${clanName}.`,
       processedCount: processedCount,
     });
   } catch (error) {
     console.error(
-      `[Sync WarLog - Admin] Error syncing war log for clan ${clanId}:`,
+      `[Sync Raid - Admin] Error syncing raids for clan ${clanId}:`,
       error
     );
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error occurred";
     return new NextResponse(
       JSON.stringify({
-        message: "Failed to sync war log",
+        message: "Failed to sync raid seasons",
         error: errorMessage,
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 }
+
