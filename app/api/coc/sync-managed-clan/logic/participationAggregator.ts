@@ -1,7 +1,8 @@
 // File: app/api/coc/sync-managed-clan/logic/participationAggregator.ts
 
 import { CocMember, ClanApiCache, ClanRole } from '@/lib/types';
-import { RoleChangeLog } from '@/lib/firestore-admin'; // RoleChangeLog dari file Admin SDK
+// PERBAIKAN: Import RoleChangeLog dari @/lib/types, bukan @/lib/firestore-admin
+import { RoleChangeLog } from '@/lib/types';
 import { ClanWarLog, CwlWarLog } from './types'; // FIX: Tipe sekarang didefinisikan di ./types
 
 // =========================================================================
@@ -113,7 +114,7 @@ export function getAggregatedParticipationData({
                 // Jika tanggal war (warEndTime) LEBIH LAMA dari tanggal perubahan role terakhir
                 // Maka penalti ini sudah harus di-reset, JANGAN dihitung.
                 if (warEndTime > metrics.lastRoleChangeDate) {
-                     metrics.warFailCount += 1;
+                        metrics.warFailCount += 1;
                 }
                 // Jika warEndTime <= metrics.lastRoleChangeDate, penalti ini diabaikan.
             }
@@ -207,7 +208,7 @@ export function getAggregatedParticipationData({
                 }
                 
                 if (totalSuccess === 0 && totalFail === 0) {
-                     // Check jika ada war yang dihitung sama sekali, jika tidak, anggap baru/tidakt aktif
+                        // Check jika ada war yang dihitung sama sekali, jika tidak, anggap baru/tidakt aktif
                     statusKeterangan = metrics.lastRoleChangeDate.getTime() === new Date(0).getTime() ? 'Aman (Tidak Aktif/Baru)' : 'Aman';
                 }
             }
@@ -228,3 +229,4 @@ export function getAggregatedParticipationData({
 
     return enrichedMembers;
 }
+
