@@ -4,7 +4,16 @@ import { verifyUserClanRole } from '@/lib/firestore-admin/management'; // Untuk 
 import { admin } from '@/lib/firebase-admin'; // Untuk admin Firestore
 import { COLLECTIONS } from '@/lib/firestore-collections'; // Untuk referensi koleksi
 import { docToDataAdmin } from '@/lib/firestore-admin/utils'; // Untuk helper konversi
-import { JoinRequest } from '@/lib/types';
+
+// --- [PERBAIKAN 1] ---
+// Impor tipe baru dan helper untuk mengambil profil
+import {
+  JoinRequest,
+  JoinRequestWithProfile,
+  UserProfile,
+} from '@/lib/types';
+import { getUserProfileAdmin } from '@/lib/firestore-admin/users';
+// --- [AKHIR PERBAIKAN 1] ---
 
 /**
  * @route GET /api/clan/manage/[clanId]/requests
@@ -40,13 +49,10 @@ export async function GET(
     ]);
 
     if (!authResult.isAuthorized) {
-      // --- PERBAIKAN ---
-      // Mengganti authResult.message dengan pesan error statis
       return NextResponse.json(
         { message: 'Akses ditolak: Anda bukan Leader atau Co-Leader.' },
         { status: 403 }
       );
-      // --- AKHIR PERBAIKAN ---
     }
 
     // Logika Utama: Ambil semua JoinRequest yang statusnya 'pending'
@@ -55,19 +61,57 @@ export async function GET(
     const q = requestsRef
       .where('clanId', '==', clanId)
       .where('status', '==', 'pending');
-    
+
     const querySnapshot = await q.get();
 
     if (querySnapshot.empty) {
       return NextResponse.json([], { status: 200 });
     }
 
-    const requests = querySnapshot.docs.map(
-      (doc: FirebaseFirestore.QueryDocumentSnapshot) =>
+    // --- [PERBAIKAN 2] ---
+    // Ambil data dasar request
+    const baseRequests: JoinRequest[] = querySnapshot.docs
+      .map((doc: FirebaseFirestore.QueryDocumentSnapshot) =>
         docToDataAdmin<JoinRequest>(doc)
+      )
+      // --- [FIX ERROR TYPESCRIPT] ---
+      // Filter 'null' untuk memastikan tipe data array adalah JoinRequest[]
+      .filter((req): req is JoinRequest => req !== null);
+    // --- [AKHIR FIX ERROR] ---
+
+    // Ambil semua profil pemohon secara paralel
+    const profilePromises = baseRequests.map((req) =>
+      getUserProfileAdmin(req.requesterId)
+    );
+    const profiles = await Promise.all(profilePromises);
+
+    // Gabungkan data request dengan data profil
+    const requestsWithProfiles: JoinRequestWithProfile[] = baseRequests.map(
+      (request, index) => {
+        const profile = profiles[index];
+
+        // Buat objek fallback jika profil tidak ditemukan
+        // Ini untuk menjaga integritas data jika UserProfile terhapus
+        const fallbackProfile: UserProfile = {
+          uid: request.requesterId,
+          displayName: request.requesterName, // Gunakan nama dari request
+          thLevel: request.requesterThLevel, // Gunakan TH from request
+          email: null,
+          isVerified: false,
+          playerTag: '',
+          trophies: 0,
+          avatarUrl: '/images/placeholder-avatar.png', // Gunakan placeholder
+        };
+
+        return {
+          ...request,
+          requesterProfile: profile || fallbackProfile,
+        };
+      }
     );
 
-    return NextResponse.json(requests);
+    return NextResponse.json(requestsWithProfiles);
+    // --- [AKHIR PERBAIKAN 2] ---
   } catch (error) {
     console.error('Error fetching join requests:', error);
     const errorMessage =
