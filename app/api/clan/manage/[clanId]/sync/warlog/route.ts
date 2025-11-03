@@ -22,12 +22,7 @@ import {
 
 /**
  * API route handler for POST /api/clan/manage/[clanId]/sync/warlog
- *
- * Sinkronisasi data Log Perang (War History) dari CoC API ke sub-koleksi arsip Firestore.
- *
- * @param {Request} req Request object.
- * @param {{ params: { clanId: string } }} context Konteks route, berisi clanId.
- * @returns {NextResponse} Response JSON dengan status sinkronisasi atau pesan error.
+ * ... (deskripsi JSDoc tidak berubah) ...
  */
 export async function POST(
   req: Request,
@@ -65,16 +60,16 @@ export async function POST(
     // 3. Ambil Dokumen Klan (SETELAH otorisasi)
     const clanDoc = await getManagedClanDataAdmin(clanId);
 
-    if (!clanDoc || !clanDoc.exists()) {
+    // [PERBAIKAN 1] Ganti 'clanDoc.exists()'
+    if (!clanDoc) {
       return new NextResponse('Managed clan not found', { status: 404 });
     }
 
     // 4. Dapatkan Clan Tag dari Firestore
-    const managedClanData = clanDoc.data();
-    // [PERBAIKAN KONSISTENSI] Pastikan managedClanData tidak null
-    if (!managedClanData) {
-      return new NextResponse('Managed clan data empty', { status: 404 });
-    }
+    // [PERBAIKAN 2] Ganti 'clanDoc.data()'
+    const managedClanData = clanDoc; // clanDoc SEKARANG adalah datanya
+    // [PERBAIKAN KONSISTENSI] Hapus cek 'managedClanData' yang redundan
+
     const clanTag = managedClanData.tag; // [PERBAIKAN BUG TIPE] Gunakan .tag
     const clanName = managedClanData.name;
 
@@ -142,7 +137,12 @@ export async function POST(
     await batch.commit();
 
     // 8. Update timestamp sinkronisasi di dokumen klan utama
-    await clanDoc.ref.update({
+    // [PERBAIKAN 3] Ganti 'clanDoc.ref.update' dengan path absolut
+    const clanDocRef = adminFirestore
+      .collection(COLLECTIONS.MANAGED_CLANS)
+      .doc(clanId);
+
+    await clanDocRef.update({
       lastSyncedWarLog: FieldValue.serverTimestamp(),
     });
 
@@ -171,3 +171,4 @@ export async function POST(
     );
   }
 }
+

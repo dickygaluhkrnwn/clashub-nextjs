@@ -8,8 +8,10 @@ import {
   PublicClanIndex,
   ClanApiCache,
   CocIconUrls,
+  FirestoreDocument, // <-- Impor ini sudah benar
 } from '../types';
-import { FirestoreDocument, docToDataAdmin, cleanDataForAdminSDK } from './utils';
+// [PERBAIKAN] Hapus impor 'FirestoreDocument' dari './utils' karena sudah diimpor dari '../types'
+import { docToDataAdmin, cleanDataForAdminSDK } from './utils';
 
 /**
  * Mengambil data ManagedClan berdasarkan ID internal Clashub (Admin).
@@ -18,11 +20,16 @@ export const getManagedClanDataAdmin = async (
   clanId: string
 ): Promise<FirestoreDocument<ManagedClan> | null> => {
   try {
-    const docRef = adminFirestore.collection(COLLECTIONS.MANAGED_CLANS).doc(clanId);
+    const docRef = adminFirestore
+      .collection(COLLECTIONS.MANAGED_CLANS)
+      .doc(clanId);
     const docSnap = await docRef.get();
     return docToDataAdmin<ManagedClan>(docSnap);
   } catch (error) {
-    console.error(`Firestore Error [getManagedClanDataAdmin - Admin(${clanId})]:`, error);
+    console.error(
+      `Firestore Error [getManagedClanDataAdmin - Admin(${clanId})]:`,
+      error
+    );
     return null;
   }
 };
@@ -35,12 +42,17 @@ export const getClanApiCacheAdmin = async (
 ): Promise<ClanApiCache | null> => {
   try {
     const cacheRef = adminFirestore
-      .collection(COLLECTIONS.MANAGED_CLANS).doc(clanId)
-      .collection('clanApiCache').doc('current');
+      .collection(COLLECTIONS.MANAGED_CLANS)
+      .doc(clanId)
+      .collection('clanApiCache')
+      .doc('current');
     const docSnap = await cacheRef.get();
     return docToDataAdmin<ClanApiCache>(docSnap);
   } catch (error) {
-    console.error(`Firestore Error [getClanApiCacheAdmin - Admin(${clanId})]:`, error);
+    console.error(
+      `Firestore Error [getClanApiCacheAdmin - Admin(${clanId})]:`,
+      error
+    );
     return null;
   }
 };
@@ -110,7 +122,9 @@ export const updateClanApiCache = async (
   cacheData: Omit<ClanApiCache, 'id' | 'lastUpdated'>,
   updatedManagedClanFields: Partial<ManagedClan>
 ): Promise<void> => {
-  console.warn("[updateClanApiCache - Admin] This function is deprecated. Use batch operations within the sync API route instead.");
+  console.warn(
+    '[updateClanApiCache - Admin] This function is deprecated. Use batch operations within the sync API route instead.'
+  );
   try {
     const batch = adminFirestore.batch();
     const cacheRef = adminFirestore
@@ -138,7 +152,9 @@ export const updateClanApiCache = async (
     }
 
     await batch.commit();
-    console.log(`[updateClanApiCache - Admin(${clanId})] Batch commit successful (legacy function).`);
+    console.log(
+      `[updateClanApiCache - Admin(${clanId})] Batch commit successful (legacy function).`
+    );
   } catch (error) {
     console.error(
       `Firestore Error [updateClanApiCache - Admin(${clanId})]:`,
@@ -199,3 +215,4 @@ export const updatePublicClanIndex = async (
     // Jangan throw error agar cron job tidak berhenti jika satu klan gagal
   }
 };
+

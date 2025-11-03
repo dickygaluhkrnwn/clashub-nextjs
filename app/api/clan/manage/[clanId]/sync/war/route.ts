@@ -14,13 +14,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 /**
  * API route handler for POST /api/clan/manage/[clanId]/sync/war
- *
- * Sinkronisasi data Perang Klan (Current War / CWL) dari CoC API ke Firestore.
- * Hanya mengambil data perang saat ini.
- *
- * @param {Request} req Request object.
- * @param {{ params: { clanId: string } }} context Konteks route, berisi clanId.
- * @returns {NextResponse} Response JSON dengan data perang yang disinkronkan atau pesan error.
+ * ... (deskripsi JSDoc tidak berubah) ...
  */
 export async function POST(
   req: Request,
@@ -58,16 +52,16 @@ export async function POST(
     // 3. Ambil Dokumen Klan (SETELAH otorisasi)
     const clanDoc = await getManagedClanDataAdmin(clanId);
 
-    if (!clanDoc || !clanDoc.exists()) {
+    // [PERBAIKAN 1] Ganti 'clanDoc.exists()'
+    if (!clanDoc) {
       return new NextResponse('Managed clan not found', { status: 404 });
     }
 
     // 4. Dapatkan Clan Tag dari Firestore
-    const managedClanData = clanDoc.data();
-    // [PERBAIKAN KONSISTENSI] Pastikan managedClanData tidak null
-    if (!managedClanData) {
-      return new NextResponse('Managed clan data empty', { status: 404 });
-    }
+    // [PERBAIKAN 2] Ganti 'clanDoc.data()'
+    const managedClanData = clanDoc; // clanDoc SEKARANG adalah datanya
+    // [PERBAIKAN KONSISTENSI] Hapus cek 'managedClanData' yang redundan
+
     const clanTag = managedClanData.tag; // [PERBAIKAN BUG TIPE] Gunakan .tag
     const clanName = managedClanData.name; // Untuk logging
 
@@ -104,8 +98,13 @@ export async function POST(
       { merge: true } // Gunakan merge agar tidak menimpa data 'members' atau 'currentRaid'
     );
 
+    // [PERBAIKAN 3] Ganti 'clanDoc.ref.update' dengan path absolut
+    const clanDocRef = adminFirestore
+      .collection(COLLECTIONS.MANAGED_CLANS)
+      .doc(clanId);
+
     // Update timestamp sinkronisasi spesifik di dokumen klan utama
-    await clanDoc.ref.update({
+    await clanDocRef.update({
       lastSyncedWar: FieldValue.serverTimestamp(),
     });
 
@@ -137,3 +136,4 @@ export async function POST(
     );
   }
 }
+

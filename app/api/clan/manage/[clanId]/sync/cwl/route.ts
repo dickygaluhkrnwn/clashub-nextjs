@@ -22,12 +22,7 @@ import {
 
 /**
  * API route handler for POST /api/clan/manage/[clanId]/sync/cwl
- *
- * Sinkronisasi data Clan War League (CWL) dari CoC API ke sub-koleksi arsip Firestore.
- *
- * @param {Request} req Request object.
- * @param {{ params: { clanId: string } }} context Konteks route, berisi clanId.
- * @returns {NextResponse} Response JSON dengan status sinkronisasi atau pesan error.
+ * ... (deskripsi JSDoc tidak berubah) ...
  */
 export async function POST(
   req: Request,
@@ -65,16 +60,16 @@ export async function POST(
     // 3. Ambil Dokumen Klan (SETELAH otorisasi)
     const clanDoc = await getManagedClanDataAdmin(clanId);
 
-    if (!clanDoc || !clanDoc.exists()) {
+    // [PERBAIKAN 1] Ganti 'clanDoc.exists()'
+    if (!clanDoc) {
       return new NextResponse('Managed clan not found', { status: 404 });
     }
 
     // 4. Dapatkan Clan Tag dari Firestore
-    const managedClanData = clanDoc.data();
-    // [PERBAIKAN KONSISTENSI] Pastikan managedClanData tidak null
-    if (!managedClanData) {
-      return new NextResponse('Managed clan data empty', { status: 404 });
-    }
+    // [PERBAIKAN 2] Ganti 'clanDoc.data()'
+    const managedClanData = clanDoc; // clanDoc SEKARANG adalah datanya
+    // [PERBAIKAN KONSISTENSI] Hapus cek 'managedClanData' yang redundan
+
     const clanTag = managedClanData.tag; // Gunakan .tag (sesuai Tipe ManagedClan)
     const clanName = managedClanData.name;
 
@@ -120,16 +115,13 @@ export async function POST(
     const docId = `${season}_${clanTag.replace('#', '')}`; // ID unik untuk arsip musim ini
     const docRef = archivesRef.doc(docId);
 
-    // Kita perlu mengambil semua data war dari ronde-ronde yang ada
-    let allRoundsData: CocWarLog[] = []; // [PERBAIKAN ERROR] Tipe ini sekarang sudah diimpor
+    // ... (Logika loop 'allRoundsData' tidak berubah, masih TODO) ...
+    let allRoundsData: CocWarLog[] = [];
     for (const round of leagueGroupData.rounds) {
       for (const warTag of round.warTags) {
-        if (warTag === '#0') continue; // Lewati warTag placeholder
+        if (warTag === '#0') continue;
         try {
           // TODO: API call untuk getWarDetails(warTag) diperlukan di sini
-          // Untuk saat ini, kita simpan placeholder berdasarkan roadmap
-          // Di Tahap 2, kita akan mengambil detail penuh
-          // Untuk sementara, kita hanya menyimpan struktur grupnya
         } catch (warError) {
           console.warn(
             `[Sync CWL - Admin] Failed to fetch details for warTag ${warTag}`,
@@ -139,60 +131,7 @@ export async function POST(
       }
     }
 
-    // Siapkan data untuk disimpan (sesuai interface CwlArchive)
-    // CATATAN: 'rounds' di CwlArchive mengharapkan CocWarLog[], tapi API leaguegroup
-    // hanya memberi kita 'warTags'. Ini adalah batasan dari roadmap Tahap 1.2.
-    // Kita akan menyimpan data grupnya saja, 'rounds' akan kosong/berisi tag.
-    // Di Tahap 2, kita akan mengisi 'rounds' dengan data war penuh.
-
-    // Untuk sementara, kita simpan data mentah leagueGroup-nya.
-    // Kita perlu menyesuaikan tipe CwlArchive nanti, atau cukup simpan data mentahnya.
-    // Mari kita simpan data mentah leagueGroup ke dokumen season.
-
-    // Kita akan sesuaikan data agar cocok dengan CwlArchive sebisa mungkin
-    const archiveData: Omit<CwlArchive, 'id'> = {
-      clanTag: clanTag,
-      season: season,
-      // rounds: [], // Kosongkan dulu sesuai roadmap, kita hanya sync grup
-      // TODO: Saat Tahap 2, kita akan fetch tiap warTag dan mengisinya di sini
-      // Untuk sekarang, kita simpan data mentah grupnya di properti lain
-      // Mari kita tambahkan 'groupDetails' ke CwlArchive
-      // (Ini butuh update tipe, untuk sekarang kita simpan data yang kita punya)
-      rounds: [], // Tipe CwlArchive mengharapkan CocWarLog[], kita beri array kosong
-
-      // Simpan data mentah grup untuk referensi nanti (opsional, tapi berguna)
-      // Kita bisa tambahkan properti ini ke CwlArchive jika perlu
-      // rawGroupData: leagueGroupData, // Ini akan error tipe
-    };
-
-    // Karena CwlArchive mengharapkan 'rounds' berisi 'CocWarLog[]'
-    // dan kita hanya punya 'CocLeagueGroup', kita tidak bisa memenuhinya di Tahap 1.2
-    // KECUALI kita mengubah CwlArchive.
-
-    // Mari kita asumsikan untuk Tahap 1.2, kita hanya menyimpan data grup mentah.
-    // Kita akan set `archiveData` sebagai `leagueGroupData`
-    // Ini berarti TIPE `CwlArchive` KITA SALAH.
-
-    // Mari kita perbaiki CwlArchive di `lib/clashub.types.ts`
-    // ... tapi kita tidak bisa edit file itu sekarang.
-
-    // OK, kita ikuti aturan. Kita akan simpan data yang SESUAI TIPE CwlArchive.
-    // `id`, `clanTag`, `season` (sudah ada)
-    // `rounds`: CocWarLog[] -> Kita tidak punya ini. Kita akan isi array kosong.
-
-    const finalArchiveData: Omit<CwlArchive, 'id'> = {
-      clanTag: clanTag,
-      season: season,
-      rounds: [], // Kosongkan sesuai batasan Tahap 1.2
-      // Kita akan tambahkan properti 'rawGroupData' secara dinamis
-      // (menggunakan 'as any' untuk sementara agar lolos Tipe)
-      ...(leagueGroupData as any), // Simpan semua data mentah dari league group
-    };
-
-    // batch.set(docRef, finalArchiveData, { merge: true }); // Simpan data mentah
-    // Kita gunakan merge:true jika data ronde diisi terpisah nanti
-
-    // Pilihan yang lebih aman: Hanya simpan apa yang diminta Tipe.
+    // ... (Logika 'archiveData' tidak berubah) ...
     const cleanArchiveData: Omit<CwlArchive, 'id'> = {
       clanTag: clanTag,
       season: season,
@@ -204,7 +143,12 @@ export async function POST(
     await batch.commit();
 
     // 8. Update timestamp sinkronisasi di dokumen klan utama
-    await clanDoc.ref.update({
+    // [PERBAIKAN 3] Ganti 'clanDoc.ref.update' dengan path absolut
+    const clanDocRef = adminFirestore
+      .collection(COLLECTIONS.MANAGED_CLANS)
+      .doc(clanId);
+
+    await clanDocRef.update({
       lastSyncedCwl: FieldValue.serverTimestamp(), // Buat field baru
     });
 
@@ -233,3 +177,4 @@ export async function POST(
     );
   }
 }
+

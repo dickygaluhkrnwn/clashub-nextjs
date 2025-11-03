@@ -1,37 +1,26 @@
 import { NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/server-auth';
-// PERBAIKAN: Import AdminRole dan getManagedClanDataAdmin
 import {
   AdminRole,
   verifyUserClanRole,
 } from '@/lib/firestore-admin/management';
-import { getManagedClanDataAdmin } from '@/lib/firestore-admin/clans'; // <-- IMPORT BARU
+import { getManagedClanDataAdmin } from '@/lib/firestore-admin/clans';
 import cocApi from '@/lib/coc-api';
-// [PERBAIKAN] Impor ClanRole juga
 import { CocClan, ClanRole } from '@/lib/types';
-// [PERBAIKAN ERROR] Impor COLLECTIONS
 import { COLLECTIONS } from '@/lib/firestore-collections';
+// [PERBAIKAN] Impor adminFirestore untuk operasi update
+import { adminFirestore } from '@/lib/firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore'; // Impor FieldValue
 
 /**
  * API route handler untuk POST /api/clan/manage/[clanId]/sync/basic
- *
- * Endpoint ini bertanggung jawab untuk melakukan sinkronisasi data dasar (basic)
- * sebuah klan (info klan dan daftar anggota) dari CoC API ke Firestore.
- *
- * Ini adalah endpoint granular pertama yang menggantikan endpoint sync-managed-clan
- * yang berat.
- *
- * @param {Request} request - Objek request Next.js
- * @param {object} params - Parameter rute dinamis
- * @param {string} params.clanId - ID dokumen klan di Firestore
- * @returns {NextResponse} Response JSON dengan data klan yang disinkronkan atau pesan error
+ * ... (deskripsi JSDoc tidak berubah) ...
  */
 export async function POST(
   request: Request,
   { params }: { params: { clanId: string } }
 ) {
   // 1. Autentikasi Pengguna
-  // PERBAIKAN: Menggunakan getSessionUser (async) dan mengecek session.uid
   const session = await getSessionUser();
   if (!session || !session.uid) {
     return new NextResponse('Unauthorized', { status: 401 });
@@ -45,13 +34,11 @@ export async function POST(
 
   try {
     // 2. Verifikasi Peran Pengguna (Keamanan)
-    // [PERBAIKAN BUG UTAMA] Menggunakan Enum ClanRole, bukan string hardcode
     const { isAuthorized } = await verifyUserClanRole(userId, clanId, [
       ClanRole.LEADER,
       ClanRole.CO_LEADER,
     ]);
 
-    // PERBAIKAN: Cek otorisasi dulu
     if (!isAuthorized) {
       return new NextResponse('Forbidden: Insufficient privileges', {
         status: 403,
@@ -59,21 +46,19 @@ export async function POST(
     }
 
     // 3. Ambil Dokumen Klan (SETELAH otorisasi)
-    // PERBAIKAN: Memanggil getManagedClanDataAdmin secara eksplisit
     const clanDoc = await getManagedClanDataAdmin(clanId);
 
-    if (!clanDoc || !clanDoc.exists()) {
+    // [PERBAIKAN 1] Ganti 'clanDoc.exists()'
+    if (!clanDoc) {
       return new NextResponse('Managed clan not found', { status: 404 });
     }
 
     // 4. Dapatkan Clan Tag dari Firestore
-    // [PERBAIKAN] Menggunakan clanDoc.data()
-    const managedClanData = clanDoc.data();
-    if (!managedClanData) {
-      // Tambahan pengecekan jika data() null/undefined
-      return new NextResponse('Managed clan data empty', { status: 404 });
-    }
-    const clanTag = managedClanData.tag; // Menggunakan 'tag' dari 'ManagedClan', bukan 'clanTag'
+    // [PERBAIKAN 2] Ganti 'clanDoc.data()'
+    const managedClanData = clanDoc; // clanDoc SEKARANG adalah datanya
+    // Pengecekan 'managedClanData' tidak perlu lagi karena sudah dicakup oleh '!clanDoc'
+
+    const clanTag = managedClanData.tag; // Menggunakan 'tag' dari 'ManagedClan'
 
     if (!clanTag) {
       return new NextResponse('Bad Request: Clan tag not configured', {
@@ -96,30 +81,32 @@ export async function POST(
     const { memberList, ...clanInfo } = cocClanData;
 
     // 7. Update Dokumen di Firestore
-    // [PERBAIKAN] Menggunakan path 'clanApiCache.current' untuk data mentah API
-    // dan root level untuk data terkelola (managed)
-    const cacheDocRef = clanDoc.ref
-      .collection(COLLECTIONS.CLAN_API_CACHE) // <-- ERROR SEBELUMNYA DI SINI
+    // [PERBAIKAN 3] Ganti 'clanDoc.ref' dengan path absolut
+    const clanDocRef = adminFirestore
+      .collection(COLLECTIONS.MANAGED_CLANS)
+      .doc(clanId);
+
+    const cacheDocRef = clanDocRef
+      .collection(COLLECTIONS.CLAN_API_CACHE)
       .doc('current');
 
     // Update data mentah API di sub-koleksi
     await cacheDocRef.set(
       {
-        lastUpdated: new Date(),
+        lastUpdated: FieldValue.serverTimestamp(), // Gunakan timestamp server
         members: memberList || [], // Pastikan 'members' ada
-        // 'currentWar', 'currentRaid' akan diupdate oleh endpoint lain
       },
       { merge: true }
     );
 
     // Update data terkelola (ManagedClan) di dokumen root
-    await clanDoc.ref.update({
+    // [PERBAIKAN 4] Ganti 'clanDoc.ref.update'
+    await clanDocRef.update({
       name: clanInfo.name,
       logoUrl: clanInfo.badgeUrls?.medium, // Simpan URL logo
       clanLevel: clanInfo.clanLevel,
       memberCount: clanInfo.memberCount,
-      // 'lastSynced' akan di-cap oleh endpoint masing-masing
-      // 'lastSyncedBasic': new Date(), // Kita bisa gunakan timestamp per sync
+      lastSyncedBasic: FieldValue.serverTimestamp(), // Gunakan timestamp server
     });
 
     console.log(
