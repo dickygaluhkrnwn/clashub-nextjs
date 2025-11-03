@@ -21,7 +21,7 @@ import TopPerformersCard from './TopPerformersCard';
 import { formatNumber } from '@/lib/th-utils';
 // REFAKTOR: Impor SWR hooks
 import {
-  useManagedClanBasic,
+  useManagedClanCache, // <-- [PERBAIKAN 1] Ganti nama hook
   useManagedClanWar,
   useManagedClanRaid,
   useManagedClanWarLog,
@@ -33,7 +33,10 @@ interface SummaryTabContentProps {
   clan: ManagedClan;
   isManager: boolean;
   // PERBAIKAN: Tambahkan 'onAction' yang kemarin saya hapus
-  onAction: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
+  onAction: (
+    message: string,
+    type: 'success' | 'error' | 'warning' | 'info'
+  ) => void;
   // HAPUS: cache, isSyncing, onSync, onRefresh
 }
 
@@ -232,27 +235,28 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
   onAction,
 }) => {
   // REFAKTOR: Panggil SWR hooks
-  // PERBAIKAN: Destructuring 'mutateBasic', 'mutateWar', 'mutateRaid'
+  // [PERBAIKAN ERROR TS2339]
+  // Ambil nama 'mutate' yang benar (misal: 'mutateCache') dan rename ke nama lokal
   const {
     clanCache, // Tipe ClanApiCache
     isLoading: isLoadingBasic,
-    mutateBasic, // Ini adalah fungsi mutate
-  } = useManagedClanBasic(clan.id);
+    mutateCache: mutateBasic, // <-- [FIX] Ambil 'mutateCache', rename ke 'mutateBasic'
+  } = useManagedClanCache(clan.id); // <-- [FIX] Hook sudah benar 'useManagedClanCache'
   const {
     warData, // Tipe CocCurrentWar
     isLoading: isLoadingWar,
-    mutateWar, // Ini adalah fungsi mutate
+    mutateWar: mutateWar, // <-- [FIX] Ambil 'mutateWar', rename ke 'mutateWar'
   } = useManagedClanWar(clan.id);
   const {
-    raidLogData, // Tipe CocRaidLog[]
+    currentRaid, // <-- [FIX] Ambil 'currentRaid'
+    raidArchives, // <-- [FIX] Ambil 'raidArchives'
     isLoading: isLoadingRaid,
-    mutateRaid, // Ini adalah fungsi mutate
+    mutateRaid: mutateRaid, // <-- [FIX] Ambil 'mutateRaid', rename ke 'mutateRaid'
   } = useManagedClanRaid(clan.id);
 
-  // Kita juga butuh mutator untuk sync manual
-  // PERBAIKAN: Destructuring 'mutateWarLog' dan 'mutateCWL'
-  const { mutateWarLog } = useManagedClanWarLog(clan.id);
-  const { mutateCWL } = useManagedClanCWL(clan.id);
+  // Ambil 'mutate' dengan nama uniknya
+  const { mutateWarLog } = useManagedClanWarLog(clan.id); // <-- [FIX] Ambil 'mutateWarLog'
+  const { mutateCWL } = useManagedClanCWL(clan.id); // <-- [FIX] Ambil 'mutateCWL'
 
   // REFAKTOR: State sinkronisasi sekarang lokal
   const [isSyncing, setIsSyncing] = useState(false);
@@ -283,12 +287,12 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
 
     try {
       // 1. Trigger semua API sinkronisasi granular
-      // Kita tidak peduli responsnya, hanya menunggu selesai
-      await fetch(`/api/clan/manage/${clan.id}/sync/basic`);
-      await fetch(`/api/clan/manage/${clan.id}/sync/war`);
-      await fetch(`/api/clan/manage/${clan.id}/sync/raid`);
-      await fetch(`/api/clan/manage/${clan.id}/sync/warlog`);
-      await fetch(`/api/clan/manage/${clan.id}/sync/cwl`);
+      // [PERBAIKAN] Gunakan method POST untuk sync
+      await fetch(`/api/clan/manage/${clan.id}/sync/basic`, { method: 'POST' });
+      await fetch(`/api/clan/manage/${clan.id}/sync/war`, { method: 'POST' });
+      await fetch(`/api/clan/manage/${clan.id}/sync/raid`, { method: 'POST' });
+      await fetch(`/api/clan/manage/${clan.id}/sync/warlog`, { method: 'POST' });
+      await fetch(`/api/clan/manage/${clan.id}/sync/cwl`, { method: 'POST' });
 
       // 2. Setelah backend sync, panggil mutate SWR untuk mengambil data baru
       onAction(
@@ -336,12 +340,14 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
 
   const topPerformers = clanCache?.topPerformers;
   const currentWar = warData; // Langsung dari useManagedClanWar
-  const currentRaid = raidLogData?.[0]; // Ambil raid terbaru dari array
+  // const currentRaid = raidLogData?.[0]; // <-- [PERBAIKAN 2] HAPUS BARIS INI
 
   const isWarActive =
     currentWar &&
     currentWar.state !== 'notInWar' &&
     currentWar.state !== 'warEnded';
+
+  // [PERBAIKAN 2] Gunakan 'currentRaid' yang di-destructure dari hook 'useManagedClanRaid'
   const isRaidDataAvailable = !!currentRaid && currentRaid.state === 'ended';
 
   // Konstanta
@@ -511,3 +517,4 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
 };
 
 export default SummaryTabContent;
+

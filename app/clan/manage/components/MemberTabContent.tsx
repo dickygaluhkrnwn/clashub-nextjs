@@ -21,7 +21,7 @@ import Image from 'next/image';
 import { NotificationProps } from '@/app/components/ui/Notification';
 // --- [REFAKTOR] Impor SWR Hooks ---
 import {
-  useManagedClanBasic,
+  useManagedClanCache, // <-- [PERBAIKAN 1] Ganti nama hook
   useManagedClanMembers,
 } from '@/lib/hooks/useManagedClan';
 
@@ -54,15 +54,16 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
   isManager,
 }) => {
   // --- [REFAKTOR] Panggil SWR Hooks ---
-  // PERBAIKAN: Ganti 'mutate: mutateBasic' menjadi 'mutateBasic'
+  // [PERBAIKAN 1] Ganti 'useManagedClanBasic' ke 'useManagedClanCache'
+  // dan rename 'mutateCache' ke 'mutateBasic'
   const {
     clanCache,
     isLoading: isLoadingBasic,
     isError: isErrorBasic,
-    mutateBasic,
-  } = useManagedClanBasic(clan.id);
+    mutateCache: mutateBasic, // <-- [FIX] Ambil 'mutateCache', rename ke 'mutateBasic'
+  } = useManagedClanCache(clan.id); // <-- [FIX] Ganti nama hook
 
-  // PERBAIKAN: Ganti 'mutate: mutateMembers' menjadi 'mutateMembers'
+  // Hook ini sudah benar (mengambil 'mutateMembers' dan menggunakannya)
   const {
     membersData, // Ini adalah UserProfile[]
     isLoading: isLoadingMembers,
@@ -277,7 +278,7 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
   // --- [REFAKTOR] Logika Penggabungan Data ---
   // (Logika ini tidak berubah, hanya sumber datanya yang berubah ke state SWR)
   const combinedRoster: RosterMember[] = rosterMembers
-    .map((cacheMember) => {
+    .map((cacheMember: ClanApiCache['members'][number]) => { // <-- [PERBAIKAN 2] Tipe eksplisit
       const profileData = members.find((p) => p.playerTag === cacheMember.tag);
 
       return {
@@ -296,7 +297,7 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
         donationsReceived: cacheMember.donationsReceived,
       } as RosterMember;
     })
-    .sort((a, b) => {
+    .sort((a: RosterMember, b: RosterMember) => { // <-- [PERBAIKAN 3] Tipe eksplisit
       // Urutkan berdasarkan Town Hall Level (descending) lalu Clan Rank (ascending)
       if (b.townHallLevel !== a.townHallLevel) {
         return b.townHallLevel - a.townHallLevel;
@@ -550,4 +551,3 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
 };
 
 export default MemberTabContent;
-

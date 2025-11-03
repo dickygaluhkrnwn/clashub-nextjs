@@ -11,6 +11,7 @@ import {
   JoinRequest,
   JoinRequestWithProfile,
   UserProfile,
+  ClanRole, // <-- [PERBAIKAN BUG] Impor ClanRole
 } from '@/lib/types';
 import { getUserProfileAdmin } from '@/lib/firestore-admin/users';
 // --- [AKHIR PERBAIKAN 1] ---
@@ -43,9 +44,10 @@ export async function GET(
     }
 
     // Keamanan: Verifikasi bahwa pengguna adalah Manager (Leader/Co-Leader)
+    // [PERBAIKAN BUG OTORISASI] Ganti string dengan Enum ClanRole
     const authResult = await verifyUserClanRole(uid, clanId, [
-      'Leader',
-      'Co-Leader',
+      ClanRole.LEADER,
+      ClanRole.CO_LEADER,
     ]);
 
     if (!authResult.isAuthorized) {
@@ -92,15 +94,20 @@ export async function GET(
 
         // Buat objek fallback jika profil tidak ditemukan
         // Ini untuk menjaga integritas data jika UserProfile terhapus
+        // [PERBAIKAN BUG TIPE] Sesuaikan dengan Tipe UserProfile yang lengkap
         const fallbackProfile: UserProfile = {
           uid: request.requesterId,
           displayName: request.requesterName, // Gunakan nama dari request
           thLevel: request.requesterThLevel, // Gunakan TH from request
           email: null,
           isVerified: false,
-          playerTag: '',
-          trophies: 0,
-          avatarUrl: '/images/placeholder-avatar.png', // Gunakan placeholder
+          playerTag: '', // [FIX] Wajib string
+          trophies: 0, // [FIX] Wajib number
+          avatarUrl: '/images/placeholder-avatar.png', // Ini opsional
+          role: undefined, // Opsional
+          clanId: null, // Opsional
+          clanTag: null, // Opsional
+          clanName: null, // Opsional
         };
 
         return {
@@ -122,4 +129,3 @@ export async function GET(
     );
   }
 }
-

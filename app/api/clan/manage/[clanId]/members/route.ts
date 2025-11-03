@@ -8,7 +8,8 @@ import { COLLECTIONS } from '@/lib/firestore-collections'; // REFAKTOR: Impor CO
 // REFAKTOR: Perbaiki nama fungsi impor
 import { docToDataAdmin } from '@/lib/firestore-admin/utils'; // Untuk helper konversi
 // REFAKTOR: Hapus 'query', 'where', 'getDocs' karena kita akan pakai sintaks Admin SDK
-import { UserProfile } from '@/lib/types';
+// [PERBAIKAN TS2677] Impor FirestoreDocument
+import { UserProfile, FirestoreDocument } from '@/lib/types';
 
 /**
  * @route GET /api/clan/manage/[clanId]/members
@@ -63,10 +64,14 @@ export async function GET(
     }
 
     // REFAKTOR: Beri tipe pada 'doc' dan ganti nama fungsi
-    const members = querySnapshot.docs.map(
-      (doc: FirebaseFirestore.QueryDocumentSnapshot) =>
-        docToDataAdmin<UserProfile>(doc) // REFAKTOR: Ganti nama fungsi
-    );
+    const members = querySnapshot.docs
+      .map((doc: FirebaseFirestore.QueryDocumentSnapshot) =>
+        docToDataAdmin<UserProfile>(doc)
+      )
+      // [PERBAIKAN TS2677] Gunakan type predicate yang benar
+      .filter(
+        (member): member is FirestoreDocument<UserProfile> => !!member
+      );
 
     return NextResponse.json(members);
   } catch (error) {

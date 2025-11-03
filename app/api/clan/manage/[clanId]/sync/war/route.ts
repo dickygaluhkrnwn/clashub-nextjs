@@ -1,15 +1,16 @@
-import { NextResponse } from "next/server";
-import { getSessionUser } from "@/lib/server-auth";
+import { NextResponse } from 'next/server';
+import { getSessionUser } from '@/lib/server-auth';
 import {
   AdminRole,
   verifyUserClanRole,
-} from "@/lib/firestore-admin/management";
-import { getManagedClanDataAdmin } from "@/lib/firestore-admin/clans";
-import cocApi from "@/lib/coc-api";
-import { CocCurrentWar } from "@/lib/types"; // Tipe untuk data perang
-import { adminFirestore } from "@/lib/firebase-admin";
-import { COLLECTIONS } from "@/lib/firestore-collections";
-import { FieldValue } from "firebase-admin/firestore";
+} from '@/lib/firestore-admin/management';
+import { getManagedClanDataAdmin } from '@/lib/firestore-admin/clans';
+import cocApi from '@/lib/coc-api';
+// [PERBAIKAN BUG] Impor 'ClanRole'
+import { CocCurrentWar, ClanRole } from '@/lib/types'; // Tipe untuk data perang
+import { adminFirestore } from '@/lib/firebase-admin';
+import { COLLECTIONS } from '@/lib/firestore-collections';
+import { FieldValue } from 'firebase-admin/firestore';
 
 /**
  * API route handler for POST /api/clan/manage/[clanId]/sync/war
@@ -28,27 +29,28 @@ export async function POST(
   const { clanId } = params;
 
   if (!clanId) {
-    return new NextResponse("Clan ID is required", { status: 400 });
+    return new NextResponse('Clan ID is required', { status: 400 });
   }
 
   try {
     // 1. Verifikasi Sesi Pengguna
     const user = await getSessionUser();
     if (!user) {
-      return new NextResponse("Unauthorized: No session found", {
+      return new NextResponse('Unauthorized: No session found', {
         status: 401,
       });
     }
     const userId = user.uid;
 
     // 2. Verifikasi Peran Pengguna (Keamanan)
+    // [PERBAIKAN BUG OTORISASI] Ganti string dengan Enum ClanRole
     const { isAuthorized } = await verifyUserClanRole(userId, clanId, [
-      "Leader",
-      "Co-Leader",
+      ClanRole.LEADER,
+      ClanRole.CO_LEADER,
     ]);
 
     if (!isAuthorized) {
-      return new NextResponse("Forbidden: Insufficient privileges", {
+      return new NextResponse('Forbidden: Insufficient privileges', {
         status: 403,
       });
     }
@@ -57,16 +59,20 @@ export async function POST(
     const clanDoc = await getManagedClanDataAdmin(clanId);
 
     if (!clanDoc || !clanDoc.exists()) {
-      return new NextResponse("Managed clan not found", { status: 404 });
+      return new NextResponse('Managed clan not found', { status: 404 });
     }
 
     // 4. Dapatkan Clan Tag dari Firestore
     const managedClanData = clanDoc.data();
-    const clanTag = managedClanData.clanTag;
+    // [PERBAIKAN KONSISTENSI] Pastikan managedClanData tidak null
+    if (!managedClanData) {
+      return new NextResponse('Managed clan data empty', { status: 404 });
+    }
+    const clanTag = managedClanData.tag; // [PERBAIKAN BUG TIPE] Gunakan .tag
     const clanName = managedClanData.name; // Untuk logging
 
     if (!clanTag) {
-      return new NextResponse("Clan tag not configured for this managed clan", {
+      return new NextResponse('Clan tag not configured for this managed clan', {
         status: 400,
       });
     }
@@ -87,7 +93,7 @@ export async function POST(
       .collection(COLLECTIONS.MANAGED_CLANS)
       .doc(clanId)
       .collection(COLLECTIONS.CLAN_API_CACHE)
-      .doc("current");
+      .doc('current');
 
     // Simpan data perang (atau null jika tidak sedang perang) ke cache
     await clanApiCacheRef.set(
@@ -105,14 +111,14 @@ export async function POST(
 
     console.log(
       `[Sync War - Admin] Successfully synced war data for ${clanName}. War state: ${
-        warData?.state || "notInWar"
+        warData?.state || 'notInWar'
       }`
     );
 
     // 8. Kembalikan data yang baru disinkronkan
     return NextResponse.json({
       message: `War data successfully synced for ${clanName}.`,
-      status: warData?.state || "notInWar",
+      status: warData?.state || 'notInWar',
       data: warData,
     });
   } catch (error) {
@@ -121,13 +127,13 @@ export async function POST(
       error
     );
     const errorMessage =
-      error instanceof Error ? error.message : "Unknown error occurred";
+      error instanceof Error ? error.message : 'Unknown error occurred';
     return new NextResponse(
       JSON.stringify({
-        message: "Failed to sync war data",
+        message: 'Failed to sync war data',
         error: errorMessage,
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
 }

@@ -1,15 +1,24 @@
-import { NextResponse } from "next/server";
-import { getSessionUser } from "@/lib/server-auth";
+import { NextResponse } from 'next/server';
+import { getSessionUser } from '@/lib/server-auth';
 import {
   AdminRole,
   verifyUserClanRole,
-} from "@/lib/firestore-admin/management";
-import { getManagedClanDataAdmin } from "@/lib/firestore-admin/clans";
-import cocApi from "@/lib/coc-api";
-import { CocRaidSeasons, RaidArchive, CocRaidLog } from "@/lib/types"; // Impor tipe kita
-import { adminFirestore } from "@/lib/firebase-admin";
-import { COLLECTIONS } from "@/lib/firestore-collections";
-import { FieldValue, Timestamp as AdminTimestamp } from "firebase-admin/firestore";
+} from '@/lib/firestore-admin/management';
+import { getManagedClanDataAdmin } from '@/lib/firestore-admin/clans';
+import cocApi from '@/lib/coc-api';
+// [PERBAIKAN BUG] Impor 'ClanRole'
+import {
+  CocRaidSeasons,
+  RaidArchive,
+  CocRaidLog,
+  ClanRole,
+} from '@/lib/types'; // Impor tipe kita
+import { adminFirestore } from '@/lib/firebase-admin';
+import { COLLECTIONS } from '@/lib/firestore-collections';
+import {
+  FieldValue,
+  Timestamp as AdminTimestamp,
+} from 'firebase-admin/firestore';
 
 /**
  * API route handler for POST /api/clan/manage/[clanId]/sync/raid
@@ -27,27 +36,28 @@ export async function POST(
   const { clanId } = params;
 
   if (!clanId) {
-    return new NextResponse("Clan ID is required", { status: 400 });
+    return new NextResponse('Clan ID is required', { status: 400 });
   }
 
   try {
     // 1. Verifikasi Sesi Pengguna
     const user = await getSessionUser();
     if (!user) {
-      return new NextResponse("Unauthorized: No session found", {
+      return new NextResponse('Unauthorized: No session found', {
         status: 401,
       });
     }
     const userId = user.uid;
 
     // 2. Verifikasi Peran Pengguna (Keamanan)
+    // [PERBAIKAN BUG OTORISASI] Ganti string dengan Enum ClanRole
     const { isAuthorized } = await verifyUserClanRole(userId, clanId, [
-      "Leader",
-      "Co-Leader",
+      ClanRole.LEADER,
+      ClanRole.CO_LEADER,
     ]);
 
     if (!isAuthorized) {
-      return new NextResponse("Forbidden: Insufficient privileges", {
+      return new NextResponse('Forbidden: Insufficient privileges', {
         status: 403,
       });
     }
@@ -56,16 +66,20 @@ export async function POST(
     const clanDoc = await getManagedClanDataAdmin(clanId);
 
     if (!clanDoc || !clanDoc.exists()) {
-      return new NextResponse("Managed clan not found", { status: 404 });
+      return new NextResponse('Managed clan not found', { status: 404 });
     }
 
     // 4. Dapatkan Clan Tag dari Firestore
     const managedClanData = clanDoc.data();
-    const clanTag = managedClanData.clanTag;
+    // [PERBAIKAN KONSISTENSI] Pastikan managedClanData tidak null
+    if (!managedClanData) {
+      return new NextResponse('Managed clan data empty', { status: 404 });
+    }
+    const clanTag = managedClanData.tag; // [PERBAIKAN BUG TIPE] Gunakan .tag
     const clanName = managedClanData.name;
 
     if (!clanTag) {
-      return new NextResponse("Clan tag not configured for this managed clan", {
+      return new NextResponse('Clan tag not configured for this managed clan', {
         status: 400,
       });
     }
@@ -108,13 +122,13 @@ export async function POST(
       const raidStartTime = new Date(raidItem.startTime);
 
       // Buat ID unik berdasarkan startTime (lebih konsisten untuk memulai raid)
-      const docId = `${raidItem.startTime}_${clanTag.replace("#", "")}`;
+      const docId = `${raidItem.startTime}_${clanTag.replace('#', '')}`;
       const docRef = archivesRef.doc(docId);
 
       // Siapkan data untuk disimpan (sesuai interface RaidArchive)
       // Kita perlu konversi string ISO date ke objek Date/Timestamp Firestore
       // [PERBAIKAN ERROR TYPESCRIPT] Ubah Omit agar hanya menghapus 'id'
-      const archiveData: Omit<RaidArchive, "id"> = {
+      const archiveData: Omit<RaidArchive, 'id'> = {
         ...raidItem,
         clanTag: clanTag, // Tambahkan tag klan kita untuk query
         startTime: raidStartTime, // Biarkan sebagai objek Date
@@ -151,14 +165,13 @@ export async function POST(
       error
     );
     const errorMessage =
-      error instanceof Error ? error.message : "Unknown error occurred";
+      error instanceof Error ? error.message : 'Unknown error occurred';
     return new NextResponse(
       JSON.stringify({
-        message: "Failed to sync raid seasons",
+        message: 'Failed to sync raid seasons',
         error: errorMessage,
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
 }
-

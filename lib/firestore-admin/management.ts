@@ -8,17 +8,22 @@ import {
   FirestoreDocument,
   JoinRequest,
 } from '@/lib/types'; // FIX: Path alias
-import { cleanDataForAdminSDK, docToDataAdmin } from '@/lib/firestore-admin/utils'; // FIX: Path alias
+import {
+  cleanDataForAdminSDK,
+  docToDataAdmin,
+} from '@/lib/firestore-admin/utils'; // FIX: Path alias
 
 // ----------------------------------------------------------------
 // FUNGSI BARU (TAHAP 1.1)
 // ----------------------------------------------------------------
 /**
  * Tipe data untuk role yang diizinkan melakukan aksi manajemen.
+ * [PERBAIKAN] Menggunakan nilai Enum ClanRole, bukan string literal.
  */
-export type AdminRole = 'Leader' | 'Co-Leader';
+export type AdminRole = ClanRole.LEADER | ClanRole.CO_LEADER;
 
-const ADMIN_ROLES: AdminRole[] = ['Leader', 'Co-Leader'];
+// [PERBAIKAN] Menggunakan Enum ClanRole agar cocok dengan tipe data UserProfile.clanRole
+const ADMIN_ROLES: AdminRole[] = [ClanRole.LEADER, ClanRole.CO_LEADER];
 
 /**
  * Memverifikasi apakah seorang pengguna (berdasarkan UID) memiliki peran admin ('Leader' atau 'Co-Leader')
@@ -56,14 +61,24 @@ export const verifyUserClanRole = async (
 
     // 2. Verifikasi kepemilikan klan dan peran
     const isOwner = userProfile.clanId === clanId;
-    const hasAdminRole = allowedRoles.includes(userProfile.role as AdminRole);
+
+    // --- [PERBAIKAN BUG UTAMA] ---
+    // Ganti 'userProfile.role' (Role E-Sports)
+    // menjadi 'userProfile.clanRole' (Role CoC di dalam game)
+    // [CATATAN] Tipe 'as AdminRole' sekarang valid karena
+    // 'userProfile.clanRole' (tipe ClanRole) dan 'AdminRole' (tipe ClanRole.LEADER | ClanRole.CO_LEADER)
+    // sekarang kompatibel.
+    const hasAdminRole = allowedRoles.includes(
+      userProfile.clanRole as AdminRole
+    );
+    // --- [AKHIR PERBAIKAN BUG UTAMA] ---
 
     if (isOwner && hasAdminRole) {
       // Pengguna adalah 'Leader' atau 'Co-Leader' DARI klan yang benar.
       return { isAuthorized: true, userProfile: userProfile };
     } else {
       console.warn(
-        `[verifyUserClanRole] Ditolak: Pengguna ${uid} (Role: ${userProfile.role}) mencoba mengakses klan ${clanId}.`
+        `[verifyUserClanRole] Ditolak: Pengguna ${uid} (ClanRole: ${userProfile.clanRole}) mencoba mengakses klan ${clanId}.`
       );
       return { isAuthorized: false, userProfile: userProfile };
     }
