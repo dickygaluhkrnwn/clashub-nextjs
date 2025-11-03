@@ -9,19 +9,19 @@ import {
   CocCurrentWar,
   CocLeagueGroup,
   CocRaidSeasons, // <-- DITAMBAHKAN
-} from "./types";
+} from './types';
 
 // =========================================================================
 // KONFIGURASI API
 // =========================================================================
 
-const COC_API_URL = "https://cocproxy.royaleapi.dev/v1";
+const COC_API_URL = 'https://cocproxy.royaleapi.dev/v1';
 
 const getCocApiKey = (): string => {
   const apiKey = process.env.COC_API_KEY;
   if (!apiKey) {
     throw new Error(
-      "COC_API_KEY is not defined in environment variables. Cannot connect to CoC API."
+      'COC_API_KEY is not defined in environment variables. Cannot connect to CoC API.'
     );
   }
   return apiKey;
@@ -45,17 +45,17 @@ async function fetchCocApi<T>(endpoint: string): Promise<T> {
       response = await fetch(url, {
         headers: {
           Authorization: `Bearer ${apiKey}`,
-          Accept: "application/json",
+          Accept: 'application/json',
         },
         // Memaksa Next.js untuk selalu mengambil data baru (fresh) dari API CoC
-        cache: "no-store",
+        cache: 'no-store',
       });
 
       if (response.status === 404) {
         throw new Error(`notFound: Resource at ${url} not found.`);
       }
       if (response.status === 403) {
-        let errorBodyText = "Forbidden access.";
+        let errorBodyText = 'Forbidden access.';
         try {
           const errorBody = await response.json();
           if (errorBody && errorBody.reason) {
@@ -77,7 +77,7 @@ async function fetchCocApi<T>(endpoint: string): Promise<T> {
           const errorBody = await response.json();
           if (errorBody && errorBody.reason) {
             errorBodyText = `Error ${response.status}: ${errorBody.reason}. ${
-              errorBody.message || ""
+              errorBody.message || ''
             }`;
           } else if (errorBody && errorBody.message) {
             errorBodyText = `Error ${response.status}: ${errorBody.message}`;
@@ -166,6 +166,19 @@ export async function getClanLeagueGroup(
   );
 }
 
+// --- [PENAMBAHAN FUNGSI BARU UNTUK LANGKAH 5] ---
+/**
+ * Mengambil data detail dari satu perang CWL spesifik berdasarkan War Tag.
+ * @param encodedWarTag Tag perang CWL yang sudah di-encode.
+ * @returns {Promise<CocCurrentWar>} Data detail perang.
+ */
+export async function getLeagueWarDetails(
+  encodedWarTag: string
+): Promise<CocCurrentWar> {
+  return fetchCocApi<CocCurrentWar>(`/clanwarleagues/wars/${encodedWarTag}`);
+}
+// --- [AKHIR PENAMBAHAN] ---
+
 /**
  * Mengambil data Capital Raid Seasons (histori raid) untuk sebuah klan.
  * @param encodedClanTag Tag klan yang sudah di-encode.
@@ -190,17 +203,17 @@ export async function getClanCurrentWar(
     );
 
     if (
-      "state" in warResponse &&
-      (warResponse.state === "inWar" || warResponse.state === "preparation")
+      'state' in warResponse &&
+      (warResponse.state === 'inWar' || warResponse.state === 'preparation')
     ) {
       return warResponse as CocCurrentWar;
     }
 
-    if ("reason" in warResponse && warResponse.reason === "notInWar") {
+    if ('reason' in warResponse && warResponse.reason === 'notInWar') {
       try {
         const cwlGroupResponse = await getClanLeagueGroup(encodedClanTag);
 
-        if ("state" in cwlGroupResponse && cwlGroupResponse.state === "inWar") {
+        if ('state' in cwlGroupResponse && cwlGroupResponse.state === 'inWar') {
           // Logika untuk menemukan warTag spesifik klan kita
           const cwlGroupResponseAny = cwlGroupResponse as any;
           const clanInGroupAny = cwlGroupResponseAny.clans.find(
@@ -209,13 +222,12 @@ export async function getClanCurrentWar(
           const currentWarTag = clanInGroupAny?.currentWarTag; // Properti ini tidak ada di tipe kita, tapi ada di kode lama
 
           if (currentWarTag) {
-            return fetchCocApi<CocCurrentWar>(
-              `/clanwarleagues/wars/${encodeURIComponent(currentWarTag)}`
-            );
+            // [MODIFIKASI] Panggil fungsi yang baru kita buat
+            return getLeagueWarDetails(encodeURIComponent(currentWarTag));
           }
         }
       } catch (cwlError) {
-        if (cwlError instanceof Error && cwlError.message.startsWith("notFound")) {
+        if (cwlError instanceof Error && cwlError.message.startsWith('notFound')) {
           console.log(
             `Clan ${rawClanTag} not currently in CWL group or CWL endpoint not found.`
           );
@@ -225,7 +237,7 @@ export async function getClanCurrentWar(
       }
     }
   } catch (error) {
-    if (error instanceof Error && error.message.startsWith("notFound")) {
+    if (error instanceof Error && error.message.startsWith('notFound')) {
       console.warn(`getClanCurrentWar: Clan ${rawClanTag} not found.`);
       return null;
     }
@@ -247,14 +259,14 @@ export async function verifyPlayerToken(
   let response: Response | null = null;
   try {
     response = await fetch(url, {
-      method: "POST",
+      method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
-        Accept: "application/json",
-        "Content-Type": "application/json",
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({ token: apiToken }),
-      cache: "no-store",
+      cache: 'no-store',
     });
 
     if (response.ok) return true;
@@ -268,30 +280,30 @@ export async function verifyPlayerToken(
         errorBody = await response.text();
       } catch (textError) {}
     }
-    console.error("Verify Token Error:", response.status, errorBody);
+    console.error('Verify Token Error:', response.status, errorBody);
     if (response.status === 404) {
-      throw new Error("Pemain tidak ditemukan.");
+      throw new Error('Pemain tidak ditemukan.');
     }
-    if (response.status === 400 && errorBody?.reason === "invalidToken") {
-      throw new Error("Token API tidak valid.");
+    if (response.status === 400 && errorBody?.reason === 'invalidToken') {
+      throw new Error('Token API tidak valid.');
     }
-    if (response.status === 400 && errorBody?.reason === "forbidden") {
-      throw new Error("Token tidak valid atau Player Tag salah.");
+    if (response.status === 400 && errorBody?.reason === 'forbidden') {
+      throw new Error('Token tidak valid atau Player Tag salah.');
     }
     if (response.status === 403) {
-      throw new Error("Akses API ditolak (403).");
+      throw new Error('Akses API ditolak (403).');
     }
     throw new Error(
       `Gagal verifikasi: Status ${response.status}. Detail: ${
-        typeof errorBody === "object" ? JSON.stringify(errorBody) : errorBody
+        typeof errorBody === 'object' ? JSON.stringify(errorBody) : errorBody
       }`
     );
   } catch (error) {
     if (error instanceof Error) {
       throw error;
     }
-    console.error("Network error during verifyPlayerToken:", error);
-    throw new Error("Gagal menghubungi API CoC.");
+    console.error('Network error during verifyPlayerToken:', error);
+    throw new Error('Gagal menghubungi API CoC.');
   }
 }
 
@@ -304,5 +316,5 @@ export default {
   getClanRaidSeasons, // <-- DITAMBAHKAN
   getClanCurrentWar,
   verifyPlayerToken,
+  getLeagueWarDetails, // <-- [PENAMBAHAN BARU] Ekspor fungsi baru
 };
-

@@ -12,6 +12,7 @@ import {
   CwlArchive,
   CocWarLog,
   ClanRole,
+  CocCurrentWar, // <-- [FIX] Impor tipe CocCurrentWar
 } from '@/lib/types'; // Impor tipe kita
 import { adminFirestore } from '@/lib/firebase-admin';
 import { COLLECTIONS } from '@/lib/firestore-collections';
@@ -19,6 +20,8 @@ import {
   FieldValue,
   Timestamp as AdminTimestamp,
 } from 'firebase-admin/firestore';
+// [FIX TIMESTAMP] Impor helper parsing tanggal kita
+import { parseCocApiTimestamp } from '@/lib/server-utils';
 
 /**
  * API route handler for POST /api/clan/manage/[clanId]/sync/cwl
@@ -115,27 +118,57 @@ export async function POST(
     const docId = `${season}_${clanTag.replace('#', '')}`; // ID unik untuk arsip musim ini
     const docRef = archivesRef.doc(docId);
 
-    // ... (Logika loop 'allRoundsData' tidak berubah, masih TODO) ...
-    let allRoundsData: CocWarLog[] = [];
+    // --- [PERBAIKAN LOGIKA CWL] ---
+    // 'allRoundsData' sekarang akan diisi dengan data perang yang sudah di-fetch
+    // Kita akan menggunakan 'any' untuk 'rounds' agar bisa menyimpan objek Date
+    const allRoundsData: any[] = [];
+    const roundPromises: Promise<CocCurrentWar | null>[] = [];
+
+    // Kumpulkan semua promise fetch war detail
     for (const round of leagueGroupData.rounds) {
       for (const warTag of round.warTags) {
-        if (warTag === '#0') continue;
-        try {
-          // TODO: API call untuk getWarDetails(warTag) diperlukan di sini
-        } catch (warError) {
-          console.warn(
-            `[Sync CWL - Admin] Failed to fetch details for warTag ${warTag}`,
-            warError
-          );
-        }
+        if (warTag === '#0') continue; // Skip war tag placeholder
+        roundPromises.push(
+          cocApi
+            .getLeagueWarDetails(encodeURIComponent(warTag))
+            .catch((warError) => {
+              console.warn(
+                `[Sync CWL - Admin] Failed to fetch details for warTag ${warTag}`,
+                warError
+              );
+              return null; // Kembalikan null jika satu war gagal di-fetch
+            })
+        );
       }
     }
+
+    // Tunggu semua data war selesai di-fetch
+    const warDetailsResults = await Promise.all(roundPromises);
+
+    // Proses hasil yang valid dan konversi tanggal
+    for (const warDetail of warDetailsResults) {
+      if (warDetail) {
+        // Buat objek baru dan konversi string tanggal ke objek Date
+        // agar Firestore menyimpannya sebagai Timestamp
+        const warDataWithDates = {
+          ...warDetail,
+          // Gunakan helper kita untuk parsing yang aman
+          startTime: parseCocApiTimestamp(warDetail.startTime as string),
+          endTime: parseCocApiTimestamp(warDetail.endTime),
+          preparationStartTime: parseCocApiTimestamp(
+            warDetail.preparationStartTime
+          ),
+        };
+        allRoundsData.push(warDataWithDates);
+      }
+    }
+    // --- [AKHIR PERBAIKAN LOGIKA CWL] ---
 
     // ... (Logika 'archiveData' tidak berubah) ...
     const cleanArchiveData: Omit<CwlArchive, 'id'> = {
       clanTag: clanTag,
       season: season,
-      rounds: [], // Kosongkan dulu
+      rounds: allRoundsData, // <-- [FIX] Gunakan data yang sudah di-fetch
     };
     batch.set(docRef, cleanArchiveData, { merge: true });
 
@@ -153,13 +186,14 @@ export async function POST(
     });
 
     console.log(
-      `[Sync CWL - Admin] Successfully synced CWL group for season ${season} for ${clanName}.`
+      `[Sync CWL - Admin] Successfully synced CWL group for season ${season} for ${clanName}. Fetched ${allRoundsData.length} war details.`
     );
 
     // 9. Kembalikan respons sukses
     return NextResponse.json({
       message: `CWL group for season ${season} successfully synced for ${clanName}.`,
       season: season,
+      processedRounds: allRoundsData.length, // Kembalikan jumlah ronde yang diproses
     });
   } catch (error) {
     console.error(
@@ -177,4 +211,3 @@ export async function POST(
     );
   }
 }
-

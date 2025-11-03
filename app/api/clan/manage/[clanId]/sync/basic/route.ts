@@ -100,14 +100,16 @@ export async function POST(
     );
 
     // Update data terkelola (ManagedClan) di dokumen root
-    // [PERBAIKAN 4] Ganti 'clanDoc.ref.update'
-    await clanDocRef.update({
-      name: clanInfo.name,
-      logoUrl: clanInfo.badgeUrls?.medium, // Simpan URL logo
-      clanLevel: clanInfo.clanLevel,
-      memberCount: clanInfo.memberCount,
-      lastSyncedBasic: FieldValue.serverTimestamp(), // Gunakan timestamp server
-    });
+    // [PERBAIKAN 4] Ganti 'clanDoc.ref.update' dan pastikan tidak ada nilai undefined
+    const updateData = {
+      name: clanInfo.name ?? null,
+      logoUrl: clanInfo.badgeUrls?.medium ?? null,
+      clanLevel: clanInfo.clanLevel ?? 0,
+      memberCount: clanInfo.memberCount ?? 0, // [FIX] Atasi error 'undefined'
+      lastSyncedBasic: FieldValue.serverTimestamp(),
+    };
+
+    await clanDocRef.update(updateData);
 
     console.log(
       `Basic sync successful for clanId ${clanId} (Tag: ${clanTag}) by user ${userId}`
@@ -134,4 +136,3 @@ export async function POST(
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
-

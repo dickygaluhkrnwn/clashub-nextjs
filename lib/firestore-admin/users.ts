@@ -3,8 +3,10 @@
 
 import { adminFirestore } from '../firebase-admin';
 import { COLLECTIONS } from '../firestore-collections';
-import { UserProfile } from '../types';
-import { FirestoreDocument, docToDataAdmin, cleanDataForAdminSDK } from './utils';
+// [PERBAIKAN] Impor FirestoreDocument dari global types, bukan ./utils
+import { UserProfile, FirestoreDocument, ClanRole, JoinRequest } from '../types';
+// [PERBAIKAN] Hapus FirestoreDocument dari impor ./utils
+import { docToDataAdmin, cleanDataForAdminSDK } from './utils';
 
 /**
  * Mengambil dokumen UserProfile berdasarkan UID (Admin).
@@ -25,14 +27,21 @@ export const getUserProfileAdmin = async (
 /**
  * Mengambil daftar anggota tim (UserProfile) berdasarkan clanId (Admin).
  */
-export const getTeamMembersAdmin = async (clanId: string): Promise<UserProfile[]> => {
+export const getTeamMembersAdmin = async (
+  clanId: string
+): Promise<UserProfile[]> => {
   try {
     const usersRef = adminFirestore.collection(COLLECTIONS.USERS);
     const q = usersRef.where('clanId', '==', clanId);
     const snapshot = await q.get();
-    return snapshot.docs.map(doc => docToDataAdmin<UserProfile>(doc)).filter(Boolean) as UserProfile[]; // Filter null results
+    return snapshot.docs
+      .map((doc) => docToDataAdmin<UserProfile>(doc))
+      .filter(Boolean) as UserProfile[]; // Filter null results
   } catch (error) {
-    console.error(`Firestore Error [getTeamMembersAdmin - Admin(${clanId})]:`, error);
+    console.error(
+      `Firestore Error [getTeamMembersAdmin - Admin(${clanId})]:`,
+      error
+    );
     return [];
   }
 };
@@ -56,11 +65,13 @@ export const updateMemberRole = async (
     };
 
     // Bersihkan data sebelum update (menghapus undefined/null jika tidak diperlukan)
+    // [CATATAN] Dengan setelan { ignoreUndefinedProperties: true } di firebase-admin.ts,
+    // cleanDataForAdminSDK mungkin tidak lagi diperlukan, tapi kita biarkan untuk keamanan.
     const cleanedUpdateData = cleanDataForAdminSDK(updateData);
+
     // Pastikan null secara eksplisit disimpan jika clanId/clanName memang null
     if (clanId === null) cleanedUpdateData.clanId = null;
     if (clanName === null) cleanedUpdateData.clanName = null;
-
 
     if (Object.keys(cleanedUpdateData).length > 0) {
       await userRef.update(cleanedUpdateData); // Gunakan update, bukan set merge

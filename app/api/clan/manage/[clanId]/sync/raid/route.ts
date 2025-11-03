@@ -19,6 +19,8 @@ import {
   FieldValue,
   Timestamp as AdminTimestamp,
 } from 'firebase-admin/firestore';
+// [FIX TIMESTAMP] Impor helper parsing tanggal kita
+import { parseCocApiTimestamp } from '@/lib/server-utils';
 
 /**
  * API route handler for POST /api/clan/manage/[clanId]/sync/raid
@@ -111,10 +113,11 @@ export async function POST(
     for (const item of raidSeasonsData.items) {
       const raidItem = item as CocRaidLog;
 
-      // Buat ID unik untuk dokumen arsip berdasarkan endTime
-      const raidEndTime = new Date(raidItem.endTime);
-      // Gunakan startTime jika endTime tidak valid (meskipun seharusnya selalu ada)
-      const raidStartTime = new Date(raidItem.startTime);
+      // [FIX TIMESTAMP] Gunakan helper 'parseCocApiTimestamp'
+      // Ganti 'new Date(raidItem.endTime)' yang error
+      const raidEndTime = parseCocApiTimestamp(raidItem.endTime);
+      const raidStartTime = parseCocApiTimestamp(raidItem.startTime);
+      // [AKHIR FIX TIMESTAMP]
 
       // Buat ID unik berdasarkan startTime (lebih konsisten untuk memulai raid)
       const docId = `${raidItem.startTime}_${clanTag.replace('#', '')}`;
@@ -126,8 +129,8 @@ export async function POST(
       const archiveData: Omit<RaidArchive, 'id'> = {
         ...raidItem,
         clanTag: clanTag, // Tambahkan tag klan kita untuk query
-        startTime: raidStartTime, // Biarkan sebagai objek Date
-        endTime: raidEndTime, // Biarkan sebagai objek Date
+        startTime: raidStartTime, // Gunakan objek Date yang sudah valid
+        endTime: raidEndTime, // Gunakan objek Date yang sudah valid
         // 'id' akan di-assign oleh Firestore saat dibaca
         // 'raidId' akan kita set sama dengan docId untuk referensi
         raidId: docId,
@@ -175,4 +178,3 @@ export async function POST(
     );
   }
 }
-

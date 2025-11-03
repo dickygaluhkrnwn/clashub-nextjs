@@ -19,6 +19,8 @@ import {
   FieldValue,
   Timestamp as AdminTimestamp,
 } from 'firebase-admin/firestore';
+// [FIX TIMESTAMP] Impor helper parsing tanggal kita
+import { parseCocApiTimestamp } from '@/lib/server-utils';
 
 /**
  * API route handler for POST /api/clan/manage/[clanId]/sync/warlog
@@ -107,10 +109,14 @@ export async function POST(
     for (const item of warLogData.items) {
       const warItem = item as CocWarLogEntry; // Tipe entri log perang
 
-      // Buat ID unik untuk dokumen arsip
-      const warEndTime = new Date(warItem.endTime);
+      // [FIX TIMESTAMP] Gunakan helper 'parseCocApiTimestamp'
+      // Ganti 'new Date(warItem.endTime)' yang error
+      const warEndTime = parseCocApiTimestamp(warItem.endTime);
+      // [AKHIR FIX TIMESTAMP]
+
       // [PERBAIKAN BUG] Pastikan opponent.tag ada sebelum di-replace
       const opponentTag = warItem.opponent?.tag || 'unknown';
+      // [FIX TIMESTAMP] Gunakan string asli untuk ID agar konsisten
       const docId = `${warItem.endTime}_${opponentTag.replace('#', '')}`;
       const docRef = archivesRef.doc(docId);
 
@@ -123,7 +129,7 @@ export async function POST(
         // --- [PERBAIKAN ERROR TYPESCRIPT] ---
         // Tipe WarArchive mengharapkan 'Date', bukan 'AdminTimestamp'.
         // Firebase Admin SDK akan otomatis mengonversi 'Date' menjadi 'Timestamp' saat penulisan batch.
-        warEndTime: warEndTime, // Tetap sebagai objek Date
+        warEndTime: warEndTime, // Gunakan objek Date yang sudah valid
         // Properti 'id' akan di-assign oleh Firestore
         // Properti 'hasDetails' akan default undefined (opsional)
       };
@@ -171,4 +177,3 @@ export async function POST(
     );
   }
 }
-

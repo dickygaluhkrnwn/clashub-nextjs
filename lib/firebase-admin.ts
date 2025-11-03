@@ -15,24 +15,27 @@ if (!admin.apps.length) {
       admin.initializeApp({
         credential: admin.credential.cert(JSON.parse(serviceAccountKey)),
         // Tambahkan databaseURL jika diperlukan (biasanya tidak jika projectId benar)
-        // databaseURL: `https://${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.firebaseio.com`
+        // databaseURL: `https://://${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.firebaseio.com`
       });
       console.log('Firebase Admin SDK initialized with Service Account Key.');
     } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-       // Jika menggunakan path file kredensial (umum di Cloud Functions/Run)
+      // Jika menggunakan path file kredensial (umum di Cloud Functions/Run)
       admin.initializeApp({
-         credential: admin.credential.applicationDefault(),
+        credential: admin.credential.applicationDefault(),
       });
-      console.log('Firebase Admin SDK initialized with Application Default Credentials.');
+      console.log(
+        'Firebase Admin SDK initialized with Application Default Credentials.'
+      );
     } else {
-       // Opsi fallback jika tidak ada kredensial service account (mungkin berguna untuk dev lokal tanpa akses penuh)
-       // Namun, ini TIDAK akan bypass security rules. Sebaiknya selalu gunakan service account.
-       console.warn("WARNING: Firebase Admin SDK initialized WITHOUT service account credentials. Firestore operations might fail due to permissions.");
-       admin.initializeApp({
-           projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-       });
+      // Opsi fallback jika tidak ada kredensial service account (mungkin berguna untuk dev lokal tanpa akses penuh)
+      // Namun, ini TIDAK akan bypass security rules. Sebaiknya selalu gunakan service account.
+      console.warn(
+        'WARNING: Firebase Admin SDK initialized WITHOUT service account credentials. Firestore operations might fail due to permissions.'
+      );
+      admin.initializeApp({
+        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      });
     }
-
   } catch (error) {
     console.error('Firebase Admin SDK initialization error:', error);
     // Anda bisa melempar error di sini jika inisialisasi kritis
@@ -42,6 +45,15 @@ if (!admin.apps.length) {
 
 // Ekspor instance Firestore dan Auth Admin SDK yang sudah diinisialisasi
 const adminFirestore = admin.firestore();
+
+// [LANGKAH 6] Perbaikan Preventif:
+// Menginstruksikan Firestore untuk mengabaikan field 'undefined'.
+// Ini mencegah crash di 'sync/war' dan endpoint lain jika data API CoC
+// memiliki properti undefined.
+adminFirestore.settings({
+  ignoreUndefinedProperties: true,
+});
+
 const adminAuth = admin.auth();
 
 export { admin, adminFirestore, adminAuth };
