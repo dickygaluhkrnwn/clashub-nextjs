@@ -9,6 +9,7 @@ import {
   CocCurrentWar,
   CocLeagueGroup,
   CocRaidSeasons,
+  CocWarMember, // <-- [PERBAIKAN] Impor CocWarMember secara eksplisit
 } from './types'; // Tipe data tidak perlu diubah
 
 // =========================================================================
@@ -192,12 +193,12 @@ export async function getClanRaidSeasons(
 
 // --- [FUNGSI YANG DIPERBAIKI] ---
 /**
- * Mencoba mengambil perang reguler. 
- * Jika tidak ada, mencoba mengambil perang CWL yang sedang aktif.
- * @param encodedClanTag Tag klan (URL-encoded)
- * @param rawClanTag Tag klan (mentah, misal "#123ABC")
- * @returns {Promise<CocCurrentWar | null>} Data perang aktif atau null
- */
+ * Mencoba mengambil perang reguler. 
+ * Jika tidak ada, mencoba mengambil perang CWL yang sedang aktif.
+ * @param encodedClanTag Tag klan (URL-encoded)
+ * @param rawClanTag Tag klan (mentah, misal "#123ABC")
+ * @returns {Promise<CocCurrentWar | null>} Data perang aktif atau null
+ */
 export async function getClanCurrentWar(
   encodedClanTag: string,
   rawClanTag: string
@@ -215,16 +216,15 @@ export async function getClanCurrentWar(
       (warResponse.state === 'inWar' || warResponse.state === 'preparation')
     ) {
       console.log(`[getClanCurrentWar] Found active regular war for ${rawClanTag}.`);
+      // Data Perang Klasik sudah konsisten (townhallLevel), bisa langsung return
       return warResponse as CocCurrentWar;
     }
 
     // 3. Jika "notInWar" (baik dari 'state' atau 'reason'), cek CWL
-    // --- [INI DIA PERBAIKANNYA] ---
     if (
       (warResponse.state && warResponse.state === 'notInWar') ||
       (warResponse.reason && warResponse.reason === 'notInWar')
     ) {
-    // --- [AKHIR PERBAIKAN] ---
       console.log(
         `[getClanCurrentWar] Not in regular war. Checking CWL for ${rawClanTag}...`
       );
@@ -270,7 +270,37 @@ export async function getClanCurrentWar(
 
             if (isClanInWar && isWarActive) {
               console.log(`[getClanCurrentWar] Found active CWL war: ${warDetail.clan.name} vs ${warDetail.opponent.name}`);
-              return warDetail;
+              
+              // --- [PERBAIKAN UI BERANTAKAN] ---
+              // Normalisasi data member CWL agar konsisten with tipe CocWarMember
+              // API CWL mengembalikan 'townHallLevel' (H besar)
+              // Tipe kita (dan API War Klasik) menggunakan 'townhallLevel' (h kecil)
+              
+              // Tipe 'any' digunakan di sini secara sengaja untuk menangani data mentah
+              // dari API yang tidak konsisten
+              const normalizeMembers = (member: any): CocWarMember => ({
+                ...member,
+                // Ambil H besar (dari CWL API), fallback ke h kecil (jika ada), lalu 0
+                townhallLevel: member.townHallLevel || member.townhallLevel || 0,
+              });
+              
+              // Buat objek baru yang sudah 'bersih'
+              const fixedWarDetail: CocCurrentWar = {
+                ...warDetail,
+                clan: {
+                  ...warDetail.clan,
+                  // Map ulang members di klan kita
+                  members: warDetail.clan.members.map(normalizeMembers),
+                },
+                opponent: {
+                  ...warDetail.opponent,
+                  // Map ulang members di klan lawan
+                  members: warDetail.opponent.members.map(normalizeMembers),
+                },
+              };
+        
+              return fixedWarDetail;
+              // --- [AKHIR PERBAIKAN] ---
             }
           }
         }
@@ -378,4 +408,5 @@ export default {
   verifyPlayerToken,
   getLeagueWarDetails,
 };
+
 
