@@ -1,25 +1,25 @@
 import { NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/server-auth';
-import { getUserProfileAdmin } from '@/lib/firestore-admin/users'; // Untuk keamanan
+import { getUserProfileAdmin } from '@/lib/firestore-admin/users';
+// [PERBAIKAN] Impor utilitas Firestore dan Tipe Arsip
 import { admin } from '@/lib/firebase-admin';
 import { COLLECTIONS } from '@/lib/firestore-collections';
 import { docToDataAdmin } from '@/lib/firestore-admin/utils';
-import { CwlArchive, FirestoreDocument } from '@/lib/types'; // Tipe data
+import { CwlArchive, FirestoreDocument } from '@/lib/types';
 
 /**
  * @route GET /api/clan/manage/[clanId]/cwl
- * @description Mengambil daftar arsip CWL (CwlArchive) dari Firestore.
+ * @description REFAKTOR: Mengambil data RIWAYAT (Arsip) CWL dari Firestore.
  * @access Terautentikasi (Anggota Klan)
  */
 export async function GET(
   request: Request,
   { params }: { params: { clanId: string } }
 ) {
-  // Pindahkan clanId ke scope atas agar bisa diakses di catch block
   const { clanId } = params;
 
   try {
-    // 1. Autentikasi Pengguna
+    // 1. Autentikasi Pengguna (Tetap sama)
     const sessionUser = await getSessionUser();
     if (!sessionUser?.uid) {
       return NextResponse.json(
@@ -36,7 +36,7 @@ export async function GET(
       );
     }
 
-    // 2. Keamanan: Verifikasi bahwa pengguna adalah anggota klan ini
+    // 2. Keamanan: Verifikasi bahwa pengguna adalah anggota klan ini (Tetap sama)
     const userProfile = await getUserProfileAdmin(uid);
     if (!userProfile || userProfile.clanId !== clanId) {
       return NextResponse.json(
@@ -45,6 +45,9 @@ export async function GET(
       );
     }
 
+    // --- [PERBAIKAN LOGIKA UTAMA] ---
+    // Mengembalikan logika untuk mengambil data arsip dari Firestore
+
     // 3. Logika Utama: Ambil 10 arsip CWL terbaru
     const db = admin.firestore();
     const archivesRef = db
@@ -52,23 +55,28 @@ export async function GET(
       .doc(clanId)
       .collection(COLLECTIONS.CWL_ARCHIVES); // Ambil dari koleksi arsip CWL
 
-    // Kita query berdasarkan 'season' (misal: "2025-10")
+    // 4. Kita query berdasarkan 'season' (misal: "2025-10")
     const q = archivesRef.orderBy('season', 'desc').limit(10);
 
     const querySnapshot = await q.get();
 
-    // 4. Handle jika arsip kosong
+    // 5. Handle jika arsip kosong
     if (querySnapshot.empty) {
       // Kembalikan array kosong. Ini adalah state valid.
       return NextResponse.json([]);
     }
 
-    // 5. Kembalikan data (sudah dalam format CwlArchive[])
+    // 6. Kembalikan data (sudah dalam format CwlArchive[])
     const cwlArchives = querySnapshot.docs
       .map((doc) => docToDataAdmin<CwlArchive>(doc))
       .filter((doc): doc is FirestoreDocument<CwlArchive> => doc !== null);
-
+      
+    // Ini akan mengembalikan array [CwlArchive, CwlArchive, ...]
+    // Termasuk data musim "2025-11" Anda
     return NextResponse.json(cwlArchives);
+    
+    // --- [AKHIR PERBAIKAN LOGIKA UTAMA] ---
+
   } catch (error) {
     console.error(
       `[GET /cwl] Error fetching cwl archive for clan ${clanId}:`,
@@ -82,3 +90,4 @@ export async function GET(
     );
   }
 }
+

@@ -148,18 +148,31 @@ export async function POST(
     // Proses hasil yang valid dan konversi tanggal
     for (const warDetail of warDetailsResults) {
       if (warDetail) {
-        // Buat objek baru dan konversi string tanggal ke objek Date
-        // agar Firestore menyimpannya sebagai Timestamp
-        const warDataWithDates = {
-          ...warDetail,
-          // Gunakan helper kita untuk parsing yang aman
-          startTime: parseCocApiTimestamp(warDetail.startTime as string),
-          endTime: parseCocApiTimestamp(warDetail.endTime),
-          preparationStartTime: parseCocApiTimestamp(
-            warDetail.preparationStartTime
-          ),
-        };
-        allRoundsData.push(warDataWithDates);
+        // --- [PERBAIKAN UTAMA ADA DI SINI] ---
+        // Periksa apakah klan kita ("clanTag") terlibat dalam perang ini
+        if (
+          warDetail.clan.tag === clanTag ||
+          warDetail.opponent.tag === clanTag
+        ) {
+          // Buat objek baru dan konversi string tanggal ke objek Date
+          // agar Firestore menyimpannya sebagai Timestamp
+          const warDataWithDates = {
+            ...warDetail,
+            // Gunakan helper kita untuk parsing yang aman
+            startTime: parseCocApiTimestamp(warDetail.startTime as string),
+            endTime: parseCocApiTimestamp(warDetail.endTime),
+            preparationStartTime: parseCocApiTimestamp(
+              warDetail.preparationStartTime
+            ),
+          };
+          allRoundsData.push(warDataWithDates);
+        } else {
+          // Jika klan kita tidak terlibat, jangan simpan data perang ini.
+          console.log(
+            `[Sync CWL - Admin] Skipping warTag ${warDetail.warTag} (not relevant to ${clanTag})`
+          );
+        }
+        // --- [AKHIR DARI PERBAIKAN UTAMA] ---
       }
     }
     // --- [AKHIR PERBAIKAN LOGIKA CWL] ---
@@ -211,3 +224,4 @@ export async function POST(
     );
   }
 }
+

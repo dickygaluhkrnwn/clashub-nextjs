@@ -11,6 +11,7 @@ import {
   WarSummary, // <-- PERBAIKAN 2: Tipe data arsip
   RaidArchive, // <-- PERBAIKAN 3: Tipe data arsip raid
   CocRaidLog, // <-- PERBAIKAN 3: Tipe data raid saat ini
+  CwlArchive, // <-- [PERBAIKAN] Impor Tipe Arsip CWL
 } from '@/lib/types'; // Mengimpor tipe dari barrel file utama
 
 /**
@@ -105,17 +106,19 @@ export const useManagedClanWarLog = (clanId: string) => {
 
 /**
  * @hook useManagedClanCWL
- * Hook SWR untuk mengambil data Liga Perang Klan (CWL) saat ini.
- * [PERBAIKAN V6] URL diubah dari '/sync/cwl' ke '/cwl'.
+ * @description [PERBAIKAN] Hook SWR untuk mengambil data RIWAYAT CWL (Arsip).
  */
 export const useManagedClanCWL = (clanId: string) => {
-  const { data, error, isLoading, mutate } = useSWR<CocLeagueGroup>(
-    clanId ? `/api/clan/manage/${clanId}/cwl` : null, // <-- [BUG FIX] URL diubah
+  const { data, error, isLoading, mutate } = useSWR<
+    FirestoreDocument<CwlArchive>[] | null
+  >(
+    // <-- [PERBAIKAN] Tipe diubah dari CocLeagueGroup ke Array Arsip
+    clanId ? `/api/clan/manage/${clanId}/cwl` : null, // <-- URL sudah benar (GET)
     fetcher
   );
 
   return {
-    cwlData: data,
+    cwlData: data, // Tipe data sekarang adalah CwlArchive[]
     isLoading: isLoading,
     isError: error,
     mutateCWL: mutate,
