@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation'; // <-- Tambahkan useRouter
 import { useState, useEffect, useRef } from 'react';
 // Menggunakan ShieldIcon
 import {
@@ -12,19 +12,21 @@ import {
   LogOutIcon,
   UserCircleIcon,
   ShieldIcon,
+  CheckCircleIcon, // <-- Tambahkan ikon notif
 } from '@/app/components/icons';
 import ThemeToggle from '@/app/components/ui/ThemeToggle';
 import { useAuth } from '@/app/context/AuthContext'; // Konteks yang sudah diupdate
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 import { Button } from '../ui/Button';
-import { UserProfile } from '@/lib/types'; // Impor UserProfile untuk type checking
+import { UserProfile, Notification } from '@/lib/clashub.types'; // <-- Tambahkan Notifikasi
 import { ServerUser } from '@/lib/server-auth'; // Impor ServerUser
+import { useNotifications } from '@/lib/hooks/useNotifications'; // <-- Import hook notifikasi
 
 const navItems = [
   { name: 'Home', href: '/' },
   // PERBAIKAN KRITIS: Mengganti '/teamhub' menjadi '/clan-hub'
-  { name: 'Team Hub', href: '/clan-hub' }, 
+  { name: 'Team Hub', href: '/clan-hub' },
   { name: 'Tournament', href: '/tournament' },
   { name: 'Knowledge Hub', href: '/knowledge-hub' },
 ];
@@ -69,25 +71,25 @@ const UserProfileDropdown = () => {
 
   // --- PERBAIKAN LOGIKA: Sederhanakan Pengecekan Menu Klan ---
   // Kita perlu membedakan antara ServerUser (sebagian) dan UserProfile (lengkap dari Firestore).
-  
+
   // Type Guard untuk memastikan objek adalah UserProfile lengkap dari Firestore
   const isCompleteUserProfile = (
     profile: UserProfile | ServerUser | null
   ): profile is UserProfile => {
-      // Cek minimal: harus punya isVerified, clanId (bisa null), dan role (Clashub internal)
-      // ServerUser hanya punya uid, email, displayName.
-      return (
-          !!profile && 
-          'isVerified' in profile && 
-          'clanId' in profile &&
-          'role' in profile // Tambahkan cek untuk role Clashub
-      );
+    // Cek minimal: harus punya isVerified, clanId (bisa null), dan role (Clashub internal)
+    // ServerUser hanya punya uid, email, displayName.
+    return (
+      !!profile &&
+      'isVerified' in profile &&
+      'clanId' in profile &&
+      'role' in profile // Tambahkan cek untuk role Clashub
+    );
   };
 
   // Logika untuk menampilkan link 'Klan'
   let showClanLink = false;
   let avatarSrc: string | null = null;
-  
+
   if (isCompleteUserProfile(userProfile)) {
     // [PERBAIKAN KRITIS DI SINI] Tampilkan Klan jika terverifikasi DAN punya Clan Tag CoC
     // Ini memastikan anggota biasa yang terverifikasi melihat tautan meskipun klan mereka belum dikelola (clanId null)
@@ -135,7 +137,7 @@ const UserProfileDropdown = () => {
                 <Link
                   // PENTING: Jika clanId tidak ada, ini akan diarahkan ke /clan/manage tanpa ID.
                   // Namun, page.tsx akan menangani redirect/error jika clanId tidak ditemukan.
-                  href="/clan/manage" 
+                  href="/clan/manage"
                   onClick={() => setIsOpen(false)}
                   className="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-300 hover:bg-coc-gold/10 hover:text-white rounded-md"
                 >
@@ -162,6 +164,125 @@ const UserProfileDropdown = () => {
   );
 };
 
+// --- [KOMPONEN BARU: TAHAP 1.5] ---
+// Komponen Lonceng Notifikasi Dinamis
+const NotificationBell = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const { currentUser } = useAuth(); // Hanya cek login
+  const { notifications, unreadCount, isLoading, markAsRead } =
+    useNotifications(); // Gunakan hook
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Jangan tampilkan lonceng jika user belum login
+  if (!currentUser) {
+    return null;
+  }
+
+  const handleNotifClick = (notif: Notification) => {
+    // Tandai sudah dibaca (optimistic update)
+    if (!notif.read) {
+      markAsRead(notif.id);
+    }
+    // Arahkan ke URL
+    if (notif.url) {
+      router.push(notif.url);
+    }
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="text-gray-300 hover:text-coc-gold transition-colors relative"
+      >
+        <BellIcon className="h-6 w-6" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-coc-red text-xs font-bold text-white">
+            {unreadCount}
+          </span>
+        )}
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-72 md:w-80 max-h-[400px] overflow-y-auto card-stone shadow-lg rounded-md z-50">
+          <div className="p-3 border-b border-coc-gold-dark/30">
+            <h4 className="font-clash text-lg text-white">Notifikasi</h4>
+          </div>
+          {isLoading && (
+            <div className="p-4 text-center text-gray-400">
+              Memuat notifikasi...
+            </div>
+          )}
+          {!isLoading && notifications.length === 0 && (
+            <div className="p-4 text-center text-gray-400">
+              Tidak ada notifikasi baru.
+            </div>
+          )}
+          <ul className="divide-y divide-coc-gold-dark/20">
+            {notifications.map((notif) => (
+              <li key={notif.id}>
+                <a
+                  href={notif.url || '#'}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleNotifClick(notif);
+                  }}
+                  className={`flex items-start gap-3 p-3 transition-colors ${
+                    notif.read
+                      ? 'opacity-60 hover:bg-coc-stone-light/30'
+                      : 'bg-coc-blue/10 hover:bg-coc-blue/20'
+                  }`}
+                >
+                  <div className="flex-shrink-0 mt-1">
+                    {notif.read ? (
+                      <CheckCircleIcon className="h-4 w-4 text-gray-500" />
+                    ) : (
+                      <div className="h-4 w-4 flex items-center justify-center">
+                        <span className="h-2 w-2 rounded-full bg-coc-blue"></span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-white line-clamp-2">
+                      {notif.message}
+                    </p>
+                    <span className="text-xs text-gray-400">
+                      {new Date(notif.createdAt).toLocaleString('id-ID', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: 'numeric',
+                        minute: 'numeric',
+                      })}
+                    </span>
+                  </div>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// --- [KOMPONEN HEADER UTAMA: TAHAP 1.5] ---
 const Header = () => {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -170,8 +291,8 @@ const Header = () => {
 
   // Tampilkan state loading awal jika diperlukan
   // if (authLoading) {
-  // 	 // Opsional: Tampilkan skeleton UI atau null selama auth loading awal
-  // 	 return <header className="sticky top-0 z-50 h-[68px] bg-coc-stone/80"></header>;
+  //   // Opsional: Tampilkan skeleton UI atau null selama auth loading awal
+  //   return <header className="sticky top-0 z-50 h-[68px] bg-coc-stone/80"></header>;
   // }
 
   return (
@@ -193,13 +314,13 @@ const Header = () => {
               key={item.name}
               href={item.href}
               className={`
- 								 px-4 py-2 rounded-md text-sm font-bold transition-all duration-300
- 								 ${
-                   pathname === item.href
-                     ? 'bg-coc-gold text-coc-stone shadow-[inset_0_1px_3px_rgba(0,0,0,0.5)]'
-                     : 'text-gray-300 hover:bg-coc-stone-light/50 hover:text-white'
-                 }
- 							`}
+                 px-4 py-2 rounded-md text-sm font-bold transition-all duration-300
+                 ${
+                pathname === item.href
+                  ? 'bg-coc-gold text-coc-stone shadow-[inset_0_1px_3px_rgba(0,0,0,0.5)]'
+                  : 'text-gray-300 hover:bg-coc-stone-light/50 hover:text-white'
+              }
+              `}
             >
               {item.name}
             </Link>
@@ -213,14 +334,10 @@ const Header = () => {
             <SearchIcon className="h-6 w-6" />
           </button>
 
-          <div className="relative">
-            <button className="text-gray-300 hover:text-coc-gold transition-colors">
-              <BellIcon className="h-6 w-6" />
-              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-coc-red text-xs font-bold text-white">
-                2
-              </span>
-            </button>
-          </div>
+          {/* --- [PERUBAHAN TAHAP 1.5] --- */}
+          {/* Ganti ikon statis dengan komponen dinamis */}
+          <NotificationBell />
+          {/* --- [AKHIR PERUBAHAN] --- */}
 
           <div className="w-px h-6 bg-coc-gold-dark/50"></div>
 
@@ -278,6 +395,11 @@ const Header = () => {
               <button className="text-gray-300 hover:text-coc-gold transition-colors">
                 <SearchIcon className="h-7 w-7" />
               </button>
+
+              {/* --- [PERUBAHAN TAHAP 1.5 (Mobile)] --- */}
+              <NotificationBell />
+              {/* --- [AKHIR PERUBAHAN] --- */}
+
               {/* Logika kondisional untuk mobile */}
               {!authLoading && ( // Cek loading juga di mobile
                 currentUser ? (

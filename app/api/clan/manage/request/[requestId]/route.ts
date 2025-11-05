@@ -12,6 +12,8 @@ import {
   getUserProfileAdmin, // <-- Fungsi admin baru
 } from '@/lib/firestore-admin/users';
 import { getManagedClanDataAdmin } from '@/lib/firestore-admin/clans'; // <-- Fungsi admin baru
+// --- [PENAMBAHAN BARU: TAHAP 1.6] ---
+import { createNotification } from '@/lib/firestore-admin/notifications';
 // --- AKHIR PERUBAHAN ---
 import { UserProfile } from '@/lib/types';
 // Hapus import cocApi jika tidak digunakan
@@ -55,7 +57,8 @@ export async function PUT(
     const { isAuthorized, userProfile: changerProfile } =
       await verifyUserClanRole(changerUid, clanId);
 
-    if (!isAuthorized || !changerProfile) { // Cek keduanya
+    if (!isAuthorized || !changerProfile) {
+      // Cek keduanya
       return NextResponse.json(
         {
           message:
@@ -105,12 +108,23 @@ export async function PUT(
         ''
       )}`;
 
-      // d. Implementasi Notifikasi Link Undangan (PLACEHOLDER)
-      console.log(
-        `[JoinRequest Approved] User ${requesterUid} approved by ${changerUid}. Clan Link: ${linkUndangan}`
+      // --- [IMPLEMENTASI TAHAP 1.6] ---
+      // d. Buat Notifikasi
+      // Link CoC akan dimasukkan ke dalam pesan. URL notif adalah link internal.
+      const notifMessage = `Permintaan Anda untuk bergabung dengan ${managedClan.name} telah disetujui. Link undangan CoC: ${linkUndangan}`;
+      const notifUrl = '/profile'; // Arahkan ke profil mereka
+      
+      await createNotification(
+        requesterUid,
+        notifMessage,
+        notifUrl,
+        'join_approved'
       );
-      // TODO: Implementasikan fungsi pushNotification atau log notifikasi di sini
-      // addNotification(requesterUid, `Permintaan bergabung ke ${managedClan.name} disetujui! Link undangan: ${linkUndangan}`);
+
+      console.log(
+        `[JoinRequest Approved] User ${requesterUid} approved by ${changerUid}. Notification sent.`
+      );
+      // --- [AKHIR IMPLEMENTASI TAHAP 1.6] ---
 
       return NextResponse.json(
         {
@@ -144,4 +158,3 @@ export async function PUT(
     );
   }
 }
-
