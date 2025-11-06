@@ -291,8 +291,8 @@ const Header = () => {
 
   // Tampilkan state loading awal jika diperlukan
   // if (authLoading) {
-  //   // Opsional: Tampilkan skeleton UI atau null selama auth loading awal
-  //   return <header className="sticky top-0 z-50 h-[68px] bg-coc-stone/80"></header>;
+  //   // Opsional: Tampilkan skeleton UI atau null selama auth loading awal
+  //   return <header className="sticky top-0 z-50 h-[68px] bg-coc-stone/80"></header>;
   // }
 
   return (
@@ -314,13 +314,13 @@ const Header = () => {
               key={item.name}
               href={item.href}
               className={`
-                 px-4 py-2 rounded-md text-sm font-bold transition-all duration-300
-                 ${
-                pathname === item.href
-                  ? 'bg-coc-gold text-coc-stone shadow-[inset_0_1px_3px_rgba(0,0,0,0.5)]'
-                  : 'text-gray-300 hover:bg-coc-stone-light/50 hover:text-white'
-              }
-              `}
+                  px-4 py-2 rounded-md text-sm font-bold transition-all duration-300
+                  ${
+                    pathname === item.href
+                      ? 'bg-coc-gold text-coc-stone shadow-lg shadow-coc-gold/20' // <-- [PERBAIKAN] Mengganti inset shadow dengan drop shadow
+                      : 'text-gray-300 hover:bg-coc-stone-light/50 hover:text-white'
+                  }
+              `}
             >
               {item.name}
             </Link>

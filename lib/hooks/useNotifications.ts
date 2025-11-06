@@ -8,7 +8,22 @@ import { useAuth } from '@/app/context/AuthContext';
 import { Notification } from '@/lib/clashub.types';
 
 // Definisikan fetcher standar untuk SWR
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+// [PERBAIKAN] Update fetcher untuk menangani error HTTP
+const fetcher = async (url: string) => {
+  const res = await fetch(url);
+
+  // Jika respons tidak ok (misal: 401, 404, 500), lempar error
+  // Ini akan ditangkap oleh SWR dan dimasukkan ke 'error'
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({})); // Tangkap jika json() gagal
+    throw new Error(
+      errorData.error || `Terjadi kesalahan: ${res.status} ${res.statusText}`
+    );
+  }
+
+  // Jika ok, kembalikan JSON
+  return res.json();
+};
 
 /**
  * @hook useNotifications
@@ -23,7 +38,7 @@ export const useNotifications = () => {
   const swrKey = currentUser ? '/api/notifications' : null;
 
   const {
-    data: notifications,
+    data: notificationsData, // [PERBAIKAN] Ganti nama 'data'
     error,
     isLoading,
   } = useSWR<Notification[]>(swrKey, fetcher, {
@@ -31,9 +46,16 @@ export const useNotifications = () => {
     dedupingInterval: 60000,
   });
 
-  // Hitung jumlah notifikasi yang belum dibaca
+  // [PERBAIKAN] Pastikan 'notifications' selalu array.
+  // Jika 'error' ada atau 'data' bukan array, kembalikan array kosong.
+  const notifications =
+    !error && notificationsData && Array.isArray(notificationsData)
+      ? notificationsData
+      : [];
+
+  // Hitung jumlah notifikasi yang belum dibaca (SEKARANG AMAN)
   const unreadCount =
-    notifications?.filter((notif) => !notif.read).length || 0;
+    notifications.filter((notif) => !notif.read).length || 0;
 
   /**
    * @function markAsRead
@@ -75,7 +97,7 @@ export const useNotifications = () => {
   };
 
   return {
-    notifications: notifications || [], // Kembalikan array kosong jika undefined
+    notifications, // [PERBAIKAN] Kirim 'notifications' yang dijamin array
     unreadCount,
     isLoading,
     isError: error,
