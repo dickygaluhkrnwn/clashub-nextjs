@@ -2,6 +2,8 @@ import { NextResponse, NextRequest } from 'next/server';
 import { adminAuth, adminFirestore } from '@/lib/firebase-admin';
 import { COLLECTIONS } from '@/lib/firestore-collections';
 import { verifyUserClanRole } from '@/lib/firestore-admin/management';
+// [EDIT] Impor helper baru
+import { updateUserClashubRole } from '@/lib/firestore-admin/users';
 // [PERBAIKAN] Hapus 'ClanRole' dari impor ini, dan tambahkan 'FirestoreDocument'
 import { EsportsTeam, FirestoreDocument } from '@/lib/clashub.types';
 import { ClanRole as ClanRoleEnum } from '@/lib/enums'; // Impor Enum sebagai 'ClanRoleEnum' untuk menghindari konflik nama
@@ -126,7 +128,7 @@ export async function GET(
 
 /**
  * @handler PUT /api/clan/manage/[clanId]/esports/[teamId]
- * @description Memperbarui data tim E-Sports (Nama atau Anggota).
+ * @description Memperbarui data tim E-Sports (Nama, Leader, atau Anggota).
  */
 export async function PUT(
   request: NextRequest,
@@ -154,15 +156,24 @@ export async function PUT(
     const body = await request.json();
     const {
       teamName,
+      teamLeaderUid, // <-- [EDIT] Tambahkan teamLeaderUid
       memberUids,
     }: {
       teamName: string;
+      teamLeaderUid: string; // <-- [EDIT] Tambahkan teamLeaderUid
       memberUids: string[]; // Di frontend ini adalah tuple, di sini kita terima sebagai array
     } = body;
 
     if (!teamName || !teamName.trim()) {
       return NextResponse.json(
         { message: 'Nama tim tidak boleh kosong.' },
+        { status: 400 }
+      );
+    }
+    // [EDIT] Tambahkan validasi untuk teamLeaderUid
+    if (!teamLeaderUid) {
+      return NextResponse.json(
+        { message: 'Team leader UID tidak boleh kosong.' },
         { status: 400 }
       );
     }
@@ -182,23 +193,47 @@ export async function PUT(
     // 4. Buat Payload Update (Partial, hanya field yang diizinkan)
     const updatePayload: Partial<Omit<EsportsTeam, 'id' | 'clanId'>> = {
       teamName: teamName.trim(),
-      memberUids: [ // Konversi ke tuple
+      teamLeaderUid: teamLeaderUid, // <-- [EDIT] Tambahkan teamLeaderUid
+      memberUids: [
+        // Konversi ke tuple
         memberUids[0],
         memberUids[1],
         memberUids[2],
         memberUids[3],
         memberUids[4],
       ],
-      // teamLeaderUid juga bisa diupdate jika diperlukan
     };
 
     // 5. Update Dokumen
     await docRef.update(updatePayload);
 
-    return NextResponse.json(
-      { message: 'Tim E-Sports berhasil diperbarui.' },
-      { status: 200 }
-    );
+    // [BARU] TAHAP 6: Promosikan Leader Tim ke Co-Leader (sesuai permintaan)
+    try {
+      await updateUserClashubRole(teamLeaderUid, 'Co-Leader');
+
+      // Jika KEDUANYA sukses (Update Tim & Promosi Role)
+      return NextResponse.json(
+        {
+          message:
+            'Tim E-Sports berhasil diperbarui! Leader tim telah dipromosikan ke Co-Leader.',
+        },
+        { status: 200 }
+      );
+    } catch (roleError) {
+      // Jika Update Tim SUKSES, tapi Promosi GAGAL
+      console.error(
+        `[PUT /esports/${teamId}] Gagal mempromosikan role untuk UID: ${teamLeaderUid}`,
+        roleError
+      );
+      // Kembalikan 200 (karena tim TETAP diupdate), tapi dengan pesan peringatan
+      return NextResponse.json(
+        {
+          message:
+            'Tim berhasil diperbarui, TAPI gagal mempromosikan leader tim. Harap update role secara manual.',
+        },
+        { status: 200 }
+      );
+    }
   } catch (error) {
     console.error(`Error (PUT /esports/${teamId}):`, error);
     if (error instanceof SyntaxError) {

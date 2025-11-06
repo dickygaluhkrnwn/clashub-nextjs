@@ -1,20 +1,21 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react'; // <-- [PERBAIKAN] Kurung siku [ ] diubah jadi { }
+import React, { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
-import { User } from 'firebase/auth'; // <-- Dibutuhkan untuk token
+import { User } from 'firebase/auth'; // <-- [BARU] Impor tipe User
 import {
-  EsportsTeam,
   UserProfile,
   FirestoreDocument,
+  EsportsTeam,
 } from '@/lib/clashub.types';
 import { getThImage } from '@/lib/th-utils';
 import { Button } from '@/app/components/ui/Button';
 import {
-  EditIcon, // <-- Ganti ikon
+  EditIcon, // <-- [EDIT] Ganti ikon
   XIcon,
   Loader2Icon,
-  CheckIcon, // <-- Ganti ikon
+  CheckIcon, // <-- [EDIT] Ganti ikon
+  CrownIcon, // <-- [BARU] Ikon untuk leader
 } from '@/app/components/icons';
 import { NotificationProps } from '@/app/components/ui/Notification';
 
@@ -25,66 +26,86 @@ interface EditTeamModalProps {
   isOpen: boolean;
   onClose: () => void;
   clanId: string;
-  currentUser: User | null; // <-- Dibutuhkan untuk token
+  currentUser: User | null; // <-- [BARU] Tambahkan currentUser
   availableMembers: UserProfile[];
   onAction: (message: string, type: NotificationProps['type']) => void;
   allTeams: FirestoreDocument<EsportsTeam>[];
-  teamToEdit: FirestoreDocument<EsportsTeam>; // <-- Data tim yang akan diedit
+  teamToEdit: FirestoreDocument<EsportsTeam>; // <-- [BARU] Tim yang akan diedit
 }
 
 const EditTeamModal: React.FC<EditTeamModalProps> = ({
   isOpen,
   onClose,
   clanId,
-  currentUser,
+  currentUser, // <-- [BARU]
   availableMembers,
   onAction,
   allTeams,
-  teamToEdit,
+  teamToEdit, // <-- [BARU]
 }) => {
-  // Inisialisasi state dengan data dari teamToEdit
+  // [EDIT] Inisialisasi state dengan data dari teamToEdit
   const [teamName, setTeamName] = useState(teamToEdit.teamName);
-  const [selectedUids, setSelectedUids] = useState<string[]>(teamToEdit.memberUids);
+  const [selectedUids, setSelectedUids] = useState<string[]>([
+    ...teamToEdit.memberUids,
+  ]);
+  const [selectedLeaderUid, setSelectedLeaderUid] = useState<string>(
+    teamToEdit.teamLeaderUid
+  ); // <-- [BARU]
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Jika modal dibuka untuk tim yang berbeda, reset state
+  // [EDIT] useEffect tidak diperlukan lagi untuk reset,
+  // karena state diinisialisasi setiap kali modal dibuka (didasarkan pada props)
+  // Kita tambahkan useEffect untuk sinkronisasi jika props berubah saat modal terbuka
   useEffect(() => {
     if (isOpen) {
       setTeamName(teamToEdit.teamName);
-      setSelectedUids(teamToEdit.memberUids);
+      setSelectedUids([...teamToEdit.memberUids]);
+      setSelectedLeaderUid(teamToEdit.teamLeaderUid);
+      setIsSubmitting(false);
     }
   }, [isOpen, teamToEdit]);
 
   // Buat Set (HashSet) untuk mengecek UID anggota yang sudah ada di tim lain
-  // PENTING: Kecualikan anggota tim yang sedang diedit
+  // [EDIT] Kita harus mengecualikan anggota tim ini sendiri
   const membersInOtherTeams = useMemo(() => {
     const uids = new Set<string>();
-    allTeams
-      .filter((team) => team.id !== teamToEdit.id) // <-- Filter tim saat ini
-      .forEach((team) => {
+    allTeams.forEach((team) => {
+      // Hanya tambahkan UID dari tim LAIN
+      if (team.id !== teamToEdit.id) {
         team.memberUids.forEach((uid) => uids.add(uid));
-      });
+      }
+    });
     return uids;
   }, [allTeams, teamToEdit.id]);
 
+  // [BARU] Dapatkan profil lengkap dari anggota yang dipilih (untuk dropdown leader)
+  const selectedMembers = useMemo(() => {
+    return availableMembers.filter((m) => selectedUids.includes(m.uid));
+  }, [selectedUids, availableMembers]);
+
   // Handler untuk memilih/membatalkan anggota
   const handleMemberToggle = (uid: string) => {
-    setSelectedUids((prev) => {
-      if (prev.includes(uid)) {
-        // Batalkan pilihan
-        return prev.filter((id) => id !== uid);
-      } else {
-        // Tambah pilihan
-        if (prev.length >= 5) {
-          onAction('Anda hanya dapat memilih 5 anggota.', 'error');
-          return prev;
-        }
-        return [...prev, uid];
+    let newSelectedUids = [...selectedUids];
+
+    if (newSelectedUids.includes(uid)) {
+      // Batalkan pilihan
+      newSelectedUids = newSelectedUids.filter((id) => id !== uid);
+      // Jika leader yang dibatalkan, reset pilihan leader
+      if (uid === selectedLeaderUid) {
+        setSelectedLeaderUid('');
       }
-    });
+    } else {
+      // Tambah pilihan
+      if (newSelectedUids.length >= 5) {
+        onAction('Anda hanya dapat memilih 5 anggota.', 'error');
+        return;
+      }
+      newSelectedUids.push(uid);
+    }
+    setSelectedUids(newSelectedUids);
   };
 
-  // Handler untuk submit form (Update)
+  // Handler untuk submit form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (teamName.trim() === '') {
@@ -95,24 +116,22 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
       onAction('Anda harus memilih tepat 5 anggota.', 'error');
       return;
     }
+    // [BARU] Validasi leader tim
+    if (selectedLeaderUid === '') {
+      onAction('Anda harus memilih seorang Leader Tim.', 'error');
+      return;
+    }
+    // [BARU] Validasi token
+    if (!currentUser) {
+      onAction('Autentikasi gagal. Silakan login ulang.', 'error');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
-      if (!currentUser) {
-        throw new Error('Otentikasi gagal. Silakan login ulang.');
-      }
       const token = await currentUser.getIdToken();
 
-      // Ubah array 5 string menjadi tuple [string, string, string, string, string]
-      const memberUidsTuple: [string, string, string, string, string] = [
-        selectedUids[0],
-        selectedUids[1],
-        selectedUids[2],
-        selectedUids[3],
-        selectedUids[4],
-      ];
-
-      // Panggil API PUT untuk update
+      // [EDIT] Panggil API PUT
       const response = await fetch(
         `/api/clan/manage/${clanId}/esports/${teamToEdit.id}`,
         {
@@ -123,8 +142,8 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
           },
           body: JSON.stringify({
             teamName: teamName.trim(),
-            memberUids: memberUidsTuple,
-            // Catatan: teamLeaderUid tidak diubah di sini, tapi bisa ditambahkan jika perlu
+            teamLeaderUid: selectedLeaderUid, // <-- [BARU] Kirim leader baru
+            memberUids: selectedUids, // Kirim sebagai array, API akan konversi ke tuple
           }),
         }
       );
@@ -134,7 +153,12 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
         throw new Error(result.message || 'Gagal memperbarui tim.');
       }
 
-      onAction(`Tim "${teamName}" berhasil diperbarui!`, 'success');
+      // [EDIT] Pesan sukses baru sesuai permintaan
+      onAction(
+        result.message || // <-- Ambil pesan dari API (bisa jadi ada peringatan)
+          'Tim E-Sports berhasil diperbarui! Harap promosikan juga leader tim di dalam game.',
+        'success'
+      );
       onClose(); // Tutup modal setelah sukses
     } catch (error) {
       console.error('Error updating team:', error);
@@ -206,11 +230,10 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
                 ) : (
                   availableMembers.map((member) => {
                     const isSelected = selectedUids.includes(member.uid);
-                    // Cek jika anggota ada di tim lain (kecuali tim ini)
+                    // [EDIT] Cek apakah UID ada di tim lain (kecuali tim ini)
                     const isInOtherTeam =
                       membersInOtherTeams.has(member.uid) &&
                       !teamToEdit.memberUids.includes(member.uid);
-
                     const isDisabled =
                       (isInOtherTeam && !isSelected) ||
                       (selectedUids.length >= 5 && !isSelected) ||
@@ -277,6 +300,35 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
                 )}
               </div>
             </div>
+
+            {/* [BARU] Pemilih Leader Tim */}
+            <div>
+              <label
+                htmlFor="teamLeader"
+                className="block text-sm font-medium text-gray-300 font-sans mb-1"
+              >
+                <CrownIcon className="h-4 w-4 mr-1.5 inline-block" />
+                Pilih Leader Tim
+              </label>
+              <select
+                id="teamLeader"
+                value={selectedLeaderUid}
+                onChange={(e) => setSelectedLeaderUid(e.target.value)}
+                className="input-base"
+                disabled={isSubmitting || selectedUids.length !== 5}
+              >
+                <option value="" disabled>
+                  {selectedUids.length !== 5
+                    ? 'Pilih 5 anggota dulu'
+                    : 'Pilih seorang leader...'}
+                </option>
+                {selectedMembers.map((member) => (
+                  <option key={member.uid} value={member.uid}>
+                    {member.displayName} (TH{member.thLevel})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Footer Modal */}
@@ -295,15 +347,16 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
               disabled={
                 isSubmitting ||
                 teamName.trim() === '' ||
-                selectedUids.length !== 5
+                selectedUids.length !== 5 ||
+                selectedLeaderUid === '' // <-- [BARU] Validasi tombol
               }
             >
               {isSubmitting ? (
                 <Loader2Icon className="h-5 w-5 animate-spin mr-2" />
               ) : (
-                <CheckIcon className="h-5 w-5 mr-2" /> // <-- Ganti ikon
+                <CheckIcon className="h-5 w-5 mr-2" />
               )}
-              {isSubmitting ? 'Menyimpan...' : 'Simpan Perubahan'} 
+              {isSubmitting ? 'Memperbarui...' : 'Simpan Perubahan'}
             </Button>
           </div>
         </form>

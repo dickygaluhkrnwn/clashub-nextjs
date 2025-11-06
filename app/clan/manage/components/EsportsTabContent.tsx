@@ -236,7 +236,6 @@ const EsportsTabContent: React.FC<EsportsTabContentProps> = ({
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           clanId={clan.id}
-          teamLeaderUid={userProfile.uid}
           availableMembers={availableMembers}
           onAction={onAction}
           onCreateTeam={handleCreateTeam}

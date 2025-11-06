@@ -1,12 +1,8 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
-import {
-  EsportsTeam,
-  UserProfile,
-  FirestoreDocument,
-} from '@/lib/clashub.types';
+import { UserProfile, FirestoreDocument, EsportsTeam } from '@/lib/clashub.types';
 import { getThImage } from '@/lib/th-utils';
 import { Button } from '@/app/components/ui/Button';
 import {
@@ -15,22 +11,23 @@ import {
   Loader2Icon,
   PlusIcon,
   CheckIcon,
+  CrownIcon, // <-- [BARU] Ikon untuk leader
 } from '@/app/components/icons';
 import { NotificationProps } from '@/app/components/ui/Notification';
 
 // =========================================================================
-// KOMPONEN MODAL: CreateTeamModal
+// KOMPONEN MODAL: CreateTeamModal (Internal)
 // =========================================================================
 interface CreateTeamModalProps {
   isOpen: boolean;
   onClose: () => void;
   clanId: string;
-  teamLeaderUid: string;
+  // teamLeaderUid dihapus dari props, akan dipilih di dalam modal
   availableMembers: UserProfile[];
   onAction: (message: string, type: NotificationProps['type']) => void;
   onCreateTeam: (
     teamName: string,
-    teamLeaderUid: string,
+    teamLeaderUid: string, // <-- [BARU] UID leader tim yang dipilih
     memberUids: string[]
   ) => Promise<void>;
   allTeams: FirestoreDocument<EsportsTeam>[];
@@ -40,7 +37,6 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
   isOpen,
   onClose,
   clanId,
-  teamLeaderUid,
   availableMembers,
   onAction,
   onCreateTeam,
@@ -48,7 +44,18 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
 }) => {
   const [teamName, setTeamName] = useState('');
   const [selectedUids, setSelectedUids] = useState<string[]>([]);
+  const [selectedLeaderUid, setSelectedLeaderUid] = useState<string>(''); // <-- [BARU] State untuk leader tim
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Reset state saat modal ditutup
+  useEffect(() => {
+    if (!isOpen) {
+      setTeamName('');
+      setSelectedUids([]);
+      setSelectedLeaderUid('');
+      setIsSubmitting(false);
+    }
+  }, [isOpen]);
 
   // Buat Set (HashSet) untuk mengecek UID anggota yang sudah ada di tim lain
   const membersInOtherTeams = useMemo(() => {
@@ -59,21 +66,31 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
     return uids;
   }, [allTeams]);
 
+  // [BARU] Dapatkan profil lengkap dari anggota yang dipilih (untuk dropdown leader)
+  const selectedMembers = useMemo(() => {
+    return availableMembers.filter((m) => selectedUids.includes(m.uid));
+  }, [selectedUids, availableMembers]);
+
   // Handler untuk memilih/membatalkan anggota
   const handleMemberToggle = (uid: string) => {
-    setSelectedUids((prev) => {
-      if (prev.includes(uid)) {
-        // Batalkan pilihan
-        return prev.filter((id) => id !== uid);
-      } else {
-        // Tambah pilihan
-        if (prev.length >= 5) {
-          onAction('Anda hanya dapat memilih 5 anggota.', 'error');
-          return prev;
-        }
-        return [...prev, uid];
+    let newSelectedUids = [...selectedUids];
+
+    if (newSelectedUids.includes(uid)) {
+      // Batalkan pilihan
+      newSelectedUids = newSelectedUids.filter((id) => id !== uid);
+      // Jika leader yang dibatalkan, reset pilihan leader
+      if (uid === selectedLeaderUid) {
+        setSelectedLeaderUid('');
       }
-    });
+    } else {
+      // Tambah pilihan
+      if (newSelectedUids.length >= 5) {
+        onAction('Anda hanya dapat memilih 5 anggota.', 'error');
+        return;
+      }
+      newSelectedUids.push(uid);
+    }
+    setSelectedUids(newSelectedUids);
   };
 
   // Handler untuk submit form
@@ -85,6 +102,11 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
     }
     if (selectedUids.length !== 5) {
       onAction('Anda harus memilih tepat 5 anggota.', 'error');
+      return;
+    }
+    // [BARU] Validasi leader tim
+    if (selectedLeaderUid === '') {
+      onAction('Anda harus memilih seorang Leader Tim.', 'error');
       return;
     }
 
@@ -99,8 +121,13 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
         selectedUids[4],
       ];
 
-      await onCreateTeam(teamName, teamLeaderUid, memberUidsTuple);
-      onAction('Tim E-Sports berhasil dibuat!', 'success');
+      await onCreateTeam(teamName, selectedLeaderUid, memberUidsTuple);
+
+      // [EDIT] Pesan sukses baru sesuai permintaan
+      onAction(
+        'Tim E-Sports berhasil dibuat! Leader tim akan dipromosikan. Harap promosikan juga leader tim di dalam game.',
+        'success'
+      );
       onClose(); // Tutup modal setelah sukses
     } catch (error) {
       console.error('Error creating team:', error);
@@ -239,6 +266,35 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
                 )}
               </div>
             </div>
+
+            {/* [BARU] Pemilih Leader Tim */}
+            <div>
+              <label
+                htmlFor="teamLeader"
+                className="block text-sm font-medium text-gray-300 font-sans mb-1"
+              >
+                <CrownIcon className="h-4 w-4 mr-1.5 inline-block" />
+                Pilih Leader Tim
+              </label>
+              <select
+                id="teamLeader"
+                value={selectedLeaderUid}
+                onChange={(e) => setSelectedLeaderUid(e.target.value)}
+                className="input-base"
+                disabled={isSubmitting || selectedUids.length !== 5}
+              >
+                <option value="" disabled>
+                  {selectedUids.length !== 5
+                    ? 'Pilih 5 anggota dulu'
+                    : 'Pilih seorang leader...'}
+                </option>
+                {selectedMembers.map((member) => (
+                  <option key={member.uid} value={member.uid}>
+                    {member.displayName} (TH{member.thLevel})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Footer Modal */}
@@ -257,7 +313,8 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
               disabled={
                 isSubmitting ||
                 teamName.trim() === '' ||
-                selectedUids.length !== 5
+                selectedUids.length !== 5 ||
+                selectedLeaderUid === '' // <-- [BARU] Validasi tombol
               }
             >
               {isSubmitting ? (

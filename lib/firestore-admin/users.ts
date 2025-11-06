@@ -4,7 +4,13 @@
 import { adminFirestore } from '../firebase-admin';
 import { COLLECTIONS } from '../firestore-collections';
 // [PERBAIKAN] Impor FirestoreDocument dari global types, bukan ./utils
-import { UserProfile, FirestoreDocument, ClanRole, JoinRequest } from '../types';
+import { UserProfile, FirestoreDocument, JoinRequest } from '../types';
+// [EDIT] Impor tipe string literal DAN Enum
+import {
+  ClanRole, // Enum (Mungkin masih dipakai di tempat lain)
+  ManagerRole,
+  StandardMemberRole,
+} from '../enums';
 // [PERBAIKAN] Hapus FirestoreDocument dari impor ./utils
 import { docToDataAdmin, cleanDataForAdminSDK } from './utils';
 
@@ -54,7 +60,8 @@ export const updateMemberRole = async (
   uid: string,
   clanId: string | null,
   clanName: string | null,
-  newRole: UserProfile['role'] // Peran Clashub ('Leader', 'Member', 'Free Agent')
+  // [PERBAIKAN ERROR] Tipe yang benar adalah string literal, bukan Enum ClanRole
+  newRole: ManagerRole | StandardMemberRole // Peran Clashub ('Leader', 'Member', 'Free Agent')
 ): Promise<void> => {
   try {
     const userRef = adminFirestore.collection(COLLECTIONS.USERS).doc(uid);
@@ -86,5 +93,29 @@ export const updateMemberRole = async (
       error
     );
     throw new Error('Gagal memperbarui peran anggota (Admin SDK).');
+  }
+};
+
+/**
+ * [BARU] Memperbarui HANYA role Clashub pengguna (Admin).
+ * Misal: Member -> Co-Leader
+ */
+export const updateUserClashubRole = async (
+  uid: string,
+  // [PERBAIKAN ERROR] Tipe yang benar adalah string literal
+  newRole: ManagerRole | StandardMemberRole // <-- Menggunakan Tipe String Literal
+): Promise<void> => {
+  try {
+    const userRef = adminFirestore.collection(COLLECTIONS.USERS).doc(uid);
+    await userRef.update({
+      role: newRole,
+    });
+  } catch (error) {
+    console.error(
+      `Firestore Error [updateUserClashubRole - Admin(${uid}, ${newRole})]:`,
+      error
+    );
+    // Kita lempar error agar bisa ditangkap oleh API route
+    throw new Error('Gagal memperbarui role Clashub pengguna (Admin SDK).');
   }
 };

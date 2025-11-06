@@ -2,6 +2,8 @@ import { NextResponse, NextRequest } from 'next/server';
 import { adminAuth, adminFirestore } from '@/lib/firebase-admin';
 import { COLLECTIONS } from '@/lib/firestore-collections';
 import { verifyUserClanRole } from '@/lib/firestore-admin/management';
+// [EDIT] Impor helper baru dari users.ts
+import { updateUserClashubRole } from '@/lib/firestore-admin/users';
 import { EsportsTeam } from '@/lib/clashub.types'; // <-- ClanRole dihapus dari sini
 import { ClanRole } from '@/lib/enums'; // <-- [PERBAIKAN] Impor ClanRole dari lib/enums.ts
 import { FieldValue } from 'firebase-admin/firestore'; // Diperlukan untuk timestamp
@@ -121,10 +123,37 @@ export async function POST(
 
     const docRef = await teamsCollectionRef.add(newTeamData);
 
-    return NextResponse.json(
-      { message: 'Tim E-Sports berhasil dibuat!', teamId: docRef.id },
-      { status: 201 } // 201 Created
-    );
+    // [BARU] TAHAP 6: Promosikan Leader Tim ke Co-Leader (sesuai permintaan)
+    try {
+      // Kita gunakan 'Co-Leader' langsung sebagai string,
+      // karena helper kita (updateUserClashubRole) mengharapkan string literal
+      await updateUserClashubRole(teamLeaderUid, 'Co-Leader');
+
+      // Jika KEDUANYA sukses (Buat Tim & Promosi Role)
+      return NextResponse.json(
+        {
+          message:
+            'Tim E-Sports berhasil dibuat! Leader tim telah dipromosikan ke Co-Leader.',
+          teamId: docRef.id,
+        },
+        { status: 201 } // 201 Created
+      );
+    } catch (roleError) {
+      // Jika Buat Tim SUKSES, tapi Promosi GAGAL
+      console.error(
+        `[POST /esports] Gagal mempromosikan role untuk UID: ${teamLeaderUid}`,
+        roleError
+      );
+      // Kembalikan 201 (karena tim TETAP dibuat), tapi dengan pesan peringatan
+      return NextResponse.json(
+        {
+          message:
+            'Tim berhasil dibuat, TAPI gagal mempromosikan leader tim. Harap update role secara manual.',
+          teamId: docRef.id,
+        },
+        { status: 201 }
+      );
+    }
   } catch (error) {
     console.error('Error (POST /esports):', error);
     if (error instanceof SyntaxError) {
