@@ -36,6 +36,7 @@ import {
   CalendarCheck2Icon,
   CoinsIcon,
   MenuIcon,
+  LogOutIcon, // <-- [BARU] Ditambahkan untuk tombol Leave
 } from '@/app/components/icons';
 // Import Komponen UI
 import Notification, {
@@ -127,6 +128,11 @@ const ManageClanClient = ({
     useState<NotificationProps | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
+  // --- [BARU: TAHAP 2.3] State untuk Modal Leave ---
+  const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false); // Loading state untuk API leave
+  // --- [AKHIR BARU] ---
+
   // Cek Peran Pengguna
   const isManager = profile?.role === 'Leader' || profile?.role === 'Co-Leader';
 
@@ -142,6 +148,44 @@ const ManageClanClient = ({
 
   // HAPUS: Fungsi handleSyncManual.
   // Logika sinkronisasi akan pindah ke 'SummaryTabContent'
+
+  // --- [BARU: TAHAP 2.3] Handler untuk Keluar Klan ---
+  const handleConfirmLeave = async () => {
+    if (!clan || !profile || profile.role === 'Leader') {
+      showNotification(
+        'Aksi tidak diizinkan. Leader harus transfer kepemilikan.',
+        'error'
+      );
+      return;
+    }
+
+    setIsLeaving(true);
+    showNotification('Memproses keluar klan...', 'info');
+
+    try {
+      const response = await fetch(`/api/clan/manage/leave`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // Body API-nya hanya butuh clanId
+        body: JSON.stringify({ clanId: clan.id }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || 'Gagal keluar klan.');
+      }
+
+      showNotification(result.message, 'success');
+      setIsLeaveModalOpen(false);
+      // Redirect ke profil karena user bukan lagi anggota klan ini
+      router.push('/profile');
+    } catch (err) {
+      showNotification((err as Error).message, 'error');
+    } finally {
+      setIsLeaving(false);
+    }
+  };
+  // --- [AKHIR BARU] ---
 
   // --- TAMPILAN ERROR / AKSES DITOLAK ---
   if (serverError) {
@@ -338,10 +382,10 @@ const ManageClanClient = ({
       <Notification notification={notification ?? undefined} />
 
       {/* ======================================================
-        PERUBAHAN 1 (PRESISI): 
-        Menghapus 'max-w-7xl mx-auto' dari div ini.
-        ======================================================
-      */}
+        PERUBAHAN 1 (PRESISI): 
+        Menghapus 'max-w-7xl mx-auto' dari div ini.
+        ======================================================
+      */}
       <div className="space-y-8">
         {/* Header Klan (Tetap di Atas) */}
         <ClanManagementHeader
@@ -368,18 +412,18 @@ const ManageClanClient = ({
         </div>
 
         {/* ======================================================
-          PERUBAHAN 2 (JARAK): 
-          Mengubah 'gap-8' menjadi 'gap-6'.
-          ======================================================
-        */}
+          PERUBAHAN 2 (JARAK): 
+          Mengubah 'gap-8' menjadi 'gap-6'.
+          ======================================================
+        */}
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Sidebar Navigasi - Gaya disesuaikan */}
           <nav
             /* ======================================================
-              PERUBAHAN 3 (LEBAR): 
-              Mengubah 'lg:w-64' menjadi 'lg:w-56'.
-              ======================================================
-            */
+              PERUBAHAN 3 (LEBAR): 
+              Mengubah 'lg:w-64' menjadi 'lg:w-56'.
+              ======================================================
+            */
             className={`lg:w-56 flex-shrink-0 ${
               isSidebarOpen ? 'block' : 'hidden'
             } lg:block transition-all duration-300 ease-in-out`}
@@ -394,6 +438,24 @@ const ManageClanClient = ({
                   label={tab.label}
                 />
               ))}
+
+              {/* --- [BARU: TAHAP 2.3] Tombol Keluar Klan --- */}
+              {/* Tampilkan jika user BUKAN Leader */}
+              {profile.role !== 'Leader' && (
+                <>
+                  <div className="pt-2 my-2 border-t border-coc-gold-dark/30"></div>
+                  <Button
+                    variant="danger" // Tombol merah (asumsi ada di Button.tsx)
+                    size="sm"
+                    onClick={() => setIsLeaveModalOpen(true)} // Buka modal
+                    className="w-full flex items-center justify-start px-4 text-sm font-medium"
+                  >
+                    <LogOutIcon className="h-5 w-5 mr-3 flex-shrink-0" />
+                    <span>Keluar Klan</span>
+                  </Button>
+                </>
+              )}
+              {/* --- [AKHIR BARU] --- */}
             </div>
           </nav>
 
@@ -403,9 +465,85 @@ const ManageClanClient = ({
           </section>
         </div>
       </div>
+
+      {/* --- [BARU: TAHAP 2.3] JSX untuk Leave Confirmation Modal --- */}
+      {isLeaveModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="relative w-full max-w-md rounded-xl card-stone shadow-xl border-2 border-coc-red/50">
+            {/* Tombol Close Modal */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute top-2 right-2 text-gray-400 hover:text-white"
+              onClick={() => setIsLeaveModalOpen(false)}
+              disabled={isLeaving}
+            >
+              <XIcon className="h-5 w-5" />
+            </Button>
+
+            <div className="flex flex-col items-center p-6 pt-10">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-coc-red/20 border-2 border-coc-red">
+                <AlertTriangleIcon
+                  className="h-10 w-10 text-coc-red"
+                  aria-hidden="true"
+                />
+              </div>
+              <div className="mt-4 text-center">
+                <h3 className="text-2xl font-clash text-white">Keluar Klan</h3>
+                <div className="mt-2">
+                  <p className="text-sm text-gray-300">
+                    Anda yakin ingin keluar dari{' '}
+                    <strong className="font-bold text-white">
+                      {clan.name}
+                    </strong>{' '}
+                    di Clashub?
+                  </p>
+                  <p className="mt-3 text-base font-bold text-coc-yellow/80">
+                    PENTING:
+                  </p>
+                  <p className="text-sm text-gray-300 bg-coc-stone-dark/30 p-3 rounded-md">
+                    Ini HANYA mengeluarkan Anda dari website Clashub. Anda harus
+                    keluar{' '}
+                    <strong className="text-white">
+                      MANUAL DARI DALAM GAME CoC
+                    </strong>{' '}
+                    juga.
+                  </p>
+                </div>
+              </div>
+            </div>
+            {/* Tombol Aksi Modal */}
+            <div className="flex justify-between gap-3 bg-coc-stone-dark/40 px-6 py-4 rounded-b-xl">
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                onClick={() => setIsLeaveModalOpen(false)}
+                disabled={isLeaving}
+              >
+                Batal
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                className="w-full"
+                onClick={handleConfirmLeave}
+                disabled={isLeaving}
+              >
+                {isLeaving ? (
+                  <RefreshCwIcon className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <LogOutIcon className="h-4 w-4 mr-2" />
+                )}
+                {isLeaving ? 'Memproses...' : 'Ya, Keluar Klan'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* --- [AKHIR BARU] --- */}
     </main>
   );
 };
 
 export default ManageClanClient;
-

@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import {
   ManagedClan,
@@ -5,48 +7,36 @@ import {
   UserProfile,
   ClanRole,
   ManagerRole,
-  StandardMemberRole, // Import tipe baru
+  StandardMemberRole,
 } from '@/lib/types';
 import { Button } from '@/app/components/ui/Button';
 import {
-  ShieldIcon,
-  TrashIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
   AlertTriangleIcon,
   RefreshCwIcon,
-  UsersIcon, // <-- [BARU] Ditambahkan untuk tombol sync
+  UsersIcon,
+  XIcon, // <-- [BARU] Ditambahkan untuk modal
 } from '@/app/components/icons';
-import { getThImage, formatNumber } from '@/lib/th-utils';
-import Image from 'next/image';
 import { NotificationProps } from '@/app/components/ui/Notification';
-// --- [REFAKTOR] Impor SWR Hooks ---
 import {
-  useManagedClanCache, // <-- [PERBAIKAN 1] Ganti nama hook
+  useManagedClanCache,
   useManagedClanMembers,
 } from '@/lib/hooks/useManagedClan';
 
-// Definisikan tipe gabungan untuk Roster
-type RosterMember = ClanApiCache['members'][number] & {
-  uid?: string;
-  clashubRole: ManagerRole | StandardMemberRole; // Gunakan tipe yang lebih spesifik
-  isVerified: boolean;
-};
+// --- [REFACTOR] Impor komponen & tipe baru ---
+import { MemberTable } from './MemberTable';
+import { RosterMember } from './MemberTableRow'; // Tipe RosterMember sekarang diimpor
 
-// --- [REFAKTOR] Props Disederhanakan ---
 interface MemberTabContentProps {
   clan: ManagedClan;
-  // HAPUS: cache: ClanApiCache | null;
-  // HAPUS: members: UserProfile[];
-  userProfile: UserProfile; // Profil Leader/Co-Leader yang sedang login
+  userProfile: UserProfile;
   onAction: (message: string, type: NotificationProps['type']) => void;
-  // HAPUS: onRefresh: () => void;
-  isManager: boolean; // Prop isManager untuk mengontrol fitur manajemen
+  isManager: boolean;
 }
 
 /**
  * Komponen konten utama untuk Tab Anggota (Member Roster).
- * Menampilkan data partisipasi agregat, dan kontrol manajemen peran/kick.
+ * SEKARANG FOKUS PADA LOGIKA (DATA FETCHING & HANDLERS).
+ * Tampilan tabel didelegasikan ke <MemberTable />.
  */
 const MemberTabContent: React.FC<MemberTabContentProps> = ({
   clan,
@@ -54,48 +44,46 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
   onAction,
   isManager,
 }) => {
-  // --- [REFAKTOR] Panggil SWR Hooks ---
-  // [PERBAIKAN 1] Ganti 'useManagedClanBasic' ke 'useManagedClanCache'
-  // dan rename 'mutateCache' ke 'mutateBasic'
+  // --- SWR Hooks (Tidak berubah) ---
   const {
     clanCache,
     isLoading: isLoadingBasic,
     isError: isErrorBasic,
-    mutateCache: mutateBasic, // <-- [FIX] Ambil 'mutateCache', rename ke 'mutateBasic'
-  } = useManagedClanCache(clan.id); // <-- [FIX] Ganti nama hook
+    mutateCache: mutateBasic,
+  } = useManagedClanCache(clan.id);
 
-  // Hook ini sudah benar (mengambil 'mutateMembers' dan menggunakannya)
   const {
-    membersData, // Ini adalah UserProfile[]
+    membersData,
     isLoading: isLoadingMembers,
     isError: isErrorMembers,
     mutateMembers,
   } = useManagedClanMembers(clan.id);
 
-  // --- [REFAKTOR] Ambil data dari SWR hooks ---
-  // (Ganti 'cache' dan 'members' dari props)
+  // --- Ambil data SWR (Tidak berubah) ---
   const isLeader = userProfile.role === 'Leader';
   const rosterMembers = clanCache?.members || [];
-  const members = membersData || []; // <-- Ini adalah UserProfile[] dari API baru
+  const members = membersData || [];
 
-  // State untuk mengontrol dropdown role yang terbuka
-  const [openRoleDropdown, setOpenRoleDropdown] = useState<string | null>(null);
-  // --- [BARU: TAHAP 1.2] State untuk loading tombol sync anggota ---
+  // --- State (Lokal untuk Konten Tab) ---
   const [isSyncingMembers, setIsSyncingMembers] = useState(false);
+
+  // --- [BARU: TAHAP 2.3] State untuk Modal Kick ---
+  const [isKickModalOpen, setIsKickModalOpen] = useState(false);
+  const [memberToKick, setMemberToKick] = useState<RosterMember | null>(null);
+  const [isKicking, setIsKicking] = useState(false); // Loading state untuk API kick
 
   /**
    * @function handleSyncMembers
    * (TAHAP 1.2) Memanggil API untuk rekonsiliasi anggota.
+   * (Tidak berubah)
    */
   const handleSyncMembers = async () => {
     if (!isManager) {
       onAction('Akses Ditolak.', 'error');
       return;
     }
-
     setIsSyncingMembers(true);
     onAction('Mensinkronkan anggota dengan server CoC...', 'info');
-
     try {
       const response = await fetch(
         `/api/clan/manage/${clan.id}/sync/members`,
@@ -103,19 +91,15 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
           method: 'POST',
         }
       );
-
       const result = await response.json();
       if (!response.ok) {
         throw new Error(result.error || 'Gagal sinkronisasi anggota.');
       }
-
       const summary = result.summary;
       onAction(
         `Sinkronisasi sukses: ${summary.joiners} bergabung, ${summary.leavers} keluar, ${summary.roleChanges} berubah role.`,
         'success'
       );
-
-      // Refresh data SWR
       mutateBasic();
       mutateMembers();
     } catch (err) {
@@ -126,33 +110,12 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
   };
 
   /**
-   * @function getParticipationStatusClass
-   * (Tidak berubah)
-   */
-  const getParticipationStatusClass = (
-    status: ClanApiCache['members'][number]['participationStatus']
-  ) => {
-    switch (status) {
-      case 'Promosi':
-        return 'text-coc-gold bg-coc-gold/20 font-bold border-coc-gold';
-      case 'Demosi':
-        return 'text-coc-red bg-coc-red/20 font-bold border-coc-red';
-      case 'Leader/Co-Leader':
-        return 'text-coc-blue bg-coc-blue/20 border-coc-blue';
-      case 'Aman':
-      default:
-        return 'text-coc-green bg-coc-green/20 border-coc-green';
-    }
-  };
-
-  /**
    * @function mapClashubRoleToCocRole
    * (Tidak berubah)
    */
   const mapClashubRoleToCocRole = (
     clashubRole: UserProfile['role']
   ): ClanRole => {
-    // Menggunakan tipe ManagerRole/StandardMemberRole
     switch (clashubRole) {
       case 'Leader':
         return ClanRole.LEADER;
@@ -170,6 +133,7 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
   /**
    * @function handleRoleChange
    * Mengubah peran anggota (Memanggil API PUT).
+   * (Tidak berubah)
    */
   const handleRoleChange = async (
     memberUid: string,
@@ -182,24 +146,18 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
       );
       return;
     }
-
-    // REFAKTOR: Gunakan 'members' dari state SWR
     const targetProfile = members.find((m) => m.uid === memberUid);
-
     if (!targetProfile) {
       onAction('Gagal: Profil anggota tidak ditemukan.', 'error');
       return;
     }
-
     const oldRoleCoC = mapClashubRoleToCocRole(targetProfile.role);
     const newRoleCoC = mapClashubRoleToCocRole(newClashubRole);
 
-    setOpenRoleDropdown(null); // Tutup dropdown
     onAction(
       `Mengubah peran ${targetProfile.displayName} ke ${newClashubRole}...`,
       'info'
     );
-
     try {
       const response = await fetch(
         `/api/clan/manage/member/${memberUid}/role`,
@@ -209,46 +167,59 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
           body: JSON.stringify({
             newClashubRole,
             clanId: clan.id,
-            oldRoleCoC, // Untuk logging di backend
-            newRoleCoC, // Untuk logging di backend
+            oldRoleCoC,
+            newRoleCoC,
           }),
         }
       );
-
       const result = await response.json();
       if (!response.ok)
         throw new Error(result.message || 'Gagal mengubah peran.');
 
       onAction(result.message, 'success');
-      // REFAKTOR: Ganti onRefresh() dengan mutate SWR
-      mutateBasic(); // Refresh data CoC (role in-game mungkin berubah)
-      mutateMembers(); // Refresh data UserProfile (clashubRole berubah)
+      mutateBasic();
+      mutateMembers();
     } catch (err) {
       onAction((err as Error).message, 'error');
     }
   };
 
   /**
-   * @function handleKick
-   * Mengeluarkan anggota dari klan Clashub (Memanggil API DELETE).
+   * @function handleOpenKickModal
+   * [MODIFIKASI: TAHAP 2.3] Fungsi ini dipanggil oleh tombol Kick di MemberTableRow.
+   * Tugasnya HANYA membuka modal konfirmasi.
    */
-  const handleKick = async (memberUid: string) => {
+  const handleOpenKickModal = (memberUid: string) => {
     if (!isManager) {
-      onAction(
-        'Akses Ditolak: Anda tidak memiliki izin untuk mengeluarkan anggota.',
-        'error'
-      );
+      onAction('Akses Ditolak.', 'error');
+      return;
+    }
+    // Cari data member lengkap dari roster
+    const targetMember = combinedRoster.find((m) => m.uid === memberUid);
+    if (targetMember) {
+      setMemberToKick(targetMember);
+      setIsKickModalOpen(true);
+    } else {
+      onAction('Gagal menemukan data anggota untuk di-kick.', 'error');
+    }
+  };
+
+  /**
+   * @function handleConfirmKick
+   * [BARU: TAHAP 2.3] Fungsi ini dipanggil oleh tombol "Ya, Keluarkan" di modal.
+   * Tugasnya adalah memanggil API DELETE.
+   */
+  const handleConfirmKick = async () => {
+    if (!memberToKick || !memberToKick.uid) {
+      onAction('Error: Anggota target tidak valid.', 'error');
       return;
     }
 
-    // REFAKTOR: Gunakan 'members' dari state SWR
-    const targetProfile = members.find((m) => m.uid === memberUid);
-    if (!targetProfile) return;
+    const memberUid = memberToKick.uid;
+    const memberName = memberToKick.name;
 
-    onAction(
-      `[KONFIRMASI MANUAL] Meminta server mengeluarkan ${targetProfile.displayName}...`,
-      'info'
-    );
+    setIsKicking(true); // Mulai loading
+    onAction(`Memproses kick untuk ${memberName}...`, 'info');
 
     try {
       const response = await fetch(`/api/clan/manage/member/${memberUid}`, {
@@ -261,21 +232,24 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
       if (!response.ok)
         throw new Error(result.message || 'Gagal mengeluarkan anggota.');
 
-      onAction(`Berhasil mengeluarkan ${targetProfile.displayName}.`, 'success');
-      // REFAKTOR: Ganti onRefresh() dengan mutate SWR
+      onAction(result.message, 'success'); // Pesan sukses dari API
       mutateBasic(); // Refresh data CoC (anggota hilang)
       mutateMembers(); // Refresh data UserProfile (anggota hilang)
     } catch (err) {
       onAction((err as Error).message, 'error');
+    } finally {
+      setIsKicking(false); // Selesai loading
+      setIsKickModalOpen(false); // Tutup modal
+      setMemberToKick(null); // Bersihkan state
     }
   };
 
   // List of roles (Tidak berubah)
   const availableClashubRoles: UserProfile['role'][] = isLeader
-    ? ['Co-Leader', 'Elder', 'Member'] // Leader bisa set Co-Leader, Elder, Member
-    : ['Elder', 'Member']; // Co-Leader hanya bisa set Elder dan Member
+    ? ['Co-Leader', 'Elder', 'Member']
+    : ['Elder', 'Member'];
 
-  // --- [REFAKTOR] Loading dan Error State ---
+  // --- Loading dan Error State (Tidak berubah) ---
   const isLoading = isLoadingBasic || isLoadingMembers;
   const isError = isErrorBasic || isErrorMembers;
 
@@ -298,7 +272,6 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
           Gagal Memuat Data Anggota
         </p>
         <p className="text-sm text-gray-400 font-sans mt-1">
-          {/* PERBAIKAN: Tampilkan pesan error yang benar */}
           {isErrorBasic?.message || isErrorMembers?.message || 'Terjadi kesalahan'}
         </p>
       </div>
@@ -320,10 +293,9 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
     );
   }
 
-  // --- [REFAKTOR] Logika Penggabungan Data ---
-  // (Logika ini tidak berubah, hanya sumber datanya yang berubah ke state SWR)
+  // --- Logika Penggabungan Data (Tidak berubah) ---
   const combinedRoster: RosterMember[] = rosterMembers
-    .map((cacheMember: ClanApiCache['members'][number]) => { // <-- [PERBAIKAN 2] Tipe eksplisit
+    .map((cacheMember: ClanApiCache['members'][number]) => {
       const profileData = members.find((p) => p.playerTag === cacheMember.tag);
 
       return {
@@ -342,24 +314,22 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
         donationsReceived: cacheMember.donationsReceived,
       } as RosterMember;
     })
-    .sort((a: RosterMember, b: RosterMember) => { // <-- [PERBAIKAN 3] Tipe eksplisit
-      // Urutkan berdasarkan Town Hall Level (descending) lalu Clan Rank (ascending)
+    .sort((a: RosterMember, b: RosterMember) => {
       if (b.townHallLevel !== a.townHallLevel) {
         return b.townHallLevel - a.townHallLevel;
       }
       return a.clanRank - b.clanRank;
     });
 
-  // --- [RENDER TABEL] (Tidak ada perubahan signifikan di JSX) ---
+  // --- [RENDER] ---
   return (
-    // [EDIT] Pindahkan min-h ke div terluar
     <div className="min-h-[400px]">
-      {/* --- [BARU: TAHAP 1.2] Tombol Sinkronisasi Anggota --- */}
+      {/* --- Tombol Sinkronisasi Anggota (Tidak berubah) --- */}
       {isManager && (
         <div className="mb-4 flex justify-end">
           <Button
             onClick={handleSyncMembers}
-            disabled={isSyncingMembers || isLoading} // Disable jika sedang sync ATAU data SWR sedang loading
+            disabled={isSyncingMembers || isLoading}
             variant="secondary"
             className="bg-coc-blue/20 text-coc-blue-light hover:bg-coc-blue/30 border border-coc-blue/30"
           >
@@ -374,248 +344,94 @@ const MemberTabContent: React.FC<MemberTabContentProps> = ({
           </Button>
         </div>
       )}
+
+      {/* --- [REFACTOR] Gunakan Komponen MemberTable --- */}
+      <MemberTable
+        combinedRoster={combinedRoster}
+        userProfile={userProfile}
+        isManager={isManager}
+        isLeader={isLeader}
+        onRoleChange={handleRoleChange}
+        onKick={handleOpenKickModal} // <-- Kirim handler pembuka modal
+        availableClashubRoles={availableClashubRoles}
+      />
+
+      {/* --- [BARU: TAHAP 2.3] JSX untuk Kick Confirmation Modal --- */}
+      {isKickModalOpen && memberToKick && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="relative w-full max-w-md rounded-xl card-stone shadow-xl border-2 border-coc-red/50">
+            {/* Tombol Close Modal */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute top-2 right-2 text-gray-400 hover:text-white"
+              onClick={() => setIsKickModalOpen(false)}
+              disabled={isKicking}
+            >
+              <XIcon className="h-5 w-5" />
+            </Button>
+
+            <div className="flex flex-col items-center p-6 pt-10">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-coc-red/20 border-2 border-coc-red">
+                <AlertTriangleIcon
+                  className="h-10 w-10 text-coc-red"
+                  aria-hidden="true"
+                />
+              </div>
+              <div className="mt-4 text-center">
+                <h3 className="text-2xl font-clash text-white">
+                  Keluarkan Anggota
+                </h3>
+                <div className="mt-2">
+                  <p className="text-sm text-gray-300">
+                    Anda akan mengeluarkan{' '}
+                    <strong className="font-bold text-white">
+                      {memberToKick.name}
+                    </strong>{' '}
+                    dari klan Clashub.
+                  </p>
+                  <p className="mt-3 text-base font-bold text-coc-yellow/80">
+                    PENTING:
+                  </p>
+                  <p className="text-sm text-gray-300 bg-coc-stone-dark/30 p-3 rounded-md">
+                    Ini HANYA menghapus mereka dari website Clashub. Anda
+                    harus mengeluarkan mereka{' '}
+                    <strong className="text-white">MANUAL DARI DALAM GAME CoC</strong>{' '}
+                    juga.
+                  </p>
+                </div>
+              </div>
+            </div>
+            {/* Tombol Aksi Modal */}
+            <div className="flex justify-between gap-3 bg-coc-stone-dark/40 px-6 py-4 rounded-b-xl">
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                onClick={() => setIsKickModalOpen(false)}
+                disabled={isKicking}
+              >
+                Batal
+              </Button>
+              <Button
+                type="button"
+                variant="danger" // Asumsi 'danger' ada di Button.tsx (merah)
+                className="w-full"
+                onClick={handleConfirmKick}
+                disabled={isKicking}
+              >
+                {isKicking ? (
+                  <RefreshCwIcon className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <TrashIcon className="h-4 w-4 mr-2" />
+                )}
+                {isKicking ? 'Memproses...' : 'Ya, Keluarkan'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* --- [AKHIR BARU] --- */}
-
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-coc-gold-dark/20 text-xs">
-          <thead className="bg-coc-stone/70 sticky top-0">
-            <tr>
-              <th className="px-3 py-2 text-left font-clash text-coc-gold uppercase tracking-wider">
-                Pemain (TH / Role CoC)
-              </th>
-              <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">
-                XP / D+ / D-
-              </th>
-              <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">
-                Trophies
-              </th>
-              <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">
-                Partisipasi CW
-              </th>
-              <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">
-                Partisipasi CWL
-              </th>
-              <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">
-                Status Partisipasi
-              </th>
-              {/* Kolom Aksi hanya terlihat oleh Manager */}
-              {isManager && (
-                <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider w-[150px]">
-                  Role Clashub / Aksi
-                </th>
-              )}
-              {!isManager && (
-                <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider w-[120px]">
-                  Role Clashub
-                </th>
-              )}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-coc-gold-dark/10">
-            {combinedRoster.map((member) => {
-              // --- LOGIKA OTORISASI BARU ---
-              const canModify =
-                member.clashubRole !== 'Leader' && member.uid !== userProfile.uid;
-              // Co-Leader tidak bisa mengubah Co-Leader lain
-              const isCoLeaderModifyingCoLeader =
-                userProfile.role === 'Co-Leader' &&
-                member.clashubRole === 'Co-Leader';
-
-              const isActionDisabled =
-                !isManager ||
-                !canModify ||
-                isCoLeaderModifyingCoLeader ||
-                !member.uid;
-
-              const thImageUrl = getThImage(member.townHallLevel);
-
-              return (
-                <tr
-                  key={member.tag}
-                  className="hover:bg-coc-stone/20 transition-colors"
-                >
-                  {/* Kolom 1: Pemain */}
-                  <td className="px-3 py-3 whitespace-nowrap text-sm font-semibold text-white">
-                    <div className="flex items-center space-x-3">
-                      <div className="relative w-8 h-8 flex-shrink-0">
-                        <Image
-                          src={thImageUrl}
-                          alt={`TH ${member.townHallLevel}`}
-                          width={32}
-                          height={32}
-                          className="rounded-full"
-                        />
-                      </div>
-                      <div>
-                        <p className="font-clash text-base truncate max-w-[150px]">
-                          {member.name}
-                        </p>
-                        <p className="text-gray-500 block text-xs font-mono">
-                          {member.tag}
-                        </p>
-                        <p className="text-gray-400 block text-xs font-sans capitalize">
-                          {member.role} CoC
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-
-                  {/* Kolom 2: XP / Donasi */}
-                  <td className="px-3 py-3 whitespace-nowrap text-center text-gray-300">
-                    <p>
-                      XP:{' '}
-                      <span className="font-bold text-white">
-                        {formatNumber(member.expLevel)}
-                      </span>
-                    </p>
-                    <p className="text-xs">
-                      D+: {formatNumber(member.donations)} | D-:{' '}
-                      {formatNumber(member.donationsReceived)}
-                    </p>
-                  </td>
-
-                  {/* Kolom 3: Trofi */}
-                  <td className="px-3 py-3 whitespace-nowrap text-center text-sm text-gray-300 font-semibold">
-                    {formatNumber(member.trophies || 0)} 🏆
-                  </td>
-
-                  {/* Kolom 4: Partisipasi CW */}
-                  <td className="px-3 py-3 text-center text-gray-300 text-xs font-semibold">
-                    <span className="text-coc-green">
-                      S-{member.warSuccessCount}
-                    </span>{' '}
-                    / <span className="text-coc-red">F-{member.warFailCount}</span>
-                  </td>
-
-                  {/* Kolom 5: Partisipasi CWL */}
-                  <td className="px-3 py-3 text-center text-gray-300 text-xs font-semibold">
-                    <span className="text-coc-green">
-                      S-{member.cwlSuccessCount}
-                    </span>{' '}
-                    / <span className="text-coc-red">F-{member.cwlFailCount}</span>
-                  </td>
-
-                  {/* Kolom 6: Status Partisipasi */}
-                  <td className="px-3 py-3 whitespace-nowrap text-center">
-                    <div
-                      className={`inline-flex flex-col items-center justify-center rounded-lg px-2.5 py-1 text-xs border ${getParticipationStatusClass(
-                        member.participationStatus
-                      )}`}
-                    >
-                      <span className="font-bold">
-                        {member.participationStatus}
-                      </span>
-                      <span
-                        className="text-[10px] opacity-80 mt-0.5 max-w-[100px] truncate"
-                        title={member.statusKeterangan || 'N/A'}
-                      >
-                        {member.statusKeterangan}
-                      </span>
-                    </div>
-                  </td>
-
-                  {/* Kolom 7: Role Clashub / Aksi (Gaya Kolom Disempurnakan) */}
-                  <td className="px-3 py-3 whitespace-nowrap text-center space-y-1 w-[180px]">
-                    <span
-                      className={
-                        member.isVerified
-                          ? 'text-coc-green block mb-1 font-mono'
-                          : 'text-coc-red block mb-1 font-mono'
-                      }
-                      title={
-                        member.isVerified
-                          ? 'Akun Clashub Terverifikasi'
-                          : 'Akun Clashub Belum Terverifikasi'
-                      }
-                    >
-                      {member.isVerified ? 'VERIFIED' : 'UNVERIFIED'}
-                    </span>
-
-                    {member.uid ? (
-                      <div className="flex flex-col space-y-1 items-center">
-                        {isManager ? ( // TAMPILAN MANAGER (Aksi penuh)
-                          <>
-                            {/* Dropdown Role */}
-                            <div className="relative inline-block text-left w-full">
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="secondary"
-                                onClick={() =>
-                                  setOpenRoleDropdown(
-                                    openRoleDropdown === member.uid
-                                      ? null
-                                      : member.uid!
-                                  )
-                                }
-                                disabled={isActionDisabled}
-                                className="w-full justify-center text-sm font-semibold"
-                              >
-                                {member.clashubRole}
-                                {openRoleDropdown === member.uid ? (
-                                  <ChevronUpIcon className="h-3 w-3 ml-1" />
-                                ) : (
-                                  <ChevronDownIcon className="h-3 w-3 ml-1" />
-                                )}
-                              </Button>
-
-                              {openRoleDropdown === member.uid && (
-                                <div className="absolute right-0 z-10 w-32 mt-1 origin-top-right rounded-md bg-coc-stone/90 shadow-lg ring-1 ring-coc-gold-dark/50 focus:outline-none">
-                                  <div className="py-1">
-                                    {availableClashubRoles.map((role) => (
-                                      <a
-                                        key={role}
-                                        href="#"
-                                        onClick={(e) => {
-                                          e.preventDefault();
-                                          handleRoleChange(member.uid!, role);
-                                        }}
-                                        className={`block px-4 py-2 text-xs text-white hover:bg-coc-gold-dark/30 ${
-                                          member.clashubRole === role
-                                            ? 'bg-coc-gold-dark/50 font-bold'
-                                            : ''
-                                        }`}
-                                        title={`Ubah role menjadi ${role}`}
-                                      >
-                                        {role}
-                                      </a>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Tombol Kick */}
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="secondary"
-                              onClick={() => member.uid && handleKick(member.uid)}
-                              disabled={isActionDisabled}
-                              className="w-full justify-center bg-coc-red/20 text-coc-red hover:bg-coc-red/30 border border-coc-red/30"
-                            >
-                              <TrashIcon className="h-3 w-3 mr-1" /> Kick
-                            </Button>
-                          </>
-                        ) : (
-                          // TAMPILAN ANGGOTA BIASA (Hanya menampilkan role)
-                          <span className="text-sm font-semibold text-coc-gold-light p-2 bg-coc-stone/30 rounded w-full">
-                            {member.clashubRole}
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-gray-600 italic text-xs">
-                        No Clashub Account
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 };

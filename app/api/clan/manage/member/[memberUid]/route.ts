@@ -8,7 +8,10 @@ import {
   getUserProfileAdmin,
   updateMemberRole,
 } from '@/lib/firestore-admin/users';
-// --- AKHIR PERUBAHAN ---
+// --- [PENAMBAHAN BARU: TAHAP 2.3] ---
+import { getManagedClanDataAdmin } from '@/lib/firestore-admin/clans';
+import { createNotification } from '@/lib/firestore-admin/notifications';
+// --- AKHIR PENAMBAHAN ---
 import { UserProfile } from '@/lib/types';
 
 /**
@@ -55,12 +58,23 @@ export async function DELETE(
       );
     }
 
-    // 3. Dapatkan Profil Target (Member) - Gunakan Admin SDK
-    const memberProfile = await getUserProfileAdmin(memberUid);
+    // 3. Dapatkan Profil Target (Member) dan Data Klan (Gunakan Admin SDK)
+    //    [PERUBAHAN TAHAP 2.3] Ambil data klan untuk nama klan (notifikasi)
+    const [memberProfile, managedClan] = await Promise.all([
+      getUserProfileAdmin(memberUid),
+      getManagedClanDataAdmin(clanId),
+    ]);
 
     if (!memberProfile) {
       return NextResponse.json(
         { message: 'Profil pengguna target tidak ditemukan.' },
+        { status: 404 }
+      );
+    }
+    // [PENAMBAHAN BARU TAHAP 2.3]
+    if (!managedClan) {
+      return NextResponse.json(
+        { message: 'Data klan yang dikelola tidak ditemukan.' },
         { status: 404 }
       );
     }
@@ -113,14 +127,32 @@ export async function DELETE(
       'Free Agent'
     );
 
-    // TODO: Implementasikan notifikasi ke anggota yang dikeluarkan (optional)
     console.log(
       `[Kick Member] User ${memberUid} dikeluarkan dari Clan ${clanId} oleh ${changerUid}.`
     );
 
+    // --- [IMPLEMENTASI TAHAP 2.3] ---
+    // a. Kirim notifikasi ke anggota yang dikeluarkan untuk meminta ulasan
+    const notifMessage = `Anda telah dikeluarkan dari ${managedClan.name}. Silakan berikan ulasan Anda tentang klan.`;
+    // URL ini akan kita buat di TAHAP 2.4
+    const notifUrl = `/reviews/new?type=clan&targetId=${clanId}&targetName=${encodeURIComponent(
+      managedClan.name
+    )}`;
+
+    await createNotification(memberUid, notifMessage, notifUrl, 'review_request');
+
+    // b. TODO (TAHAP 4.2): Catat di ClanHistory
+    // await logClanHistory(
+    //   memberUid,
+    //   clanId,
+    //   'kicked',
+    //   `Dikeluarkan oleh ${changerProfile.displayName}`
+    // );
+    // --- [AKHIR IMPLEMENTASI TAHAP 2.3] ---
+
     return NextResponse.json(
       {
-        message: `${memberProfile.displayName} berhasil dikeluarkan dari klan dan kini berstatus Free Agent.`,
+        message: `${memberProfile.displayName} berhasil dikeluarkan dari klan dan kini berstatus Free Agent. Notifikasi ulasan terkirim.`,
       },
       { status: 200 }
     );
