@@ -1,10 +1,28 @@
 import { redirect } from 'next/navigation';
 import { Metadata } from 'next';
 import { getSessionUser } from '@/lib/server-auth'; // Utilitas Auth Sisi Server
-import { getUserProfile, getPostsByAuthor } from '@/lib/firestore'; // Fungsi ambil data profil
+
+// [EDIT TAHAP 4.2] Mengganti impor ke versi Admin SDK
+import {
+  getUserProfileAdmin,
+  getClanHistoryAdmin,
+  getPlayerReviewsAdmin,
+} from '@/lib/firestore-admin/users';
+import { getPostsByAuthorAdmin } from '@/lib/firestore-admin/posts';
+
 import cocApi from '@/lib/coc-api'; // Objek yang berisi method API CoC
 import ProfileClient from './ProfileClient'; // Client Component (untuk interaktivitas)
-import { UserProfile, ClanRole, Post, CocPlayer } from '@/lib/types'; // Import UserProfile, ClanRole, Post, CocPlayer
+
+// [EDIT TAHAP 4.2] Menambahkan tipe baru
+import {
+  UserProfile,
+  ClanRole,
+  Post,
+  CocPlayer,
+  PlayerReview,
+  FirestoreDocument,
+} from '@/lib/types';
+import { DocumentData } from 'firebase-admin/firestore'; // Diperlukan untuk tipe clanHistory
 
 // Metadata untuk SEO
 export const metadata: Metadata = {
@@ -36,7 +54,10 @@ const mapCocRoleToClanRole = (cocRole?: string): ClanRole => {
 const ProfilePage = async () => {
   let profileData: UserProfile | null = null;
   let serverError: string | null = null;
-  let recentPosts: Post[] = [];
+  // [EDIT TAHAP 4.2] Inisialisasi data baru
+  let recentPosts: FirestoreDocument<Post>[] = [];
+  let clanHistory: FirestoreDocument<DocumentData>[] = [];
+  let playerReviews: FirestoreDocument<PlayerReview>[] = [];
 
   // 1. Dapatkan status pengguna dari Sisi Server
   const sessionUser = await getSessionUser();
@@ -58,7 +79,8 @@ const ProfilePage = async () => {
   try {
     // [PERBAIKAN] Hanya coba ambil data jika sessionUser ADA
     if (sessionUser) {
-      profileData = await getUserProfile(sessionUser.uid);
+      // [EDIT TAHAP 4.2] Menggunakan getUserProfileAdmin
+      profileData = await getUserProfileAdmin(sessionUser.uid);
 
       if (!profileData) {
         // KASUS PROFIL BARU: Profil belum ada di Firestore
@@ -101,7 +123,7 @@ const ProfilePage = async () => {
             // --- PERBAIKAN: Encode playerTag sebelum memanggil API ---
             const encodedPlayerTag = encodeURIComponent(profileData.playerTag);
             console.log(
-              `[ProfilePage] Fetching live CoC data for encoded tag: ${encodedPlayerTag}`
+              `[ProfilePage] Fetching live CoC data for encoded tag: ${encodedPlayerTag}`,
             );
             const livePlayerData: CocPlayer | null =
               await cocApi.getPlayerData(encodedPlayerTag); // Gunakan tag yang sudah di-encode
@@ -126,31 +148,41 @@ const ProfilePage = async () => {
               };
             } else {
               console.warn(
-                `[ProfilePage] Live CoC data not found for tag: ${profileData.playerTag}. Using Firestore data.`
+                `[ProfilePage] Live CoC data not found for tag: ${profileData.playerTag}. Using Firestore data.`,
               );
             }
           } catch (cocErr) {
             console.error(
               `[ProfilePage] Error fetching live CoC data for tag ${profileData.playerTag}:`,
-              cocErr
+              cocErr,
             );
           }
         }
       }
 
-      // Ambil postingan nyata (setelah profileData dipastikan ada dan mungkin sudah digabung)
+      // Ambil postingan, riwayat, dan ulasan (setelah profileData dipastikan ada)
       // [PERBAIKAN] Pindahkan ini ke dalam 'if (sessionUser)'
       if (profileData?.uid) {
+        // [EDIT TAHAP 4.2] Fetch data baru secara paralel
         try {
-          // FIX: Memastikan profileData tidak null sebelum mengakses uid
-          recentPosts = await getPostsByAuthor(profileData.uid, 3);
-        } catch (postErr) {
+          const [postsData, historyData, reviewsData] = await Promise.all([
+            getPostsByAuthorAdmin(profileData.uid, 3), // Menggunakan versi Admin
+            getClanHistoryAdmin(profileData.uid),
+            getPlayerReviewsAdmin(profileData.uid),
+            // Catatan: getClanReviewsAdmin() akan dilewati (sesuai roadmap)
+            // karena tidak ada di file lib/firestore-admin/users.ts Anda.
+          ]);
+
+          recentPosts = postsData;
+          clanHistory = historyData;
+          playerReviews = reviewsData;
+        } catch (dataErr) {
           // Log error jika index belum dibuat, tapi jangan blokir render halaman
           console.error(
-            'Server Error: Failed to load recent posts (Firestore Index might be missing):',
-            postErr
+            'Server Error: Failed to load recent posts, history, or reviews (Firestore Index might be missing):',
+            dataErr,
           );
-          // Biarkan recentPosts kosong jika gagal
+          // Biarkan array kosong jika gagal
         }
       }
     } else {
@@ -167,11 +199,17 @@ const ProfilePage = async () => {
   }
 
   // 4. Meneruskan data ke Client Component
+  // [EDIT TAHAP 4.2] Menambahkan props baru dan memastikan SEMUA data diserialisasi
+  // untuk menghindari error Next.js (Server Component -> Client Component)
   return (
     <ProfileClient
-      initialProfile={profileData}
+      initialProfile={
+        profileData ? JSON.parse(JSON.stringify(profileData)) : null
+      }
       serverError={serverError}
-      recentPosts={recentPosts}
+      recentPosts={JSON.parse(JSON.stringify(recentPosts))}
+      clanHistory={JSON.parse(JSON.stringify(clanHistory))}
+      playerReviews={JSON.parse(JSON.stringify(playerReviews))}
     />
   );
 };

@@ -27,4 +27,10 @@ export const COLLECTIONS = {
 
   // --- [BARU: TAHAP 3.1] ---
   ESPORTS_TEAMS: 'esportsTeams', // Sub-koleksi di bawah 'managedClans'
+
+  // --- [BARU: TAHAP 4.1] ---
+  REGISTRATIONS: 'registrations', // Sub-koleksi di bawah 'tournaments'
+
+  // --- [BARU: TAHAP 4.2] ---
+  CLAN_HISTORY: 'clanHistory', // Sub-koleksi di bawah 'users'
 };

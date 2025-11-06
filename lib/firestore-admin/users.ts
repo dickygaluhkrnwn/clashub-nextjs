@@ -4,7 +4,13 @@
 import { adminFirestore } from '../firebase-admin';
 import { COLLECTIONS } from '../firestore-collections';
 // [PERBAIKAN] Impor FirestoreDocument dari global types, bukan ./utils
-import { UserProfile, FirestoreDocument, JoinRequest } from '../types';
+// [UPDATE 4.2] Tambahkan PlayerReview
+import {
+  UserProfile,
+  FirestoreDocument,
+  JoinRequest,
+  PlayerReview, // <-- TAMBAHAN TAHAP 4.2
+} from '../types';
 // [EDIT] Impor tipe string literal DAN Enum
 import {
   ClanRole, // Enum (Mungkin masih dipakai di tempat lain)
@@ -13,12 +19,14 @@ import {
 } from '../enums';
 // [PERBAIKAN] Hapus FirestoreDocument dari impor ./utils
 import { docToDataAdmin, cleanDataForAdminSDK } from './utils';
+// [UPDATE 4.2] Tambahkan DocumentData
+import { DocumentData } from 'firebase-admin/firestore';
 
 /**
  * Mengambil dokumen UserProfile berdasarkan UID (Admin).
  */
 export const getUserProfileAdmin = async (
-  uid: string
+  uid: string,
 ): Promise<FirestoreDocument<UserProfile> | null> => {
   try {
     const docRef = adminFirestore.collection(COLLECTIONS.USERS).doc(uid);
@@ -34,7 +42,7 @@ export const getUserProfileAdmin = async (
  * Mengambil daftar anggota tim (UserProfile) berdasarkan clanId (Admin).
  */
 export const getTeamMembersAdmin = async (
-  clanId: string
+  clanId: string,
 ): Promise<UserProfile[]> => {
   try {
     const usersRef = adminFirestore.collection(COLLECTIONS.USERS);
@@ -46,7 +54,7 @@ export const getTeamMembersAdmin = async (
   } catch (error) {
     console.error(
       `Firestore Error [getTeamMembersAdmin - Admin(${clanId})]:`,
-      error
+      error,
     );
     return [];
   }
@@ -61,7 +69,7 @@ export const updateMemberRole = async (
   clanId: string | null,
   clanName: string | null,
   // [PERBAIKAN ERROR] Tipe yang benar adalah string literal, bukan Enum ClanRole
-  newRole: ManagerRole | StandardMemberRole // Peran Clashub ('Leader', 'Member', 'Free Agent')
+  newRole: ManagerRole | StandardMemberRole, // Peran Clashub ('Leader', 'Member', 'Free Agent')
 ): Promise<void> => {
   try {
     const userRef = adminFirestore.collection(COLLECTIONS.USERS).doc(uid);
@@ -84,13 +92,13 @@ export const updateMemberRole = async (
       await userRef.update(cleanedUpdateData); // Gunakan update, bukan set merge
     } else {
       console.warn(
-        `[updateMemberRole - Admin] No valid data provided for update for UID: ${uid}`
+        `[updateMemberRole - Admin] No valid data provided for update for UID: ${uid}`,
       );
     }
   } catch (error) {
     console.error(
       `Firestore Error [updateMemberRole - Admin(${uid}, ${newRole})]:`,
-      error
+      error,
     );
     throw new Error('Gagal memperbarui peran anggota (Admin SDK).');
   }
@@ -103,7 +111,7 @@ export const updateMemberRole = async (
 export const updateUserClashubRole = async (
   uid: string,
   // [PERBAIKAN ERROR] Tipe yang benar adalah string literal
-  newRole: ManagerRole | StandardMemberRole // <-- Menggunakan Tipe String Literal
+  newRole: ManagerRole | StandardMemberRole, // <-- Menggunakan Tipe String Literal
 ): Promise<void> => {
   try {
     const userRef = adminFirestore.collection(COLLECTIONS.USERS).doc(uid);
@@ -113,9 +121,64 @@ export const updateUserClashubRole = async (
   } catch (error) {
     console.error(
       `Firestore Error [updateUserClashubRole - Admin(${uid}, ${newRole})]:`,
-      error
+      error,
     );
     // Kita lempar error agar bisa ditangkap oleh API route
     throw new Error('Gagal memperbarui role Clashub pengguna (Admin SDK).');
+  }
+};
+
+// --- [BARU: TAHAP 4.2] ---
+
+/**
+ * Mengambil data riwayat klan (clanHistory) untuk seorang pengguna (Admin).
+ */
+export const getClanHistoryAdmin = async (
+  uid: string,
+): Promise<FirestoreDocument<DocumentData>[]> => {
+  try {
+    const historyRef = adminFirestore
+      .collection(COLLECTIONS.USERS)
+      .doc(uid)
+      .collection(COLLECTIONS.CLAN_HISTORY);
+
+    // [CATATAN] Saat ini, roadmap tidak mensyaratkan pengurutan spesifik,
+    // tapi kita bisa tambahkan .orderBy('timestamp', 'desc') jika field itu ada.
+    const snapshot = await historyRef.get();
+
+    return snapshot.docs
+      .map((doc) => docToDataAdmin<DocumentData>(doc))
+      .filter(Boolean) as FirestoreDocument<DocumentData>[];
+  } catch (error) {
+    console.error(
+      `Firestore Error [getClanHistoryAdmin - Admin(${uid})]:`,
+      error,
+    );
+    return [];
+  }
+};
+
+/**
+ * Mengambil semua ulasan (reviews) yang ditujukan untuk seorang pengguna (Admin).
+ */
+export const getPlayerReviewsAdmin = async (
+  uid: string,
+): Promise<FirestoreDocument<PlayerReview>[]> => {
+  try {
+    const reviewsRef = adminFirestore.collection(COLLECTIONS.PLAYER_REVIEWS);
+    const q = reviewsRef.where('targetPlayerUid', '==', uid);
+
+    // [CATATAN] Bisa ditambahkan .orderBy('createdAt', 'desc') jika diperlukan.
+    const snapshot = await q.get();
+
+    return snapshot.docs
+      .map((doc) => docToDataAdmin<PlayerReview>(doc))
+      .filter(Boolean) as FirestoreDocument<PlayerReview>[];
+  } catch (error) {
+    console.error(
+      `Firestore Error [getPlayerReviewsAdmin - Admin(${uid})]:`,
+      error,
+    );
+    return [];
   }
 };
