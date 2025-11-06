@@ -158,7 +158,6 @@ function NewReviewPage() {
       {[1, 2, 3, 4, 5].map((star) => (
         <Star
           key={star}
-          {/* PERBAIKAN: Komentar bermasalah dihapus */}
           width={32}
           height={32}
           className={`cursor-pointer ${
@@ -179,13 +178,13 @@ function NewReviewPage() {
     if (error) {
        return (
          <div className="container mx-auto max-w-2xl py-12 px-4 text-center">
-            {/* PERBAIKAN: Mengganti size={48} dengan width={48} dan height={48} */}
-            <AlertCircle className="mx-auto text-coc-red" width={48} height={48} />
-            <h1 className="text-2xl font-clash text-coc-red mt-4">Error</h1>
-            <p className="text-lg mt-2">{error}</p>
-            <Button variant="primary" size="md" className="mt-6" href="/">
-              Kembali ke Beranda
-            </Button>
+           {/* PERBAIKAN: Mengganti size={48} dengan width={48} dan height={48} */}
+           <AlertCircle className="mx-auto text-coc-red" width={48} height={48} />
+           <h1 className="text-2xl font-clash text-coc-red mt-4">Error</h1>
+           <p className="text-lg mt-2">{error}</p>
+           <Button variant="primary" size="md" className="mt-6" href="/">
+             Kembali ke Beranda
+           </Button>
          </div>
        );
     }
@@ -196,9 +195,9 @@ function NewReviewPage() {
   if (success) {
      return (
        <div className="container mx-auto max-w-2xl py-12 px-4 text-center">
-          <h1 className="text-3xl font-clash text-coc-gold mb-4">Ulasan Terkirim!</h1>
-          <p className="text-lg mt-2">{success}</p>
-          <LoadingSpinner />
+         <h1 className="text-3xl font-clash text-coc-gold mb-4">Ulasan Terkirim!</h1>
+         <p className="text-lg mt-2">{success}</p>
+         <LoadingSpinner />
        </div>
      );
   }
@@ -296,7 +295,7 @@ function NewReviewPage() {
           </Button>
           {!currentUser && (
              <p className="text-coc-red text-center text-sm mt-2">
-                Anda harus login untuk mengirim ulasan.
+               Anda harus login untuk mengirim ulasan.
              </p>
           )}
         </div>

@@ -15,6 +15,7 @@ import {
   RefreshCwIcon,
   UsersIcon,
   XIcon, // <-- [BARU] Ditambahkan untuk modal
+  TrashIcon, // <-- [PERBAIKAN] Ditambahkan untuk tombol kick
 } from '@/app/components/icons';
 import { NotificationProps } from '@/app/components/ui/Notification';
 import {
