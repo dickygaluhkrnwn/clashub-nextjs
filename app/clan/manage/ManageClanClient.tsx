@@ -4,11 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/Button';
 // Import Tipe Data
-import {
-  ManagedClan,
-  UserProfile,
-  // Tipe data besar (ClanApiCache, CocWarLog, dll.) DIHAPUS
-} from '@/lib/types';
+import { ManagedClan, UserProfile } from '@/lib/types';
 // Import Ikon
 import {
   UserCircleIcon,
@@ -42,9 +38,6 @@ import {
 import Notification, {
   NotificationProps,
 } from '@/app/components/ui/Notification';
-// Import Tipe Props Server
-// (Kita akan ubah Tipe 'ClanManagementProps' di page.tsx nanti)
-// import { ClanManagementProps } from '@/app/clan/manage/page';
 // --- Komponen Tab Konten ---
 import ClanManagementHeader from './components/ClanManagementHeader';
 import SummaryTabContent from './components/SummaryTabContent';
@@ -54,14 +47,14 @@ import ActiveWarTabContent from './components/ActiveWarTabContent';
 import WarHistoryTabContent from './components/WarHistoryTabContent';
 import CwlHistoryTabContent from './components/CwlHistoryTabContent';
 import RaidTabContent from './components/RaidTabContent';
+// --- [BARU: TAHAP 3.2] ---
+// Impor komponen baru untuk tab E-Sports (akan dibuat di langkah selanjutnya)
+// import EsportsTabContent from './components/EsportsTabContent';
+// --- [AKHIR BARU] ---
 
 interface ManageClanClientProps {
-  // --- REFAKTOR PROPS ---
-  // Hapus 'initialData'. Kita hanya butuh data 'ManagedClan' dan 'profile'
-  // 'page.tsx' (Server Component) akan diubah nanti agar hanya mengirim ini.
   clan: ManagedClan | null;
   profile: UserProfile | null;
-  // --- AKHIR REFAKTOR PROPS ---
   serverError: string | null;
 }
 
@@ -73,6 +66,7 @@ type ActiveTab =
   | 'war-history'
   | 'cwl-history'
   | 'raid'
+  | 'esports' // <-- [BARU: TAHAP 3.2] Ditambahkan
   | 'settings';
 
 // --- DAFTAR TAB ---
@@ -102,6 +96,13 @@ const MEMBER_TABS: { tabName: ActiveTab; icon: React.ReactNode; label: string }[
       icon: <CoinsIcon className="text-yellow-400" />,
       label: 'Ibu Kota Klan',
     },
+    // --- [BARU: TAHAP 3.2] ---
+    {
+      tabName: 'esports',
+      icon: <TrophyIcon />, // Menggunakan TrophyIcon yang sudah diimpor
+      label: 'E-Sports',
+    },
+    // --- [AKHIR BARU] ---
   ];
 
 // Tab yang hanya untuk MANAGER (Leader/Co-Leader)
@@ -114,16 +115,14 @@ const MANAGER_TABS: { tabName: ActiveTab; icon: React.ReactNode; label: string }
 
 // --- FUNGSI UTAMA CLIENT ---
 const ManageClanClient = ({
-  clan, // Props sudah diubah
+  clan,
   serverError,
-  profile, // Props sudah diubah
+  profile,
 }: ManageClanClientProps) => {
   const router = useRouter();
 
   // State
   const [activeTab, setActiveTab] = useState<ActiveTab>('summary');
-  // HAPUS: isSyncing tidak lagi dikelola di sini
-  // const [isSyncing, setIsSyncing] = useState(false);
   const [notification, setNotification] =
     useState<NotificationProps | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -143,12 +142,6 @@ const ManageClanClient = ({
     setNotification({ message, type, onClose: () => setNotification(null) });
   };
 
-  // HAPUS: Fungsi handleRefreshData.
-  // Refresh/Mutate akan ditangani oleh SWR hooks di dalam komponen anak.
-
-  // HAPUS: Fungsi handleSyncManual.
-  // Logika sinkronisasi akan pindah ke 'SummaryTabContent'
-
   // --- [BARU: TAHAP 2.3] Handler untuk Keluar Klan ---
   const handleConfirmLeave = async () => {
     if (!clan || !profile || profile.role === 'Leader') {
@@ -166,7 +159,6 @@ const ManageClanClient = ({
       const response = await fetch(`/api/clan/manage/leave`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // Body API-nya hanya butuh clanId
         body: JSON.stringify({ clanId: clan.id }),
       });
 
@@ -209,7 +201,6 @@ const ManageClanClient = ({
   }
 
   // --- PERBAIKAN RUNTIME ERROR (PENYEBAB LOGOUT) ---
-  // Ubah 'initialData' menjadi 'clan'
   if (!clan || !profile) {
     return (
       <main className="container mx-auto p-4 md:p-8 mt-10 min-h-[60vh]">
@@ -225,11 +216,7 @@ const ManageClanClient = ({
   }
   // --- AKHIR PERBAIKAN RUNTIME ERROR ---
 
-  // HAPUS: const data = initialData;
-  // HAPUS: const cache = data.cache;
-  // 'clan' dan 'profile' sekarang didapat langsung dari props.
-
-  // Utility: Tombol Menu Sidebar (Menggantikan TabButton) - Gaya disesuaikan
+  // Utility: Tombol Menu Sidebar
   const MenuButton: React.FC<{
     tabName: ActiveTab;
     icon: React.ReactNode;
@@ -246,27 +233,23 @@ const ManageClanClient = ({
       setActiveTab('summary');
     }
 
-    // HAPUS: Logika 'requestsCount' dan 'memberCount'.
-    // Data ini tidak lagi tersedia di komponen parent ini.
-
     return (
       <button
         onClick={() => setActiveTab(tabName)}
         className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-md transition-colors duration-150 group relative ${
           activeTab === tabName
-            ? 'bg-coc-dark/90 text-coc-gold font-semibold shadow-inner' // Gaya Aktif Baru
-            : 'text-gray-300 hover:bg-coc-dark/60 hover:text-white' // Gaya Default & Hover Baru
+            ? 'bg-coc-dark/90 text-coc-gold font-semibold shadow-inner'
+            : 'text-gray-300 hover:bg-coc-dark/60 hover:text-white'
         }`}
       >
         {React.cloneElement(icon as React.ReactElement, {
           className: `h-5 w-5 mr-3 flex-shrink-0 transition-colors duration-150 ${
             activeTab === tabName
               ? 'text-coc-gold'
-              : 'text-gray-400 group-hover:text-gray-300' // Warna ikon
+              : 'text-gray-400 group-hover:text-gray-300'
           }`,
         })}
         <span>{label}</span>
-        {/* HAPUS: Badge Anggota/Permintaan */}
       </button>
     );
   };
@@ -294,8 +277,6 @@ const ManageClanClient = ({
       );
     }
 
-    // --- REFAKTOR PROPS UNTUK SEMUA KOMPONEN ANAK ---
-    // Kita hanya passing 'clan' (ManagedClan) atau 'clan.id' dan 'profile'.
     // Komponen anak akan memanggil SWR hooks mereka sendiri.
     switch (activeTab) {
       case 'summary':
@@ -304,7 +285,6 @@ const ManageClanClient = ({
             clan={clan}
             isManager={isManager}
             onAction={showNotification}
-            // Hapus: cache, isSyncing, onSync, onRefresh
           />
         );
       case 'members':
@@ -314,7 +294,6 @@ const ManageClanClient = ({
             userProfile={profile} // Pass profile langsung
             onAction={showNotification}
             isManager={isManager}
-            // Hapus: cache, members, onRefresh
           />
         );
       case 'requests':
@@ -323,39 +302,33 @@ const ManageClanClient = ({
             clan={clan}
             userProfile={profile} // Pass profile langsung
             onAction={showNotification}
-            // Hapus: joinRequests, onRefresh
           />
         );
       case 'active-war':
-        return (
-          <ActiveWarTabContent
-            clan={clan}
-            // Hapus: currentWar, onRefresh
-          />
-        );
+        return <ActiveWarTabContent clan={clan} />;
       case 'war-history':
-        return (
-          <WarHistoryTabContent
-            clan={clan} // PERBAIKAN: Ganti clanId dan clanTag
-            // Hapus: onRefresh
-          />
-        );
+        return <WarHistoryTabContent clan={clan} />;
       case 'cwl-history':
-        return (
-          <CwlHistoryTabContent
-            clan={clan} // PERBAIKAN: Ganti clanId
-            // Hapus: initialCwlArchives
-          />
-        );
+        return <CwlHistoryTabContent clan={clan} />;
       case 'raid':
+        return <RaidTabContent clan={clan} />;
+      // --- [BARU: TAHAP 3.2] ---
+      case 'esports':
+        // Komponen ini akan kita buat di langkah selanjutnya
+        // Untuk saat ini, kita tampilkan placeholder
+        // TODO: Ganti ini dengan <EsportsTabContent ... /> setelah dibuat
         return (
-          <RaidTabContent
-            clan={clan}
-            // Hapus: initialCurrentRaid, initialRaidArchives, onRefresh
-          />
+          <div className="p-8 text-center bg-coc-stone/40 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
+            <TrophyIcon className="h-12 w-12 text-coc-gold/50 mb-3" />
+            <p className="text-lg font-clash text-white">E-Sports</p>
+            <p className="text-sm text-gray-400 font-sans mt-1">
+              Fitur Manajemen Tim E-Sports akan diimplementasikan di sini.
+            </p>
+          </div>
         );
+      // --- [AKHIR BARU] ---
       case 'settings':
-        // (Tidak berubah, ini adalah placeholder)
+        // (Placeholder)
         return (
           <div className="p-8 text-center bg-coc-stone/40 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
             <SettingsIcon className="h-12 w-12 text-coc-gold/50 mb-3" />
@@ -381,18 +354,9 @@ const ManageClanClient = ({
     <main className="container mx-auto p-4 md:p-8 mt-10">
       <Notification notification={notification ?? undefined} />
 
-      {/* ======================================================
-        PERUBAHAN 1 (PRESISI): 
-        Menghapus 'max-w-7xl mx-auto' dari div ini.
-        ======================================================
-      */}
       <div className="space-y-8">
         {/* Header Klan (Tetap di Atas) */}
-        <ClanManagementHeader
-          clan={clan}
-          profile={profile}
-          // Hapus: cache={cache}
-        />
+        <ClanManagementHeader clan={clan} profile={profile} />
 
         {/* Tombol Toggle Sidebar (untuk mobile/tablet) */}
         <div className="lg:hidden mb-4">
@@ -411,19 +375,9 @@ const ManageClanClient = ({
           </Button>
         </div>
 
-        {/* ======================================================
-          PERUBAHAN 2 (JARAK): 
-          Mengubah 'gap-8' menjadi 'gap-6'.
-          ======================================================
-        */}
         <div className="flex flex-col lg:flex-row gap-6">
-          {/* Sidebar Navigasi - Gaya disesuaikan */}
+          {/* Sidebar Navigasi */}
           <nav
-            /* ======================================================
-              PERUBAHAN 3 (LEBAR): 
-              Mengubah 'lg:w-64' menjadi 'lg:w-56'.
-              ======================================================
-            */
             className={`lg:w-56 flex-shrink-0 ${
               isSidebarOpen ? 'block' : 'hidden'
             } lg:block transition-all duration-300 ease-in-out`}
@@ -434,7 +388,6 @@ const ManageClanClient = ({
                   key={tab.tabName}
                   tabName={tab.tabName}
                   icon={tab.icon}
-                  // REFAKTOR: Gunakan label statis, hapus hitungan
                   label={tab.label}
                 />
               ))}
@@ -445,7 +398,7 @@ const ManageClanClient = ({
                 <>
                   <div className="pt-2 my-2 border-t border-coc-gold-dark/30"></div>
                   <Button
-                    variant="danger" // Tombol merah (asumsi ada di Button.tsx)
+                    variant="danger"
                     size="sm"
                     onClick={() => setIsLeaveModalOpen(true)} // Buka modal
                     className="w-full flex items-center justify-start px-4 text-sm font-medium"

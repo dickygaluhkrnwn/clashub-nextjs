@@ -475,3 +475,24 @@ export interface JoinRequestWithProfile extends JoinRequest {
   requesterProfile: UserProfile;
 }
 // --- [AKHIR TAMBAHAN] ---
+
+// --- [BARU: TAHAP 3.1] ---
+// =========================================================================
+// 6. TIPE DATA E-SPORTS (TAHAP 3)
+// =========================================================================
+
+/**
+ * @interface EsportsTeam
+ * Struktur data untuk tim e-sports internal (5v5) di dalam sebuah ManagedClan.
+ * Disimpan di sub-koleksi /managedClans/{clanId}/esportsTeams/{teamId}
+ */
+export interface EsportsTeam {
+  id: string; // ID dokumen tim e-sports (di-generate oleh Firestore)
+  teamName: string; // Nama tim (misal: "Tim A", "Elit War")
+  teamLeaderUid: string; // UID (dari UserProfile) pemimpin tim
+  clanId: string; // ID ManagedClan (induk)
+
+  // Daftar UID (dari UserProfile) anggota. Tepat 5.
+  memberUids: [string, string, string, string, string];
+}
+// --- [AKHIR BARU] ---

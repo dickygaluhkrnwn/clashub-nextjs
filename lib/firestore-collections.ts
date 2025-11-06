@@ -24,4 +24,7 @@ export const COLLECTIONS = {
   // --- [BARU: TAHAP 2.2] ---
   CLAN_REVIEWS: 'clanReviews', // Koleksi Root untuk ulasan klan
   PLAYER_REVIEWS: 'playerReviews', // Koleksi Root untuk ulasan pemain
+
+  // --- [BARU: TAHAP 3.1] ---
+  ESPORTS_TEAMS: 'esportsTeams', // Sub-koleksi di bawah 'managedClans'
 };

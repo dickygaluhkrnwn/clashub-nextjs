@@ -433,3 +433,4 @@ export const CalendarCheck2Icon = (props: IconProps) => (
         <path d="m15 22 2-2 4 4"/>
     </svg>
 );
+
