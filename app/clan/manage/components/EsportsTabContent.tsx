@@ -50,7 +50,7 @@ const EsportsTabContent: React.FC<EsportsTabContentProps> = ({
   clan,
   onAction,
 }) => {
-  const { userProfile } = useAuth();
+  const { userProfile, currentUser } = useAuth(); // <-- [PERBAIKAN] Tambahkan currentUser
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [esportsTeams, setEsportsTeams] = useState<
     FirestoreDocument<EsportsTeam>[]
@@ -110,15 +110,26 @@ const EsportsTabContent: React.FC<EsportsTabContentProps> = ({
     teamLeaderUid: string,
     memberUids: string[]
   ): Promise<void> => {
+    // [PERBAIKAN] Cek currentUser untuk mendapatkan token
+    if (!currentUser) {
+      throw new Error('Gagal mendapatkan token, silakan login ulang.');
+    }
+
     // Validasi sederhana (sebenarnya sudah divalidasi di modal)
     if (!teamName || memberUids.length !== 5) {
       throw new Error('Nama tim atau jumlah anggota tidak valid.');
     }
 
+    // [PERBAIKAN] Ambil token
+    const token = await currentUser.getIdToken();
+
     // TAHAP 3.3: Panggil API Route untuk membuat tim baru
     const response = await fetch(`/api/clan/manage/${clan.id}/esports`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`, // <-- [PERBAIKAN] Tambahkan header otentikasi
+      },
       body: JSON.stringify({
         teamName,
         teamLeaderUid,

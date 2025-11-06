@@ -48,8 +48,8 @@ import WarHistoryTabContent from './components/WarHistoryTabContent';
 import CwlHistoryTabContent from './components/CwlHistoryTabContent';
 import RaidTabContent from './components/RaidTabContent';
 // --- [BARU: TAHAP 3.2] ---
-// Impor komponen baru untuk tab E-Sports (akan dibuat di langkah selanjutnya)
-// import EsportsTabContent from './components/EsportsTabContent';
+// --- [PERBAIKAN] Mengimpor komponen E-Sports yang sudah kita buat ---
+import EsportsTabContent from './components/EsportsTabContent';
 // --- [AKHIR BARU] ---
 
 interface ManageClanClientProps {
@@ -314,18 +314,8 @@ const ManageClanClient = ({
         return <RaidTabContent clan={clan} />;
       // --- [BARU: TAHAP 3.2] ---
       case 'esports':
-        // Komponen ini akan kita buat di langkah selanjutnya
-        // Untuk saat ini, kita tampilkan placeholder
-        // TODO: Ganti ini dengan <EsportsTabContent ... /> setelah dibuat
-        return (
-          <div className="p-8 text-center bg-coc-stone/40 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
-            <TrophyIcon className="h-12 w-12 text-coc-gold/50 mb-3" />
-            <p className="text-lg font-clash text-white">E-Sports</p>
-            <p className="text-sm text-gray-400 font-sans mt-1">
-              Fitur Manajemen Tim E-Sports akan diimplementasikan di sini.
-            </p>
-          </div>
-        );
+        // --- [PERBAIKAN] Tampilkan komponen yang sebenarnya ---
+        return <EsportsTabContent clan={clan} onAction={showNotification} />;
       // --- [AKHIR BARU] ---
       case 'settings':
         // (Placeholder)
