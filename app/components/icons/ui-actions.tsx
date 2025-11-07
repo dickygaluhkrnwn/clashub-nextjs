@@ -132,6 +132,7 @@ export const TrashIcon = (props: IconProps) => (
   </svg>
 );
 
+// Ikon Roda Gigi / Settings
 export const SettingsIcon = (props: IconProps) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -149,6 +150,10 @@ export const SettingsIcon = (props: IconProps) => (
     <circle cx="12" cy="12" r="3" />
   </svg>
 );
+
+// --- [FIX: Alias untuk CogsIcon yang dipakai di PostForm.tsx] ---
+export const CogsIcon = SettingsIcon;
+// --- [AKHIR FIX] ---
 
 // --- [PERBAIKAN] Menambahkan PlusIcon ---
 export const PlusIcon = (props: IconProps) => (
