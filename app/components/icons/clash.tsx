@@ -84,7 +84,8 @@ export const PercentageIcon = (props: IconProps) => (
   </svg>
 );
 
-export const CogsIcon = (props: IconProps) => (
+// --- [FIX]: Diganti nama dari CogsIcon menjadi ClashGearsIcon untuk menghindari konflik ---
+export const ClashGearsIcon = (props: IconProps) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="24"
@@ -109,6 +110,7 @@ export const CogsIcon = (props: IconProps) => (
     <path d="m7.8 7.8-.6-.3" />
   </svg>
 );
+// --- [AKHIR FIX] ---
 
 export const ShieldCheckIcon = (props: IconProps) => (
   <svg
