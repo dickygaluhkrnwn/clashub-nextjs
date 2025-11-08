@@ -12,9 +12,9 @@ import { Post } from '@/lib/types';
 
 // Tipe untuk parameter rute dinamis
 interface RouteParams {
-    params: {
-        postId: string;
-    };
+  params: {
+    postId: string;
+  };
 }
 
 // =========================================================================
@@ -22,100 +22,138 @@ interface RouteParams {
 // =========================================================================
 
 export async function DELETE(
-    request: NextRequest,
-    { params }: RouteParams
+  request: NextRequest,
+  { params }: RouteParams,
 ) {
-    const { postId } = params;
+  const { postId } = params;
 
-    // 1. Otorisasi Pengguna
-    const sessionUser = await getSessionUser();
-    if (!sessionUser) {
-        return NextResponse.json({ message: 'Unauthorized: Sesi pengguna tidak ditemukan.' }, { status: 401 });
+  // 1. Otorisasi Pengguna
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json(
+      { message: 'Unauthorized: Sesi pengguna tidak ditemukan.' },
+      { status: 401 },
+    );
+  }
+  const userId = sessionUser.uid;
+
+  try {
+    // 2. Ambil Postingan (Menggunakan Client SDK 'getPostById' yang mengonversi Timestamp)
+    const post = await getPostById(postId);
+
+    if (!post) {
+      return NextResponse.json(
+        { message: 'Postingan tidak ditemukan.' },
+        { status: 404 },
+      );
     }
-    const userId = sessionUser.uid;
 
-    try {
-        // 2. Ambil Postingan
-        const post = await getPostById(postId);
+    // 3. Validasi Kepemilikan (Hanya Penulis atau Admin yang Boleh Hapus)
+    // Catatan: Asumsi admin dapat diverifikasi dari profile Firestore (tidak diimplementasikan di sini, jadi hanya cek penulis)
+    const isAuthor = post.authorId === userId;
 
-        if (!post) {
-            return NextResponse.json({ message: 'Postingan tidak ditemukan.' }, { status: 404 });
-        }
+    // TODO: Tambahkan logika cek peran admin di masa depan
+    const isAuthorized = isAuthor;
 
-        // 3. Validasi Kepemilikan (Hanya Penulis atau Admin yang Boleh Hapus)
-        // Catatan: Asumsi admin dapat diverifikasi dari profile Firestore (tidak diimplementasikan di sini, jadi hanya cek penulis)
-        const isAuthor = post.authorId === userId;
-        
-        // TODO: Tambahkan logika cek peran admin di masa depan
-        const isAuthorized = isAuthor; 
-
-        if (!isAuthorized) {
-            return NextResponse.json({ message: 'Akses Ditolak: Anda bukan penulis postingan ini.' }, { status: 403 });
-        }
-
-        // 4. Hapus Postingan
-        await deletePostAdmin(postId);
-
-        return NextResponse.json({ 
-            message: 'Postingan berhasil dihapus.',
-        }, { status: 200 });
-
-    } catch (error) {
-        console.error(`API Error DELETE /api/posts/${postId}:`, error);
-        return NextResponse.json({ message: 'Gagal menghapus postingan: ' + (error instanceof Error ? error.message : 'Kesalahan server') }, { status: 500 });
+    if (!isAuthorized) {
+      return NextResponse.json(
+        { message: 'Akses Ditolak: Anda bukan penulis postingan ini.' },
+        { status: 403 },
+      );
     }
+
+    // 4. Hapus Postingan
+    // [PERBAIKAN] Melewatkan seluruh objek 'post' ke fungsi admin.
+    // Fungsi 'deletePostAdmin' yang baru sekarang menangani logika poin 24 jam
+    // dan penghapusan sub-koleksi.
+    await deletePostAdmin(post);
+
+    return NextResponse.json(
+      {
+        message: 'Postingan berhasil dihapus.',
+      },
+      { status: 200 },
+    );
+  } catch (error) {
+    console.error(`API Error DELETE /api/posts/${postId}:`, error);
+    return NextResponse.json(
+      {
+        message:
+          'Gagal menghapus postingan: ' +
+          (error instanceof Error ? error.message : 'Kesalahan server'),
+      },
+      { status: 500 },
+    );
+  }
 }
-
 
 // =========================================================================
 // PUT /api/posts/[postId] - Edit Postingan
 // =========================================================================
 
-export async function PUT(
-    request: NextRequest,
-    { params }: RouteParams
-) {
-    const { postId } = params;
+export async function PUT(request: NextRequest, { params }: RouteParams) {
+  const { postId } = params;
 
-    // 1. Otorisasi Pengguna
-    const sessionUser = await getSessionUser();
-    if (!sessionUser) {
-        return NextResponse.json({ message: 'Unauthorized: Sesi pengguna tidak ditemukan.' }, { status: 401 });
+  // 1. Otorisasi Pengguna
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json(
+      { message: 'Unauthorized: Sesi pengguna tidak ditemukan.' },
+      { status: 401 },
+    );
+  }
+  const userId = sessionUser.uid;
+
+  try {
+    // 2. Ambil Postingan Lama
+    const existingPost = await getPostById(postId);
+
+    if (!existingPost) {
+      return NextResponse.json(
+        { message: 'Postingan tidak ditemukan.' },
+        { status: 404 },
+      );
     }
-    const userId = sessionUser.uid;
 
-    try {
-        // 2. Ambil Postingan Lama
-        const existingPost = await getPostById(postId);
-
-        if (!existingPost) {
-            return NextResponse.json({ message: 'Postingan tidak ditemukan.' }, { status: 404 });
-        }
-
-        // 3. Validasi Kepemilikan
-        if (existingPost.authorId !== userId) {
-            return NextResponse.json({ message: 'Akses Ditolak: Anda bukan penulis postingan ini.' }, { status: 403 });
-        }
-
-        // 4. Ambil Payload Update
-        // Catatan: Payload di sini harus sesuai dengan tipe Partial<Post>
-        const updatedData = await request.json() as Partial<Post>;
-
-        // 5. Validasi Minimal Data
-        if (!updatedData.title || !updatedData.content) {
-             return NextResponse.json({ message: 'Judul dan konten wajib diisi.' }, { status: 400 });
-        }
-        
-        // 6. Update Postingan
-        await updatePostAdmin(postId, updatedData);
-
-        return NextResponse.json({ 
-            message: 'Postingan berhasil diperbarui.',
-            postId: postId
-        }, { status: 200 });
-
-    } catch (error) {
-        console.error(`API Error PUT /api/posts/${postId}:`, error);
-        return NextResponse.json({ message: 'Gagal memperbarui postingan: ' + (error instanceof Error ? error.message : 'Kesalahan server') }, { status: 500 });
+    // 3. Validasi Kepemilikan
+    if (existingPost.authorId !== userId) {
+      return NextResponse.json(
+        { message: 'Akses Ditolak: Anda bukan penulis postingan ini.' },
+        { status: 403 },
+      );
     }
+
+    // 4. Ambil Payload Update
+    // Catatan: Payload di sini harus sesuai dengan tipe Partial<Post>
+    const updatedData = (await request.json()) as Partial<Post>;
+
+    // 5. Validasi Minimal Data
+    if (!updatedData.title || !updatedData.content) {
+      return NextResponse.json(
+        { message: 'Judul dan konten wajib diisi.' },
+        { status: 400 },
+      );
+    }
+
+    // 6. Update Postingan
+    await updatePostAdmin(postId, updatedData);
+
+    return NextResponse.json(
+      {
+        message: 'Postingan berhasil diperbarui.',
+        postId: postId,
+      },
+      { status: 200 },
+    );
+  } catch (error) {
+    console.error(`API Error PUT /api/posts/${postId}:`, error);
+    return NextResponse.json(
+      {
+        message:
+          'Gagal memperbarui postingan: ' +
+          (error instanceof Error ? error.message : 'Kesalahan server'),
+      },
+      { status: 500 },
+    );
+  }
 }

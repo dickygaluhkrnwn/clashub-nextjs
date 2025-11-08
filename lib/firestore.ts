@@ -577,7 +577,11 @@ export const createPost = async (
             authorName: authorProfile.displayName,
             authorAvatarUrl:
                 authorProfile.avatarUrl || '/images/placeholder-avatar.png',
-            likes: 0,
+            
+            // [PERBAIKAN ERROR TS2322]
+            // 'likes' adalah string[], bukan number. Inisialisasi sebagai array kosong.
+            likes: [], 
+
             replies: 0,
             createdAt: now,
             updatedAt: now,
@@ -723,8 +727,11 @@ export const getPosts = async (
         // Jika sorting berdasarkan 'likes', kita harus sorting di client
         if (sortBy === 'likes') {
              results.sort((a, b) => {
-                const scoreA = (a as Post).likes ?? 0; // Video (Video) tidak punya likes, default 0
-                const scoreB = (b as Post).likes ?? 0;
+                // [PERBAIKAN ERROR TS2362/TS2363]
+                // Gunakan '.length' karena 'likes' adalah string[].
+                // Gunakan Array.isArray untuk memastikan tipe-nya aman.
+                const scoreA = Array.isArray((a as Post).likes) ? (a as Post).likes.length : 0;
+                const scoreB = Array.isArray((b as Post).likes) ? (b as Post).likes.length : 0;
                 
                 // Jika sortOrder desc (trending), B - A
                 return sortOrder === 'desc' ? scoreB - scoreA : scoreA - scoreB;

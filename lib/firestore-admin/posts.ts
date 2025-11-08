@@ -8,21 +8,87 @@ import { Post, FirestoreDocument } from '../types';
 // [UPDATE 4.2] Impor docToDataAdmin
 import { cleanDataForAdminSDK, docToDataAdmin } from './utils';
 
+// [BARU] Impor untuk logika 24 jam
+import { incrementPopularity } from './popularity';
+
+/**
+ * [BARU] Helper function untuk menghapus koleksi/sub-koleksi secara rekursif.
+ * Ini penting untuk menghapus semua 'replies' saat postingan dihapus.
+ */
+async function deleteCollectionRecursive(
+  collectionRef: FirebaseFirestore.CollectionReference,
+  batchSize: number = 50,
+) {
+  const query = collectionRef.limit(batchSize);
+  const snapshot = await query.get();
+
+  if (snapshot.empty) {
+    return;
+  }
+
+  const batch = adminFirestore.batch();
+  snapshot.docs.forEach((doc) => {
+    batch.delete(doc.ref);
+  });
+  await batch.commit();
+
+  // Lanjutkan secara rekursif
+  await deleteCollectionRecursive(collectionRef, batchSize);
+}
+
 /**
  * @function deletePostAdmin
- * Menghapus postingan dari koleksi 'posts'.
+ * [PERBAIKAN] Fungsi ini sekarang menangani logika 24 jam DAN menghapus sub-koleksi.
  * Dipanggil dari API Routes DELETE /api/posts/[postId].
  */
 export const deletePostAdmin = async (
-  postId: string,
+  post: Post, // [DIUBAH] Menerima objek Post lengkap, bukan hanya postId
 ): Promise<void> => {
   try {
+    const { id: postId, authorId, createdAt, title } = post;
     const postRef = adminFirestore.collection(COLLECTIONS.POSTS).doc(postId);
+
+    // [FITUR BARU] Logika Poin 24 Jam
+    // 'createdAt' sudah dikonversi menjadi objek Date oleh getPostById (dari lib/firestore.ts)
+    if (createdAt && createdAt instanceof Date) {
+      const hoursSinceCreation =
+        (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
+
+      // Kurangi poin HANYA jika dihapus kurang dari 24 jam setelah dibuat
+      if (hoursSinceCreation < 24) {
+        console.log(
+          `[Post - Admin] Post ${postId} dihapus dalam < 24 jam. Mengurangi 5 poin dari ${authorId}.`,
+        );
+        // Panggil incrementPopularity dengan -5
+        await incrementPopularity(
+          authorId,
+          -5,
+          `Post deleted < 24h: ${title.substring(0, 20)}`,
+        );
+      } else {
+        console.log(
+          `[Post - Admin] Post ${postId} dihapus setelah 24 jam. Poin tidak dikurangi.`,
+        );
+      }
+    } else {
+      console.warn(
+        `[Post - Admin] Tidak dapat menghitung selisih waktu untuk post ${postId}, 'createdAt' tidak valid. Poin tidak dikurangi.`,
+      );
+    }
+
+    // [PERBAIKAN] Hapus sub-koleksi 'replies' agar tidak jadi data sampah
+    const repliesRef = postRef.collection('replies'); // Asumsi sub-koleksi bernama 'replies'
+    await deleteCollectionRecursive(repliesRef);
+    console.log(
+      `[Post - Admin] Sub-koleksi 'replies' untuk ${postId} berhasil dihapus.`,
+    );
+
+    // Hapus dokumen postingan utama
     await postRef.delete();
     console.log(`[Post - Admin] Postingan ${postId} berhasil dihapus.`);
   } catch (error) {
     console.error(
-      `Firestore Error [deletePostAdmin - Admin(${postId})]:`,
+      `Firestore Error [deletePostAdmin - Admin(${post.id})]:`,
       error,
     );
     throw new Error('Gagal menghapus postingan (Admin SDK).');
