@@ -1,27 +1,24 @@
 'use client';
 
-import React, { useMemo } from 'react';
+// [BARU] Impor hook yang diperlukan
+import React, { useMemo, useState, useMemo as useMemoLikes } from 'react'; // Ganti 'useMemo' menjadi 'useMemo as useMemoLikes' untuk menghindari duplikasi, atau cukup gunakan 'useMemo' sekali
 import Image from 'next/image';
 import Link from 'next/link';
-// PERBAIKAN: Impor tipe gabungan
+import { useRouter } from 'next/navigation'; // [BARU] Untuk redirect jika belum login
+import { useAuth } from '@/app/context/AuthContext'; // [BARU] Untuk mendapatkan data user
 import { Post, Video, KnowledgeHubItem, UserProfile } from '@/lib/types';
 import { Button } from '@/app/components/ui/Button';
-import { formatDistanceToNowStrict } from 'date-fns'; // Use formatDistanceToNowStrict for relative time
+import { formatDistanceToNowStrict } from 'date-fns';
 import { id } from 'date-fns/locale';
 import {
     ClockIcon, UserCircleIcon, LinkIcon, ThumbsUpIcon, HomeIcon, CogsIcon
-    // MessageSquareIcon removed as it doesn't exist in the provided icons file
-} from '@/app/components/icons'; // Import necessary icons
-// PERBAIKAN: Impor helper isVideo
+} from '@/app/components/icons';
 import { isVideo } from '@/lib/knowledge-hub-utils';
 
-// --- Helper Functions (Tetap sama) ---
-
+// ... (Helper Functions 'getYouTubeVideoId' dan 'ContentRenderer' tetap sama) ...
 /**
  * Extracts YouTube Video ID from various URL formats.
- * (Digunakan untuk Post, BUKAN untuk Video)
- * @param url - The YouTube URL.
- * @returns The video ID or null if not found.
+... (fungsi getYouTubeVideoId tetap sama) ...
  */
 const getYouTubeVideoId = (url: string | null | undefined): string | null => {
     if (!url) return null;
@@ -47,6 +44,7 @@ const ContentRenderer = ({ content }: { content: string | undefined }) => {
     return <p className="text-gray-300 text-sm font-sans leading-relaxed">{contentParts}</p>;
 };
 
+
 // --- Component Props ---
 interface FullPostDisplayProps {
     // PERBAIKAN: Menerima tipe gabungan
@@ -63,11 +61,27 @@ const FullPostDisplay: React.FC<FullPostDisplayProps> = ({ item }) => {
     
     // --- Cek Tipe Item ---
     const isItemVideo = isVideo(item);
-
-    // Pisahkan item menjadi Post atau Video
-    // Casting di sini aman KARENA kita sudah melakukan guard clause di atas.
     const post = isItemVideo ? null : (item as Post);
     const video = isItemVideo ? (item as Video) : null;
+
+    // --- [BARU] State untuk Like Interaktif ---
+    const { currentUser } = useAuth(); // Dapatkan user yang login
+    const router = useRouter();
+    const [isLiking, setIsLiking] = useState(false); // State loading saat API dipanggil
+
+    // Inisialisasi state 'likes' dari prop.
+    // Ini akan menjadi "source of truth" untuk UI setelah dimuat.
+    const [currentLikes, setCurrentLikes] = useState(post?.likes || []);
+
+    // Cek apakah user saat ini sudah like (berdasarkan state client)
+    const userHasLiked = useMemoLikes(() => { // Menggunakan alias useMemoLikes
+        return currentUser ? currentLikes.includes(currentUser.uid) : false;
+    }, [currentUser, currentLikes]);
+
+    // Hitung jumlah like (berdasarkan state client)
+    const likeCount = useMemoLikes(() => currentLikes.length, [currentLikes]); // Menggunakan alias useMemoLikes
+    // --- [AKHIR STATE LIKE] ---
+
 
     // --- Data Universal ---
     // PERBAIKAN KRITIS: Gunakan optional chaining (?.) untuk mengakses properti,
@@ -142,8 +156,67 @@ const FullPostDisplay: React.FC<FullPostDisplayProps> = ({ item }) => {
     // --- Data Footer ---
     // FIX: Gunakan optional chaining
     const tags = isItemVideo ? [video?.channelTitle || 'YouTube'] : post?.tags;
-    const likes = isItemVideo ? 'N/A' : post?.likes;
+    // const likes = isItemVideo ? 'N/A' : post?.likes; // <-- [DIHAPUS] Digantikan oleh state 'likeCount' dan 'userHasLiked'
     const replies = isItemVideo ? 'N/A' : post?.replies;
+
+    // --- [BARU] Fungsi Handler untuk Like ---
+    const handleLike = async () => {
+        // 1. Cek jika user login, jika tidak, arahkan ke /auth
+        if (!currentUser) {
+            router.push('/auth');
+            return;
+        }
+        
+        // 2. Cek jika ini adalah post (bukan video) dan post.id ada
+        if (isItemVideo || !post || !post.id) return;
+
+        // 3. Set loading state
+        setIsLiking(true);
+
+        // 4. Optimistic Update (Perbarui UI langsung)
+        const newLikeStatus = !userHasLiked;
+        if (newLikeStatus) {
+            // User me-like
+            setCurrentLikes(prev => [...prev, currentUser.uid]);
+        } else {
+            // User me-unlike
+            setCurrentLikes(prev => prev.filter(uid => uid !== currentUser.uid));
+        }
+
+        // 5. Panggil API di background
+        try {
+            const response = await fetch(`/api/posts/${post.id}/like`, {
+                method: 'POST',
+                // Tidak perlu body, API route.ts menggunakan session user (uid)
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || 'Gagal memproses like');
+            }
+            
+            // Sukses: Respon API (data.newLikeStatus) harusnya cocok dengan
+            // state optimistic kita. Kita tidak perlu melakukan apa-apa lagi.
+
+        } catch (error) {
+            console.error("Gagal me-like:", error);
+            // 6. Revert (Kembalikan state jika API gagal)
+            if (newLikeStatus) {
+                // Gagal like, hapus UID-nya kembali
+                setCurrentLikes(prev => prev.filter(uid => uid !== currentUser.uid));
+            } else {
+                // Gagal unlike, tambahkan UID-nya kembali
+                setCurrentLikes(prev => [...prev, currentUser.uid]);
+            }
+            // Jangan gunakan alert(), cukup log error
+            console.error("Terjadi kesalahan saat memproses like. Coba lagi.");
+        } finally {
+            // 7. Selesai loading
+            setIsLiking(false);
+        }
+    };
+    // --- [AKHIR FUNGSI LIKE] ---
 
 
     return (
@@ -227,35 +300,35 @@ const FullPostDisplay: React.FC<FullPostDisplayProps> = ({ item }) => {
 
                 {/* Specific Links Section (Hanya untuk Post) */}
                 {!isItemVideo && post?.baseLinkUrl && post?.category === 'Base Building' && (
-                     <div className="pt-3 border-t border-coc-gold-dark/20">
-                         <h4 className="text-xs font-bold text-gray-400 mb-2 flex items-center gap-1"><HomeIcon className="h-4 w-4"/> BASE LINK:</h4>
-                         <a href={post.baseLinkUrl} target="_blank" rel="noopener noreferrer">
-                             <Button variant="secondary" size="sm" className="w-full">
-                                 <LinkIcon className="h-4 w-4 mr-2" /> Salin Link Base
-                             </Button>
-                         </a>
-                     </div>
-                 )}
-                 {!isItemVideo && post?.troopLink && post?.category === 'Strategi Serangan' && (
-                     <div className="pt-3 border-t border-coc-gold-dark/20">
-                         <h4 className="text-xs font-bold text-gray-400 mb-2 flex items-center gap-1"><CogsIcon className="h-4 w-4"/> TROOP LINK:</h4>
-                         <a href={post.troopLink} target="_blank" rel="noopener noreferrer">
-                              <Button variant="secondary" size="sm" className="w-full">
-                                 <LinkIcon className="h-4 w-4 mr-2" /> Salin Komposisi Pasukan
-                             </Button>
-                         </a>
-                     </div>
-                 )}
-                 {/* Link eksternal untuk Video */}
-                 {isItemVideo && (
-                     <div className="pt-3 border-t border-coc-gold-dark/20">
-                         <a href={itemLink || '#'} target="_blank" rel="noopener noreferrer">
-                             <Button variant="secondary" size="sm" className="w-full bg-coc-red/20 text-coc-red hover:bg-coc-red/30 border-coc-red/30">
-                                 Tonton di YouTube
-                             </Button>
-                         </a>
-                     </div>
-                 )}
+                        <div className="pt-3 border-t border-coc-gold-dark/20">
+                            <h4 className="text-xs font-bold text-gray-400 mb-2 flex items-center gap-1"><HomeIcon className="h-4 w-4"/> BASE LINK:</h4>
+                            <a href={post.baseLinkUrl} target="_blank" rel="noopener noreferrer">
+                                <Button variant="secondary" size="sm" className="w-full">
+                                    <LinkIcon className="h-4 w-4 mr-2" /> Salin Link Base
+                                </Button>
+                            </a>
+                        </div>
+                    )}
+                    {!isItemVideo && post?.troopLink && post?.category === 'Strategi Serangan' && (
+                        <div className="pt-3 border-t border-coc-gold-dark/20">
+                            <h4 className="text-xs font-bold text-gray-400 mb-2 flex items-center gap-1"><CogsIcon className="h-4 w-4"/> TROOP LINK:</h4>
+                            <a href={post.troopLink} target="_blank" rel="noopener noreferrer">
+                                 <Button variant="secondary" size="sm" className="w-full">
+                                    <LinkIcon className="h-4 w-4 mr-2" /> Salin Komposisi Pasukan
+                                </Button>
+                            </a>
+                        </div>
+                    )}
+                    {/* Link eksternal untuk Video */}
+                    {isItemVideo && (
+                        <div className="pt-3 border-t border-coc-gold-dark/20">
+                            <a href={itemLink || '#'} target="_blank" rel="noopener noreferrer">
+                                <Button variant="secondary" size="sm" className="w-full bg-coc-red/20 text-coc-red hover:bg-coc-red/30 border-coc-red/30">
+                                    Tonton di YouTube
+                                </Button>
+                            </a>
+                        </div>
+                    )}
             </div>
 
             {/* Footer: Tags & Stats */}
@@ -272,17 +345,34 @@ const FullPostDisplay: React.FC<FullPostDisplayProps> = ({ item }) => {
                 </div>
                 {/* Stats & Actions */}
                 <div className="flex items-center gap-4 text-gray-400">
-                    <button className="flex items-center gap-1 hover:text-coc-gold transition-colors" disabled={isItemVideo}>
-                        <ThumbsUpIcon className="h-4 w-4" /> {likes}
+                    {/* --- PERUBAHAN PADA TOMBOL LIKE --- */}
+                    <button 
+                        className={`flex items-center gap-1 transition-colors ${
+                            userHasLiked
+                                ? 'text-coc-gold hover:text-coc-gold-light' // Liked state
+                                : 'text-gray-400 hover:text-coc-gold' // Default state
+                        } ${isLiking ? 'opacity-50 cursor-wait' : ''}`} // Loading state
+                        disabled={isItemVideo || isLiking} // Nonaktifkan jika video ATAU sedang proses like
+                        onClick={handleLike} // Tambahkan onClick handler
+                    >
+                        {/* [BARU] Ikon akan terisi jika userHasLiked == true */}
+                        <ThumbsUpIcon className={`h-4 w-4 ${userHasLiked ? 'fill-current' : ''}`} /> 
+                        
+                        {/* Tampilkan state 'likeCount' (angka) */}
+                        {isItemVideo ? 'N/A' : `${likeCount} Suka`}
                     </button>
+                    {/* --- AKHIR PERUBAHAN TOMBOL LIKE --- */}
+
                     {/* Link ke komentar hanya untuk Post, nonaktifkan untuk Video */}
                     {isItemVideo ? (
                         <span className="flex items-center gap-1 text-gray-600">
+                           {/* Tipe 'replies' adalah 'N/A' untuk video */}
                            {replies} Balasan
                         </span>
                     ) : (
                         <Link href={`/knowledge-hub/${post?.id}#comments`} className="flex items-center gap-1 hover:text-coc-gold transition-colors">
-                            {replies} Balasan
+                           {/* Tipe 'replies' adalah number untuk post */}
+                           {replies} Balasan
                         </Link>
                     )}
                 </div>
@@ -292,4 +382,3 @@ const FullPostDisplay: React.FC<FullPostDisplayProps> = ({ item }) => {
 };
 
 export default FullPostDisplay;
-

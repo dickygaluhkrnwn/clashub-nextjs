@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     if (!title || !content || !category) {
       return NextResponse.json(
         { error: 'Judul, Konten, dan Kategori wajib diisi' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
     if (!VALID_CATEGORIES.includes(category)) {
       return NextResponse.json(
         { error: 'Kategori tidak valid' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -99,11 +99,15 @@ export async function POST(request: Request) {
       // Data Author (diambil dari sesi)
       authorId: sessionUser.uid,
       authorName: sessionUser.displayName,
-      // authorAvatarUrl: sessionUser.avatarUrl || undefined, // (Jika ada di ServerUser)
+      // [PERBAIKAN] Mengaktifkan (uncomment) baris ini
+      authorAvatarUrl: sessionUser.avatarUrl || undefined,
 
       // Data internal
       createdAt: new Date(),
-      likes: 0,
+      // [PERBAIKAN BUG]
+      // Tipe data 'likes' adalah string[] (array UID), bukan number.
+      // Inisialisasi sebagai array kosong.
+      likes: [],
       replies: 0,
     };
 
@@ -115,12 +119,12 @@ export async function POST(request: Request) {
     incrementPopularity(
       sessionUser.uid,
       5,
-      `new_post: ${newPostData.title.substring(0, 20)}`
+      `new_post: ${newPostData.title.substring(0, 20)}`,
     ).catch((err) => {
       // Log error jika penambahan poin gagal, tapi jangan gagalkan respons utama
       console.error(
         `[POST /api/posts] Gagal menambah poin untuk user ${sessionUser.uid}:`,
-        err
+        err,
       );
     });
 
@@ -131,12 +135,12 @@ export async function POST(request: Request) {
     if (error instanceof SyntaxError) {
       return NextResponse.json(
         { error: 'Invalid JSON payload' },
-        { status: 400 }
+        { status: 400 },
       );
     }
     return NextResponse.json(
       { error: 'Internal Server Error' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

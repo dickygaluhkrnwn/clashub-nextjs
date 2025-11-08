@@ -33,7 +33,12 @@ export const RecentActivityCard = ({
                 title={post.title}
                 category={post.category}
                 tag={post.tags[0] || 'Diskusi'}
-                stats={`${post.replies} Balasan | ${post.likes} Likes`}
+                // [PERBAIKAN BUG]
+                // Mengubah post.likes (array) menjadi post.likes.length (angka)
+                // Kita juga tambahkan pengecekan 'Array.isArray' untuk keamanan
+                stats={`${post.replies} Balasan | ${
+                  Array.isArray(post.likes) ? post.likes.length : 0
+                } Likes`}
                 href={`/knowledge-hub/${post.id}`}
                 author={userProfile.displayName}
               />
