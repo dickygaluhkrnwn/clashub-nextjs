@@ -22,10 +22,13 @@ interface CreateTournamentClientProps {
 
 // Tipe untuk state form
 type TournamentFormData = {
-  name: string;
+  // [PERBAIKAN] 'name' diubah menjadi 'title' agar konsisten dengan Tipe Data
+  title: string;
   description: string;
   rules: string;
   prizePool: string;
+  // [BARU] Menambahkan thRequirement untuk sinkronisasi data
+  thRequirement: string;
   format: string;
   teamSize: number;
   maxParticipants: number;
@@ -50,10 +53,13 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
 
   // State untuk data form
   const [formData, setFormData] = useState<TournamentFormData>({
-    name: '',
+    // [PERBAIKAN] 'name' diubah menjadi 'title'
+    title: '',
     description: '',
     rules: '',
     prizePool: '',
+    // [BARU] Menambahkan thRequirement, default 'All TH Levels'
+    thRequirement: 'All TH Levels',
     format: '5v5',
     teamSize: 5,
     maxParticipants: 16,
@@ -101,19 +107,23 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
-    if (!formData.name.trim()) newErrors.name = 'Nama turnamen wajib diisi.';
+    // [PERBAIKAN] Validasi 'title'
+    if (!formData.title.trim()) newErrors.title = 'Nama turnamen wajib diisi.';
     if (!formData.description.trim())
       newErrors.description = 'Deskripsi wajib diisi.';
     if (!formData.rules.trim()) newErrors.rules = 'Aturan wajib diisi.';
     if (!formData.prizePool.trim())
       newErrors.prizePool = 'Info hadiah wajib diisi.';
+    // [BARU] Validasi 'thRequirement'
+    if (!formData.thRequirement.trim())
+      newErrors.thRequirement = 'Persyaratan TH wajib diisi.';
     if (formData.teamSize <= 0)
       newErrors.teamSize = 'Ukuran tim harus lebih dari 0.';
     if (formData.maxParticipants <= 1)
       newErrors.maxParticipants = 'Partisipan maksimal harus lebih dari 1.';
     if (!formData.startDate)
       newErrors.startDate = 'Tanggal mulai wajib diisi.';
-    
+
     // TODO: Validasi Banner Upload
     // if (!formData.bannerUrl) newErrors.bannerUrl = 'Banner wajib di-upload.';
 
@@ -139,7 +149,7 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
     setIsLoading(true);
 
     // Siapkan payload sesuai interface Tournament (Omit metadata)
-    // Ini adalah tipe yang diharapkan oleh createTournamentAdmin yang kita buat
+    // Tipe ini (dari lib/types.ts) sudah kita update dan memiliki 'title' & 'thRequirement'
     type TournamentPayload = Omit<
       Tournament,
       'id' | 'createdAt' | 'participantCount'
@@ -147,6 +157,9 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
 
     const payload: TournamentPayload = {
       ...formData,
+      // [PERBAIKAN] Pastikan field 'title' dan 'thRequirement' terkirim
+      title: formData.title,
+      thRequirement: formData.thRequirement,
       teamSize: Number(formData.teamSize),
       maxParticipants: Number(formData.maxParticipants),
       startDate: new Date(formData.startDate), // Konversi string datetime-local ke objek Date
@@ -169,7 +182,8 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Gagal membuat turnamen.');
+        // [PERBAIKAN] Tampilkan error dari server, atau fallback
+        throw new Error(errorData.error || 'Gagal membuat turnamen.');
       }
 
       // Sukses!
@@ -234,17 +248,20 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
         {/* Info Utama */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <FormGroup
+            // [PERBAIKAN] Label dan htmlFor diubah ke 'title'
             label="Nama Turnamen"
-            htmlFor="name"
-            error={errors.name}
+            htmlFor="title"
+            error={errors.title}
           >
             <input
               type="text"
-              id="name"
-              name="name"
-              value={formData.name}
+              // [PERBAIKAN] id, name, value, onChange, className
+              // semuanya diubah untuk mereferensikan 'title'
+              id="title"
+              name="title"
+              value={formData.title}
               onChange={handleChange}
-              className={getInputClasses(!!errors.name)}
+              className={getInputClasses(!!errors.title)}
               placeholder="Cth: Clashub Weekly Series"
               disabled={isLoading}
             />
@@ -266,6 +283,30 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
             />
           </FormGroup>
         </div>
+
+        {/* [BARU] Input Persyaratan TH */}
+        <FormGroup
+          label="Persyaratan TH"
+          htmlFor="thRequirement"
+          error={errors.thRequirement}
+        >
+          <select
+            id="thRequirement"
+            name="thRequirement"
+            value={formData.thRequirement}
+            onChange={handleChange}
+            className={getInputClasses(!!errors.thRequirement)}
+            disabled={isLoading}
+          >
+            {/* Opsi ini diambil dari app/components/filters/TournamentFilter.tsx */}
+            <option value="All TH Levels">Semua Level TH</option>
+            <option value="TH 16 Only">Hanya TH 16</option>
+            <option value="TH 15 - 16">TH 15 - 16</option>
+            <option value="TH 14 - 16">TH 14 - 16</option>
+            <option value="TH 13 - 14">TH 13 - 14</option>
+            <option value="TH 10 - 12">TH 10 - 12</option>
+          </select>
+        </FormGroup>
 
         {/* Deskripsi & Aturan */}
         <FormGroup

@@ -11,6 +11,7 @@ import {
 import { incrementPopularity } from '@/lib/firestore-admin/popularity'; // (3) Poin
 
 // Tipe data payload yang diharapkan dari CreateTournamentClient.tsx
+// Tipe ini (dari lib/types.ts) sudah otomatis sinkron (memiliki title dan thRequirement)
 type CreateTournamentPayload = Omit<
   Tournament,
   'id' | 'createdAt' | 'participantCount'
@@ -51,17 +52,27 @@ export async function POST(request: NextRequest) {
     // 2. Parse dan Validasi Body Request
     const body = (await request.json()) as CreateTournamentPayload;
 
+    // [PERBAIKAN] Menggunakan 'title' dan 'thRequirement' (bukan 'name')
     const {
-      name,
+      title,
       description,
       rules,
       prizePool,
+      thRequirement, // <-- [BARU] Ditambahkan
       startDate,
       organizerId,
     } = body;
 
     // Validasi dasar
-    if (!name || !description || !rules || !prizePool || !startDate) {
+    // [PERBAIKAN] Memvalidasi 'title' dan 'thRequirement'
+    if (
+      !title ||
+      !description ||
+      !rules ||
+      !prizePool ||
+      !thRequirement ||
+      !startDate
+    ) {
       return NextResponse.json(
         { error: 'Semua field wajib diisi' },
         { status: 400 },
@@ -88,7 +99,8 @@ export async function POST(request: NextRequest) {
     incrementPopularity(
       sessionUser.uid,
       20, // Dapat 20 poin karena membuat turnamen
-      `new_tournament: ${body.name.substring(0, 20)}`,
+      // [PERBAIKAN] Menggunakan 'title'
+      `new_tournament: ${body.title.substring(0, 20)}`,
     ).catch((err) => {
       // Log error jika penambahan poin gagal, tapi jangan gagalkan respons utama
       console.error(
