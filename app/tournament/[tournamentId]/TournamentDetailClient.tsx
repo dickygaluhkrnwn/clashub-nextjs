@@ -1,10 +1,17 @@
 'use client';
 
-import React from 'react';
-import Image from 'next/image';
+// [TAHAP 6] Tambahkan useState, useEffect
+import React, { useState, useEffect } from 'react';
+// [PERBAIKAN] Ganti Image next/image menjadi img biasa
+// import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FirestoreDocument, Tournament } from '@/lib/clashub.types';
+// [TAHAP 6] Tambahkan TournamentParticipant
+import {
+  FirestoreDocument,
+  Tournament,
+  TournamentParticipant,
+} from '@/lib/clashub.types';
 import { useAuth } from '@/app/context/AuthContext';
 import { Button } from '@/app/components/ui/Button';
 import {
@@ -14,6 +21,7 @@ import {
   UsersIcon,
   TrophyIcon,
   ShieldIcon, // Menggunakan ShieldIcon sebagai pengganti THIcon
+  Loader2Icon, // [TAHAP 6] Tambahkan Loader2Icon
 } from '@/app/components/icons';
 import { format } from 'date-fns';
 // import { id } from 'date-fns/locale/id'; // Opsional jika ingin format bahasa Indonesia
@@ -54,6 +62,7 @@ const RegisterButtonLogic: React.FC<{
   const router = useRouter();
 
   const handleRegisterClick = () => {
+    // [PERBAIKAN] Gunakan path singular /tournament/
     router.push(`/tournament/${tournament.id}/register`);
   };
 
@@ -101,6 +110,160 @@ const RegisterButtonLogic: React.FC<{
   );
 };
 
+// --- [BARU TAHAP 6] ---
+/**
+ * @component ParticipantList
+ * Komponen internal untuk fetch dan render daftar peserta.
+ */
+const ParticipantList: React.FC<{
+  tournamentId: string;
+  participantCount: number;
+  maxParticipants: number;
+}> = ({ tournamentId, participantCount, maxParticipants }) => {
+  const [participants, setParticipants] = useState<
+    FirestoreDocument<TournamentParticipant>[]
+  >([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchParticipants = async () => {
+      try {
+        setIsLoading(true);
+        setFetchError(null);
+        // Panggil API route baru yang kita buat (Tahap 6, Poin 2)
+        const response = await fetch(
+          `/api/tournaments/${tournamentId}/participants`,
+        );
+        if (!response.ok) {
+          throw new Error('Gagal memuat daftar peserta.');
+        }
+        const data: FirestoreDocument<TournamentParticipant>[] =
+          await response.json();
+        
+        // Urutkan berdasarkan tanggal daftar (meskipun API sudah mengurutkan)
+        data.sort((a, b) => 
+          new Date(a.registeredAt).getTime() - new Date(b.registeredAt).getTime()
+        );
+
+        setParticipants(data);
+      } catch (err: any) {
+        console.error('Error fetching participants:', err);
+        setFetchError(err.message || 'Terjadi kesalahan.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchParticipants();
+  }, [tournamentId]); // Hanya fetch ulang jika ID turnamen berubah
+
+  return (
+    <section className="rounded-lg border border-coc-border bg-coc-dark-blue p-6">
+      <h2 className="mb-4 flex items-center font-clash text-2xl font-bold text-white">
+        <UsersIcon className="mr-2 h-6 w-6" />
+        Peserta Terdaftar ({participantCount} / {maxParticipants})
+      </h2>
+
+      {/* State Loading */}
+      {isLoading && (
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-coc-border p-8 text-center">
+          <Loader2Icon className="h-10 w-10 animate-spin text-coc-gold" />
+          <p className="mt-2 text-coc-font-secondary">Memuat daftar tim...</p>
+        </div>
+      )}
+
+      {/* State Error */}
+      {fetchError && (
+        <div className="rounded-lg border border-dashed border-red-700 bg-red-900/30 p-8 text-center text-red-300">
+          <p>Error: {fetchError}</p>
+        </div>
+      )}
+
+      {/* State Sukses (Data Kosong) */}
+      {!isLoading && !fetchError && participants.length === 0 && (
+        <div className="rounded-lg border border-dashed border-coc-border p-8 text-center">
+          <p className="text-coc-font-secondary">
+            Belum ada tim yang terdaftar. Jadilah yang pertama!
+          </p>
+        </div>
+      )}
+
+      {/* State Sukses (Ada Data) */}
+      {!isLoading && !fetchError && participants.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-coc-border/50">
+            <thead className="bg-white/5">
+              <tr>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-coc-font-secondary"
+                >
+                  Tim (Klan)
+                </th>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-coc-font-secondary"
+                >
+                  Didaftarkan Oleh
+                </th>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-coc-font-secondary"
+                >
+                  Status
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-coc-border/30">
+              {participants.map((p) => (
+                <tr key={p.id} className="hover:bg-white/5">
+                  <td className="whitespace-nowrap px-6 py-4">
+                    <div className="flex items-center">
+                      <div className="h-10 w-10 flex-shrink-0">
+                        <img
+                          className="h-10 w-10 rounded-md"
+                          src={p.clanBadgeUrl}
+                          alt={`${p.clanName} badge`}
+                        />
+                      </div>
+                      <div className="ml-4">
+                        <div className="font-clash text-base font-medium text-coc-font-primary">
+                          {p.clanName}
+                        </div>
+                        {/* ID Tim bisa ditampilkan jika perlu */}
+                        {/* <div className="text-xs text-coc-font-secondary">{p.id}</div> */}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="whitespace-nowrap px-6 py-4">
+                    <div className="text-sm text-coc-font-primary">
+                      {p.representativeName}
+                    </div>
+                  </td>
+                  <td className="whitespace-nowrap px-6 py-4">
+                    {/* Logika status (jika nanti ada PENDING/REJECTED) */}
+                    <span
+                      className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
+                        p.status === 'APPROVED'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}
+                    >
+                      {p.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+};
+// --- [AKHIR BARU TAHAP 6] ---
+
 /**
  * @component TournamentDetailClient
  * Client Component untuk me-render detail turnamen.
@@ -134,13 +297,12 @@ const TournamentDetailClient: React.FC<TournamentDetailClientProps> = ({
       {/* 1. Banner & Header */}
       <section>
         <div className="relative mb-6 h-48 w-full overflow-hidden rounded-xl border-2 border-coc-border md:h-64 lg:h-80">
-          <Image
+          {/* [PERBAIKAN] Ganti Next/Image menjadi <img> standar */}
+          <img
             src={tournament.bannerUrl}
             alt={`Banner ${tournament.title}`}
-            layout="fill"
-            objectFit="cover"
-            className="transition-transform duration-300 hover:scale-105"
-            priority
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+            // Hapus props Next/Image: layout, objectFit, priority
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
         </div>
@@ -221,19 +383,12 @@ const TournamentDetailClient: React.FC<TournamentDetailClientProps> = ({
         </div>
       </section>
 
-      {/* 4. Daftar Peserta (Placeholder) */}
-      <section className="rounded-lg border border-coc-border bg-coc-dark-blue p-6">
-        <h2 className="mb-4 font-clash text-2xl font-bold text-white">
-          Peserta Terdaftar ({tournament.participantCount} /{' '}
-          {tournament.maxParticipants})
-        </h2>
-        <div className="rounded-lg border border-dashed border-coc-border p-8 text-center">
-          <p className="text-coc-font-secondary">
-            Daftar tim yang berpartisipasi akan muncul di sini.
-          </p>
-          {/* TODO: Di Tahap 5, kita akan fetch dan tampilkan sub-koleksi 'participants' */}
-        </div>
-      </section>
+      {/* 4. Daftar Peserta (DINAMIS - TAHAP 6) */}
+      <ParticipantList
+        tournamentId={tournament.id}
+        participantCount={tournament.participantCount}
+        maxParticipants={tournament.maxParticipants}
+      />
     </div>
   );
 };

@@ -12,8 +12,8 @@ import {
   FormGroup,
   getInputClasses,
 } from '@/app/knowledge-hub/components/form/PostFormGroup';
-// Asumsi path ikon (saya lihat file icons.tsx ada di project)
-import { UploadIcon } from '@/app/components/icons';
+// [PERBAIKAN] Ganti UploadIcon dengan LinkIcon
+import { LinkIcon } from '@/app/components/icons';
 
 // Tipe untuk props komponen ini
 interface CreateTournamentClientProps {
@@ -33,7 +33,7 @@ type TournamentFormData = {
   teamSize: number;
   maxParticipants: number;
   startDate: string; // Akan menggunakan <input type="datetime-local">
-  bannerUrl: string; // TODO: Akan di-handle oleh file upload
+  bannerUrl: string;
 };
 
 // Tipe untuk error validasi
@@ -64,7 +64,7 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
     teamSize: 5,
     maxParticipants: 16,
     startDate: '',
-    bannerUrl: '', // Nanti akan diisi oleh URL Firebase Storage
+    bannerUrl: '', // Nanti akan diisi oleh URL Imgur/placeholder
   });
 
   // State untuk validasi error
@@ -124,7 +124,8 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
     if (!formData.startDate)
       newErrors.startDate = 'Tanggal mulai wajib diisi.';
 
-    // TODO: Validasi Banner Upload
+    // [CATATAN] Kita biarkan validasi banner non-aktif agar
+    // placeholder 'placehold.co' bisa digunakan.
     // if (!formData.bannerUrl) newErrors.bannerUrl = 'Banner wajib di-upload.';
 
     setErrors(newErrors);
@@ -223,26 +224,42 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
         className="card-stone p-6 md:p-8 space-y-6"
         noValidate
       >
-        {/* Placeholder untuk Upload Banner */}
-        <FormGroup label="Banner Turnamen" htmlFor="bannerUrl">
-          <div
-            className={`flex items-center justify-center w-full h-48 rounded-md border-2 border-dashed ${
-              errors.bannerUrl
-                ? 'border-coc-red'
-                : 'border-coc-gold-dark/50'
-            } bg-coc-stone/30 text-gray-400`}
-          >
-            <div className="text-center">
-              <UploadIcon className="h-10 w-10 mx-auto" />
-              <p className="mt-2 text-sm">
-                Klik untuk upload banner (1200x400 disarankan)
-              </p>
-              <p className="text-xs text-gray-500">
-                (Fitur upload sedang dalam pengembangan)
-              </p>
-            </div>
-            {/* <input type="file" id="bannerUrl" name="bannerUrl" className="hidden" /> */}
+        {/* [PERBAIKAN] Mengganti placeholder Upload Banner dengan Input URL */}
+        <FormGroup
+          label="Banner Turnamen URL (Opsional)"
+          htmlFor="bannerUrl"
+          error={errors.bannerUrl}
+        >
+          <div className="relative">
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5">
+              <LinkIcon className="h-4 w-4 text-gray-400" />
+            </span>
+            <input
+              type="url"
+              id="bannerUrl"
+              name="bannerUrl"
+              value={formData.bannerUrl}
+              onChange={handleChange}
+              className={`${getInputClasses(
+                !!errors.bannerUrl,
+              )} !pl-10`} // Tambahkan padding kiri untuk ikon
+              placeholder="Contoh: https://i.imgur.com/banner.png"
+              disabled={isLoading}
+            />
           </div>
+          <p className="text-xs text-gray-500 font-sans mt-2">
+            <strong>Catatan:</strong> Upload gambar Anda ke{' '}
+            <a
+              href="https://imgur.com/upload"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-coc-primary hover:underline"
+            >
+              Imgur
+            </a>{' '}
+            lalu tempel link-nya di sini. Ukuran <strong>1200x400</strong>
+            disarankan. Jika dikosongi, placeholder akan digunakan.
+          </p>
         </FormGroup>
 
         {/* Info Utama */}

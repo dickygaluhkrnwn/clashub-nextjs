@@ -8,7 +8,8 @@ import {
   getTournamentByIdAdmin,
 } from '@/lib/firestore-admin/tournaments';
 import { Tournament, FirestoreDocument } from '@/lib/types';
-// import TournamentDetailClient from './TournamentDetailClient'; // <-- Akan kita buat di langkah selanjutnya
+// [PERBAIKAN] Uncomment impor TournamentDetailClient
+import TournamentDetailClient from './TournamentDetailClient';
 
 // --- [BARU] Tipe untuk Props Halaman Dinamis ---
 type TournamentPageProps = {
@@ -37,7 +38,7 @@ export async function generateMetadata(
     description: `Lihat detail, aturan, dan daftar peserta untuk ${tournament.title}.`,
     // TODO: Kita bisa tambahkan openGraph image menggunakan tournament.bannerUrl di sini
     // openGraph: {
-    //   images: [tournament.bannerUrl],
+    //   images: [tournament.bannerUrl],
     // },
   };
 }
@@ -57,27 +58,18 @@ const TournamentDetailPage = async ({ params }: TournamentPageProps) => {
     notFound(); // Ini akan menampilkan halaman 404.tsx dari Next.js
   }
 
-  // 3. Render Komponen Klien (yang akan kita buat selanjutnya)
+  // 3. Render Komponen Klien
   // dan berikan data turnamen sebagai props.
   return (
     <main className="container mx-auto max-w-6xl px-4 py-8">
-      {/* [Placeholder] 
-        Komponen Klien <TournamentDetailClient /> akan kita buat 
-        di langkah selanjutnya (Tahap 4, Poin 2) untuk menampilkan data ini.
-      */}
-      {/* <TournamentDetailClient tournament={tournament} /> */}
+      {/* [PERBAIKAN] Mengaktifkan Client Component */}
+      {/* Kita gunakan JSON.parse(JSON.stringify()) untuk memastikan 
+          objek Date (dari Firestore) aman diserialisasi dari Server ke Client Component. */}
+      <TournamentDetailClient
+        tournament={JSON.parse(JSON.stringify(tournament))}
+      />
 
-      {/* Placeholder sementara sampai kita buat Client Component */}
-      <div className="rounded-lg border border-dashed border-yellow-500 bg-yellow-50 p-8 text-center dark:bg-yellow-900/20">
-        <p className="font-semibold text-yellow-700 dark:text-yellow-300">
-          [Placeholder] UI untuk `TournamentDetailClient.tsx` akan
-          muncul di sini.
-        </p>
-        <p className="text-sm text-yellow-600 dark:text-yellow-400">
-          Berhasil memuat data untuk: {tournament.title} (ID:{' '}
-          {tournament.id})
-        </p>
-      </div>
+      {/* [PERBAIKAN] div placeholder dihapus */}
     </main>
   );
 };

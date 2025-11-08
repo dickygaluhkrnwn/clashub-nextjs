@@ -16,8 +16,8 @@ import {
 } from '@/lib/clashub.types';
 // [FIX-Error 4] Mengimpor DocumentData untuk type hint
 import { DocumentData } from 'firebase-admin/firestore';
-// Kita akan membuat komponen client ini di langkah berikutnya
-// import TournamentRegisterClient from './TournamentRegisterClient';
+// [PERBAIKAN] Kita uncomment komponen client
+import TournamentRegisterClient from './TournamentRegisterClient';
 
 /**
  * Mengambil data turnamen spesifik dari Firestore.
@@ -37,7 +37,15 @@ async function getTournamentData(
     return null;
   }
 
-  return { id: tournamentSnap.id, ...tournamentSnap.data() } as Tournament;
+  // [PERBAIKAN] Konversi manual data (termasuk timestamp)
+  const data = tournamentSnap.data() as DocumentData;
+  Object.keys(data).forEach((key) => {
+    if (data[key] && typeof data[key].toDate === 'function') {
+      data[key] = data[key].toDate();
+    }
+  });
+
+  return { id: tournamentSnap.id, ...data } as Tournament;
 }
 
 /**
@@ -157,8 +165,6 @@ export default async function TournamentRegisterPage({
     }
   }
 
-  // TODO: Nanti kita fetch data registrasi yang sudah ada (jika diperlukan)
-
   // 5. Render komponen client dengan data yang sudah di-fetch
   return (
     <div className="container mx-auto max-w-4xl p-4 py-8">
@@ -170,52 +176,19 @@ export default async function TournamentRegisterPage({
         {tournament.title}
       </h2>
 
-      {/* Komponen Client akan dirender di sini.
-        Untuk saat ini, kita tampilkan data placeholder.
-        Kita akan buat TournamentRegisterClient.tsx selanjutnya.
-      */}
-
-      {/* <TournamentRegisterClient 
+      {/* [PERBAIKAN] Mengaktifkan Client Component */}
+      {/* Kita gunakan JSON.parse(JSON.stringify()) untuk memastikan 
+          objek Date (dari Firestore) aman diserialisasi dari Server ke Client Component. */}
+      <TournamentRegisterClient
         tournament={JSON.parse(JSON.stringify(tournament))}
         userProfile={JSON.parse(JSON.stringify(userProfile))}
-        managedClan={managedClan ? JSON.parse(JSON.stringify(managedClan)) : null}
+        managedClan={
+          managedClan ? JSON.parse(JSON.stringify(managedClan)) : null
+        }
         esportsTeams={JSON.parse(JSON.stringify(esportsTeams))}
-      /> */}
+      />
 
-      {/* Placeholder sementara sampai TournamentRegisterClient dibuat */}
-      <div className="bg-background-card p-6 rounded-lg shadow-lg border border-gray-700">
-        <h3 className="text-lg font-semibold mb-4 border-b border-gray-600 pb-2">
-          Data Pendaftaran (Server-side)
-        </h3>
-        <p>
-          <strong>Turnamen ID:</strong> {tournament.id}
-        </p>
-        <p>
-          <strong>User ID:</strong> {userId}
-        </p>
-        <p>
-          <strong>Klan Terkelola:</strong>{' '}
-          {managedClan?.name || 'Anda tidak tergabung dalam klan terkelola.'}
-        </p>
-        <p>
-          <strong>Tim E-Sports Ditemukan:</strong> {esportsTeams.length}
-        </p>
-        {esportsTeams.length > 0 && (
-          <ul className="list-disc pl-5 mt-2 space-y-1">
-            {esportsTeams.map((team) => (
-              <li key={team.id} className="text-sm">
-                {team.teamName}
-              </li>
-            ))}
-          </ul>
-        )}
-        <p className="mt-6 text-yellow-400 text-sm">
-          Logika UI untuk memilih tim akan diimplementasikan di file: <br />
-          <code className="bg-gray-700 px-1 rounded">
-            app/tournament/[tournamentId]/register/TournamentRegisterClient.tsx
-          </code>
-        </p>
-      </div>
+      {/* [PERBAIKAN] div placeholder dihapus */}
     </div>
   );
 }
