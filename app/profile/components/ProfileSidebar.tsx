@@ -4,8 +4,8 @@
 
 import React from 'react';
 import Image from 'next/image';
-// [FIX] Hapus 'Link' karena tidak digunakan secara langsung di sini (Button menanganinya)
-// import Link from 'next/link';
+// [PERBAIKAN] Mengimpor 'Link' dari next/link
+import Link from 'next/link';
 import { Button } from '@/app/components/ui/Button';
 import {
   InfoIcon,
@@ -18,8 +18,11 @@ import {
   TrophyIcon,
   StarIcon,
   CogsIcon,
+  ChevronRightIcon, // [BARU] Menambahkan ikon panah
 } from '@/app/components/icons';
 import { UserProfile } from '@/lib/types';
+// [PERUBAHAN] Impor helper untuk logika tier
+import { getTierForPoints } from '@/lib/popularity-utils';
 
 interface ProfileSidebarProps {
   userProfile: UserProfile;
@@ -52,6 +55,10 @@ export const ProfileSidebar = ({
     return url.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
   };
   const displayWebsite = cleanUrlDisplay(userProfile.website);
+
+  // [PERUBAHAN] Hitung poin dan tier saat ini di sini
+  const currentPoints = userProfile.popularityPoints || 0;
+  const currentTier = getTierForPoints(currentPoints);
 
   return (
     <aside className="lg:col-span-1 card-stone p-6 h-fit sticky top-28 space-y-6 text-center rounded-lg">
@@ -174,13 +181,24 @@ export const ProfileSidebar = ({
         <h3 className="text-lg text-coc-gold-dark font-clash">
           Poin Popularitas
         </h3>
-        <p className="text-4xl font-clash text-coc-gold my-1">
-          {userProfile.popularityPoints || 0}{' '}
-          <TrophyIcon className="inline h-7 w-7" />
+        {/* [PERUBAHAN] Terapkan warna dinamis 'currentTier.colorClass' */}
+        <p
+          className={`text-4xl font-clash ${currentTier.colorClass} my-1`}
+        >
+          {currentPoints}{' '}
+          {/* [PERUBAHAN] Tambahkan fill='currentColor' agar ikon mewarisi warna */}
+          <TrophyIcon className="inline h-7 w-7" fill="currentColor" />
         </p>
-        <p className="text-xs text-gray-400">
-          (Didapat dari aktivitas & ulasan)
-        </p>
+        {/* --- PERUBAHAN DI SINI --- */}
+        {/* Mengganti <p> dengan <Link> ke halaman baru */}
+        <Link
+          href="/profile/popularity"
+          className="text-xs text-coc-gold hover:text-coc-gold-light hover:underline flex items-center justify-center gap-1 transition-colors"
+        >
+          Lihat Detail Poin & Badges
+          <ChevronRightIcon className="h-3 w-3" />
+        </Link>
+        {/* --- AKHIR PERUBAHAN --- */}
       </div>
 
       {/* Reputasi */}
