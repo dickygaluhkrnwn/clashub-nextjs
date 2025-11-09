@@ -12,6 +12,7 @@ import {
   RaidArchive, // <-- PERBAIKAN 3: Tipe data arsip raid
   CocRaidLog, // <-- PERBAIKAN 3: Tipe data raid saat ini
   CwlArchive, // <-- [PERBAIKAN] Impor Tipe Arsip CWL
+  ManagedClanDataPayload, // <-- [PERBAIKAN ERROR 3] Impor tipe payload baru
 } from '@/lib/types'; // Mengimpor tipe dari barrel file utama
 
 /**
@@ -34,7 +35,7 @@ const fetcher = async (url: string) => {
   if (!res.ok) {
     const errorData = await res.json();
     throw new Error(
-      errorData.message || 'Terjadi kesalahan saat mengambil data.'
+      errorData.message || 'Terjadi kesalahan saat mengambil data.',
     );
   }
 
@@ -47,13 +48,15 @@ const fetcher = async (url: string) => {
  * [PERBAIKAN V6] Mengganti nama hook dan URL dari '/sync/basic' ke '/cache'.
  */
 export const useManagedClanCache = (clanId: string) => {
-  const { data, error, isLoading, mutate } = useSWR<ClanApiCache>(
+  const { data, error, isLoading, mutate } = useSWR<ManagedClanDataPayload>( // <-- [PERBAIKAN ERROR 3] Ganti tipe ke ManagedClanDataPayload
     clanId ? `/api/clan/manage/${clanId}/cache` : null, // <-- [BUG FIX] URL diubah
-    fetcher
+    fetcher,
   );
 
   return {
-    clanCache: data,
+    // [PERBAIKAN ERROR 3] Kembalikan data 'clan' (induk) dan 'cache' (sub-koleksi)
+    clanData: data?.clan,
+    clanCache: data?.cache,
     isLoading: isLoading,
     isError: error,
     mutateCache: mutate, // [PERBAIKAN V6] Ganti nama mutate
@@ -68,7 +71,7 @@ export const useManagedClanCache = (clanId: string) => {
 export const useManagedClanWar = (clanId: string) => {
   const { data, error, isLoading, mutate } = useSWR<CocCurrentWar | null>( // <-- [PERBAIKAN ERROR 3] Ganti tipe ke CocCurrentWar | null
     clanId ? `/api/clan/manage/${clanId}/war` : null, // <-- [BUG FIX] URL diubah
-    fetcher
+    fetcher,
   );
 
   return {
@@ -93,7 +96,7 @@ export const useManagedClanWarLog = (clanId: string) => {
     {
       // Opsi SWR untuk memastikan data tanggal konsisten
       revalidateOnFocus: false,
-    }
+    },
   );
 
   return {
@@ -114,7 +117,7 @@ export const useManagedClanCWL = (clanId: string) => {
   >(
     // <-- [PERBAIKAN] Tipe diubah dari CocLeagueGroup ke Array Arsip
     clanId ? `/api/clan/manage/${clanId}/cwl` : null, // <-- URL sudah benar (GET)
-    fetcher
+    fetcher,
   );
 
   return {
@@ -133,7 +136,7 @@ export const useManagedClanCWL = (clanId: string) => {
 export const useManagedClanRaid = (clanId: string) => {
   const { data, error, isLoading, mutate } = useSWR<ManagedClanRaidData>( // <-- TIPE DIPERBAIKI
     clanId ? `/api/clan/manage/${clanId}/raid` : null, // <-- [BUG FIX] URL diubah
-    fetcher
+    fetcher,
   );
 
   return {
@@ -154,7 +157,7 @@ export const useManagedClanRaid = (clanId: string) => {
 export const useManagedClanMembers = (clanId: string) => {
   const { data, error, isLoading, mutate } = useSWR<UserProfile[]>(
     clanId ? `/api/clan/manage/${clanId}/members` : null,
-    fetcher
+    fetcher,
   );
 
   return {
@@ -173,7 +176,7 @@ export const useManagedClanMembers = (clanId: string) => {
 export const useManagedClanRequests = (clanId: string) => {
   const { data, error, isLoading, mutate } = useSWR<JoinRequestWithProfile[]>(
     clanId ? `/api/clan/manage/${clanId}/requests` : null,
-    fetcher
+    fetcher,
   );
 
   return {
@@ -183,4 +186,3 @@ export const useManagedClanRequests = (clanId: string) => {
     mutateRequests: mutate,
   };
 };
-

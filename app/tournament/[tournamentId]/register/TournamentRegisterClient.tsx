@@ -1,241 +1,435 @@
 'use client';
 
-import React, { useState } from 'react';
+// [FASE 3] ROMBAK TOTAL
+// File ini dirombak total untuk FASE 3 Peta Develop.
+// - Menggunakan hooks (useAuth, useManagedClanCache) untuk mengambil data, bukan props.
+// - Menghapus logika EsportsTeam yang lama.
+// - Menambahkan form input 'teamName'.
+// - Menambahkan UI multi-select member dari daftar 'clanCache.members'.
+// - Menambahkan validasi TH (CEK 1, 2, 3) di sisi klien.
+
+import React, { useState, useMemo } from 'react';
+import Image from 'next/image';
 import {
-  Tournament,
-  UserProfile,
-  ManagedClan,
-  EsportsTeam,
+  Tournament,
+  TournamentTeamMember,
+  UserProfile,
 } from '@/lib/clashub.types';
+import { CocMember } from '@/lib/coc.types'; // Diperlukan untuk tipe member
+import { ClanRole } from '@/lib/enums'; // Diperlukan untuk cek role
+import { useAuth } from '@/app/context/AuthContext';
+import { useManagedClanCache } from '@/lib/hooks/useManagedClan';
 import { Button } from '@/app/components/ui/Button';
-// [PERBAIKAN] Impor Notification dan tipenya
 import Notification, {
-  NotificationProps,
+  NotificationProps,
 } from '@/app/components/ui/Notification';
 import {
-  Loader2Icon,
-  AlertTriangleIcon,
-  // [PERBAIKAN] CheckCircleIcon dihapus, karena sudah di-handle oleh Notification.tsx
-} from '@/app/components/icons/ui-feedback'; // Menggunakan ikon dari file yang Anda berikan
+  Loader2Icon,
+  AlertTriangleIcon,
+  CheckIcon, // <-- [PERBAIKAN ERROR 2] Impor CheckIcon
+} from '@/app/components/icons/ui-feedback';
+import {
+  UsersIcon,
+  UserPlusIcon,
+  CrownIcon,
+} from '@/app/components/icons/ui-user';
+// [PERBAIKAN ERROR 1] Memisahkan impor XIcon dan PlusIcon
+import { PlusIcon } from '@/app/components/icons/ui-actions';
+import { XIcon } from '@/app/components/icons/ui-general';
+import { getThImage, validateTeamThRequirements } from '@/lib/th-utils'; // Impor validasi TH
 
-// Tipe properti untuk komponen client ini
+// Tipe properti baru: Hanya menerima 'tournament'
 interface TournamentRegisterClientProps {
-  tournament: Tournament;
-  userProfile: UserProfile;
-  managedClan: ManagedClan | null;
-  esportsTeams: EsportsTeam[];
+  tournament: Tournament;
 }
 
 /**
- * Komponen Client-side untuk menangani logika pendaftaran turnamen.
- */
+ * Komponen Client-side untuk menangani logika pendaftaran turnamen (FASE 3).
+ */
 export default function TournamentRegisterClient({
-  tournament,
-  userProfile,
-  managedClan,
-  esportsTeams,
+  tournament,
 }: TournamentRegisterClientProps) {
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  // [PERBAIKAN] Mengganti state error/success menjadi satu state notification
-  const [notification, setNotification] = useState<NotificationProps | null>(
-    null,
-  );
+  const { userProfile } = useAuth();
+  const [teamName, setTeamName] = useState('');
+  const [selectedMembers, setSelectedMembers] = useState<CocMember[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [notification, setNotification] = useState<NotificationProps | null>(
+    null,
+  );
 
-  /**
-   * Menangani proses submit pendaftaran tim ke API.
-   */
-  const handleRegister = async () => {
-    // [PERBAIKAN] Menggunakan setNotification untuk error
-    if (!selectedTeamId) {
-      setNotification({
-        message: 'Anda harus memilih satu tim untuk didaftarkan.',
-        type: 'error',
-        onClose: () => setNotification(null),
-      });
-      return;
-    }
+  // FASE 3 - Step 1: Muat Data
+  // Ambil data clan yang di-manage user menggunakan hook
+  // [PERBAIKAN ERROR 3] Destrukturisasi payload baru (clanData dan clanCache)
+  const {
+    clanData,
+    clanCache,
+    isLoading: isLoadingClan,
+  } = useManagedClanCache(userProfile?.clanId || '');
 
-    setIsLoading(true);
-    // [PERBAIKAN] Reset notifikasi
-    setNotification(null);
+  // Ambil data ManagedClan dari UserProfile dan hook
+  const managedClan = useMemo(() => {
+    if (!userProfile || !userProfile.clanId) return null;
+    return {
+      id: userProfile.clanId,
+      tag: userProfile.clanTag!,
+      name: userProfile.clanName!,
+      // [PERBAIKAN ERROR 3] Ambil logoUrl dari clanData (dokumen induk)
+      badgeUrl:
+        clanData?.logoUrl || '/images/clan-badge-placeholder.png',
+    };
+  }, [userProfile, clanData]); // [PERBAIKAN ERROR 3] Ganti dependensi ke clanData
 
-    try {
-      // Panggil API endpoint yang akan kita buat selanjutnya
-      // [PERBAIKAN] Path API diubah agar konsisten (jamak)
-      const response = await fetch(
-        `/api/tournaments/${tournament.id}/register`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            // [PERBAIKAN] Kirim data yang lebih lengkap untuk API
-            selectedTeamId: selectedTeamId,
-            selectedTeamName:
-              esportsTeams.find((t) => t.id === selectedTeamId)?.teamName || '',
-            clanId: managedClan?.id,
-            clanTag: managedClan?.tag,
-            clanName: managedClan?.name,
-            clanBadgeUrl:
-              managedClan?.logoUrl ||
-              '/images/clan-badge-placeholder.png', // Fallback badge
-          }),
-        },
-      );
+  // Cek apakah user adalah Leader atau Co-Leader
+  const isUserLeaderOrCo =
+    userProfile?.clanRole === ClanRole.LEADER ||
+    userProfile?.clanRole === ClanRole.CO_LEADER;
 
-      const result = await response.json();
+  // Tentukan daftar member yang bisa didaftarkan
+  const availableMembers = useMemo(() => {
+    // [PERBAIKAN ERROR 3] Ambil members dari clanCache
+    const allMembers = clanCache?.members || [];
 
-      if (!response.ok) {
-        throw new Error(result.error || 'Gagal mendaftarkan tim.');
-      }
+    // Jika user adalah Leader/Co, dia bisa mendaftarkan siapa saja
+    if (isUserLeaderOrCo) {
+      return allMembers;
+    }
 
-      // [PERBAIKAN] Menggunakan setNotification untuk sukses
-      setNotification({
-        message: `Tim Anda (${
-          esportsTeams.find((t) => t.id === selectedTeamId)?.teamName
-        }) berhasil didaftarkan!`,
-        type: 'success',
-        onClose: () => setNotification(null),
-      });
-    } catch (err: any) {
-      console.error('Error mendaftar turnamen:', err);
-      // [PERBAIKAN] Menggunakan setNotification untuk error
-      setNotification({
-        message: err.message || 'Terjadi kesalahan. Silakan coba lagi.',
-        type: 'error',
-        onClose: () => setNotification(null),
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    // Jika user adalah member biasa, dia hanya bisa mendaftarkan dirinya sendiri
+    // (jika profilnya ditemukan di cache)
+    if (userProfile?.playerTag) {
+      const self = allMembers.find((m) => m.tag === userProfile.playerTag);
+      return self ? [self] : [];
+    }
 
-  // Render kondisi jika user tidak di klan terkelola
-  if (!managedClan) {
-    return (
-      <div className="card-stone p-6 text-center">
-        <AlertTriangleIcon className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold clash-font mb-2">
-          Klan Tidak Terkelola
-        </h3>
-        <p className="text-muted-foreground">
-          Anda harus menjadi anggota dari klan yang dikelola di Clashub untuk
-          dapat mendaftarkan tim ke turnamen.
-        </p>
-      </div>
-    );
-  }
+    return [];
+  }, [clanCache?.members, userProfile?.playerTag, isUserLeaderOrCo]);
 
-  // Render kondisi jika klan terkelola tapi tidak punya tim e-sports
-  // [PERBAIKAN] Cek juga apakah user adalah Team Leader atau Clan Owner
-  const isClanLeader = userProfile.uid === managedClan.ownerUid;
-  const userLedTeams = esportsTeams.filter(
-    (team) => team.teamLeaderUid === userProfile.uid,
-  );
+  /**
+   * Menangani pemilihan member.
+   */
+  const handleMemberSelect = (member: CocMember) => {
+    // Cek duplikat
+    if (selectedMembers.find((m) => m.tag === member.tag)) return;
 
-  if (esportsTeams.length === 0 || (!isClanLeader && userLedTeams.length === 0)) {
-    return (
-      <div className="card-stone p-6 text-center">
-        <AlertTriangleIcon className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold clash-font mb-2">
-          Tim E-Sports Tidak Ditemukan
-        </h3>
-        <p className="text-muted-foreground">
-          {isClanLeader
-            ? `Klan Anda (${managedClan.name}) belum memiliki Tim E-Sports.`
-            : `Anda bukan Pimpinan Tim E-Sports di klan ${managedClan.name}.`}
-        </p>
-        <p className="text-sm text-gray-400 mt-2">
-          {isClanLeader
-            ? 'Silakan buat tim di Halaman Manajemen Klan.'
-            : 'Hanya Pimpinan Klan atau Pimpinan Tim E-Sports yang dapat mendaftarkan tim.'}
-        </p>
-        {isClanLeader && (
-          <Button
-            variant="secondary"
-            className="mt-4"
-            href="/clan/manage" // Arahkan ke halaman manajemen klan
-          >
-            Buka Manajemen Klan
-          </Button>
-        )}
-      </div>
-    );
-  }
+    // Cek batas ukuran tim
+    if (selectedMembers.length >= tournament.teamSize) {
+      setNotification({
+        message: `Anda hanya dapat memilih ${tournament.teamSize} pemain untuk format ${tournament.format}.`,
+        type: 'warning',
+        onClose: () => setNotification(null),
+      });
+      return;
+    }
 
-  // [PERBAIKAN] Tampilkan hanya tim yang bisa didaftarkan oleh user
-  // (User adalah Clan Leader ATAU Team Leader dari tim tsb)
-  const availableTeams = isClanLeader
-    ? esportsTeams
-    : userLedTeams;
+    setSelectedMembers((prev) => [...prev, member]);
+  };
 
-  // Render form pendaftaran jika semua syarat terpenuhi
-  return (
-    <>
-      {/* [BARU] Container untuk notifikasi (toast) */}
-      {notification && <Notification notification={notification} />}
+  /**
+   * Menangani pembatalan pemilihan member.
+   */
+  const handleMemberDeselect = (memberTag: string) => {
+    setSelectedMembers((prev) => prev.filter((m) => m.tag !== memberTag));
+  };
 
-      <div className="card-stone p-6">
-        <h3 className="text-lg font-semibold mb-4 border-b border-coc-gold-dark/20 pb-2 clash-font">
-          Pilih Tim E-Sports dari {managedClan.name}
-        </h3>
+  /**
+   * Menangani proses submit pendaftaran tim ke API.
+   */
+  const handleRegister = async () => {
+    setIsLoading(true);
+    setNotification(null);
 
-        <div className="space-y-3 mb-6">
-          {availableTeams.map((team) => (
-            <label
-              key={team.id}
-              className={`flex items-center p-4 rounded-lg border transition-all cursor-pointer ${
-                selectedTeamId === team.id
-                  ? 'bg-coc-primary-light/20 border-coc-primary-light ring-2 ring-coc-primary-light'
-                  : 'bg-coc-dark-blue/30 border-coc-border hover:bg-coc-dark-blue/60'
-              }`}
-            >
-              <input
-                type="radio"
-                name="esportsTeam"
-                value={team.id}
-                checked={selectedTeamId === team.id}
-                onChange={() => setSelectedTeamId(team.id)}
-                className="mr-4 h-5 w-5 text-coc-primary bg-coc-dark-blue border-coc-border focus:ring-coc-primary ring-offset-coc-dark-blue"
-              />
-              <div>
-                <span className="font-semibold text-coc-font-primary">
-                  {team.teamName}
-                </span>
-                <p className="text-xs text-coc-font-secondary">
-                  {/* [PERBAIKAN] Tampilkan nama leader jika user adalah clan leader */}
-                  {isClanLeader && team.teamLeaderUid !== userProfile.uid
-                    ? `Leader: ${team.teamLeaderUid}` // Nanti ganti nama
-                    : 'Tim Anda'}
-                </p>
-              </div>
-            </label>
-          ))}
-        </div>
+    // --- FASE 3 - Step 3: Validasi (Sisi Klien) ---
 
-        {/* [PERBAIKAN] Area Notifikasi (Error/Success) dihapus dari sini */}
+    // 1. Validasi Nama Tim
+    if (!teamName.trim()) {
+      setNotification({
+        message: 'Nama Tim tidak boleh kosong.',
+        type: 'error',
+        onClose: () => setNotification(null),
+      });
+      setIsLoading(false);
+      return;
+    }
 
-        <Button
-          variant="primary"
-          size="lg"
-          className="w-full flex items-center justify-center gap-2"
-          onClick={handleRegister}
-          disabled={isLoading || !selectedTeamId || !!notification?.message} // Nonaktifkan jika sedang loading, belum pilih tim, atau ada notifikasi
-        >
-          {isLoading ? (
-            <>
-              <Loader2Icon className="w-5 h-5 animate-spin" />
-              <span>Mendaftarkan...</span>
-            </>
-          ) : !!notification?.message && notification.type === 'success' ? (
-            'Berhasil Terdaftar'
-          ) : (
-            'Daftarkan Tim'
-          )}
-        </Button>
-      </div>
-    </>
-  );
+    // 2. CEK 1: Validasi Jumlah Pemain
+    if (selectedMembers.length !== tournament.teamSize) {
+      setNotification({
+        message: `Jumlah pemain tidak sesuai. Turnamen ini memerlukan ${tournament.teamSize} pemain.`,
+        type: 'error',
+        onClose: () => setNotification(null),
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    // 3. Format data member untuk validasi TH
+    const teamToValidate: TournamentTeamMember[] = selectedMembers.map(
+      (member) => ({
+        playerTag: member.tag,
+        playerName: member.name,
+        townHallLevel: member.townHallLevel,
+      }),
+    );
+
+    // 4. CEK 2 & 3: Validasi Aturan TH
+    const thValidation = validateTeamThRequirements(
+      teamToValidate,
+      tournament.thRequirement,
+    );
+
+    if (!thValidation.isValid) {
+      setNotification({
+        message: thValidation.message, // Tampilkan pesan error spesifik dari validator
+        type: 'error',
+        onClose: () => setNotification(null),
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    // --- Panggil API (FASE 3 - Step 2) ---
+    try {
+      const response = await fetch(
+        `/api/tournaments/${tournament.id}/register`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            // Data baru yang dikirim ke API
+            teamName: teamName.trim(),
+            members: teamToValidate, // Kirim array member yang sudah divalidasi
+            originClanTag: managedClan?.tag,
+            originClanBadgeUrl: managedClan?.badgeUrl,
+          }),
+        },
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Gagal mendaftarkan tim.');
+      }
+
+      setNotification({
+        message: `Tim "${teamName.trim()}" berhasil didaftarkan! Menunggu persetujuan panitia.`,
+        type: 'success',
+        onClose: () => setNotification(null),
+      });
+      // Nonaktifkan form setelah berhasil
+      setTeamName('');
+      setSelectedMembers([]);
+    } catch (err: any) {
+      console.error('Error mendaftar turnamen:', err);
+      setNotification({
+        message: err.message || 'Terjadi kesalahan. Silakan coba lagi.',
+        type: 'error',
+        onClose: () => setNotification(null),
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // --- Render Kondisi Loading dan Error ---
+
+  if (isLoadingClan) {
+    return (
+      <div className="card-stone p-6 text-center flex items-center justify-center gap-2">
+        <Loader2Icon className="w-6 h-6 animate-spin" />
+        <span className="text-muted-foreground">Memuat data klan...</span>
+      </div>
+    );
+  }
+
+  if (!userProfile || !managedClan) {
+    return (
+      <div className="card-stone p-6 text-center">
+        <AlertTriangleIcon className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+        <h3 className="text-xl font-semibold clash-font mb-2">
+          Klan Tidak Terkelola
+        </h3>
+        <p className="text-muted-foreground">
+          Anda harus menjadi anggota dari klan yang dikelola di Clashub untuk
+          dapat mendaftarkan tim ke turnamen.
+        </p>
+      </div>
+    );
+  }
+
+  if (availableMembers.length === 0) {
+    return (
+      <div className="card-stone p-6 text-center">
+        <AlertTriangleIcon className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+        <h3 className="text-xl font-semibold clash-font mb-2">
+          Tidak Memenuhi Syarat
+        </h3>
+        <p className="text-muted-foreground">
+          Anda tidak dapat mendaftar. Hanya Leader/Co-Leader yang dapat
+          mendaftarkan tim, atau Anda harus mendaftarkan diri sendiri (dan akun
+          Anda harus terverifikasi di klan ini).
+        </p>
+      </div>
+    );
+  }
+
+  // --- Render Form Pendaftaran (FASE 3 - Step 2) ---
+  return (
+    <>
+      {notification && <Notification notification={notification} />}
+
+      <div className="card-stone p-6">
+        <h3 className="text-lg font-semibold mb-4 border-b border-coc-gold-dark/20 pb-2 clash-font">
+          Daftarkan Tim Baru (dari {managedClan.name})
+        </h3>
+
+        {/* Step 1: Input Nama Tim */}
+        <div className="mb-4">
+          <label
+            htmlFor="teamName"
+            className="block text-sm font-medium text-coc-font-secondary mb-1"
+          >
+            Nama Tim
+          </label>
+          <input
+            id="teamName"
+            type="text"
+            value={teamName}
+            onChange={(e) => setTeamName(e.target.value)}
+            placeholder="Masukkan nama tim Anda..."
+            className="input-base" // Asumsi 'input-base' dari globals.css
+            maxLength={30}
+          />
+        </div>
+
+        {/* Step 2: Pilih Member */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-coc-font-secondary mb-2">
+            Pilih Pemain ({selectedMembers.length} / {tournament.teamSize})
+          </label>
+
+          {/* Container untuk member yang dipilih */}
+          <div className="mb-4 rounded-lg bg-coc-dark-blue/30 p-3 min-h-[60px]">
+            {selectedMembers.length === 0 ? (
+              <p className="text-sm text-center text-coc-font-secondary/50 py-2">
+                Pilih {tournament.teamSize} pemain dari daftar di bawah...
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {selectedMembers.map((member) => (
+                  <div
+                    key={member.tag}
+                    className="flex items-center gap-2 bg-coc-primary-light/20 text-coc-primary-light py-1 px-3 rounded-full text-sm font-medium"
+                  >
+                    <Image
+                      src={getThImage(member.townHallLevel)}
+                      alt={`TH${member.townHallLevel}`}
+                      width={20}
+                      height={20}
+                    />
+                    <span>{member.name}</span>
+                    <button
+                      onClick={() => handleMemberDeselect(member.tag)}
+                      className="text-coc-primary-light/70 hover:text-white"
+                    >
+                      <XIcon className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Daftar member yang tersedia */}
+          <div className="max-h-60 overflow-y-auto space-y-2 pr-2">
+            {availableMembers.map((member) => {
+              const isSelected = selectedMembers.some(
+                (m) => m.tag === member.tag,
+              );
+              const isFull =
+                selectedMembers.length >= tournament.teamSize;
+              const isLeaderOrCo =
+                member.role === 'leader' || member.role === 'coLeader';
+
+              return (
+                <div
+                  key={member.tag}
+                  className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
+                    isSelected
+                      ? 'bg-coc-dark-blue/80 border-coc-primary-light'
+                      : 'bg-coc-dark-blue/30 border-coc-border'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Image
+                      src={getThImage(member.townHallLevel)}
+                      alt={`TH${member.townHallLevel}`}
+                      width={32}
+                      height={32}
+                    />
+                    <div>
+                      <span
+                        className={`font-semibold ${
+                          isSelected
+                            ? 'text-coc-font-primary'
+                            : 'text-coc-font-secondary'
+                        }`}
+                      >
+                        {member.name}
+                      </span>
+                      <p className="text-xs text-coc-font-secondary/70 flex items-center gap-1">
+                        {isLeaderOrCo && (
+                          <CrownIcon className="w-3 h-3 text-coc-gold" />
+                        )}
+                        <span>{member.role}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleMemberSelect(member)}
+                    disabled={isSelected || (isFull && !isSelected)}
+                    className="px-2 py-1"
+                  >
+                    {isSelected ? (
+                      <CheckIcon className="w-5 h-5 text-coc-green" />
+                    ) : (
+                      <PlusIcon className="w-5 h-5" />
+                    )}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Step 3: Tombol Aksi */}
+        <Button
+          variant="primary"
+          size="lg"
+          className="w-full flex items-center justify-center gap-2"
+          onClick={handleRegister}
+          disabled={
+            isLoading ||
+            selectedMembers.length !== tournament.teamSize ||
+            !teamName.trim()
+          }
+        >
+          {isLoading ? (
+            <>
+              <Loader2Icon className="w-5 h-5 animate-spin" />
+              <span>Mendaftarkan...</span>
+            </>
+          ) : (
+            <>
+              <UserPlusIcon className="w-5 h-5" />
+              <span>Daftarkan Tim</span>
+            </>
+          )}
+        </Button>
+      </div>
+    </>
+  );
 }

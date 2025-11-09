@@ -613,3 +613,19 @@ export interface EsportsTeam {
   memberUids: [string, string, string, string, string];
 }
 // --- [AKHIR BARU] ---
+
+// [BARU: UNTUK PERBAIKAN ERROR #3 (Property 'clan' does not exist)]
+// =========================================================================
+// 7. TIPE DATA PAYLOAD GABUNGAN
+// =========================================================================
+
+/**
+ * @interface ManagedClanDataPayload
+ * Tipe data gabungan yang dikirim oleh API route /cache.
+ * Ini menggabungkan data dokumen induk (ManagedClan) dengan
+ * data sub-koleksi cache (ClanApiCache) untuk SWR hook.
+ */
+export interface ManagedClanDataPayload {
+  clan: FirestoreDocument<ManagedClan>; // Data induk (untuk badgeUrl, name, dll)
+  cache: ClanApiCache | null; // Data cache (untuk members, currentWar, dll)
+}
