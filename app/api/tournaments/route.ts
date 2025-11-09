@@ -3,18 +3,20 @@
 
 import { NextResponse, NextRequest } from 'next/server';
 import { getSessionUser } from '@/lib/server-auth'; // (1) Otentikasi
-import { Tournament } from '@/lib/types'; // Tipe data
+// [ROMBAK V2] Impor Tipe Tournament (yang sudah update)
+import { Tournament } from '@/lib/types';
 import {
   createTournamentAdmin,
   getAllTournamentsAdmin,
 } from '@/lib/firestore-admin/tournaments'; // (2) Fungsi Admin
 import { incrementPopularity } from '@/lib/firestore-admin/popularity'; // (3) Poin
 
-// Tipe data payload yang diharapkan dari CreateTournamentClient.tsx
-// Tipe ini (dari lib/types.ts) sudah otomatis sinkron (memiliki title dan thRequirement)
+// [ROMBAK V2] Tipe data payload yang diharapkan dari CreateTournamentClient.tsx
+// Tipe ini harus cocok dengan payload yang dikirim dari form baru
+// (Semua field Tournament kecuali 'id', 'createdAt', 'participantCountCurrent', 'status')
 type CreateTournamentPayload = Omit<
   Tournament,
-  'id' | 'createdAt' | 'participantCount'
+  'id' | 'createdAt' | 'participantCountCurrent' | 'status'
 >;
 
 /**
@@ -52,26 +54,31 @@ export async function POST(request: NextRequest) {
     // 2. Parse dan Validasi Body Request
     const body = (await request.json()) as CreateTournamentPayload;
 
-    // [PERBAIKAN] Menggunakan 'title' dan 'thRequirement' (bukan 'name')
+    // [ROMBAK V2] Validasi field-field baru dari Peta Develop
     const {
       title,
       description,
       rules,
       prizePool,
-      thRequirement, // <-- [BARU] Ditambahkan
-      startDate,
-      organizerId,
+      startsAt,
+      endsAt, // Baru
+      format, // Baru
+      participantCount, // Baru
+      thRequirement, // Baru
+      organizerUid, // [FIX] Diubah dari organizerId ke organizerUid
     } = body;
 
     // Validasi dasar
-    // [PERBAIKAN] Memvalidasi 'title' dan 'thRequirement'
     if (
       !title ||
       !description ||
       !rules ||
       !prizePool ||
-      !thRequirement ||
-      !startDate
+      !startsAt ||
+      !endsAt || // Baru
+      !format || // Baru
+      !participantCount || // Baru
+      !thRequirement // Baru
     ) {
       return NextResponse.json(
         { error: 'Semua field wajib diisi' },
@@ -81,25 +88,37 @@ export async function POST(request: NextRequest) {
 
     // 3. Validasi Keamanan (PENTING)
     // Pastikan UID pengguna yang login adalah UID yang dikirim sebagai organizer.
-    if (organizerId !== sessionUser.uid) {
+    if (organizerUid !== sessionUser.uid) { // [FIX] Diubah dari organizerId ke organizerUid
       return NextResponse.json(
         { error: 'Forbidden: Organizer ID mismatch' },
         { status: 403 },
       );
     }
 
-    // 4. Simpan ke Firestore
-    // Kita mem-pass seluruh 'body' karena sudah sesuai dengan tipe
-    // Omit<Tournament, 'id' | 'createdAt' | 'participantCount'>
-    // yang diharapkan oleh createTournamentAdmin.
-    const newTournamentId = await createTournamentAdmin(body);
+    // 4. Siapkan data lengkap untuk disimpan (termasuk data server-side)
+    // Tipe ini Omit<'id'> karena createTournamentAdmin akan men-generate ID
+    const newTournamentData: Omit<Tournament, 'id'> = {
+      ...body,
+      // Konversi string JSON (dari body) kembali ke objek Date
+      // agar cleanDataForAdminSDK bisa mengubahnya jadi Timestamp
+      startsAt: new Date(startsAt),
+      endsAt: new Date(endsAt),
+      
+      // [ROMBAK V2] Tambahkan field sisi server sesuai Peta Develop
+      status: 'registration_open', // Status default saat dibuat
+      participantCountCurrent: 0, // Counter tim terdaftar, mulai dari 0
+      createdAt: new Date(), // Waktu pembuatan (akan dikonversi oleh adminSDK)
+    };
 
-    // 5. Tambahkan Poin Popularitas (Gamifikasi) - (Mirip 'posts/route.ts')
-    // Kita tidak perlu 'await', biarkan berjalan di background.
+    // 5. Simpan ke Firestore
+    // createTournamentAdmin (yang kita update di Fase 1)
+    // sekarang mengharapkan data lengkap Omit<Tournament, 'id'>
+    const newTournamentId = await createTournamentAdmin(newTournamentData);
+
+    // 6. Tambahkan Poin Popularitas (Gamifikasi)
     incrementPopularity(
       sessionUser.uid,
       20, // Dapat 20 poin karena membuat turnamen
-      // [PERBAIKAN] Menggunakan 'title'
       `new_tournament: ${body.title.substring(0, 20)}`,
     ).catch((err) => {
       // Log error jika penambahan poin gagal, tapi jangan gagalkan respons utama
@@ -109,9 +128,9 @@ export async function POST(request: NextRequest) {
       );
     });
 
-    // 6. Kembalikan data postingan yang baru dibuat (atau cukup ID-nya)
+    // 7. Kembalikan data turnamen yang baru dibuat
     return NextResponse.json(
-      { id: newTournamentId, ...body },
+      { id: newTournamentId, ...newTournamentData },
       { status: 201 },
     );
   } catch (error) {

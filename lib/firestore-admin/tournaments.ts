@@ -3,12 +3,11 @@
 
 import { adminFirestore } from '../firebase-admin';
 import { COLLECTIONS } from '../firestore-collections';
-// Impor tipe data Tournament yang baru kita buat, melalui barrel file 'types'
-// [PERBAIKAN] Tambahkan TournamentParticipant
+// [ROMBAK V2] Impor Tipe Baru: TournamentTeam menggantikan TournamentParticipant
 import {
   Tournament,
   FirestoreDocument,
-  TournamentParticipant,
+  TournamentTeam, // <-- [FIX] Menggunakan Tipe Baru
 } from '../types';
 // Impor utilitas konversi data
 import { docToDataAdmin, cleanDataForAdminSDK } from './utils';
@@ -26,8 +25,8 @@ export const getAllTournamentsAdmin = async (): Promise<
 > => {
   try {
     const tournamentsRef = adminFirestore.collection(COLLECTIONS.TOURNAMENTS);
-    // Mengurutkan berdasarkan startDate, turnamen terbaru (yang akan datang) muncul di atas
-    const q = tournamentsRef.orderBy('startDate', 'desc');
+    // [ROMBAK V2] Mengurutkan berdasarkan 'startsAt' (Timestamp) baru, bukan 'startDate' (Date lama)
+    const q = tournamentsRef.orderBy('startsAt', 'desc');
 
     const snapshot = await q.get();
 
@@ -72,12 +71,15 @@ export const getTournamentByIdAdmin = async (
  * @function createTournamentAdmin
  * Membuat dokumen turnamen baru di koleksi 'tournaments'.
  * Dipanggil dari API Routes POST /api/tournaments.
- * @param data - Objek data turnamen (tanpa metadata 'id', 'createdAt', 'participantCount')
+ * @param data - Objek data turnamen (tanpa metadata yang di-set server)
  * @returns ID dokumen baru yang telah dibuat.
  */
 export const createTournamentAdmin = async (
-  // Omit digunakan untuk memastikan 'id' dan metadata tidak dikirim oleh klien
-  data: Omit<Tournament, 'id' | 'createdAt' | 'participantCount'>,
+  // [ROMBAK V2] Omit disesuaikan dengan interface Tournament baru
+  data: Omit<
+    Tournament,
+    'id' | 'createdAt' | 'participantCountCurrent' | 'status'
+  >,
 ): Promise<string> => {
   try {
     const tournamentsRef = adminFirestore.collection(COLLECTIONS.TOURNAMENTS);
@@ -85,8 +87,9 @@ export const createTournamentAdmin = async (
     // Tambahkan metadata sisi server
     const newTournamentData = {
       ...data,
-      createdAt: Timestamp.now(), // Gunakan Timestamp Admin SDK
-      participantCount: 0,
+      createdAt: new Date(), // [FIX] Diubah dari Timestamp.now() ke new Date()
+      participantCountCurrent: 0, // [FIX] Counter baru
+      status: 'registration_open', // [FIX] Status default baru
     };
 
     // Bersihkan data (konversi Date ke Timestamp, hapus undefined)
@@ -103,41 +106,40 @@ export const createTournamentAdmin = async (
   }
 };
 
-// --- [BARU: TAHAP 5, POIN 3] ---
+// --- [ROMBAK V2: Fase 1 Peta Develop] ---
 /**
  * @function registerTeamForTournamentAdmin
  * Mendaftarkan tim ke turnamen menggunakan Transaksi Firestore.
  * Fungsi ini:
  * 1. Mengecek apakah turnamen ada.
- * 2. Mengecek apakah turnamen sudah penuh.
- * 3. Mengecek apakah tim (ID) sudah terdaftar.
- * 4. Menambahkan dokumen tim ke sub-koleksi 'participants'.
- * 5. Menambah 'participantCount' di dokumen turnamen utama.
+ * 2. Mengecek apakah turnamen sudah penuh (berdasarkan participantCountCurrent vs participantCount).
+ * 3. Menambahkan dokumen tim baru ke sub-koleksi 'teams'.
+ * 4. Menambah 'participantCountCurrent' di dokumen turnamen utama.
  *
  * @param tournamentId ID turnamen.
- * @param participantTeamId ID dari EsportsTeam yang mendaftar.
- * @param participantData Data pendaftar (sesuai Tipe TournamentParticipant).
- * @returns {Promise<{ success: true, participantId: string }>} Jika berhasil.
- * @throws {Error} Jika validasi gagal (misal: penuh, sudah terdaftar).
+ * @param teamData Data tim yang mendaftar (sesuai Tipe TournamentTeam, tanpa server-set fields).
+ * @param sessionUser Info user yang mendaftarkan (untuk leaderUid).
+ * @returns {Promise<{ success: true, teamId: string }>} Jika berhasil, mengembalikan ID tim baru.
+ * @throws {Error} Jika validasi gagal (misal: penuh).
  */
 export const registerTeamForTournamentAdmin = async (
   tournamentId: string,
-  participantTeamId: string,
-  // Omit 'id' dan 'registeredAt' karena akan di-set oleh server
-  participantData: Omit<TournamentParticipant, 'id' | 'registeredAt' | 'status'>,
+  // [ROMBAK V2] Menerima data tim baru, bukan participantId lama
+  teamData: Omit<
+    TournamentTeam,
+    'id' | 'registeredAt' | 'status' | 'leaderUid'
+  >,
   sessionUser: { uid: string; displayName: string },
-): Promise<{ success: true; participantId: string }> => {
+): Promise<{ success: true; teamId: string }> => {
   const tournamentRef = adminFirestore
     .collection(COLLECTIONS.TOURNAMENTS)
     .doc(tournamentId);
 
-  // Menggunakan COLLECTIONS.REGISTRATIONS sesuai file collections.ts
-  // dan roadmap Tahap 4.1
-  const participantRef = tournamentRef
-    .collection(COLLECTIONS.REGISTRATIONS)
-    .doc(participantTeamId); // Gunakan ID Tim E-sports sebagai ID dokumen
+  // [ROMBAK V2] Referensi ke sub-koleksi 'teams' dengan ID dokumen baru (auto-generated)
+  const newTeamRef = tournamentRef.collection('teams').doc();
 
   try {
+    const newTeamId = newTeamRef.id;
     await adminFirestore.runTransaction(async (t) => {
       // 1. Baca data turnamen
       const tournamentSnap = await t.get(tournamentRef);
@@ -147,75 +149,75 @@ export const registerTeamForTournamentAdmin = async (
       const tournamentData = tournamentSnap.data() as Tournament;
 
       // 2. Cek kuota
-      if (tournamentData.participantCount >= tournamentData.maxParticipants) {
+      // [FIX] Membandingkan counter 'participantCountCurrent' dengan limit 'participantCount'
+      if (
+        tournamentData.participantCountCurrent >= tournamentData.participantCount
+      ) {
         throw new Error('Pendaftaran turnamen sudah penuh.');
       }
 
-      // 3. Cek apakah sudah terdaftar
-      const existingParticipantSnap = await t.get(participantRef);
-      if (existingParticipantSnap.exists) {
-        throw new Error('Tim ini sudah terdaftar di turnamen ini.');
-      }
+      // 3. Cek validasi lain (seperti "player already registered")
+      // dipindahkan ke API Route (Fase 3 Peta Develop) agar logic-nya terpusat.
+      // Fungsi ini hanya fokus pada transaksi database atomik.
 
       // 4. Siapkan data pendaftar baru
-      const newParticipant: Omit<TournamentParticipant, 'id'> = {
-        ...participantData,
-        // Data ini di-set oleh server untuk keamanan
-        representativeId: sessionUser.uid,
-        representativeName: sessionUser.displayName,
-        status: 'APPROVED', // Langsung set 'APPROVED'
-        registeredAt: new Date(), // [PERBAIKAN] Diubah dari Timestamp.now() ke new Date()
+      const newTeam: Omit<TournamentTeam, 'id'> = {
+        ...teamData,
+        leaderUid: sessionUser.uid,
+        status: 'pending', // [FIX] Status default adalah 'pending'
+        registeredAt: new Date(), // [FIX] Diubah dari Timestamp.now() ke new Date()
       };
 
       // 5. Tulis pendaftar baru
-      // Kita gunakan cleanDataForAdminSDK untuk mengonversi Date (jika ada) ke Timestamp
-      t.set(participantRef, cleanDataForAdminSDK(newParticipant));
+      t.set(newTeamRef, cleanDataForAdminSDK(newTeam));
 
       // 6. Update counter di turnamen utama
       t.update(tournamentRef, {
-        participantCount: FieldValue.increment(1),
+        participantCountCurrent: FieldValue.increment(1), // [FIX] Update counter baru
       });
     });
 
     console.log(
-      `[Tournament - Admin] Tim ${participantTeamId} berhasil terdaftar di ${tournamentId}.`,
+      `[Tournament - Admin] Tim ${newTeamId} berhasil terdaftar di ${tournamentId}.`,
     );
-    return { success: true, participantId: participantRef.id };
+    return { success: true, teamId: newTeamId };
   } catch (error: any) {
     console.error(
-      `Firestore Error [registerTeamForTournamentAdmin - Admin(${tournamentId}, ${participantTeamId})]:`,
+      `Firestore Error [registerTeamForTournamentAdmin - Admin(${tournamentId})]:`,
       error.message,
     );
     // Lempar ulang error agar bisa ditangkap oleh API Route
     throw error;
   }
 };
-// --- [AKHIR BARU] ---
+// --- [AKHIR ROMBAK V2] ---
 
-// --- [BARU: TAHAP 6, POIN 1] ---
+// --- [ROMBAK V2: Fase 1 Peta Develop] ---
 /**
  * @function getParticipantsForTournamentAdmin
  * Mengambil semua dokumen peserta (tim) yang terdaftar di turnamen.
  * @param tournamentId ID turnamen.
- * @returns {Promise<FirestoreDocument<TournamentParticipant>[]>} Array data peserta.
+ * @returns {Promise<FirestoreDocument<TournamentTeam>[]>} Array data tim.
  */
 export const getParticipantsForTournamentAdmin = async (
   tournamentId: string,
-): Promise<FirestoreDocument<TournamentParticipant>[]> => {
+): Promise<FirestoreDocument<TournamentTeam>[]> => {
   try {
+    // [FIX] Mengambil dari sub-koleksi 'teams'
     const participantsRef = adminFirestore
       .collection(COLLECTIONS.TOURNAMENTS)
       .doc(tournamentId)
-      .collection(COLLECTIONS.REGISTRATIONS); // Sesuai collections.ts
+      .collection('teams'); // <-- [FIX] Sesuai Peta Develop
 
     // Urutkan berdasarkan tanggal daftar, yang paling dulu daftar muncul di atas
     const q = participantsRef.orderBy('registeredAt', 'asc');
 
     const snapshot = await q.get();
 
+    // [FIX] Menggunakan tipe data TournamentTeam
     return snapshot.docs
-      .map((doc) => docToDataAdmin<TournamentParticipant>(doc))
-      .filter(Boolean) as FirestoreDocument<TournamentParticipant>[];
+      .map((doc) => docToDataAdmin<TournamentTeam>(doc))
+      .filter(Boolean) as FirestoreDocument<TournamentTeam>[];
   } catch (error) {
     console.error(
       `Firestore Error [getParticipantsForTournamentAdmin - Admin(${tournamentId})]:`,
@@ -224,4 +226,4 @@ export const getParticipantsForTournamentAdmin = async (
     return []; // Kembalikan array kosong jika error
   }
 };
-// --- [AKHIR BARU] ---
+// --- [AKHIR ROMBAK V2] ---

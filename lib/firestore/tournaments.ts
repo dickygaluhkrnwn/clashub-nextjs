@@ -4,61 +4,102 @@
 import { firestore } from '../firebase'; // Client SDK instance
 import {
   collection as clientCollection,
-  addDoc as clientAddDoc,
+  doc as clientDoc,
+  getDoc as clientGetDoc,
+  getDocs as clientGetDocs,
+  query as clientQuery,
+  orderBy as clientOrderBy,
   Timestamp as ClientTimestamp,
+  FirestoreDataConverter,
+  DocumentData,
+  QueryDocumentSnapshot,
+  SnapshotOptions,
 } from 'firebase/firestore';
 import { COLLECTIONS } from '../firestore-collections';
-import { TournamentParticipant, UserProfile } from '../types';
+// [ROMBAK V2] Impor Tipe Baru (Tournament) dan helper FirestoreDocument
+import { Tournament, FirestoreDocument } from '../types';
+
+// [ROMBAK V2] Buat Firestore Converter untuk Tipe Tournament
+// Ini akan otomatis mengonversi Timestamp (Firestore) menjadi Date (JavaScript) saat membaca data
+const tournamentConverter: FirestoreDataConverter<Tournament> = {
+  toFirestore(tournament: Tournament): DocumentData {
+    // Kita tidak akan menulis dari client, jadi ini bisa dikosongkan
+    // Pengecualian: Kita mungkin perlu fungsi update, tapi kita buat nanti
+    return tournament;
+  },
+  fromFirestore(
+    snapshot: QueryDocumentSnapshot,
+    options: SnapshotOptions,
+  ): Tournament {
+    const data = snapshot.data(options)!;
+    // Konversi semua Timestamp server menjadi objek Date di client
+    return {
+      ...data,
+      startsAt: (data.startsAt as ClientTimestamp).toDate(),
+      endsAt: (data.endsAt as ClientTimestamp).toDate(),
+      createdAt: (data.createdAt as ClientTimestamp).toDate(),
+    } as Tournament;
+  },
+};
 
 /**
- * @function registerForTournamentClient
- * Mendaftarkan sebuah tim (diwakili oleh user) ke turnamen.
- * Fungsi ini dipanggil dari client-side (misalnya: Tombol "Daftar" di halaman registrasi).
- *
- * @param tournamentId - ID dokumen turnamen yang dituju.
- * @param userProfile - Objek UserProfile dari pengguna yang sedang login (sebagai perwakilan).
- * @param clanInfo - Informasi dasar klan yang didaftarkan.
+ * @function getAllTournamentsClient
+ * [BARU: Fase 1] Mengambil semua turnamen dari sisi client.
+ * Digunakan di halaman utama /tournament (Fase 2 Peta Develop).
  */
-export const registerForTournamentClient = async (
-  tournamentId: string,
-  userProfile: UserProfile,
-  clanInfo: {
-    tag: string;
-    name: string;
-    badgeUrl: string;
-  },
-): Promise<void> => {
+export const getAllTournamentsClient = async (): Promise<
+  FirestoreDocument<Tournament>[]
+> => {
   try {
-    // Tentukan path ke sub-koleksi 'registrations' (sesuai firestore-collections.ts)
-    const registrationsRef = clientCollection(
+    const tournamentsRef = clientCollection(
       firestore,
-      `${COLLECTIONS.TOURNAMENTS}/${tournamentId}/${COLLECTIONS.REGISTRATIONS}`,
-    );
+      COLLECTIONS.TOURNAMENTS,
+    ).withConverter(tournamentConverter);
 
-    // Siapkan data pendaftar sesuai interface TournamentParticipant
-    const newParticipantData: Omit<TournamentParticipant, 'id' | 'registeredAt'> & {
-      registeredAt: ClientTimestamp;
-    } = {
-      clanTag: clanInfo.tag,
-      clanName: clanInfo.name,
-      clanBadgeUrl: clanInfo.badgeUrl,
-      representativeId: userProfile.uid,
-      representativeName: userProfile.displayName,
-      status: 'PENDING', // Default status saat mendaftar
-      registeredAt: ClientTimestamp.now(),
-    };
+    // [ROMBAK V2] Urutkan berdasarkan 'startsAt' (Timestamp) baru
+    const q = clientQuery(tournamentsRef, clientOrderBy('startsAt', 'desc'));
+    const snapshot = await clientGetDocs(q);
 
-    // Tambahkan dokumen baru ke sub-koleksi
-    await clientAddDoc(registrationsRef, newParticipantData);
-
-    console.log(
-      `[Tournament - Client] User ${userProfile.uid} berhasil mendaftarkan klan ${clanInfo.tag} untuk turnamen ${tournamentId}.`,
+    return snapshot.docs.map(
+      (doc) => ({ ...doc.data(), id: doc.id } as FirestoreDocument<Tournament>),
     );
   } catch (error) {
-    console.error(
-      `Firestore Error [registerForTournamentClient - Client(${tournamentId})]:`,
-      error,
-    );
-    throw new Error('Gagal mendaftar turnamen. Silakan coba lagi.');
+    console.error(`Firestore Error [getAllTournamentsClient - Client]:`, error);
+    return [];
   }
 };
+
+/**
+ * @function getTournamentClient
+ * [BARU: Fase 1] Mengambil satu dokumen turnamen berdasarkan ID-nya dari sisi client.
+ * Digunakan di halaman detail /tournament/[id] (Fase 3 Peta Develop).
+ */
+export const getTournamentClient = async (
+  tournamentId: string,
+): Promise<FirestoreDocument<Tournament> | null> => {
+  try {
+    const docRef = clientDoc(
+      firestore,
+      COLLECTIONS.TOURNAMENTS,
+      tournamentId,
+    ).withConverter(tournamentConverter);
+
+    const docSnap = await clientGetDoc(docRef);
+
+    if (!docSnap.exists()) {
+      return null;
+    }
+
+    return { ...docSnap.data(), id: docSnap.id } as FirestoreDocument<Tournament>;
+  } catch (error) {
+    console.error(
+      `Firestore Error [getTournamentClient - Client(${tournamentId})]:`,
+      error,
+    );
+    return null;
+  }
+};
+
+// [DIHAPUS] Fungsi registerForTournamentClient dihapus
+// Logic pendaftaran sekarang ditangani 100% oleh server-side API Route
+// (Sesuai Peta Develop Fase 3, Step 2)
