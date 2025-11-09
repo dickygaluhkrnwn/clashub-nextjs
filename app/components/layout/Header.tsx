@@ -13,6 +13,7 @@ import {
   UserCircleIcon,
   ShieldIcon,
   CheckCircleIcon, // <-- Tambahkan ikon notif
+  TrophyIcon, // <-- [FASE 4] Tambahkan TrophyIcon
 } from '@/app/components/icons';
 import ThemeToggle from '@/app/components/ui/ThemeToggle';
 import { useAuth } from '@/app/context/AuthContext'; // Konteks yang sudah diupdate
@@ -74,7 +75,7 @@ const UserProfileDropdown = () => {
 
   // Type Guard untuk memastikan objek adalah UserProfile lengkap dari Firestore
   const isCompleteUserProfile = (
-    profile: UserProfile | ServerUser | null
+    profile: UserProfile | ServerUser | null,
   ): profile is UserProfile => {
     // Cek minimal: harus punya isVerified, clanId (bisa null), dan role (Clashub internal)
     // ServerUser hanya punya uid, email, displayName.
@@ -118,7 +119,7 @@ const UserProfileDropdown = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 card-stone p-2 shadow-lg rounded-md z-50">
+        <div className="absolute right-0 mt-2 w-56 card-stone p-2 shadow-lg rounded-md z-50">
           <ul className="space-y-1">
             <li>
               <Link
@@ -147,6 +148,20 @@ const UserProfileDropdown = () => {
                 </Link>
               </li>
             )}
+
+            {/* --- [BARU: FASE 4] --- */}
+            {/* Tautan Manajemen Turnamen */}
+            <li>
+              <Link
+                href="/my-tournaments"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-300 hover:bg-coc-gold/10 hover:text-white rounded-md"
+              >
+                <TrophyIcon className="h-5 w-5" />
+                <span>Manajemen Turnamen</span>
+              </Link>
+            </li>
+            {/* --- [AKHIR FASE 4] --- */}
 
             <li>
               <button
@@ -291,8 +306,8 @@ const Header = () => {
 
   // Tampilkan state loading awal jika diperlukan
   // if (authLoading) {
-  //   // Opsional: Tampilkan skeleton UI atau null selama auth loading awal
-  //   return <header className="sticky top-0 z-50 h-[68px] bg-coc-stone/80"></header>;
+  //   // Opsional: Tampilkan skeleton UI atau null selama auth loading awal
+  //   return <header className="sticky top-0 z-50 h-[68px] bg-coc-stone/80"></header>;
   // }
 
   return (
@@ -314,13 +329,13 @@ const Header = () => {
               key={item.name}
               href={item.href}
               className={`
-                  px-4 py-2 rounded-md text-sm font-bold transition-all duration-300
-                  ${
-                    pathname === item.href
-                      ? 'bg-coc-gold text-coc-stone shadow-lg shadow-coc-gold/20' // <-- [PERBAIKAN] Mengganti inset shadow dengan drop shadow
-                      : 'text-gray-300 hover:bg-coc-stone-light/50 hover:text-white'
-                  }
-              `}
+                  px-4 py-2 rounded-md text-sm font-bold transition-all duration-300
+                  ${
+                  pathname === item.href
+                    ? 'bg-coc-gold text-coc-stone shadow-lg shadow-coc-gold/20' // <-- [PERBAIKAN] Mengganti inset shadow dengan drop shadow
+                    : 'text-gray-300 hover:bg-coc-stone-light/50 hover:text-white'
+                }
+              `}
             >
               {item.name}
             </Link>
