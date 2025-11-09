@@ -6,11 +6,13 @@ import React, { useState, useEffect } from 'react';
 // import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-// [TAHAP 6] Tambahkan TournamentParticipant
+// [TAHAP 6] Ganti Tipe Lama ke Tipe Baru
 import {
   FirestoreDocument,
   Tournament,
-  TournamentParticipant,
+  TournamentTeam,
+  TournamentMatch,
+  ThRequirement,
 } from '@/lib/clashub.types';
 import { useAuth } from '@/app/context/AuthContext';
 import { Button } from '@/app/components/ui/Button';
@@ -22,6 +24,7 @@ import {
   TrophyIcon,
   ShieldIcon, // Menggunakan ShieldIcon sebagai pengganti THIcon
   Loader2Icon, // [TAHAP 6] Tambahkan Loader2Icon
+  SwordsIcon, // [FIX] Ganti SwordIcon menjadi SwordsIcon
 } from '@/app/components/icons';
 import { format } from 'date-fns';
 // import { id } from 'date-fns/locale/id'; // Opsional jika ingin format bahasa Indonesia
@@ -30,6 +33,31 @@ import { format } from 'date-fns';
 interface TournamentDetailClientProps {
   tournament: FirestoreDocument<Tournament>;
 }
+
+// --- [BARU TAHAP 6] ---
+// Tipe data gabungan untuk match + data tim yang sudah dipopulasi
+type FullMatchData = FirestoreDocument<TournamentMatch> & {
+  team1: FirestoreDocument<TournamentTeam> | null;
+  team2: FirestoreDocument<TournamentTeam> | null;
+};
+
+/**
+ * @function formatThRequirement
+ * Helper untuk memformat objek ThRequirement menjadi string yang mudah dibaca.
+ */
+const formatThRequirement = (th: ThRequirement): string => {
+  if (th.type === 'any') {
+    return `TH ${th.minLevel} - ${th.maxLevel}`;
+  }
+  if (th.type === 'uniform') {
+    return `Seragam TH ${th.allowedLevels[0]}`;
+  }
+  if (th.type === 'mixed') {
+    return `Campuran: TH ${th.allowedLevels.join(', ')}`;
+  }
+  return 'N/A';
+};
+// --- [AKHIR BARU TAHAP 6] ---
 
 /**
  * @component InfoCard
@@ -76,7 +104,8 @@ const RegisterButtonLogic: React.FC<{
   }
 
   // 2. Jika turnamen tidak lagi UPCOMING
-  if (tournament.status !== 'UPCOMING') {
+  // [TAHAP 6] Ganti status 'UPCOMING' lama menjadi 'registration_open' baru
+  if (tournament.status !== 'registration_open') {
     return (
       <Button size="lg" variant="secondary" disabled>
         Pendaftaran Ditutup
@@ -110,154 +139,226 @@ const RegisterButtonLogic: React.FC<{
   );
 };
 
+// --- [HAPUS TAHAP 6] ---
+// Komponen ParticipantList (daftar tabel) akan dihapus seluruhnya
+// dan digantikan dengan BracketDisplay di bawah.
+/*
+const ParticipantList: React.FC<{ ... }> = ({ ... }) => {
+  ... (SELURUH KODE ParticipantList DARI baris 111 s/d 251 DIHAPUS) ...
+};
+*/
+// --- [AKHIR HAPUS TAHAP 6] ---
+
 // --- [BARU TAHAP 6] ---
 /**
- * @component ParticipantList
- * Komponen internal untuk fetch dan render daftar peserta.
+ * @component TeamDisplay
+ * Menampilkan nama tim dan badge untuk slot di MatchCard.
+ * Menangani kasus 'BYE' (tim null).
  */
-const ParticipantList: React.FC<{
-  tournamentId: string;
-  participantCount: number;
-  maxParticipants: number;
-}> = ({ tournamentId, participantCount, maxParticipants }) => {
-  const [participants, setParticipants] = useState<
-    FirestoreDocument<TournamentParticipant>[]
-  >([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchParticipants = async () => {
-      try {
-        setIsLoading(true);
-        setFetchError(null);
-        // Panggil API route baru yang kita buat (Tahap 6, Poin 2)
-        const response = await fetch(
-          `/api/tournaments/${tournamentId}/participants`,
-        );
-        if (!response.ok) {
-          throw new Error('Gagal memuat daftar peserta.');
-        }
-        const data: FirestoreDocument<TournamentParticipant>[] =
-          await response.json();
-        
-        // Urutkan berdasarkan tanggal daftar (meskipun API sudah mengurutkan)
-        data.sort((a, b) => 
-          new Date(a.registeredAt).getTime() - new Date(b.registeredAt).getTime()
-        );
-
-        setParticipants(data);
-      } catch (err: any) {
-        console.error('Error fetching participants:', err);
-        setFetchError(err.message || 'Terjadi kesalahan.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchParticipants();
-  }, [tournamentId]); // Hanya fetch ulang jika ID turnamen berubah
+const TeamDisplay: React.FC<{
+  team: FirestoreDocument<TournamentTeam> | null;
+  isWinner: boolean;
+}> = ({ team, isWinner }) => {
+  if (!team) {
+    return (
+      <div className="flex items-center space-x-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-coc-dark-blue/50">
+          <span className="text-xs font-semibold text-coc-font-secondary/50">
+            -
+          </span>
+        </div>
+        <span className="font-semibold text-coc-font-secondary/60">BYE</span>
+      </div>
+    );
+  }
 
   return (
-    <section className="rounded-lg border border-coc-border bg-coc-dark-blue p-6">
-      <h2 className="mb-4 flex items-center font-clash text-2xl font-bold text-white">
-        <UsersIcon className="mr-2 h-6 w-6" />
-        Peserta Terdaftar ({participantCount} / {maxParticipants})
-      </h2>
+    <div className="flex items-center space-x-2">
+      <img
+        className="h-8 w-8 rounded-md"
+        src={team.originClanBadgeUrl}
+        alt={`${team.teamName} badge`}
+      />
+      <span
+        className={`font-semibold ${
+          isWinner ? 'text-coc-gold' : 'text-coc-font-primary'
+        }`}
+      >
+        {team.teamName}
+      </span>
+    </div>
+  );
+};
 
-      {/* State Loading */}
-      {isLoading && (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-coc-border p-8 text-center">
-          <Loader2Icon className="h-10 w-10 animate-spin text-coc-gold" />
-          <p className="mt-2 text-coc-font-secondary">Memuat daftar tim...</p>
+/**
+ * @component MatchCard
+ * Merender satu kartu pertandingan di dalam kolom bracket.
+ */
+const MatchCard: React.FC<{
+  match: FullMatchData;
+  tournamentId: string;
+}> = ({ match, tournamentId }) => {
+  const { team1, team2, winnerTeamRef, matchId, status } = match;
+
+  const isTeam1Winner = winnerTeamRef?.path === team1?.id;
+  const isTeam2Winner = winnerTeamRef?.path === team2?.id;
+
+  // Tentukan status untuk styling
+  let statusText = 'Pending';
+  let statusColor = 'text-coc-font-secondary/70';
+  if (status === 'completed' || status === 'reported') {
+    statusText = 'Selesai';
+    statusColor = 'text-green-400';
+  } else if (status === 'live') {
+    statusText = 'Live';
+    statusColor = 'text-red-500 animate-pulse';
+  } else if (status === 'scheduled' && match.scheduledTime) {
+    statusText = format(new Date(match.scheduledTime), 'dd/MM HH:mm');
+    statusColor = 'text-blue-400';
+  }
+
+  return (
+    <Link
+      href={`/tournament/${tournamentId}/match/${match.id}`}
+      className="block rounded-lg border border-coc-border bg-coc-dark-blue/60 p-4 transition-all hover:border-coc-gold/50 hover:bg-coc-dark-blue"
+    >
+      <div className="mb-3 flex items-center justify-between">
+        <span className="text-xs font-bold uppercase tracking-wider text-coc-font-secondary">
+          {matchId}
+        </span>
+        <span className={`text-xs font-bold ${statusColor}`}>{statusText}</span>
+      </div>
+      <div className="space-y-3">
+        {/* Tim 1 */}
+        <TeamDisplay team={team1} isWinner={isTeam1Winner} />
+
+        {/* VS Separator */}
+        <div className="flex items-center pl-10">
+          <SwordsIcon className="h-4 w-4 text-coc-font-secondary/50" /> {/* [FIX] Ganti SwordIcon menjadi SwordsIcon */}
+          <hr className="ml-2 w-full border-t border-coc-border/30" />
         </div>
-      )}
 
-      {/* State Error */}
-      {fetchError && (
-        <div className="rounded-lg border border-dashed border-red-700 bg-red-900/30 p-8 text-center text-red-300">
-          <p>Error: {fetchError}</p>
-        </div>
-      )}
+        {/* Tim 2 */}
+        <TeamDisplay team={team2} isWinner={isTeam2Winner} />
+      </div>
+    </Link>
+  );
+};
 
-      {/* State Sukses (Data Kosong) */}
-      {!isLoading && !fetchError && participants.length === 0 && (
-        <div className="rounded-lg border border-dashed border-coc-border p-8 text-center">
-          <p className="text-coc-font-secondary">
-            Belum ada tim yang terdaftar. Jadilah yang pertama!
-          </p>
-        </div>
-      )}
+/**
+ * @component BracketColumn
+ * Merender satu kolom penuh (misal: Upper Bracket) yang berisi ronde-ronde.
+ */
+const BracketColumn: React.FC<{
+  title: string;
+  matches: FullMatchData[];
+  tournamentId: string;
+}> = ({ title, matches, tournamentId }) => {
+  // Kelompokkan match berdasarkan ronde
+  const groupedMatches = matches.reduce(
+    (acc, match) => {
+      const round = match.round;
+      if (!acc[round]) {
+        acc[round] = [];
+      }
+      acc[round].push(match);
+      return acc;
+    },
+    {} as Record<number, FullMatchData[]>,
+  );
 
-      {/* State Sukses (Ada Data) */}
-      {!isLoading && !fetchError && participants.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-coc-border/50">
-            <thead className="bg-white/5">
-              <tr>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-coc-font-secondary"
-                >
-                  Tim (Klan)
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-coc-font-secondary"
-                >
-                  Didaftarkan Oleh
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-coc-font-secondary"
-                >
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-coc-border/30">
-              {participants.map((p) => (
-                <tr key={p.id} className="hover:bg-white/5">
-                  <td className="whitespace-nowrap px-6 py-4">
-                    <div className="flex items-center">
-                      <div className="h-10 w-10 flex-shrink-0">
-                        <img
-                          className="h-10 w-10 rounded-md"
-                          src={p.clanBadgeUrl}
-                          alt={`${p.clanName} badge`}
-                        />
-                      </div>
-                      <div className="ml-4">
-                        <div className="font-clash text-base font-medium text-coc-font-primary">
-                          {p.clanName}
-                        </div>
-                        {/* ID Tim bisa ditampilkan jika perlu */}
-                        {/* <div className="text-xs text-coc-font-secondary">{p.id}</div> */}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4">
-                    <div className="text-sm text-coc-font-primary">
-                      {p.representativeName}
-                    </div>
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4">
-                    {/* Logika status (jika nanti ada PENDING/REJECTED) */}
-                    <span
-                      className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
-                        p.status === 'APPROVED'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}
-                    >
-                      {p.status}
-                    </span>
-                  </td>
-                </tr>
+  return (
+    <div className="flex-1">
+      <h3 className="mb-4 font-clash text-2xl font-bold text-white">{title}</h3>
+      <div className="space-y-6">
+        {Object.entries(groupedMatches).map(([round, roundMatches]) => (
+          <div key={round}>
+            <h4 className="mb-3 text-sm font-semibold uppercase tracking-wider text-coc-font-secondary">
+              Ronde {round}
+            </h4>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {roundMatches.map((match) => (
+                <MatchCard
+                  key={match.id}
+                  match={match}
+                  tournamentId={tournamentId}
+                />
               ))}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/**
+ * @component BracketDisplay
+ * Komponen utama untuk fetch data bracket dan menampilkannya.
+ */
+const BracketDisplay: React.FC<{
+  tournamentId: string;
+  matches: FullMatchData[];
+  isLoading: boolean;
+  error: string | null;
+}> = ({ tournamentId, matches, isLoading, error }) => {
+  // State Loading
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-coc-border p-12 text-center">
+        <Loader2Icon className="h-12 w-12 animate-spin text-coc-gold" />
+        <p className="mt-3 text-lg text-coc-font-secondary">
+          Memuat data bracket...
+        </p>
+      </div>
+    );
+  }
+
+  // State Error
+  if (error) {
+    return (
+      <div className="rounded-lg border border-dashed border-red-700 bg-red-900/30 p-12 text-center text-red-300">
+        <p className="text-lg font-bold">Gagal memuat bracket</p>
+        <p className="text-sm">{error}</p>
+      </div>
+    );
+  }
+
+  // State Sukses (Data Kosong - Bracket belum di-generate)
+  if (matches.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-coc-border p-12 text-center">
+        <p className="text-lg text-coc-font-secondary">
+          Bracket turnamen belum dibuat oleh panitia.
+        </p>
+        <p className="text-sm text-coc-font-secondary/70">
+          Silakan cek kembali setelah pendaftaran ditutup.
+        </p>
+      </div>
+    );
+  }
+
+  // State Sukses (Ada Data)
+  // Pisahkan match Upper dan Lower
+  const upperBracketMatches = matches.filter((m) => m.bracket === 'upper');
+  const lowerBracketMatches = matches.filter((m) => m.bracket === 'lower');
+
+  return (
+    <section className="space-y-8 rounded-lg border border-coc-border bg-coc-dark-blue p-6">
+      <BracketColumn
+        title="Upper Bracket"
+        matches={upperBracketMatches}
+        tournamentId={tournamentId}
+      />
+      {lowerBracketMatches.length > 0 && (
+        <>
+          <hr className="border-t border-coc-border/50" />
+          <BracketColumn
+            title="Lower Bracket"
+            matches={lowerBracketMatches}
+            tournamentId={tournamentId}
+          />
+        </>
       )}
     </section>
   );
@@ -271,23 +372,70 @@ const ParticipantList: React.FC<{
 const TournamentDetailClient: React.FC<TournamentDetailClientProps> = ({
   tournament,
 }) => {
+  // --- [BARU TAHAP 6] ---
+  // State untuk menyimpan data bracket (matches + teams)
+  const [matches, setMatches] = useState<FullMatchData[]>([]);
+  const [isLoadingBracket, setIsLoadingBracket] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  // Fetch data bracket saat komponen dimuat
+  useEffect(() => {
+    const fetchBracketData = async () => {
+      try {
+        setIsLoadingBracket(true);
+        setFetchError(null);
+        // Panggil API route publik baru yang kita buat (Tahap 6)
+        const response = await fetch(
+          `/api/tournaments/${tournament.id}/bracket`,
+        );
+        if (!response.ok) {
+          throw new Error('Gagal memuat data bracket.');
+        }
+        const data: { matches: FullMatchData[] } = await response.json();
+        setMatches(data.matches || []);
+      } catch (err: any) {
+        console.error('Error fetching bracket data:', err);
+        setFetchError(err.message || 'Terjadi kesalahan.');
+      } finally {
+        setIsLoadingBracket(false);
+      }
+    };
+
+    // Hanya fetch bracket jika turnamen sudah 'ongoing' atau 'completed'
+    if (tournament.status === 'ongoing' || tournament.status === 'completed') {
+      fetchBracketData();
+    } else {
+      // Jika masih registrasi, tidak perlu fetch bracket, set loading ke false
+      setIsLoadingBracket(false);
+    }
+  }, [tournament.id, tournament.status]); // Fetch ulang jika ID atau status berubah
+  // --- [AKHIR BARU TAHAP 6] ---
+
   // Format tanggal menggunakan date-fns
   // Kita pakai new Date() untuk mengurai string tanggal yang diserialisasi dari Server Component
   const formattedDate = format(
-    new Date(tournament.startDate),
+    // [TAHAP 6] Ganti 'startDate' (string) lama menjadi 'startsAt' (Date) baru
+    new Date(tournament.startsAt),
     'dd MMMM yyyy - HH:mm',
     // { locale: id } // Opsional jika ingin format bahasa Indonesia
   );
 
   const getStatusClasses = () => {
     switch (tournament.status) {
-      case 'UPCOMING':
+      // [TAHAP 6] Sesuaikan status dengan Tipe Baru
+      case 'registration_open':
         return 'bg-green-600/20 text-green-300 border-green-500';
-      case 'ONGOING':
+      case 'registration_closed':
+        return 'bg-yellow-600/20 text-yellow-300 border-yellow-500';
+      case 'ongoing':
         return 'bg-blue-600/20 text-blue-300 border-blue-500';
-      case 'COMPLETED':
+      case 'completed':
         return 'bg-red-600/20 text-red-300 border-red-500';
       default:
+        // Hapus status lama, biarkan default
+        // case 'UPCOMING':
+        // case 'ONGOING':
+        // case 'COMPLETED':
         return 'bg-gray-600/20 text-gray-300 border-gray-500';
     }
   };
@@ -311,7 +459,8 @@ const TournamentDetailClient: React.FC<TournamentDetailClientProps> = ({
             <span
               className={`mb-2 inline-block rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-widest ${getStatusClasses()}`}
             >
-              {tournament.status}
+              {/* [TAHAP 6] Ganti format status (misal: 'registration_open' -> 'Registration Open') */}
+              {tournament.status.replace('_', ' ')}
             </span>
             <h1 className="font-clash text-4xl font-bold leading-tight text-white md:text-5xl">
               {tournament.title}
@@ -343,12 +492,14 @@ const TournamentDetailClient: React.FC<TournamentDetailClientProps> = ({
         <InfoCard
           icon={ShieldIcon} // Menggunakan ShieldIcon sebagai pengganti THIcon
           title="Syarat Town Hall"
-          value={tournament.thRequirement}
+          // [TAHAP 6] Gunakan helper baru untuk format objek ThRequirement
+          value={formatThRequirement(tournament.thRequirement)}
         />
         <InfoCard
           icon={UsersIcon}
           title="Peserta"
-          value={`${tournament.participantCount} / ${tournament.maxParticipants}`}
+          // [TAHAP 6] Gunakan counter 'participantCountCurrent' dan limit 'participantCount'
+          value={`${tournament.participantCountCurrent} / ${tournament.participantCount}`}
         />
         <InfoCard
           icon={UserIcon}
@@ -383,11 +534,12 @@ const TournamentDetailClient: React.FC<TournamentDetailClientProps> = ({
         </div>
       </section>
 
-      {/* 4. Daftar Peserta (DINAMIS - TAHAP 6) */}
-      <ParticipantList
+      {/* 4. [ROMBAK TAHAP 6] Ganti Daftar Peserta menjadi Tampilan Bracket */}
+      <BracketDisplay
         tournamentId={tournament.id}
-        participantCount={tournament.participantCount}
-        maxParticipants={tournament.maxParticipants}
+        matches={matches}
+        isLoading={isLoadingBracket}
+        error={fetchError}
       />
     </div>
   );
