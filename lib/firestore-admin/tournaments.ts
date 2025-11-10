@@ -1,14 +1,14 @@
 // File: lib/firestore-admin/tournaments.ts
-// Deskripsi: Berisi fungsi utilitas Firestore Admin SDK terkait koleksi 'tournaments'.
+// Deskripsi: [FIX V2.7] Mengubah impor tipe agar sesuai dengan V2 (clashub.types.ts).
 
 import { adminFirestore } from '../firebase-admin';
 import { COLLECTIONS } from '../firestore-collections';
-// [ROMBAK V2] Impor Tipe Baru: TournamentTeam menggantikan TournamentParticipant
+// [FIX V2.7] Mengganti '../types' menjadi '../clashub.types'
 import {
   Tournament,
   FirestoreDocument,
-  TournamentTeam, // <-- [FIX] Menggunakan Tipe Baru
-} from '../types';
+  TournamentTeam,
+} from '../clashub.types';
 // Impor utilitas konversi data
 import { docToDataAdmin, cleanDataForAdminSDK } from './utils';
 // [PERBAIKAN] Tambahkan FieldValue

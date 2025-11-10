@@ -1,6 +1,6 @@
 // File: app/api/tournaments/[tournamentId]/register/route.ts
-// Deskripsi: [ROMBAK TOTAL - FASE 3] API route (POST) untuk mendaftarkan tim baru (TournamentTeam) ke Turnamen.
-// Mengimplementasikan 5 CEK validasi sisi server sesuai roadmap.
+// Deskripsi: [FIX V2.9] API route (POST) untuk mendaftarkan tim baru (TournamentTeam) ke Turnamen.
+// - Menggunakan 'tournament.title' untuk notifikasi.
 
 import { NextResponse, NextRequest } from 'next/server';
 import { adminFirestore } from '@/lib/firebase-admin';
@@ -21,6 +21,9 @@ import {
   registerTeamForTournamentAdmin,
 } from '@/lib/firestore-admin/tournaments';
 import { validateTeamThRequirements } from '@/lib/th-utils';
+
+// [BARU - FASE 2.4] Impor fungsi createNotification
+import { createNotification } from '@/lib/firestore-admin/notifications';
 
 /**
  * @handler POST
@@ -60,12 +63,16 @@ export async function POST(
       !originClanBadgeUrl
     ) {
       return NextResponse.json(
-        { error: 'Data tidak lengkap. Nama tim, anggota, dan info klan asal diperlukan.' },
+        {
+          error:
+            'Data tidak lengkap. Nama tim, anggota, dan info klan asal diperlukan.',
+        },
         { status: 400 },
       );
     }
 
     // 3. Ambil Data Turnamen
+    // [FIX FASE 2.4] Kita butuh 'tournament' di luar try-catch, jadi kita simpan di sini
     const tournament = await getTournamentByIdAdmin(tournamentId);
     if (!tournament) {
       return NextResponse.json(
@@ -77,7 +84,13 @@ export async function POST(
     // Validasi Status Turnamen
     if (tournament.status !== 'registration_open') {
       return NextResponse.json(
-        { error: `Pendaftaran untuk turnamen ini ${tournament.status === 'completed' ? 'sudah selesai' : 'belum dibuka atau sudah ditutup'}.` },
+        {
+          error: `Pendaftaran untuk turnamen ini ${
+            tournament.status === 'completed'
+              ? 'sudah selesai'
+              : 'belum dibuka atau sudah ditutup'
+          }.`,
+        },
         { status: 403 }, // 403 Forbidden
       );
     }
@@ -183,6 +196,54 @@ export async function POST(
       newTeamData,
       sessionUser, // Kirim info session user untuk leaderUid
     );
+
+    // =================================================================
+    // [BARU - FASE 2.4] Kirim Notifikasi ke Panitia
+    // =================================================================
+    try {
+      const staffUids = [
+        tournament.organizerUid,
+        ...tournament.committeeUids,
+      ];
+      // [FIX 1 (ts-2802)] Ganti '...' spread operator dengan 'Array.from()'
+      const uniqueStaffUids = Array.from(new Set(staffUids));
+
+      // [FIX V2.9] Mengganti 'tournament.name' kembali ke 'tournament.title'
+      const message = `Tim "${teamName}" telah mendaftar di turnamen "${
+        tournament.title
+      }".`;
+      // Sesuai roadmap: /tournament/[tournamentId]/manage?tab=participants
+      const url = `/tournament/${tournamentId}/manage?tab=participants`;
+
+      // Kirim notifikasi ke semua panitia
+      const notificationPromises = uniqueStaffUids.map((uid) =>
+        // [FIX 3 (ts-2345)] Ganti tipe 'tournament' menjadi 'generic'
+        createNotification(uid, message, url, 'generic'),
+      );
+
+      // Kita tunggu semua selesai, tapi tidak memblokir respons utama
+      Promise.all(notificationPromises)
+        .then(() => {
+          console.log(
+            `[Notification] Notifikasi pendaftaran ${result.teamId} dikirim ke ${uniqueStaffUids.length} panitia.`,
+          );
+        })
+        .catch((notifError) => {
+          // Log error jika pengiriman notifikasi gagal
+          console.error(
+            `[Notification Error] Gagal mengirim notifikasi pendaftaran:`,
+            notifError,
+          );
+        });
+    } catch (notifError) {
+      // Jika proses inisiasi notifikasi gagal, jangan gagalkan pendaftaran.
+      // Cukup log error-nya.
+      console.error(
+        `[Notification Setup Error] Gagal menginisiasi notifikasi:`,
+        notifError,
+      );
+    }
+    // =================================================================
 
     // 7. Sukses
     return NextResponse.json(
