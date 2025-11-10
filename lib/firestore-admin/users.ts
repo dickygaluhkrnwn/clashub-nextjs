@@ -19,8 +19,8 @@ import {
 } from '../enums';
 // [PERBAIKAN] Hapus FirestoreDocument dari impor ./utils
 import { docToDataAdmin, cleanDataForAdminSDK } from './utils';
-// [UPDATE 4.2] Tambahkan DocumentData
-import { DocumentData } from 'firebase-admin/firestore';
+// [UPDATE 4.2 & FIX 404] Tambahkan DocumentData dan FieldPath
+import { DocumentData, FieldPath } from 'firebase-admin/firestore';
 
 /**
  * Mengambil dokumen UserProfile berdasarkan UID (Admin).
@@ -177,6 +177,49 @@ export const getPlayerReviewsAdmin = async (
   } catch (error) {
     console.error(
       `Firestore Error [getPlayerReviewsAdmin - Admin(${uid})]:`,
+      error,
+    );
+    return [];
+  }
+};
+
+// [TAMBAHAN BARU UNTUK FIX ERROR 404]
+/**
+ * [BARU] Mengambil beberapa dokumen UserProfile berdasarkan array UID (Admin).
+ * Dibuat untuk API route /api/users/profiles-by-ids
+ */
+export const getUserProfilesByIdsAdmin = async (
+  uids: string[],
+): Promise<FirestoreDocument<UserProfile>[]> => {
+  if (!uids || uids.length === 0) {
+    return [];
+  }
+
+  // Firestore 'in' query memiliki batas 30 item.
+  // Jika panitia bisa lebih dari 30, kita perlu chunking.
+  // Tapi untuk sekarang (panitia < 30), ini sudah aman.
+  if (uids.length > 30) {
+    console.warn(
+      `[getUserProfilesByIdsAdmin] Peringatan: Query melebihi 30 UID (${uids.length}). Hasil mungkin tidak lengkap.`,
+    );
+    // Batasi ke 30 pertama untuk menghindari error Firestore
+    uids = uids.slice(0, 30);
+  }
+
+  try {
+    const usersRef = adminFirestore.collection(COLLECTIONS.USERS);
+    // [PERBAIKAN ERROR TS] Panggil 'FieldPath' langsung dari impor, bukan dari 'adminFirestore.FieldPath'
+    const q = usersRef.where(FieldPath.documentId(), 'in', uids);
+    const snapshot = await q.get();
+
+    return snapshot.docs
+      .map((doc) => docToDataAdmin<UserProfile>(doc))
+      .filter(Boolean) as FirestoreDocument<UserProfile>[];
+  } catch (error) {
+    console.error(
+      `Firestore Error [getUserProfilesByIdsAdmin - Admin(${uids.join(
+        ', ',
+      )})]:`,
       error,
     );
     return [];
