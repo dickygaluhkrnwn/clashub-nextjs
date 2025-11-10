@@ -205,7 +205,7 @@ const TeamHubClient = ({ initialClans, initialPlayers, initialPublicClans }: Tea
         setVisiblePlayersCount(prevCount => prevCount + ITEMS_PER_LOAD);
     };
 
-     const handleLoadMorePublicClans = () => {
+    const handleLoadMorePublicClans = () => {
           setVisiblePublicClansCount(prevCount => prevCount + ITEMS_PER_LOAD);
       };
 
@@ -389,11 +389,11 @@ const TeamHubClient = ({ initialClans, initialPlayers, initialPublicClans }: Tea
           <div className="space-y-6">
                <h2 className="text-3xl font-clash text-white">{filteredPlayers.length} Pemain Ditemukan</h2>
                {playersToShow.length === 0 ? (
-                    <p className="text-gray-400 text-center py-10">Tidak ada Pemain yang cocok dengan filter Anda.</p>
-                ) : (
-                    <>
-                        {/* Menggunakan grid 3 kolom untuk PlayerCard */}
-                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                   <p className="text-gray-400 text-center py-10">Tidak ada Pemain yang cocok dengan filter Anda.</p>
+               ) : (
+                   <>
+                       {/* Menggunakan grid 3 kolom untuk PlayerCard */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                             {playersToShow.map((player: Player) => ( // FIX TS7006
                                 // Menggunakan PlayerCard dari cards.tsx
                                 <PlayerCard
@@ -428,68 +428,73 @@ const TeamHubClient = ({ initialClans, initialPlayers, initialPublicClans }: Tea
             <div className="card-stone p-6 rounded-lg">
                  <h2 className="text-3xl font-clash text-white mb-4">Pencarian Klan Publik CoC</h2>
                  <form onSubmit={handlePublicClanSearch} className="flex flex-col sm:flex-row gap-4 items-end">
-                     <div className="flex-grow">
-                          <label htmlFor="public-clan-tag-search" className="block text-sm font-bold text-gray-300 mb-2 font-sans">Cari berdasarkan Tag</label>
-                          <input id="public-clan-tag-search" type="text" placeholder="Masukkan #CLANTAG (cth: #2G8PU0GLJ)" value={publicClanTag} onChange={(e) => setPublicClanTag(e.target.value)}
-                               className="w-full p-3 bg-coc-stone/70 border border-coc-gold-dark/50 rounded-md text-white placeholder-gray-500 font-sans focus:outline-none focus:border-coc-gold"/>
-                     </div>
-                     <Button type="submit" variant="primary" disabled={isSearchingPublicClan} className={`w-full sm:w-auto flex-shrink-0 ${isSearchingPublicClan ? 'animate-pulse' : ''}`}>
-                          <SearchIcon className={`h-5 w-5 mr-2 ${isSearchingPublicClan ? 'hidden' : 'inline'}`} />
-                          {isSearchingPublicClan ? 'Mencari...' : 'Cari Tag'}
-                     </Button>
+                      <div className="flex-grow">
+                           <label htmlFor="public-clan-tag-search" className="block text-sm font-bold text-gray-300 mb-2 font-sans">Cari berdasarkan Tag</label>
+                           <input id="public-clan-tag-search" type="text" placeholder="Masukkan #CLANTAG (cth: #2G8PU0GLJ)" value={publicClanTag} onChange={(e) => setPublicClanTag(e.target.value)}
+                                  className="w-full p-3 bg-coc-stone/70 border border-coc-gold-dark/50 rounded-md text-white placeholder-gray-500 font-sans focus:outline-none focus:border-coc-gold"/>
+                      </div>
+                      <Button type="submit" variant="primary" disabled={isSearchingPublicClan} className={`w-full sm:w-auto flex-shrink-0 ${isSearchingPublicClan ? 'animate-pulse' : ''}`}>
+                           <SearchIcon className={`h-5 w-5 mr-2 ${isSearchingPublicClan ? 'hidden' : 'inline'}`} />
+                           {isSearchingPublicClan ? 'Mencari...' : 'Cari Tag'}
+                      </Button>
                  </form>
             </div>
 
             {/* Area Hasil & Cache */}
             <div className="card-stone p-6 min-h-[40vh] space-y-4 rounded-lg">
                  {isSearchingPublicClan && ( // Tampilkan loading HANYA saat search by tag
-                      <div className="text-center py-20">
-                          <RefreshCwIcon className="h-10 w-10 text-coc-gold animate-spin mx-auto mb-4" />
-                          <h2 className="text-xl font-clash text-coc-gold">Mencari klan berdasarkan tag...</h2>
-                      </div>
+                       <div className="text-center py-20">
+                           <RefreshCwIcon className="h-10 w-10 text-coc-gold animate-spin mx-auto mb-4" />
+                           <h2 className="text-xl font-clash text-coc-gold">Mencari klan berdasarkan tag...</h2>
+                       </div>
                  )}
                  {publicSearchError && !isSearchingPublicClan && publicClanTag.trim() && ( // Tampilkan error jika ada dan tag tidak kosong
-                      <div className="p-4 bg-coc-red/10 border border-coc-red/50 text-coc-red rounded-lg flex items-center gap-3">
-                          <AlertTriangleIcon className="h-6 w-6"/>
-                          <span className="font-sans">{publicSearchError}</span>
-                      </div>
+                       <div className="p-4 bg-coc-red/10 border border-coc-red/50 text-coc-red rounded-lg flex items-center gap-3">
+                           <AlertTriangleIcon className="h-6 w-6"/>
+                           <span className="font-sans">{publicSearchError}</span>
+                       </div>
                  )}
 
                  {/* Tampilkan hasil (pencarian tag atau cache) */}
                  {!isSearchingPublicClan && clansToDisplayPublic.length > 0 && (
-                      <>
-                          <h3 className="text-2xl font-clash text-white pb-2 border-b border-coc-gold-dark/30">
-                               {publicClanResult ? 'Hasil Pencarian Tag' : `Daftar Klan Publik (Cache - ${publicClansDataSource.length} total)`}
-                          </h3>
-                          <div className="grid grid-cols-1 gap-4">
-                               {clansToDisplayPublic.map((clan: PublicClanIndex) => (
-                                    // Menggunakan PublicClanCard yang sudah disesuaikan
-                                   <PublicClanCard key={clan.tag} clan={clan} />
-                               ))}
-                          </div>
-                          {/* Tombol Load More untuk Cache (jika tidak ada hasil search tag) */}
-                          {!publicClanResult && !publicClanTag.trim() && showLoadMorePublicClans && (
+                       <>
+                           <h3 className="text-2xl font-clash text-white pb-2 border-b border-coc-gold-dark/30">
+                                 {publicClanResult ? 'Hasil Pencarian Tag' : `Daftar Klan Publik (Cache - ${publicClansDataSource.length} total)`}
+                           </h3>
+                           {/* [PERBAIKAN UI] Grid dinamis: 1 kolom jika hasil search, 3 kolom jika cache */}
+                           <div className={`grid gap-6 ${
+                                publicClanResult 
+                                ? 'grid-cols-1' 
+                                : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
+                           }`}>
+                                  {clansToDisplayPublic.map((clan: PublicClanIndex) => (
+                                      // Menggunakan PublicClanCard yang sudah disesuaikan
+                                      <PublicClanCard key={clan.tag} clan={clan} />
+                                  ))}
+                           </div>
+                           {/* Tombol Load More untuk Cache (jika tidak ada hasil search tag) */}
+                           {!publicClanResult && !publicClanTag.trim() && showLoadMorePublicClans && (
                                <div className="text-center pt-6">
                                    <Button variant="secondary" size="lg" onClick={handleLoadMorePublicClans}>
                                        Muat Lebih Banyak ({publicClansDataSource.length - visiblePublicClansCount} Tersisa)
                                    </Button>
                                </div>
-                          )}
-                      </>
+                           )}
+                       </>
                  )}
 
                  {/* Pesan jika tidak ada hasil */}
                  {!isSearchingPublicClan && clansToDisplayPublic.length === 0 && !publicSearchError && (
-                      <p className="text-gray-400 text-center py-10">
-                           {publicClanTag.trim()
-                                 ? 'Tidak ada klan ditemukan untuk tag tersebut.' // Pesan jika search tag tapi 0 hasil
-                                 : 'Tidak ada klan publik di cache saat ini.' // Pesan default jika cache kosong
-                           }
-                      </p>
+                       <p className="text-gray-400 text-center py-10">
+                             {publicClanTag.trim()
+                                  ? 'Tidak ada klan ditemukan untuk tag tersebut.' // Pesan jika search tag tapi 0 hasil
+                                  : 'Tidak ada klan publik di cache saat ini.' // Pesan default jika cache kosong
+                             }
+                       </p>
                  )}
                  {/* Footer Info */}
                  <div className="text-xs text-gray-500 pt-4 border-t border-coc-stone/50">
-                       <ClockIcon className="h-3 w-3 inline mr-1"/> Data klan publik di-cache dan diperbarui secara berkala.
+                      <ClockIcon className="h-3 w-3 inline mr-1"/> Data klan publik di-cache dan diperbarui secara berkala.
                  </div>
             </div>
         </section>
@@ -497,24 +502,43 @@ const TeamHubClient = ({ initialClans, initialPlayers, initialPublicClans }: Tea
 
     // --- Main Return ---
     return (
-        <div className="max-w-7xl mx-auto space-y-8 p-4 md:p-8">
-            <header className="text-center">
-                <h1 className="text-4xl font-clash text-white">Hub Komunitas Clashub</h1>
-                <p className="text-lg text-gray-400 mt-2">Temukan Tim Clashub Internal, cari Klan Publik, atau rekrut Pemain baru.</p>
-            </header>
+        // [PERBAIKAN HEADER]
+        // 1. Menggunakan React Fragment (<>) sebagai wrapper level atas
+        // 2. Menambahkan <section> banner baru di atas .container
+        <>
+            {/* [PERBAIKAN HEADER] Banner baru meniru app/page.tsx, menggunakan bg-teamhub-banner */}
+            {/* [PERBAIKAN POSISI] Mengganti bg-center menjadi bg-top agar tidak terpotong */}
+            <section className="relative h-[400px] bg-teamhub-banner bg-cover bg-top bg-no-repeat flex flex-col items-center justify-center text-center text-white border-b-4 border-coc-gold shadow-lg">
+                <div className="absolute inset-0 bg-black/60" />
+                <div className="relative z-10 p-4">
+                    {/* Mengambil teks dari <header> lama */}
+                    <h1 className="text-4xl md:text-5xl mb-4">Hub Komunitas Clashub</h1>
+                    <p className="text-lg text-gray-300 mb-8 max-w-2xl mx-auto">
+                        Temukan Tim Clashub Internal, cari Klan Publik, atau rekrut Pemain baru.
+                    </p>
+                    {/* Tombol dihilangkan karena kita sudah berada di halaman ini */}
+                </div>
+            </section>
 
-            {/* Tab Navigation */}
-            <div className="flex border-b-2 border-coc-stone overflow-x-auto custom-scrollbar rounded-t-lg">
-                <TabButton tab="clashubTeams" label="Tim Clashub" icon={ShieldIcon} />
-                <TabButton tab="publicClans" label="Pencarian Klan" icon={GlobeIcon} />
-                <TabButton tab="players" label="Cari Pemain" icon={UserIcon} />
+            {/* Konten halaman yang ada (dimulai dengan .container) */}
+            {/* [PERBAIKAN HEADER] mt-10 dihapus dari container, karena banner sudah memberi jarak */}
+            <div className="container mx-auto space-y-8 p-4 md:p-8"> 
+                
+                {/* [PERBAIKAN HEADER] <header> lama yang text-center DIHAPUS DARI SINI */}
+                {/* <header className="text-center"> ... </header> */}
+
+                {/* Tab Navigation */}
+                <div className="flex border-b-2 border-coc-stone overflow-x-auto custom-scrollbar rounded-t-lg">
+                    <TabButton tab="clashubTeams" label="Tim Clashub" icon={ShieldIcon} />
+                    <TabButton tab="publicClans" label="Pencarian Klan" icon={GlobeIcon} />
+                    <TabButton tab="players" label="Cari Pemain" icon={UserIcon} />
+                </div>
+
+                {/* Render active tab content */}
+                {renderContent()}
             </div>
-
-            {/* Render active tab content */}
-            {renderContent()}
-        </div>
+        </>
     );
 };
 
 export default TeamHubClient;
-

@@ -42,6 +42,8 @@ const config: Config = {
         // Menambahkan semua variasi gambar latar
         'stone-pattern': "url('/images/stone-texture.png')",
         'hero-banner': "url('/images/clash-hero-art.png')",
+        // [PERBAIKAN HEADER] Menambahkan banner baru untuk Team Hub
+        'teamhub-banner': "url('/images/banner-teamhub.png')",
       },
       boxShadow: {
         // Bayangan untuk tombol 3D dan kartu
