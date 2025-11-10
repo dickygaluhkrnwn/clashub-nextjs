@@ -1,5 +1,5 @@
 // File: app/api/tournaments/[tournamentId]/manage/participant/route.ts
-// Deskripsi: [BARU - FASE 5] API route (POST) untuk approve/reject tim peserta.
+// Deskripsi: [FIX V2.3] API route (POST) untuk approve/reject tim peserta.
 
 import { NextResponse, NextRequest } from 'next/server';
 import { adminFirestore } from '@/lib/firebase-admin';
@@ -100,39 +100,45 @@ export async function POST(
 
         let message = '';
 
-        // --- Logika Update ---
+        // --- [PERBAIKAN V2.3] Logika Update Counter ---
+        // participantCountCurrent MENGHITUNG SLOT YANG TERISI (Pending + Approved)
 
         if (newStatus === 'approved') {
           // CEK 5 (Kuota) saat approve
-          if (
-            tournamentData.participantCountCurrent >=
-            tournamentData.participantCount
-          ) {
-            throw new Error('Kuota turnamen sudah penuh.');
-          }
-
-          // Update status tim
-          t.update(teamRef, { status: 'approved' });
-          message = `Tim "${teamData.teamName}" berhasil disetujui.`;
-
-          // Jika sebelumnya 'pending' atau 'rejected', tambah counter
-          if (currentStatus === 'pending' || currentStatus === 'rejected') {
+          // Hanya cek kuota jika tim ini sebelumnya 'rejected' (mengambil slot baru)
+          if (currentStatus === 'rejected') {
+            if (
+              tournamentData.participantCountCurrent >=
+              tournamentData.participantCount
+            ) {
+              throw new Error('Kuota turnamen sudah penuh.');
+            }
+            // Jika 'rejected' -> 'approved', ambil 1 slot
             t.update(tournamentRef, {
               participantCountCurrent: FieldValue.increment(1),
             });
           }
+          
+          // Jika 'pending' -> 'approved', JANGAN increment, slot sudah diambil saat daftar.
+          
+          // Update status tim
+          t.update(teamRef, { status: 'approved' });
+          message = `Tim "${teamData.teamName}" berhasil disetujui.`;
+
         } else if (newStatus === 'rejected') {
           // Update status tim
           t.update(teamRef, { status: 'rejected' });
           message = `Tim "${teamData.teamName}" berhasil ditolak.`;
 
-          // Jika sebelumnya 'approved', kurangi counter
-          if (currentStatus === 'approved') {
+          // Jika sebelumnya 'approved' ATAU 'pending', bebaskan 1 slot
+          if (currentStatus === 'approved' || currentStatus === 'pending') {
             t.update(tournamentRef, {
               participantCountCurrent: FieldValue.increment(-1),
             });
           }
+          // Jika 'rejected' -> 'rejected', tidak terjadi apa-apa (sudah dicek di awal)
         }
+        // --- [AKHIR PERBAIKAN V2.3] ---
 
         return message;
       },

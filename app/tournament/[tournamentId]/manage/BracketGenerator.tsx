@@ -1,10 +1,15 @@
 'use client';
 
 // File: app/tournament/[tournamentId]/manage/BracketGenerator.tsx
-// Deskripsi: [BARU - FASE 5] Komponen untuk men-generate bracket.
+// Deskripsi: [FIX V2.3] Komponen untuk men-generate bracket.
+// - Menghitung 'approvedCount' untuk validasi, bukan 'participantCountCurrent'.
 
-import React, { useState } from 'react';
-import { Tournament, FirestoreDocument } from '@/lib/clashub.types';
+import React, { useState, useEffect } from 'react';
+import {
+  Tournament,
+  FirestoreDocument,
+  TournamentTeam, // <-- [FIX B] Impor tipe data tim
+} from '@/lib/clashub.types';
 import { Button } from '@/app/components/ui/Button';
 import Notification, {
   NotificationProps,
@@ -25,9 +30,13 @@ const BracketGenerator: React.FC<BracketGeneratorProps> = ({
   tournament,
   onBracketGenerated,
 }) => {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // Loading untuk aksi generate
   const [notification, setNotification] =
     useState<NotificationProps | null>(null);
+
+  // --- [BARU - FIX B] State untuk data tim ---
+  const [teams, setTeams] = useState<FirestoreDocument<TournamentTeam>[]>([]);
+  const [isFetchingTeams, setIsFetchingTeams] = useState(true); // Loading untuk data
 
   const showNotification = (
     message: string,
@@ -36,14 +45,45 @@ const BracketGenerator: React.FC<BracketGeneratorProps> = ({
     setNotification({ message, type, onClose: () => setNotification(null) });
   };
 
-  // --- Validasi Logika (sesuai Roadmap Fase 5) ---
-  const isFull =
-    tournament.participantCountCurrent === tournament.participantCount;
+  // --- [BARU - FIX B] Fetch data tim saat komponen dimuat ---
+  useEffect(() => {
+    const fetchParticipants = async () => {
+      setIsFetchingTeams(true);
+      try {
+        // Panggil API route yang sama dengan ParticipantManager
+        const response = await fetch(
+          `/api/tournaments/${tournament.id}/participants`,
+        );
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(
+            result.error || 'Gagal mengambil data tim peserta.',
+          );
+        }
+        setTeams(result || []); // (Sama seperti fix di ParticipantManager)
+      } catch (error: any) {
+        showNotification(error.message, 'error');
+        setTeams([]);
+      } finally {
+        setIsFetchingTeams(false);
+      }
+    };
+
+    fetchParticipants();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tournament.id]);
+
+  // --- [PERBAIKAN - FIX B] Validasi Logika ---
+  // Hitung jumlah yang disetujui
+  const approvedCount = teams.filter((t) => t.status === 'approved').length;
+
+  // Gunakan 'approvedCount' untuk validasi 'isFull', bukan 'participantCountCurrent'
+  const isFull = approvedCount === tournament.participantCount;
   const isReadyToStart = tournament.status === 'registration_closed';
   const isOngoing = tournament.status === 'ongoing';
   const isCompleted = tournament.status === 'completed';
 
-  // Tombol dinonaktifkan jika sedang loading, ATAU belum penuh, ATAU pendaftaran belum ditutup
+  // Tombol dinonaktifkan jika sedang loading, ATAU (FIX) approvedCount belum penuh, ATAU pendaftaran belum ditutup
   const isDisabled = isLoading || !isFull || !isReadyToStart;
 
   // --- Handler untuk Klik Tombol ---
@@ -54,7 +94,7 @@ const BracketGenerator: React.FC<BracketGeneratorProps> = ({
     showNotification('Sedang mengacak dan membuat bracket...', 'info');
 
     try {
-      // Panggil API route yang akan kita buat selanjutnya
+      // Panggil API route
       const response = await fetch(
         `/api/tournaments/${tournament.id}/manage/generate-bracket`,
         { method: 'POST' },
@@ -66,7 +106,7 @@ const BracketGenerator: React.FC<BracketGeneratorProps> = ({
       }
 
       showNotification(result.message, 'success');
-      // Beri tahu parent component untuk refresh data (misal: SWR revalidate)
+      // Beri tahu parent component untuk refresh data
       onBracketGenerated();
     } catch (error: any) {
       showNotification(error.message, 'error');
@@ -77,20 +117,30 @@ const BracketGenerator: React.FC<BracketGeneratorProps> = ({
 
   // --- Render Logic ---
 
+  // 0. Tampilkan loading jika sedang mengambil data tim
+  if (isFetchingTeams) {
+    return (
+      <div className="flex justify-center items-center h-40">
+        <Loader2Icon className="h-8 w-8 animate-spin text-coc-gold" />
+      </div>
+    );
+  }
+
   // 1. Jika turnamen sudah berjalan atau selesai
   if (isOngoing || isCompleted) {
     return (
       <div>
         <h3 className="font-clash text-xl text-white mb-4">Bracket Turnamen</h3>
         <p className="text-gray-400 font-sans mb-4">
-          Bracket turnamen telah dibuat. Status turnamen: <span className="font-bold text-coc-green">{tournament.status}</span>.
+          Bracket turnamen telah dibuat. Status turnamen:{' '}
+          <span className="font-bold text-coc-green">{tournament.status}</span>.
         </p>
         {/* Di sini nanti kita akan render <ScheduleManager /> (langkah selanjutnya) */}
       </div>
     );
   }
 
-  // 2. Jika kuota belum penuh
+  // 2. Jika kuota (yang DISETUJUI) belum penuh
   if (!isFull) {
     return (
       <div className="card-stone p-5 rounded-lg border border-coc-gold-dark/30 text-center">
@@ -103,13 +153,17 @@ const BracketGenerator: React.FC<BracketGeneratorProps> = ({
           penuh.
         </p>
         <p className="font-clash text-2xl text-white mt-2">
-          {tournament.participantCountCurrent} / {tournament.participantCount}
+          {/* [PERBAIKAN - FIX B] Tampilkan approvedCount, bukan participantCountCurrent */}
+          {approvedCount} / {tournament.participantCount}
+          <span className="text-sm text-gray-400 font-sans ml-2">
+            (Disetujui)
+          </span>
         </p>
       </div>
     );
   }
 
-  // 3. Jika sudah penuh tapi pendaftaran belum ditutup
+  // 3. Jika sudah penuh (disetujui) tapi pendaftaran belum ditutup
   if (!isReadyToStart) {
     return (
       <div className="card-stone p-5 rounded-lg border border-coc-gold-dark/30 text-center">
@@ -142,7 +196,8 @@ const BracketGenerator: React.FC<BracketGeneratorProps> = ({
           Siap Memulai Turnamen!
         </h3>
         <p className="text-gray-300 font-sans mt-2 max-w-md mx-auto">
-          Semua {tournament.participantCount} tim peserta telah disetujui dan
+          {/* [PERBAIKAN - FIX B] Tampilkan approvedCount */}
+          Semua {approvedCount} tim peserta telah disetujui dan
           pendaftaran telah ditutup. Tekan tombol di bawah untuk mengacak dan
           membuat bracket *double elimination*.
         </p>

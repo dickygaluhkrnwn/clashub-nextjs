@@ -14,17 +14,16 @@ import {
   DocumentData,
   QueryDocumentSnapshot,
   SnapshotOptions,
+  where as clientWhere,
+  or as clientOr, // 'or' tidak kita gunakan lagi untuk getManagedTournaments, tapi biarkan impornya
+  limit as clientLimit,
 } from 'firebase/firestore';
 import { COLLECTIONS } from '../firestore-collections';
-// [ROMBAK V2] Impor Tipe Baru (Tournament) dan helper FirestoreDocument
-import { Tournament, FirestoreDocument } from '../types';
+import { Tournament, FirestoreDocument, TournamentTeam } from '../types';
 
-// [ROMBAK V2] Buat Firestore Converter untuk Tipe Tournament
-// Ini akan otomatis mengonversi Timestamp (Firestore) menjadi Date (JavaScript) saat membaca data
+// Converter untuk Tipe Tournament
 const tournamentConverter: FirestoreDataConverter<Tournament> = {
   toFirestore(tournament: Tournament): DocumentData {
-    // Kita tidak akan menulis dari client, jadi ini bisa dikosongkan
-    // Pengecualian: Kita mungkin perlu fungsi update, tapi kita buat nanti
     return tournament;
   },
   fromFirestore(
@@ -32,7 +31,6 @@ const tournamentConverter: FirestoreDataConverter<Tournament> = {
     options: SnapshotOptions,
   ): Tournament {
     const data = snapshot.data(options)!;
-    // Konversi semua Timestamp server menjadi objek Date di client
     return {
       ...data,
       startsAt: (data.startsAt as ClientTimestamp).toDate(),
@@ -42,10 +40,26 @@ const tournamentConverter: FirestoreDataConverter<Tournament> = {
   },
 };
 
+// Converter untuk Tipe TournamentTeam (Client-side)
+const teamConverter: FirestoreDataConverter<TournamentTeam> = {
+  toFirestore(team: TournamentTeam): DocumentData {
+    return team;
+  },
+  fromFirestore(
+    snapshot: QueryDocumentSnapshot,
+    options: SnapshotOptions,
+  ): TournamentTeam {
+    const data = snapshot.data(options)!;
+    return {
+      ...data,
+      registeredAt: (data.registeredAt as ClientTimestamp).toDate(),
+    } as TournamentTeam;
+  },
+};
+
 /**
  * @function getAllTournamentsClient
- * [BARU: Fase 1] Mengambil semua turnamen dari sisi client.
- * Digunakan di halaman utama /tournament (Fase 2 Peta Develop).
+ * Mengambil semua turnamen dari sisi client.
  */
 export const getAllTournamentsClient = async (): Promise<
   FirestoreDocument<Tournament>[]
@@ -56,7 +70,6 @@ export const getAllTournamentsClient = async (): Promise<
       COLLECTIONS.TOURNAMENTS,
     ).withConverter(tournamentConverter);
 
-    // [ROMBAK V2] Urutkan berdasarkan 'startsAt' (Timestamp) baru
     const q = clientQuery(tournamentsRef, clientOrderBy('startsAt', 'desc'));
     const snapshot = await clientGetDocs(q);
 
@@ -71,8 +84,7 @@ export const getAllTournamentsClient = async (): Promise<
 
 /**
  * @function getTournamentClient
- * [BARU: Fase 1] Mengambil satu dokumen turnamen berdasarkan ID-nya dari sisi client.
- * Digunakan di halaman detail /tournament/[id] (Fase 3 Peta Develop).
+ * Mengambil satu dokumen turnamen berdasarkan ID-nya dari sisi client.
  */
 export const getTournamentClient = async (
   tournamentId: string,
@@ -100,6 +112,129 @@ export const getTournamentClient = async (
   }
 };
 
-// [DIHAPUS] Fungsi registerForTournamentClient dihapus
-// Logic pendaftaran sekarang ditangani 100% oleh server-side API Route
-// (Sesuai Peta Develop Fase 3, Step 2)
+// =================================================================
+// [PERBAIKAN V2.2 - (HEADER FIX)]
+// Fungsi client-side untuk memeriksa apakah user adalah manajer.
+// =================================================================
+/**
+ * @function getManagedTournamentsForUserClient
+ * [FIX V2.2] Mengambil turnamen di mana user adalah 'organizer' ATAU 'committee'.
+ * Menggunakan dua query terpisah untuk menghindari kegagalan index composite 'OR'.
+ * @param userId UID pengguna yang sedang login.
+ */
+export const getManagedTournamentsForUserClient = async (
+  userId: string,
+): Promise<FirestoreDocument<Tournament>[]> => {
+  if (!userId) {
+    return [];
+  }
+
+  try {
+    const tournamentsRef = clientCollection(
+      firestore,
+      COLLECTIONS.TOURNAMENTS,
+    ).withConverter(tournamentConverter);
+
+    // [FIX V2.2] Ganti query 'OR' yang butuh index composite
+    // dengan dua query terpisah yang lebih aman.
+    // Ini akan mengambil *semua* turnamen yang di-manage.
+
+    // Query 1: Cek apakah user adalah Organizer
+    const organizerQuery = clientQuery(
+      tournamentsRef,
+      clientWhere('organizerUid', '==', userId),
+    );
+
+    // Query 2: Cek apakah user adalah Committee
+    const committeeQuery = clientQuery(
+      tournamentsRef,
+      clientWhere('committeeUids', 'array-contains', userId),
+    );
+
+    // Jalankan kedua query secara paralel
+    const [organizerSnapshot, committeeSnapshot] = await Promise.all([
+      clientGetDocs(organizerQuery),
+      clientGetDocs(committeeQuery),
+    ]);
+
+    // Gabungkan hasil dan hapus duplikat (jika user adalah organizer DAN committee)
+    const managedTournaments = new Map<string, FirestoreDocument<Tournament>>();
+
+    organizerSnapshot.docs.forEach((doc) => {
+      managedTournaments.set(doc.id, {
+        ...doc.data(),
+        id: doc.id,
+      } as FirestoreDocument<Tournament>);
+    });
+
+    committeeSnapshot.docs.forEach((doc) => {
+      // Set akan otomatis menimpa/menambah jika key (doc.id) sudah ada
+      managedTournaments.set(doc.id, {
+        ...doc.data(),
+        id: doc.id,
+      } as FirestoreDocument<Tournament>);
+    });
+
+    // Konversi Map kembali ke array dan urutkan
+    const combinedList = Array.from(managedTournaments.values());
+
+    combinedList.sort((a, b) => {
+      // Urutkan berdasarkan startsAt (Timestamp/Date), terbaru dulu (descending)
+      // Gunakan getTime() untuk perbandingan yang aman
+      return b.startsAt.getTime() - a.startsAt.getTime();
+    });
+
+    return combinedList;
+  } catch (error) {
+    console.error(
+      `Firestore Error [getManagedTournamentsForUserClient - Client]:`,
+      error,
+    );
+    // Jika ada error lain (misal: permission), kembalikan array kosong
+    return [];
+  }
+};
+
+/**
+ * @function getRegisteredTournamentsForUserClient
+ * [BARU: Fase 2] Mengambil turnamen di mana user adalah 'leader' dari tim yang terdaftar.
+ * Digunakan di halaman /my-tournaments (Fase 4).
+ * @param userId UID pengguna yang sedang login.
+ */
+export const getRegisteredTournamentsForUserClient = async (
+  userId: string,
+): Promise<FirestoreDocument<TournamentTeam>[]> => {
+  if (!userId) {
+    return [];
+  }
+
+  try {
+    // [EDIT] Berdasarkan bug Fase 1, kita tahu data ada di `tournaments/{id}/teams`.
+    // Query CollectionGroup adalah cara yang tepat.
+    const groupRef = clientCollection(
+      firestore,
+      'teams', // Ini adalah nama sub-koleksi (Collection Group ID)
+    ).withConverter(teamConverter);
+
+    const q = clientQuery(
+      groupRef,
+      clientWhere('leaderUid', '==', userId),
+      clientOrderBy('registeredAt', 'desc'),
+    );
+
+    const snapshot = await clientGetDocs(q);
+
+    return snapshot.docs.map(
+      (doc) =>
+        ({ ...doc.data(), id: doc.id } as FirestoreDocument<TournamentTeam>),
+    );
+  } catch (error) {
+    console.error(
+      `Firestore Error [getRegisteredTournamentsForUserClient - Client]:`,
+      error,
+    );
+    // Ini kemungkinan besar akan gagal jika index 'collectionGroup' (teams) belum dibuat.
+    // Index: collection: 'teams', field: 'leaderUid ASC, registeredAt DESC'
+    return [];
+  }
+};

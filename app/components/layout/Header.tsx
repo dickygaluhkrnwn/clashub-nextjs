@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation'; // <-- Tambahkan useRouter
+import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 // Menggunakan ShieldIcon
 import {
@@ -24,6 +24,9 @@ import { UserProfile, Notification } from '@/lib/clashub.types'; // <-- Tambahka
 import { ServerUser } from '@/lib/server-auth'; // Impor ServerUser
 import { useNotifications } from '@/lib/hooks/useNotifications'; // <-- Import hook notifikasi
 
+// [FIX FASE 2] Impor fungsi baru dari file store turnamen (client)
+import { getManagedTournamentsForUserClient } from '@/lib/firestore/tournaments';
+
 const navItems = [
   { name: 'Home', href: '/' },
   // PERBAIKAN KRITIS: Mengganti '/teamhub' menjadi '/clan-hub'
@@ -38,8 +41,11 @@ const UserProfileDropdown = () => {
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Ambil userProfile DAN loading state dari AuthContext
-  const { userProfile, loading: authLoading } = useAuth();
+  // [FIX FASE 2] Ambil 'currentUser' (untuk uid) selain 'userProfile'
+  const { currentUser, userProfile, loading: authLoading } = useAuth();
+
+  // [FIX FASE 2] State baru untuk melacak status manajer turnamen
+  const [isTournamentManager, setIsTournamentManager] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -70,30 +76,44 @@ const UserProfileDropdown = () => {
     };
   }, []);
 
-  // --- PERBAIKAN LOGIKA: Sederhanakan Pengecekan Menu Klan ---
-  // Kita perlu membedakan antara ServerUser (sebagian) dan UserProfile (lengkap dari Firestore).
+  // [BARU - FASE 2] useEffect untuk memeriksa status manajer turnamen
+  useEffect(() => {
+    // Reset status saat user berganti atau logout
+    setIsTournamentManager(false);
 
-  // Type Guard untuk memastikan objek adalah UserProfile lengkap dari Firestore
+    if (currentUser?.uid) {
+      // Panggil fungsi client-side yang kita buat di lib/firestore/tournaments.ts
+      getManagedTournamentsForUserClient(currentUser.uid)
+        .then((tournaments) => {
+          // Jika user mengelola > 0 turnamen, tampilkan link
+          if (tournaments.length > 0) {
+            setIsTournamentManager(true);
+          }
+        })
+        .catch((err) => {
+          // Jangan blok UI, cukup log error di konsol
+          console.error('Gagal memeriksa status manajer turnamen:', err);
+        });
+    }
+  }, [currentUser?.uid]); // Dependensi effect adalah currentUser.uid
+
+  // --- PERBAIKAN LOGIKA: Sederhanakan Pengecekan Menu Klan ---
+  // ... (sisa logika type guard tidak berubah)
   const isCompleteUserProfile = (
     profile: UserProfile | ServerUser | null,
   ): profile is UserProfile => {
-    // Cek minimal: harus punya isVerified, clanId (bisa null), dan role (Clashub internal)
-    // ServerUser hanya punya uid, email, displayName.
     return (
       !!profile &&
       'isVerified' in profile &&
       'clanId' in profile &&
-      'role' in profile // Tambahkan cek untuk role Clashub
+      'role' in profile
     );
   };
 
-  // Logika untuk menampilkan link 'Klan'
   let showClanLink = false;
   let avatarSrc: string | null = null;
 
   if (isCompleteUserProfile(userProfile)) {
-    // [PERBAIKAN KRITIS DI SINI] Tampilkan Klan jika terverifikasi DAN punya Clan Tag CoC
-    // Ini memastikan anggota biasa yang terverifikasi melihat tautan meskipun klan mereka belum dikelola (clanId null)
     showClanLink = userProfile.isVerified === true && !!userProfile.clanTag;
     avatarSrc = userProfile.avatarUrl || null;
   }
@@ -149,19 +169,21 @@ const UserProfileDropdown = () => {
               </li>
             )}
 
-            {/* --- [BARU: FASE 4] --- */}
-            {/* Tautan Manajemen Turnamen */}
-            <li>
-              <Link
-                href="/my-tournaments"
-                onClick={() => setIsOpen(false)}
-                className="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-300 hover:bg-coc-gold/10 hover:text-white rounded-md"
-              >
-                <TrophyIcon className="h-5 w-5" />
-                <span>Manajemen Turnamen</span>
-              </Link>
-            </li>
-            {/* --- [AKHIR FASE 4] --- */}
+            {/* --- [PERBAIKAN FASE 2] --- */}
+            {/* Tautan Manajemen Turnamen (Render Bersyarat) */}
+            {isTournamentManager && (
+              <li>
+                <Link
+                  href="/my-tournaments"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-300 hover:bg-coc-gold/10 hover:text-white rounded-md"
+                >
+                  <TrophyIcon className="h-5 w-5" />
+                  <span>Manajemen Turnamen</span>
+                </Link>
+              </li>
+            )}
+            {/* --- [AKHIR PERBAIKAN FASE 2] --- */}
 
             <li>
               <button
@@ -306,8 +328,8 @@ const Header = () => {
 
   // Tampilkan state loading awal jika diperlukan
   // if (authLoading) {
-  //   // Opsional: Tampilkan skeleton UI atau null selama auth loading awal
-  //   return <header className="sticky top-0 z-50 h-[68px] bg-coc-stone/80"></header>;
+  //    // Opsional: Tampilkan skeleton UI atau null selama auth loading awal
+  //   return <header className="sticky top-0 z-50 h-[68px] bg-coc-stone/80"></header>;
   // }
 
   return (
@@ -329,13 +351,13 @@ const Header = () => {
               key={item.name}
               href={item.href}
               className={`
-                  px-4 py-2 rounded-md text-sm font-bold transition-all duration-300
-                  ${
-                  pathname === item.href
-                    ? 'bg-coc-gold text-coc-stone shadow-lg shadow-coc-gold/20' // <-- [PERBAIKAN] Mengganti inset shadow dengan drop shadow
-                    : 'text-gray-300 hover:bg-coc-stone-light/50 hover:text-white'
-                }
-              `}
+                    px-4 py-2 rounded-md text-sm font-bold transition-all duration-300
+                    ${
+                      pathname === item.href
+                        ? 'bg-coc-gold text-coc-stone shadow-lg shadow-coc-gold/20' // <-- [PERBAIKAN] Mengganti inset shadow dengan drop shadow
+                        : 'text-gray-300 hover:bg-coc-stone-light/50 hover:text-white'
+                    }
+                  `}
             >
               {item.name}
             </Link>

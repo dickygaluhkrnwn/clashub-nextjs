@@ -1,7 +1,7 @@
 'use client';
 
 // File: app/tournament/[tournamentId]/manage/ParticipantManager.tsx
-// Deskripsi: [BARU - FASE 5] Komponen untuk mengelola peserta (tim) turnamen.
+// Deskripsi: [FIX V2.1] Komponen untuk mengelola peserta (tim) turnamen.
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -227,7 +227,13 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
         throw new Error(result.error || 'Gagal mengambil daftar peserta.');
       }
 
-      setTeams(result.participants || []);
+      // =================================================================
+      // [PERBAIKAN - FASE 1]
+      // Bug ada di sini. API mengembalikan array langsung [ ... ],
+      // bukan objek { participants: [ ... ] }.
+      // Kita ubah 'result.participants' menjadi 'result'.
+      // =================================================================
+      setTeams(result || []);
     } catch (error: any) {
       showNotification(error.message, 'error');
       setTeams([]); // Kosongkan data jika error
