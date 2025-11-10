@@ -5,20 +5,50 @@
 // [BARU DARI FASE 3] Impor tipe ThRequirement dan TournamentTeamMember
 import { ThRequirement, TournamentTeamMember } from './clashub.types';
 
+// =========================================================================
+// [BARU] KONSTANTA TOWN HALL (SESUAI RENCANA PENGEMBANGAN V2)
+// =========================================================================
+export const MIN_TH_LEVEL = 1;
+export const MAX_TH_LEVEL = 17;
+
+/**
+ * Array yang berisi semua level TH yang valid, dari TERTINGGI ke TERENDAH.
+ * [17, 16, 15, ..., 1]
+ * (Digunakan oleh dropdown agar TH terbaru muncul di atas)
+ */
+export const AVAILABLE_TH_LEVELS_DESC: number[] = Array.from(
+  { length: MAX_TH_LEVEL - MIN_TH_LEVEL + 1 },
+  (_, i) => MAX_TH_LEVEL - i,
+);
+
+/**
+ * Array yang berisi semua level TH yang valid, dari TERENDAH ke TERTINGGI.
+ * [1, 2, 3, ..., 17]
+ */
+export const AVAILABLE_TH_LEVELS_ASC: number[] = Array.from(
+  { length: MAX_TH_LEVEL - MIN_TH_LEVEL + 1 },
+  (_, i) => i + MIN_TH_LEVEL,
+);
+
 /**
  * Mendapatkan URL gambar Town Hall berdasarkan level TH.
  * @param thLevel Level Town Hall (misalnya, 15).
  * @returns URL gambar yang sesuai, atau placeholder jika tidak ditemukan.
  */
 export const getThImage = (thLevel: number): string => {
-  // Asumsi gambar TH berada di public/images/thXX.png
+  // Asumsi gambar TH berada di public/images/
   const baseDir = '/images';
-  // Kita hanya memiliki aset untuk TH9 hingga TH17 (dari prototipe lama)
+
+  // [PERBAIKAN] Aset TH1-TH8 menggunakan format "TH1.png" (uppercase)
+  if (thLevel >= 1 && thLevel <= 8) {
+    return `${baseDir}/TH${thLevel}.png`;
+  }
+  // [PERBAIKAN] Aset TH9-TH17 menggunakan format "th9.png" (lowercase)
   if (thLevel >= 9 && thLevel <= 17) {
     return `${baseDir}/th${thLevel}.png`;
   }
-  // Fallback atau placeholder
-  return `${baseDir}/th9.png`;
+  // Fallback atau placeholder (default ke TH1 jika di luar rentang)
+  return `${baseDir}/TH1.png`;
 };
 
 /**
@@ -147,7 +177,7 @@ export const validateTeamThRequirements = (
   // Daftar TH anggota harus sama persis dengan 'allowedLevels'
   if (type === 'mixed') {
     // 1. Buat "counts" dari aturan yang diizinkan
-    //    Contoh: [17, 16, 16, 15, 14] -> { 17: 1, 16: 2, 15: 1, 14: 1 }
+    //    Contoh: [17, 16, 16, 15, 14] -> { 17: 1, 16: 2, 15: 1, 14: 1 }
     const requiredCounts: { [key: number]: number } = {};
     for (const th of allowedLevels) {
       requiredCounts[th] = (requiredCounts[th] || 0) + 1;
