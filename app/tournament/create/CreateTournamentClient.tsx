@@ -3,62 +3,47 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 // [ROMBAK V2] Impor Tipe Baru (Tournament & ThRequirement)
-import { UserProfile, Tournament, ThRequirement } from '@/lib/types';
-import { Button } from '@/app/components/ui/Button';
+import { UserProfile, Tournament, ThRequirement } from '@/lib/types'; // Tetap
+import { Button } from '@/app/components/ui/Button'; // Tetap
 import Notification, {
   NotificationProps,
-} from '@/app/components/ui/Notification';
+} from '@/app/components/ui/Notification'; // Tetap
 import {
   FormGroup,
-  getInputClasses,
+  // getInputClasses, // [DIHAPUS] Sudah tidak dipakai di sini
 } from '@/app/knowledge-hub/components/form/PostFormGroup';
-import { LinkIcon } from '@/app/components/icons';
+// [DIHAPUS] LinkIcon dipindah ke BasicInfoSection
+// import { LinkIcon } from '@/app/components/icons';
 
-// Opsi TH 1-17 untuk dropdown
-const thLevelOptions = Array.from({ length: 17 }, (_, i) => 17 - i); // [17, 16, ..., 1]
+// [DIHAPUS] thLevelOptions dipindah ke ThRequirementsSection
+// const thLevelOptions = Array.from({ length: 17 }, (_, i) => 17 - i);
 
-// Tipe untuk props komponen ini
+// [BARU] Impor tipe dari file terpisah
+import { TournamentFormData, FormErrors } from './types';
+
+// [BARU] Impor komponen-komponen UI yang sudah dipecah
+import { BasicInfoSection } from './components/BasicInfoSection';
+import { FormatDatesSection } from './components/FormatDatesSection';
+import { ThRequirementsSection } from './components/ThRequirementsSection';
+
+// Tipe untuk props komponen ini (Tetap)
 interface CreateTournamentClientProps {
   userProfile: UserProfile;
 }
 
-// [ROMBAK V2] Tipe state form disesuaikan Peta Develop
-type TournamentFormData = {
-  title: string;
-  description: string;
-  rules: string;
-  prizePool: string;
-  bannerUrl: string;
-  startsAt: string; // Tanggal & Jam Mulai
-  endsAt: string; // Tanggal & Jam Selesai
-  format: '1v1' | '5v5';
-  participantCount: number; // Jumlah Tim (8, 16, 32, 64)
-
-  // State untuk membangun ThRequirement
-  thRequirementType: 'any' | 'uniform' | 'mixed';
-  thMinLevel: number;
-  thMaxLevel: number;
-  thUniformLevel: number; // Jika type 'uniform'
-  thMixedLevels: (number | string)[]; // Array 5 TH jika type 'mixed'
-};
-
-// Tipe untuk error validasi
-type FormErrors = {
-  [key in keyof TournamentFormData]?: string | null;
-} & {
-  thMixedLevels?: string | null; // Error khusus untuk array
-};
+// [DIHAPUS] Tipe TournamentFormData & FormErrors dipindah ke ./types.ts
 
 /**
  * @component CreateTournamentClient
  * [ROMBAK V2] Form panitia yang fleksibel untuk membuat turnamen.
+ * (Sekarang bertindak sebagai "Smart Container" atau "Barrel File")
  */
 const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
   userProfile,
 }) => {
   const router = useRouter();
 
-  // [ROMBAK V2] State default baru
+  // [ROMBAK V2] State default baru (Tetap)
   const [formData, setFormData] = useState<TournamentFormData>({
     title: '',
     description: '',
@@ -76,15 +61,15 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
     thMixedLevels: ['', '', '', '', ''], // Default 5 dropdown kosong
   });
 
-  // State untuk validasi error
+  // State untuk validasi error (Tetap)
   const [errors, setErrors] = useState<FormErrors>({});
-  // State untuk UI feedback (loading & notifikasi)
+  // State untuk UI feedback (loading & notifikasi) (Tetap)
   const [isLoading, setIsLoading] = useState(false);
   const [notification, setNotification] = useState<NotificationProps | null>(
     null,
   );
 
-  // --- 1. Handler Perubahan Input ---
+  // --- 1. Handler Perubahan Input --- (Tetap)
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
@@ -127,7 +112,7 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
     }
   };
 
-  // Handler khusus untuk 5 input TH 'mixed'
+  // Handler khusus untuk 5 input TH 'mixed' (Tetap)
   const handleMixedThChange = (
     index: number,
     e: React.ChangeEvent<HTMLSelectElement>,
@@ -141,7 +126,7 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
     }
   };
 
-  // --- 2. Handler Validasi Form ---
+  // --- 2. Handler Validasi Form --- (Tetap)
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
     const {
@@ -187,7 +172,7 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  // --- 3. Handler Submit Form ---
+  // --- 3. Handler Submit Form --- (Tetap)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setNotification(null);
@@ -279,7 +264,7 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
     }
   };
 
-  // --- 4. Render JSX ---
+  // --- 4. Render JSX [DIREFACTOR] ---
   return (
     <>
       {notification && <Notification notification={notification} />}
@@ -289,320 +274,32 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
         className="card-stone p-6 md:p-8 space-y-6"
         noValidate
       >
-        {/* ... (Input Banner URL tidak berubah, biarkan saja) ... */}
-        <FormGroup
-          label="Banner Turnamen URL (Opsional)"
-          htmlFor="bannerUrl"
-          error={errors.bannerUrl}
-        >
-          <div className="relative">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5">
-              <LinkIcon className="h-4 w-4 text-gray-400" />
-            </span>
-            <input
-              type="url"
-              id="bannerUrl"
-              name="bannerUrl"
-              value={formData.bannerUrl}
-              onChange={handleChange}
-              className={`${getInputClasses(!!errors.bannerUrl)} !pl-10`}
-              placeholder="Contoh: https://i.imgur.com/banner.png"
-              disabled={isLoading}
-            />
-          </div>
-          <p className="text-xs text-gray-500 font-sans mt-2">
-            <strong>Catatan:</strong> Upload gambar Anda ke{' '}
-            <a
-              href="https://imgur.com/upload"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-coc-primary hover:underline"
-            >
-              Imgur
-            </a>{' '}
-            lalu tempel link-nya di sini. Ukuran <strong>1200x400</strong>
-            disarankan. Jika dikosongi, placeholder akan digunakan.
-          </p>
-        </FormGroup>
+        {/* [BARU] Komponen terpisah untuk Info Dasar, Banner, Deskripsi, Aturan */}
+        <BasicInfoSection
+          formData={formData}
+          errors={errors}
+          handleChange={handleChange}
+          isLoading={isLoading}
+        />
 
-        {/* Info Utama */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FormGroup
-            label="Nama Turnamen"
-            htmlFor="title"
-            error={errors.title}
-          >
-            <input
-              type="text"
-              id="title"
-              name="title"
-              value={formData.title}
-              onChange={handleChange}
-              className={getInputClasses(!!errors.title)}
-              placeholder="Cth: Clashub Weekly Series"
-              disabled={isLoading}
-            />
-          </FormGroup>
-          <FormGroup
-            label="Hadiah (Prize Pool)"
-            htmlFor="prizePool"
-            error={errors.prizePool}
-          >
-            <input
-              type="text"
-              id="prizePool"
-              name="prizePool"
-              value={formData.prizePool}
-              onChange={handleChange}
-              className={getInputClasses(!!errors.prizePool)}
-              placeholder="Cth: Rp 1.000.000 + 500 Gems"
-              disabled={isLoading}
-            />
-          </FormGroup>
-        </div>
+        {/* [BARU] Komponen terpisah untuk Format, Jumlah, Tanggal */}
+        <FormatDatesSection
+          formData={formData}
+          errors={errors}
+          handleChange={handleChange}
+          isLoading={isLoading}
+        />
 
-        {/* Deskripsi & Aturan */}
-        <FormGroup
-          label="Deskripsi Singkat"
-          htmlFor="description"
-          error={errors.description}
-        >
-          <textarea
-            id="description"
-            name="description"
-            rows={3}
-            value={formData.description}
-            onChange={handleChange}
-            className={getInputClasses(!!errors.description)}
-            placeholder="Jelaskan turnamen Anda secara singkat..."
-            disabled={isLoading}
-          />
-        </FormGroup>
+        {/* [BARU] Komponen terpisah untuk Persyaratan TH */}
+        <ThRequirementsSection
+          formData={formData}
+          errors={errors}
+          handleChange={handleChange}
+          handleMixedThChange={handleMixedThChange}
+          isLoading={isLoading}
+        />
 
-        <FormGroup
-          label="Peraturan Lengkap"
-          htmlFor="rules"
-          error={errors.rules}
-        >
-          <textarea
-            id="rules"
-            name="rules"
-            rows={6}
-            value={formData.rules}
-            onChange={handleChange}
-            className={getInputClasses(!!errors.rules)}
-            placeholder="Tuliskan semua aturan, jadwal, dan detail teknis di sini..."
-            disabled={isLoading}
-          />
-        </FormGroup>
-
-        {/* [ROMBAK V2] Detail Teknis (Format, Slot, Tanggal) */}
-        <div className="grid grid-cols-2 md:grid-cols-2 gap-6">
-          <FormGroup
-            label="Format Turnamen"
-            htmlFor="format"
-            error={errors.format}
-          >
-            <select
-              id="format"
-              name="format"
-              value={formData.format}
-              onChange={handleChange}
-              className={getInputClasses(!!errors.format)}
-              disabled={isLoading}
-            >
-              <option value="5v5">5 vs 5 (Tim)</option>
-              <option value="1v1">1 vs 1 (Solo)</option>
-            </select>
-          </FormGroup>
-          <FormGroup
-            label="Jumlah Partisipan (Tim/Player)"
-            htmlFor="participantCount"
-            error={errors.participantCount}
-          >
-            <select
-              id="participantCount"
-              name="participantCount"
-              value={formData.participantCount}
-              onChange={handleChange}
-              className={getInputClasses(!!errors.participantCount)}
-              disabled={isLoading}
-            >
-              <option value={8}>8 Tim/Player</option>
-              <option value={16}>16 Tim/Player</option>
-              <option value={32}>32 Tim/Player</option>
-              <option value={64}>64 Tim/Player</option>
-            </select>
-          </FormGroup>
-          <FormGroup
-            label="Tanggal & Waktu Mulai"
-            htmlFor="startsAt"
-            error={errors.startsAt}
-          >
-            <input
-              type="datetime-local"
-              id="startsAt"
-              name="startsAt"
-              value={formData.startsAt}
-              onChange={handleChange}
-              className={getInputClasses(!!errors.startsAt)}
-              disabled={isLoading}
-            />
-          </FormGroup>
-          <FormGroup
-            label="Tanggal & Waktu Selesai"
-            htmlFor="endsAt"
-            error={errors.endsAt}
-          >
-            <input
-              type="datetime-local"
-              id="endsAt"
-              name="endsAt"
-              value={formData.endsAt}
-              onChange={handleChange}
-              className={getInputClasses(!!errors.endsAt)}
-              disabled={isLoading}
-            />
-          </FormGroup>
-        </div>
-
-        {/* [ROMBAK V2] Persyaratan TH Fleksibel */}
-        <fieldset className="card-form-section space-y-4">
-          <legend className="form-legend">Persyaratan Town Hall</legend>
-          {/* Rentang Umum */}
-          <div className="grid grid-cols-2 gap-6">
-            <FormGroup
-              label="TH Minimal"
-              htmlFor="thMinLevel"
-              error={errors.thMinLevel}
-            >
-              <input
-                type="number"
-                id="thMinLevel"
-                name="thMinLevel"
-                value={formData.thMinLevel}
-                onChange={handleChange}
-                className={getInputClasses(!!errors.thMinLevel)}
-                disabled={isLoading}
-                min="1"
-                max="17"
-              />
-            </FormGroup>
-            <FormGroup
-              label="TH Maksimal"
-              htmlFor="thMaxLevel"
-              error={errors.thMaxLevel}
-            >
-              <input
-                type="number"
-                id="thMaxLevel"
-                name="thMaxLevel"
-                value={formData.thMaxLevel}
-                onChange={handleChange}
-                className={getInputClasses(!!errors.thMaxLevel)}
-                disabled={isLoading}
-                min="1"
-                max="17"
-              />
-            </FormGroup>
-          </div>
-          <p className="text-xs text-gray-500 font-sans -mt-2">
-            Atur rentang TH umum yang diizinkan untuk mendaftar (Cth: Min 1, Max
-            17).
-          </p>
-
-          {/* Opsi Khusus 5v5 */}
-          {formData.format === '5v5' && (
-            <div className="space-y-4 pt-4 border-t border-coc-gold-dark/20">
-              <FormGroup
-                label="Aturan TH Khusus (5v5)"
-                htmlFor="thRequirementType"
-                error={errors.thRequirementType}
-              >
-                <select
-                  id="thRequirementType"
-                  name="thRequirementType"
-                  value={formData.thRequirementType}
-                  onChange={handleChange}
-                  className={getInputClasses(!!errors.thRequirementType)}
-                  disabled={isLoading}
-                >
-                  <option value="any">Bebas (Sesuai Rentang Min/Max)</option>
-                  <option value="uniform">Seragam (Semua 5 TH Sama)</option>
-                  <option value="mixed">Campuran (5 TH Spesifik)</option>
-                </select>
-              </FormGroup>
-
-              {/* Opsi jika 'Seragam' */}
-              {formData.thRequirementType === 'uniform' && (
-                <FormGroup
-                  label="Pilih Level TH Seragam"
-                  htmlFor="thUniformLevel"
-                  error={errors.thUniformLevel}
-                >
-                  <select
-                    id="thUniformLevel"
-                    name="thUniformLevel"
-                    value={formData.thUniformLevel}
-                    onChange={handleChange}
-                    className={getInputClasses(!!errors.thUniformLevel)}
-                    disabled={isLoading}
-                  >
-                    {thLevelOptions
-                      .filter(
-                        (lvl) =>
-                          lvl >= formData.thMinLevel &&
-                          lvl <= formData.thMaxLevel,
-                      )
-                      .map((lvl) => (
-                        <option key={lvl} value={lvl}>
-                          TH {lvl}
-                        </option>
-                      ))}
-                  </select>
-                </FormGroup>
-              )}
-
-              {/* Opsi jika 'Campuran' */}
-              {formData.thRequirementType === 'mixed' && (
-                <FormGroup
-                  label="Tentukan 5 Level TH Campuran"
-                  htmlFor="thMixedLevel-0"
-                  error={errors.thMixedLevels}
-                >
-                  <div className="grid grid-cols-5 gap-2">
-                    {formData.thMixedLevels.map((lvl, index) => (
-                      <select
-                        key={index}
-                        id={`thMixedLevel-${index}`}
-                        name={`thMixedLevel-${index}`}
-                        value={lvl}
-                        onChange={(e) => handleMixedThChange(index, e)}
-                        className={getInputClasses(!!errors.thMixedLevels)}
-                        disabled={isLoading}
-                      >
-                        <option value="">Pilih TH</option>
-                        {thLevelOptions
-                          .filter(
-                            (lvl) =>
-                              lvl >= formData.thMinLevel &&
-                              lvl <= formData.thMaxLevel,
-                          )
-                          .map((lvl) => (
-                            <option key={lvl} value={lvl}>
-                              TH {lvl}
-                            </option>
-                          ))}
-                      </select>
-                    ))}
-                  </div>
-                </FormGroup>
-              )}
-            </div>
-          )}
-        </fieldset>
-
-        {/* Tombol Aksi */}
+        {/* Tombol Aksi (Tetap) */}
         <div className="flex justify-end gap-4 pt-6 border-t border-coc-gold-dark/20">
           <Button
             type="button"
