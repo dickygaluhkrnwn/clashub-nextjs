@@ -6,21 +6,27 @@ import {
 } from '@/lib/firestore-admin/management';
 import { getManagedClanDataAdmin } from '@/lib/firestore-admin/clans';
 import cocApi from '@/lib/coc-api';
-// [PERBAIKAN BUG] Impor 'ClanRole'
+// --- [MODIFIKASI DUPLIKASI WAR] ---
+// Hapus 'WarArchive' dan 'AdminTimestamp' (tidak diperlukan di sini)
+// Hapus 'parseCocApiTimestamp' (logika parsing pindah ke 'mergeWarLogEntry')
 import {
   CocWarLog,
   CocWarLogEntry,
-  WarArchive,
+  // WarArchive, // <-- Dihapus
   ClanRole,
 } from '@/lib/types'; // Import tipe log dan entri
 import { adminFirestore } from '@/lib/firebase-admin';
 import { COLLECTIONS } from '@/lib/firestore-collections';
 import {
   FieldValue,
-  Timestamp as AdminTimestamp,
+  // Timestamp as AdminTimestamp, // <-- Dihapus
 } from 'firebase-admin/firestore';
-// [FIX TIMESTAMP] Impor helper parsing tanggal kita
-import { parseCocApiTimestamp } from '@/lib/server-utils';
+// [FIX TIMESTAMP] Hapus helper parsing, sudah ditangani di 'archives.ts'
+// import { parseCocApiTimestamp } from '@/lib/server-utils';
+
+// Impor fungsi merge baru kita dari Langkah 2
+import { mergeWarLogEntry } from '@/lib/firestore-admin/archives';
+// --- [AKHIR MODIFIKASI] ---
 
 /**
  * API route handler for POST /api/clan/manage/[clanId]/sync/warlog
@@ -97,64 +103,38 @@ export async function POST(
       });
     }
 
-    // 6. Proses dan Arsipkan War Log ke Firestore menggunakan Batch
-    const batch = adminFirestore.batch();
-    const archivesRef = adminFirestore
-      .collection(COLLECTIONS.MANAGED_CLANS)
-      .doc(clanId)
-      .collection(COLLECTIONS.WAR_ARCHIVES); // [PERBAIKAN] Menggunakan konstanta
+    // --- [MODIFIKASI DUPLIKASI WAR: LANGKAH 3] ---
+    // 6. Proses dan Arsipkan War Log menggunakan Logika MERGE
+    // Hapus logika batch.set({ merge: true }) yang lama.
+    // Ganti dengan memanggil fungsi 'mergeWarLogEntry'.
+    // Fungsi ini berisi logika query fuzzy (+/- 15 detik)
+    // dan akan MENG-UPDATE arsip detail ATAU MEMBUAT arsip ringkasan (fallback).
 
     let processedCount = 0;
 
     for (const item of warLogData.items) {
-      const warItem = item as CocWarLogEntry; // Tipe entri log perang
+      const warItem = item as CocWarLogEntry;
 
-      // [FIX TIMESTAMP] Gunakan helper 'parseCocApiTimestamp'
-      // Ganti 'new Date(warItem.endTime)' yang error
-      const warEndTime = parseCocApiTimestamp(warItem.endTime);
-      // [AKHIR FIX TIMESTAMP]
+      // --- [PERBAIKAN ERROR TS2367] ---
+      // Ganti cek 'warItem.result !== 'unknown'' dengan cek eksplisit
+      // untuk nilai yang kita inginkan. Ini menyelesaikan error TS2367
+      // terlepas dari definisi tipe data (lama atau baru).
+      const isValidResult =
+        warItem.result === 'win' ||
+        warItem.result === 'lose' ||
+        warItem.result === 'tie';
 
-      // [PERBAIKAN BUG] Pastikan opponent.tag ada sebelum di-replace
-      const opponentTag = warItem.opponent?.tag || 'unknown';
-      // [FIX TIMESTAMP] Gunakan string asli untuk ID agar konsisten
-      const docId = `${warItem.endTime}_${opponentTag.replace('#', '')}`;
-      const docRef = archivesRef.doc(docId);
-
-      // Siapkan data untuk disimpan
-      // [PERBAIKAN] Tipe 'WarArchive' sekarang sudah benar (extends CocWarLogEntry)
-      // Kita membuat objek yang sesuai dengan tipe WarArchive (Firestore version)
-      const archiveData: Omit<WarArchive, 'id'> = {
-        ...warItem,
-        clanTag: clanTag, // Tambahkan tag klan kita untuk query
-        // --- [PERBAIKAN ERROR TYPESCRIPT] ---
-        // Tipe WarArchive mengharapkan 'Date', bukan 'AdminTimestamp'.
-        // Firebase Admin SDK akan otomatis mengonversi 'Date' menjadi 'Timestamp' saat penulisan batch.
-        warEndTime: warEndTime, // Gunakan objek Date yang sudah valid
-        // Properti 'id' akan di-assign oleh Firestore
-        // Properti 'hasDetails' akan default undefined (opsional)
-      };
-
-      // --- [MODIFIKASI FASE 4: MENGGABUNGKAN HASIL (MERGE)] ---
-      // Kita "menghidupkan" kembali batch, tapi dengan logika cerdas.
-      // Hanya perbarui/merge jika 'warItem.result' (dari warlog) ADA.
-      // Ini akan menambahkan 'result' (win/lose/tie) ke arsip detail
-      // yang sudah ada (dibuat oleh sync/war) tanpa menimpa detailnya.
-      if (warItem.result) {
-        // { merge: true } adalah kuncinya.
-        // 1. Jika doc (detail) ada: merge (tambahkan) field 'result'.
-        // 2. Jika doc (detail) tidak ada: buat doc (ringkasan) baru (fallback).
-        batch.set(docRef, archiveData, { merge: true });
+      if (isValidResult) {
+        // --- [AKHIR PERBAIKAN] ---
+        // Panggil fungsi merge baru kita dari 'archives.ts'.
+        // Kita 'await' setiap pemanggilan agar tidak membanjiri Firestore (lebih aman)
+        await mergeWarLogEntry(clanId, clanTag, warItem);
         processedCount++;
-      } else {
-        // Jika warlog itu sendiri tidak punya 'result' (misal: perang baru di log),
-        // jangan lakukan apa-apa. Jangan cemari arsip dengan 'result: undefined'.
       }
-      // --- [AKHIR MODIFIKASI FASE 4] ---
     }
+    // --- [AKHIR MODIFIKASI DUPLIKASI WAR] ---
 
-    // 7. Commit batch
-    // [MODIFIKASI FASE 4] "Hidupkan" kembali commit batch
-    await batch.commit();
+    // 7. Commit batch (DIHAPUS KARENA BATCH TIDAK DIGUNAKAN)
 
     // 8. Update timestamp sinkronisasi di dokumen klan utama
     // [PERBAIKAN 3] Ganti 'clanDoc.ref.update' dengan path absolut
@@ -163,7 +143,7 @@ export async function POST(
       .doc(clanId);
 
     // [MODIFIKASI PERBAIKAN] Kita tetap update 'lastSyncedWarLog'
-    // agar sistem tahu kita sudah *memeriksa* log, meskipun kita tidak menyimpannya.
+    // agar sistem tahu kita sudah *memeriksa* log.
     await clanDocRef.update({
       lastSyncedWarLog: FieldValue.serverTimestamp(),
     });

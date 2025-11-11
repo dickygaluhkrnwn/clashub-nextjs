@@ -1,8 +1,8 @@
 // File: lib/server-utils.ts
 // Deskripsi: Kumpulan fungsi utilitas yang dijalankan HANYA di sisi server (misal: API Routes).
 
-import { getManagedClans } from "@/lib/firestore"; // Menggunakan absolute path
-import { ManagedClan } from "@/lib/types"; // Menggunakan absolute path
+import { getManagedClans } from '@/lib/firestore'; // Menggunakan absolute path
+import { ManagedClan } from '@/lib/types'; // Menggunakan absolute path
 
 /**
  * @function getRecommendedTeams
@@ -42,7 +42,7 @@ export async function getRecommendedTeams(): Promise<ManagedClan[]> {
 
     return selectedClans;
   } catch (error) {
-    console.error("Failed to fetch recommended clans:", error);
+    console.error('Failed to fetch recommended clans:', error);
     // Mengembalikan array kosong jika terjadi error agar halaman tidak crash
     return [];
   }
@@ -73,8 +73,14 @@ export function getClanTagsToMonitor(): string[] {
  * @throws {Error} Jika format string tidak valid atau gagal parsing.
  */
 export function parseCocApiTimestamp(cocDateString: string): Date {
-  // Validasi input dasar
-  if (!cocDateString || cocDateString.length < 15) {
+  // --- [MODIFIKASI PEMBERSIHAN LOG] ---
+  // 1. Cek 'unknown' (dari arsip ringkasan fallback) atau null/undefined secara diam-diam.
+  if (!cocDateString || cocDateString === 'unknown') {
+    return new Date(0); // Kembalikan epoch (Jan 1, 1970 UTC)
+  }
+
+  // 2. Cek panjang. Jika aneh (tapi bukan 'unknown'), baru tampilkan warn.
+  if (cocDateString.length < 15) {
     // Jika tanggal tidak ada atau formatnya aneh, kembalikan Date epoch
     // Ini lebih aman daripada melempar error yang menghentikan seluruh batch
     console.warn(
@@ -82,6 +88,7 @@ export function parseCocApiTimestamp(cocDateString: string): Date {
     );
     return new Date(0); // Kembali ke Jan 1, 1970 UTC
   }
+  // --- [AKHIR MODIFIKASI] ---
 
   try {
     // Format: YYYYMMDDTHHMMSS.SSSZ

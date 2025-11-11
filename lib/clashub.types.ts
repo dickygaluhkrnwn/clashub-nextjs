@@ -17,7 +17,7 @@ import {
   ClanRole,
   ManagerRole,
   StandardMemberRole,
-  WarResult,
+  WarResult, // <-- Tipe ini mungkin perlu diubah di enums.ts, tapi kita atasi di sini
   PostCategory,
 } from './enums';
 // PERBAIKAN: Impor tipe CoC dari file 'coc.types.ts'
@@ -463,7 +463,10 @@ export interface WarSummary {
   id: string; // War ID atau Firestore Doc ID
   opponentName: string;
   teamSize: number;
-  result: WarResult; // Menggunakan tipe union WarResult
+  // --- [MODIFIKASI DUPLIKASI WAR] ---
+  // Hapus 'WarResult' dan ganti dengan tipe literal agar 'unknown' valid
+  result: 'win' | 'lose' | 'tie' | 'unknown';
+  // --- [AKHIR MODIFIKASI] ---
   ourStars: number;
   opponentStars: number;
   ourDestruction: number; // Persentase
@@ -480,6 +483,12 @@ export interface WarSummary {
 export interface WarArchive extends CocWarLog {
   // Properti dari CocWarLog (state, teamSize, clan, opponent, endTime: string, dll) di-inherit
   // 'clan' dan 'opponent' di dalam CocWarLog memiliki 'members', sehingga error TS2339 akan hilang.
+
+  // --- [MODIFIKASI DUPLIKASI WAR] ---
+  // Override properti 'result' yang di-inherit dari CocWarLog
+  // untuk mengizinkan nilai 'unknown' yang kita simpan dari sync/war
+  result?: 'win' | 'lose' | 'tie' | 'unknown';
+  // --- [AKHIR MODIFIKASI] ---
 
   // id: string; // ID Dokumen Firestore (disediakan oleh FirestoreDocument<T>)
   clanTag: string; // Tag klan kita untuk query
