@@ -134,13 +134,20 @@ export async function POST(
         // Properti 'hasDetails' akan default undefined (opsional)
       };
 
+      // --- [MODIFIKASI PERBAIKAN] ---
+      // Kita NONAKTIFKAN penulisan data ringkasan ini ke 'warArchives'
+      // agar tidak mencemari data detail dari 'sync/war'.
+      /*
       // [PERBAIKAN] Hapus 'as any'
       batch.set(docRef, archiveData, { merge: true });
       processedCount++;
+      */
+      // --- [AKHIR MODIFIKASI PERBAIKAN] ---
     }
 
     // 7. Commit batch
-    await batch.commit();
+    // [MODIFIKASI PERBAIKAN] Nonaktifkan commit batch
+    // await batch.commit();
 
     // 8. Update timestamp sinkronisasi di dokumen klan utama
     // [PERBAIKAN 3] Ganti 'clanDoc.ref.update' dengan path absolut
@@ -148,18 +155,22 @@ export async function POST(
       .collection(COLLECTIONS.MANAGED_CLANS)
       .doc(clanId);
 
+    // [MODIFIKASI PERBAIKAN] Kita tetap update 'lastSyncedWarLog'
+    // agar sistem tahu kita sudah *memeriksa* log, meskipun kita tidak menyimpannya.
     await clanDocRef.update({
       lastSyncedWarLog: FieldValue.serverTimestamp(),
     });
 
+    // [MODIFIKASI PERBAIKAN] Ubah pesan log
     console.log(
-      `[Sync WarLog - Admin] Successfully synced and archived ${processedCount} war log entries for ${clanName}.`
+      `[Sync WarLog - Admin] Successfully checked ${warLogData.items.length} war log entries for ${clanName}. (Archiving disabled to prevent summary override)`
     );
 
     // 9. Kembalikan respons sukses
+    // [MODIFIKASI PERBAIKAN] Ubah pesan response
     return NextResponse.json({
-      message: `War log successfully synced for ${clanName}.`,
-      processedCount: processedCount,
+      message: `War log successfully checked for ${clanName}. (Archiving disabled)`,
+      processedCount: 0, // Kita tidak memproses apa-apa ke arsip
     });
   } catch (error) {
     console.error(

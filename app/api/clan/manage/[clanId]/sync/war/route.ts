@@ -104,15 +104,24 @@ export async function POST(
     const newWarState = warData?.state || 'notInWar';
 
     try {
-      // Cek transisi dari 'inWar'/'preparation' ke 'warEnded'
-      if (
-        (previousWarState === 'inWar' ||
-          previousWarState === 'preparation') &&
-        newWarState === 'warEnded'
-      ) {
-        console.log(
-          `[Sync War - Admin] DETECTED: War transition to 'warEnded' for ${clanName}.`
-        );
+      // --- [MODIFIKASI PERBAIKAN] ---
+      // Kita ubah logikanya: Coba arsipkan KAPANPUN kita melihat 'warEnded'
+      // (Fungsi 'archiveClassicWar' memiliki pelindung duplikat sendiri, jadi ini aman)
+      if (newWarState === 'warEnded') {
+        // Cek transisi (HANYA UNTUK LOGGING)
+        if (
+          previousWarState === 'inWar' ||
+          previousWarState === 'preparation'
+        ) {
+          console.log(
+            `[Sync War - Admin] DETECTED: War transition to 'warEnded' for ${clanName}.`
+          );
+        } else {
+          // Log baru untuk menunjukkan kita menangkap 'warEnded' yang sudah ada
+          console.log(
+            `[Sync War - Admin] DETECTED: War state is 'warEnded' for ${clanName}. Checking archive...`
+          );
+        }
 
         // Pastikan warData tidak null dan ini perang klasik (TIDAK punya warTag)
         if (warData && !warData.warTag) {
@@ -129,6 +138,7 @@ export async function POST(
           );
         }
       }
+      // --- [AKHIR MODIFIKASI PERBAIKAN] ---
     } catch (archiveError) {
       console.error(
         `[Sync War - Admin] Error during war transition/archive check:`,

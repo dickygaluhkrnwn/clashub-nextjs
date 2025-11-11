@@ -16,6 +16,11 @@ import {
 // [FIX] Hapus impor yang salah dari './utils'
 // import { FirestoreDocument } from './utils';
 
+// --- [MODIFIKASI PERBAIKAN] ---
+// Impor helper parsing tanggal dari server-utils
+import { parseCocApiTimestamp } from '../server-utils';
+// --- [AKHIR MODIFIKASI] ---
+
 /**
  * Mengambil semua arsip CWL (Clan War League) untuk Clan tertentu.
  * Diurutkan berdasarkan musim secara descending (terbaru di atas)
@@ -143,6 +148,12 @@ export const getRaidArchivesByClanId = async (
             // Tambahkan cek jika sudah Date
             startTime = rawStartTime as unknown as Date;
           }
+          // --- [MODIFIKASI PERBAIKAN] ---
+          // Tambahkan fallback untuk parsing string dari CoC API
+          else if (typeof rawStartTime === 'string') {
+            startTime = parseCocApiTimestamp(rawStartTime);
+          }
+          // --- [AKHIR MODIFIKASI] ---
         }
 
         // Memeriksa dan mengonversi properti `endTime`
@@ -158,6 +169,12 @@ export const getRaidArchivesByClanId = async (
             // Tambahkan cek jika sudah Date
             endTime = rawEndTime as unknown as Date;
           }
+          // --- [MODIFIKASI PERBAIKAN] ---
+          // Tambahkan fallback untuk parsing string dari CoC API
+          else if (typeof rawEndTime === 'string') {
+            endTime = parseCocApiTimestamp(rawEndTime);
+          }
+          // --- [AKHIR MODIFIKASI] ---
         }
 
         // Mengembalikan objek dengan properti Date yang sudah dikonversi atau undefined
@@ -221,7 +238,10 @@ export const getWarArchivesByClanId = async (
           ) {
             warEndTime = rawEndTime as unknown as Date;
           } else if (typeof rawEndTime === 'string') {
-            warEndTime = new Date(rawEndTime); // Fallback jika disimpan sebagai string
+            // --- [MODIFIKASI PERBAIKAN] ---
+            // warEndTime = new Date(rawEndTime); // BUG: Ini akan gagal
+            warEndTime = parseCocApiTimestamp(rawEndTime); // FIX: Gunakan parser
+            // --- [AKHIR MODIFIKASI] ---
           }
         }
 
@@ -237,7 +257,10 @@ export const getWarArchivesByClanId = async (
           ) {
             startTime = rawStartTime as unknown as Date;
           } else if (typeof rawStartTime === 'string') {
-            startTime = new Date(rawStartTime); // Fallback
+            // --- [MODIFIKASI PERBAIKAN] ---
+            // startTime = new Date(rawStartTime); // BUG: Ini akan gagal
+            startTime = parseCocApiTimestamp(rawStartTime); // FIX: Gunakan parser
+            // --- [AKHIR MODIFIKASI] ---
           }
         }
 
@@ -318,14 +341,23 @@ export const archiveClassicWar = async (
     const archiveData: Omit<WarArchive, 'id'> = {
       // Properti Kustom WarArchive
       clanTag: clanTag,
-      warEndTime: new Date(warData.endTime), // Konversi ke Date object
+      // --- [MODIFIKASI PERBAIKAN] ---
+      // Ganti 'new Date()' dengan parser yang benar
+      warEndTime: parseCocApiTimestamp(warData.endTime), // Konversi ke Date object VALID
+      // --- [AKHIR MODIFIKASI] ---
       hasDetails: true, // <-- INI YANG PENTING AGAR TOMBOL AKTIF
 
       // Properti yang di-inherit dari CocWarLog / CocCurrentWar
       state: warData.state,
       teamSize: warData.teamSize,
+      // --- [MODIFIKASI PERBAIKAN] ---
+      // Kita juga harus mengonversi string timestamp lain yang di-inherit
+      // jika kita ingin menyimpannya sebagai Date (meskipun tipe mewarisi string)
+      // TAPI, tipe WarArchive mewarisi string, jadi kita biarkan string.
+      // Hanya 'warEndTime' yang bertipe Date.
       preparationStartTime: warData.preparationStartTime,
       startTime: warData.startTime,
+      // --- [AKHIR MODIFIKASI] ---
       endTime: warData.endTime, // Simpan string ISO juga (sesuai tipe CocWarLog)
       clan: warData.clan, // Objek lengkap (sudah dinormalisasi dari coc-api.ts)
       opponent: warData.opponent, // Objek lengkap (sudah dinormalisasi dari coc-api.ts)
