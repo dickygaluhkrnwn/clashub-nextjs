@@ -7,10 +7,15 @@ import {
 import { getManagedClanDataAdmin } from '@/lib/firestore-admin/clans';
 import cocApi from '@/lib/coc-api';
 // [PERBAIKAN BUG] Impor 'ClanRole'
-import { CocCurrentWar, ClanRole } from '@/lib/types'; // Tipe untuk data perang
+// --- [MODIFIKASI LANGKAH 2] ---
+// Menambahkan ClanApiCache untuk membaca state cache sebelumnya
+import { CocCurrentWar, ClanRole, ClanApiCache } from '@/lib/types'; // Tipe untuk data perang
+// --- [AKHIR MODIFIKASI] ---
 import { adminFirestore } from '@/lib/firebase-admin';
 import { COLLECTIONS } from '@/lib/firestore-collections';
 import { FieldValue } from 'firebase-admin/firestore';
+// --- [BARU: LANGKAH 2] Impor fungsi arsip dari Langkah 3 ---
+import { archiveClassicWar } from '@/lib/firestore-admin/archives';
 
 /**
  * API route handler for POST /api/clan/manage/[clanId]/sync/war
@@ -77,33 +82,107 @@ export async function POST(
 
     // 5. Panggil CoC API (Hanya getClanCurrentWar)
     // Fungsi ini sudah menangani logika untuk mencari CWL jika war biasa tidak ditemukan.
+    // [PERBAIKAN BUG 1] Data yang dikembalikan DIJAMIN sudah dinormalisasi (townhallLevel h kecil)
     const warData: CocCurrentWar | null = await cocApi.getClanCurrentWar(
       encodeURIComponent(clanTag),
       clanTag // Kirim tag mentah juga untuk pencarian CWL internal
     );
 
-    // 6. Update Dokumen di Firestore
+    // 6. Tentukan Ref Dokumen Cache di Firestore
     const clanApiCacheRef = adminFirestore
       .collection(COLLECTIONS.MANAGED_CLANS)
       .doc(clanId)
       .collection(COLLECTIONS.CLAN_API_CACHE)
       .doc('current');
 
-    // Simpan data perang (atau null jika tidak sedang perang) ke cache
-    await clanApiCacheRef.set(
-      {
-        currentWar: warData,
-        lastUpdatedWar: FieldValue.serverTimestamp(),
-      },
-      { merge: true } // Gunakan merge agar tidak menimpa data 'members' atau 'currentRaid'
-    );
+    // --- [MODIFIKASI: LOGIKA DETEKSI TRANSISI & ARSIP] ---
+    // Ambil data cache SAAT INI (sebelum di-update) untuk perbandingan
+    const cacheDoc = await clanApiCacheRef.get();
+    const cacheData = cacheDoc.data() as ClanApiCache | undefined;
+    const previousWar = cacheData?.currentWar;
+    const previousWarState = previousWar?.state || 'notInWar';
+    const newWarState = warData?.state || 'notInWar';
 
-    // [PERBAIKAN 3] Ganti 'clanDoc.ref.update' dengan path absolut
+    try {
+      // Cek transisi dari 'inWar'/'preparation' ke 'warEnded'
+      if (
+        (previousWarState === 'inWar' ||
+          previousWarState === 'preparation') &&
+        newWarState === 'warEnded'
+      ) {
+        console.log(
+          `[Sync War - Admin] DETECTED: War transition to 'warEnded' for ${clanName}.`
+        );
+
+        // Pastikan warData tidak null dan ini perang klasik (TIDAK punya warTag)
+        if (warData && !warData.warTag) {
+          // Panggil fungsi arsip (Langkah 3)
+          // Kita tidak 'await' ini agar tidak memblokir respons API
+          // Data dari warData dijamin sudah bersih (Bug 1 diperbaiki)
+          archiveClassicWar(clanId, clanTag, warData);
+          console.log(
+            `[Sync War - Admin] Archiving process triggered for classic war (End Time: ${warData.endTime}).`
+          );
+        } else if (warData && warData.warTag) {
+          console.log(
+            `[Sync War - Admin] War ended, but it's a CWL war. Skipping classic archive.`
+          );
+        }
+      }
+    } catch (archiveError) {
+      console.error(
+        `[Sync War - Admin] Error during war transition/archive check:`,
+        archiveError
+      );
+      // Jangan hentikan proses utama, tetap lanjutkan update cache
+    }
+    // --- [AKHIR LOGIKA ARSIP] ---
+
+    // 7. [PERBAIKAN BUG 4] Update Cache Firestore dengan Logika Cerdas
+    if (warData) {
+      // KASUS 1: API mengembalikan data perang (preparation, inWar, atau warEnded)
+      // Selalu simpan data terbaru dari API.
+      console.log(
+        `[Sync War - Admin] Saving new war data (State: ${warData.state}) to cache.`
+      );
+      await clanApiCacheRef.set(
+        {
+          currentWar: warData, // warData dijamin sudah bersih
+          lastUpdatedWar: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } else {
+      // KASUS 2: API mengembalikan null (notInWar)
+      if (previousWar && previousWar.state === 'warEnded') {
+        // JANGAN LAKUKAN APA-APA.
+        // Biarkan data 'warEnded' sebelumnya tetap di cache (Tab Perang Aktif)
+        // sampai perang 'preparation' baru menimpanya.
+        console.log(
+          `[Sync War - Admin] API is 'notInWar', but cache holds 'warEnded'. Persisting cache.`
+        );
+      } else {
+        // KASUS 3: API 'notInWar' dan cache juga 'notInWar' (atau null).
+        // Aman untuk menyimpan null.
+        console.log(
+          `[Sync War - Admin] API is 'notInWar' and cache is empty/not 'warEnded'. Clearing cache.`
+        );
+        await clanApiCacheRef.set(
+          {
+            currentWar: null, // Hapus data perang
+            lastUpdatedWar: FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
+    }
+    // --- [AKHIR PERBAIKAN BUG 4] ---
+
+    // 8. Update Timestamp di Dokumen Klan Utama
     const clanDocRef = adminFirestore
       .collection(COLLECTIONS.MANAGED_CLANS)
       .doc(clanId);
 
-    // Update timestamp sinkronisasi spesifik di dokumen klan utama
     await clanDocRef.update({
       lastSyncedWar: FieldValue.serverTimestamp(),
     });
@@ -114,7 +193,7 @@ export async function POST(
       }`
     );
 
-    // 8. Kembalikan data yang baru disinkronkan
+    // 9. Kembalikan data yang baru disinkronkan
     return NextResponse.json({
       message: `War data successfully synced for ${clanName}.`,
       status: warData?.state || 'notInWar',
@@ -136,4 +215,3 @@ export async function POST(
     );
   }
 }
-

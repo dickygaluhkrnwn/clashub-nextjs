@@ -11,6 +11,7 @@ import {
   WarArchive,
   // [FIX] Impor FirestoreDocument dari sumber yang benar (../types)
   FirestoreDocument,
+  CocCurrentWar, // <-- [TAMBAHAN] Diperlukan untuk fungsi arsip baru
 } from '../types';
 // [FIX] Hapus impor yang salah dari './utils'
 // import { FirestoreDocument } from './utils';
@@ -264,3 +265,86 @@ export const getWarArchivesByClanId = async (
   }
 };
 
+// --- [PERBAIKAN BUG 2] FUNGSI ARSIP DIPERBARUI ---
+
+/**
+ * Mengarsipkan data Perang Klasik yang telah selesai (transisi ke 'warEnded').
+ * [PERBAIKAN BUG 2] Mengubah data CocCurrentWar menjadi WarArchive secara EKSPLISIT
+ * untuk memastikan 'hasDetails: true' TERTULIS di Firestore.
+ * @param clanId - ID dokumen ManagedClan internal
+ * @param clanTag - Tag klan (misal "#123ABC")
+ * @param warData - Objek CocCurrentWar LENGKAP (sudah dinormalisasi oleh coc-api.ts)
+ */
+export const archiveClassicWar = async (
+  clanId: string,
+  clanTag: string,
+  warData: CocCurrentWar
+): Promise<void> => {
+  // Hanya arsipkan jika state 'warEnded' dan BUKAN CWL (warTag tidak ada atau null)
+  if (warData.state !== 'warEnded' || warData.warTag) {
+    if (warData.warTag) {
+      console.log(
+        `[archiveClassicWar] Skipping archive for clan ${clanId}. Reason: Is a CWL war.`
+      );
+    }
+    return;
+  }
+
+  try {
+    // Tentukan ID dokumen. Gunakan endTime (string ISO) sebagai ID.
+    const docId = warData.endTime;
+    if (!docId) {
+      throw new Error('War data is missing endTime, cannot use as archive ID.');
+    }
+
+    const archiveRef = adminFirestore
+      .collection(COLLECTIONS.MANAGED_CLANS)
+      .doc(clanId)
+      .collection(COLLECTIONS.WAR_ARCHIVES) // Menggunakan 'warArchives'
+      .doc(docId); // Gunakan endTime ISO string sebagai ID
+
+    // 1. Cek apakah dokumen ini sudah ada (mencegah duplikat write)
+    const existingDoc = await archiveRef.get();
+    if (existingDoc.exists) {
+      console.log(
+        `[archiveClassicWar] War archive for clan ${clanId} (endTime: ${docId}) already exists. Skipping.`
+      );
+      return;
+    }
+
+    // 2. [PERBAIKAN BUG 2] Transformasi data CocCurrentWar -> WarArchive
+    // Buat objek 'WarArchive' secara manual, JANGAN gunakan spread '...warData'.
+    // Ini untuk memastikan 'hasDetails: true' tidak tertimpa oleh 'undefined'.
+    const archiveData: Omit<WarArchive, 'id'> = {
+      // Properti Kustom WarArchive
+      clanTag: clanTag,
+      warEndTime: new Date(warData.endTime), // Konversi ke Date object
+      hasDetails: true, // <-- INI YANG PENTING AGAR TOMBOL AKTIF
+
+      // Properti yang di-inherit dari CocWarLog / CocCurrentWar
+      state: warData.state,
+      teamSize: warData.teamSize,
+      preparationStartTime: warData.preparationStartTime,
+      startTime: warData.startTime,
+      endTime: warData.endTime, // Simpan string ISO juga (sesuai tipe CocWarLog)
+      clan: warData.clan, // Objek lengkap (sudah dinormalisasi dari coc-api.ts)
+      opponent: warData.opponent, // Objek lengkap (sudah dinormalisasi dari coc-api.ts)
+      result: warData.result,
+      attacksPerMember: warData.attacksPerMember,
+      // warTag akan undefined/null, yang mana sudah benar
+    };
+
+    // 3. Simpan ke Firestore
+    await archiveRef.set(archiveData);
+
+    console.log(
+      `[archiveClassicWar] Successfully archived classic war for clan ${clanId} (War End: ${docId}).`
+    );
+  } catch (error) {
+    console.error(
+      `[archiveClassicWar] Failed to archive war for clan ${clanId} (War End: ${warData.endTime}):`,
+      error
+    );
+    // Jangan throw error, agar proses sinkronisasi utama tetap berjalan
+  }
+};

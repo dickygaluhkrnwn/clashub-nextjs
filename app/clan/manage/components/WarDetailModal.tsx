@@ -10,36 +10,38 @@ import {
   ArrowUpIcon,
   ArrowDownIcon,
 } from '@/app/components/icons';
-import { WarArchive, CocWarMember, CocWarAttack } from '@/lib/types';
-// --- PERBAIKAN ROADMAP ---
-// Hapus 'getWarArchive' dari lib/firestore
-import { doc, getDoc, Timestamp } from 'firebase/firestore'; // Import fungsi firestore
-import { firestore } from '@/lib/firebase'; // Import firestore (klien)
-import { COLLECTIONS } from '@/lib/firestore-collections'; // Import nama koleksi
-// --- AKHIR PERBAIKAN ---
+// --- [MODIFIKASI] Impor ManagedClan, Hapus tipe/fungsi Firestore client-side ---
+import {
+  WarArchive,
+  CocWarMember,
+  CocWarAttack,
+  ManagedClan,
+} from '@/lib/types';
+// Hapus: doc, getDoc, Timestamp, firestore, COLLECTIONS
+// --- [AKHIR MODIFIKASI] ---
 import Image from 'next/image';
 import { getThImage } from '@/lib/th-utils';
 import { Button } from '@/app/components/ui/Button';
 
-// PERBAIKAN 2: Pindahkan interface props ke luar agar dapat ditemukan oleh React.FC
+// --- [MODIFIKASI] Interface Props diubah ---
 interface WarDetailModalProps {
-  clanId: string;
-  warId: string | null; // ID Arsip War yang akan dimuat
+  clan: ManagedClan; // Menerima objek ManagedClan lengkap (untuk konsistensi)
+  warData: WarArchive | null; // Menerima data arsip lengkap, bukan ID
   onClose: () => void;
 }
+// --- [AKHIR MODIFIKASI] ---
 
 // =========================================================================
 // HELPER: Tampilan Detail Serangan (Nested Row)
+// (Tidak ada perubahan, komponen ini sudah siap)
 // =========================================================================
 
 interface AttackRowProps {
   attack: CocWarAttack;
-  // [PERBAIKAN] Data defender (TH level, Map Position) kini dicari via lookup table.
   defenderDetails: { thLevel: number; mapPosition: number; name: string } | null;
 }
 
 const AttackRow: React.FC<AttackRowProps> = ({ attack, defenderDetails }) => {
-  // Tentukan warna berdasarkan bintang yang didapat
   const starColor =
     attack.stars === 3
       ? 'text-coc-green'
@@ -47,12 +49,9 @@ const AttackRow: React.FC<AttackRowProps> = ({ attack, defenderDetails }) => {
       ? 'text-coc-yellow'
       : 'text-coc-red';
 
-  // Memberikan default jika defenderDetails tidak ditemukan (seharusnya tidak terjadi pada data lengkap)
   const thLevel = defenderDetails?.thLevel || 1;
   const mapPosition = defenderDetails?.mapPosition || 'N/A';
   const defenderName = defenderDetails?.name || 'Target Tidak Dikenal';
-
-  // PERBAIKAN: Menambahkan null check untuk duration
   const duration = attack.duration || 0;
 
   return (
@@ -60,7 +59,6 @@ const AttackRow: React.FC<AttackRowProps> = ({ attack, defenderDetails }) => {
       {/* Target & TH Level */}
       <div className="w-1/4 flex items-center gap-2 font-semibold text-white/90">
         <Image
-          // PERBAIKAN: Menggunakan getThImage
           src={getThImage(thLevel)}
           alt={`TH ${thLevel}`}
           width={20}
@@ -104,12 +102,12 @@ const AttackRow: React.FC<AttackRowProps> = ({ attack, defenderDetails }) => {
 
 // =========================================================================
 // HELPER: Tampilan Baris Pemain War
+// (Tidak ada perubahan, komponen ini sudah siap)
 // =========================================================================
 
 interface MemberRowProps {
   member: CocWarMember;
-  isClanMember: boolean; // TRUE jika ini adalah anggota klan kita
-  // [PERBAIKAN] Terima daftar anggota lawan untuk lookup defender details
+  isClanMember: boolean;
   opponentMembersMap: Map<string, CocWarMember>;
 }
 
@@ -118,15 +116,11 @@ const MemberRow: React.FC<MemberRowProps> = ({
   isClanMember,
   opponentMembersMap,
 }) => {
-  // PERBAIKAN: Penanganan undefined
-  // War Classic memungkinkan 2 serangan, jadi total serangan bisa > 1
   const totalStars =
     member.attacks?.reduce((sum, attack) => sum + (attack.stars || 0), 0) || 0;
   const totalAttacks = member.attacks?.length || 0;
-  // PERBAIKAN: Menggunakan getThImage
   const thLevelImage = getThImage(member.townhallLevel);
 
-  // Memberikan warna berbeda untuk pemain klan kita dan lawan
   const textColor = isClanMember ? 'text-white' : 'text-coc-yellow-light';
   const bgClass = isClanMember
     ? 'bg-coc-stone/30 hover:bg-coc-stone/40'
@@ -134,12 +128,9 @@ const MemberRow: React.FC<MemberRowProps> = ({
 
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // [PERBAIKAN] Lookup defender details di AttackRow
   const renderAttackRows = () =>
     member.attacks!.map((attack, index) => {
-      // Cari detail defender di map lawan
       const defender = opponentMembersMap.get(attack.defenderTag || '');
-
       const defenderDetails = defender
         ? {
             thLevel: defender.townhallLevel,
@@ -166,7 +157,7 @@ const MemberRow: React.FC<MemberRowProps> = ({
         className={`flex items-center p-3 cursor-pointer ${
           totalAttacks > 0 ? 'hover:bg-coc-gold/5' : ''
         } ${isExpanded ? 'border-b border-coc-gold-dark/20' : ''}`}
-        onClick={() => totalAttacks > 0 && setIsExpanded(!isExpanded)} // Hanya bisa di-klik jika ada serangan
+        onClick={() => totalAttacks > 0 && setIsExpanded(!isExpanded)}
       >
         {/* Posisi Peta / ID */}
         <div className="w-1/12 text-center text-sm font-bold text-coc-gold/80 hidden sm:block">
@@ -224,102 +215,31 @@ const MemberRow: React.FC<MemberRowProps> = ({
 };
 
 // =========================================================================
-// KOMPONEN UTAMA: WarDetailModal
+// KOMPONEN UTAMA: WarDetailModal (MODIFIED)
 // =========================================================================
 
 const WarDetailModal: React.FC<WarDetailModalProps> = ({
-  clanId,
-  warId,
+  clan, // [MODIFIKASI] Menerima prop 'clan' (ManagedClan)
+  warData, // [MODIFIKASI] Menerima prop 'warData' (WarArchive)
   onClose,
 }) => {
-  // State untuk memuat data War Archive
-  const [warData, setWarData] = useState<WarArchive | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // --- [MODIFIKASI] Hapus semua state fetching (isLoading, error, setWarData) ---
+  // const [warData, setWarData] = useState<WarArchive | null>(null);
+  // const [isLoading, setIsLoading] = useState(true);
+  // const [error, setError] = useState<string | null>(null);
 
-  const isOpen = !!warId;
+  // --- [MODIFIKASI] 'isOpen' sekarang dikontrol oleh 'warData' dari props ---
+  const isOpen = !!warData;
 
-  // Reset state saat warId berubah atau modal dibuka/ditutup
-  useEffect(() => {
-    if (!warId) {
-      setWarData(null);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-
-    const fetchWarDetail = async () => {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        // --- PERBAIKAN ROADMAP ---
-        // Hentikan penggunaan getWarArchive, ganti dengan getDoc langsung
-        // ke koleksi 'clanWarHistory'
-        const docRef = doc(
-          firestore,
-          COLLECTIONS.MANAGED_CLANS,
-          clanId,
-          COLLECTIONS.WAR_ARCHIVES, // <-- [PERBAIKAN] Ganti 'clanWarHistory' ke 'COLLECTIONS.WAR_ARCHIVES'
-          warId // ID dokumen (e.g., #TAG-YYYYMMDDTHHMMSS.000Z)
-        );
-        const docSnap = await getDoc(docRef);
-        // --- AKHIR PERBAIKAN ---
-
-        if (docSnap.exists()) {
-          const data = docSnap.data() as any; // Tipe data adalah CocWarLog
-
-          // Konversi 'endTime' (dari CocWarLog) ke 'warEndTime' (untuk tipe WarArchive)
-          let warEndTime: Date;
-          if (data.endTime instanceof Timestamp) {
-            warEndTime = data.endTime.toDate();
-          } else if (typeof data.endTime === 'string') {
-            warEndTime = new Date(data.endTime);
-          } else {
-            warEndTime = data.endTime || new Date(0); // Fallback
-          }
-
-          // Asumsikan data dari API Log (clanWarHistory) selalu punya detail
-          const hasDetails =
-            data.hasDetails !== undefined ? data.hasDetails : true;
-
-          if (hasDetails && data.clan?.members && data.opponent?.members) {
-            // Set data agar sesuai dengan Tipe WarArchive yang diharapkan
-            const cleanedData: WarArchive = {
-              ...data,
-              id: docSnap.id, // Tambahkan ID dokumen
-              warEndTime: warEndTime, // Penuhi kebutuhan tipe WarArchive
-              // Pastikan 'endTime' juga di-set jika tipe WarArchive mewarisi CocWarLog
-              endTime: warEndTime,
-            };
-            setWarData(cleanedData);
-          } else {
-            setError(
-              'Data detail (anggota/serangan) tidak lengkap untuk arsip ini.'
-            );
-          }
-        } else {
-          // Data tidak ditemukan di koleksi baru
-          setError(
-            `Arsip perang tidak ditemukan di database (ID: ${warId}).`
-          );
-        }
-      } catch (err) {
-        console.error('Failed to fetch war archive:', err);
-        setError('Gagal memuat rincian perang dari database.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchWarDetail();
-  }, [clanId, warId]);
+  // --- [MODIFIKASI] Hapus seluruh 'useEffect' untuk fetching data ---
+  // useEffect(() => { ... fetchWarDetail ... }, [clanId, warId]);
+  // (Seluruh blok useEffect dihapus)
 
   // [PERBAIKAN] Buat Map untuk lookup defender details yang cepat
+  // [MODIFIKASI] Logika ini tetap, tetapi sekarang menggunakan 'warData' dari PROPS
   const opponentMembersMap = useMemo(() => {
     const map = new Map<string, CocWarMember>();
     if (warData?.opponent.members) {
-      // Memberikan tipe eksplisit agar TypeScript senang
       (warData.opponent.members as CocWarMember[])
         .sort((a, b) => a.mapPosition - b.mapPosition)
         .forEach((member) => {
@@ -329,42 +249,46 @@ const WarDetailModal: React.FC<WarDetailModalProps> = ({
         });
     }
     return map;
-  }, [warData]);
+  }, [warData]); // Dependensi diubah ke warData (prop)
 
-  // Memberikan tipe eksplisit ke sort agar tidak ada error di useMemo
+  // [MODIFIKASI] Logika ini tetap, tetapi sekarang menggunakan 'warData' dari PROPS
   const ourMembers = useMemo(
     () =>
       warData?.clan.members?.sort(
         (a: CocWarMember, b: CocWarMember) => a.mapPosition - b.mapPosition
       ) || [],
-    [warData]
+    [warData] // Dependensi diubah ke warData (prop)
   );
   const opponentMembers = useMemo(
     () =>
       warData?.opponent.members?.sort(
         (a: CocWarMember, b: CocWarMember) => a.mapPosition - b.mapPosition
       ) || [],
-    [warData]
+    [warData] // Dependensi diubah ke warData (prop)
   );
 
-  // [PERBAIKAN] Menggunakan Modal murni React/Tailwind
   if (!isOpen) return null;
+
+  // Pastikan warEndTime adalah objek Date (seharusnya sudah dikonversi oleh archives.ts)
+  const warEndTimeDate =
+    warData.warEndTime instanceof Date
+      ? warData.warEndTime
+      : new Date(warData.warEndTime);
 
   return (
     // Modal Container (fixed position)
     <div
       className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm transition-opacity duration-300"
-      // PERBAIKAN #3: Tambahkan penanganan escape key
       onKeyDown={(e) => e.key === 'Escape' && onClose()}
-      tabIndex={-1} // Penting untuk menangkap keydown
-      onClick={onClose} // Tutup modal saat klik backdrop
+      tabIndex={-1}
+      onClick={onClose}
     >
       {/* Konten Modal (Centered) */}
       <div className="flex min-h-full items-center justify-center p-4 text-center">
         {/* Panel Modal */}
         <div
           className="w-full max-w-6xl transform overflow-hidden rounded-2xl bg-coc-stone p-6 text-left align-middle shadow-xl transition-all duration-300 border border-coc-gold-dark/50"
-          onClick={(e) => e.stopPropagation()} // Cegah penutupan saat klik di dalam modal
+          onClick={(e) => e.stopPropagation()}
         >
           <div className="space-y-6">
             {/* Header Modal */}
@@ -372,7 +296,6 @@ const WarDetailModal: React.FC<WarDetailModalProps> = ({
               Rincian War Classic: {warData?.clan.name || '...'} vs{' '}
               {warData?.opponent.name || '...'}
               <Button
-                // PERBAIKAN #2: Perbaikan CSS Tombol Tutup
                 size="sm"
                 variant="tertiary"
                 className="inline-flex justify-center rounded-full text-white bg-coc-stone-light p-2 hover:bg-coc-red/70 focus:outline-none"
@@ -382,49 +305,12 @@ const WarDetailModal: React.FC<WarDetailModalProps> = ({
               </Button>
             </h3>
 
-            {isLoading && (
-              <div className="py-20 text-center">
-                <svg
-                  className="animate-spin mx-auto h-8 w-8 text-coc-gold"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                <p className="mt-4 text-white">Memuat data perang...</p>
-              </div>
-            )}
+            {/* --- [MODIFIKASI] Hapus Blok isLoading dan error --- */}
+            {/* {isLoading && ( ... )} */}
+            {/* {error && ( ... )} */}
 
-            {error && (
-              <div className="py-12 text-center bg-coc-red/20 rounded-lg">
-                <AlertTriangleIcon className="h-8 w-8 text-coc-red mx-auto" />
-                <p className="mt-2 text-coc-red font-semibold">{error}</p>
-
-                <Button
-                  onClick={onClose}
-                  variant="secondary"
-                  size="sm"
-                  className="mt-4"
-                >
-                  Tutup
-                </Button>
-              </div>
-            )}
-
-            {warData && !isLoading && !error && (
+            {/* --- [MODIFIKASI] Tampilkan konten jika 'warData' ada (sudah dicek oleh 'isOpen') --- */}
+            {warData && (
               <div className="space-y-6">
                 {/* War Summary Card */}
                 <div className="bg-coc-stone-dark/50 p-4 rounded-lg border border-coc-gold-dark/30">
@@ -489,7 +375,8 @@ const WarDetailModal: React.FC<WarDetailModalProps> = ({
 
                   <p className="mt-4 text-xs text-center text-gray-500">
                     Selesai:{' '}
-                    {warData.warEndTime.toLocaleDateString('id-ID', {
+                    {/* [MODIFIKASI] Gunakan warEndTimeDate yang sudah pasti Date */}
+                    {warEndTimeDate.toLocaleDateString('id-ID', {
                       day: '2-digit',
                       month: 'short',
                       year: 'numeric',
@@ -547,4 +434,3 @@ const WarDetailModal: React.FC<WarDetailModalProps> = ({
 };
 
 export default WarDetailModal;
-
