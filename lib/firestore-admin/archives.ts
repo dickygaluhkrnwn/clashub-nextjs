@@ -315,22 +315,26 @@ export const archiveClassicWar = async (
 
   try {
     // Tentukan ID dokumen. Gunakan endTime (string ISO) sebagai ID.
-    const docId = warData.endTime;
-    if (!docId) {
+    // --- [MODIFIKASI FASE 6: UNIFIKASI ID] ---
+    // Logika ini SEKARANG SAMA PERSIS dengan logika ID di sync/warlog/route.ts
+    if (!warData.endTime) {
       throw new Error('War data is missing endTime, cannot use as archive ID.');
     }
+    const opponentTag = warData.opponent?.tag || 'unknown';
+    const docId = `${warData.endTime}_${opponentTag.replace('#', '')}`;
+    // --- [AKHIR MODIFIKASI FASE 6] ---
 
     const archiveRef = adminFirestore
       .collection(COLLECTIONS.MANAGED_CLANS)
       .doc(clanId)
       .collection(COLLECTIONS.WAR_ARCHIVES) // Menggunakan 'warArchives'
-      .doc(docId); // Gunakan endTime ISO string sebagai ID
+      .doc(docId); // Gunakan ID baru yang sudah disamakan
 
     // 1. Cek apakah dokumen ini sudah ada (mencegah duplikat write)
     const existingDoc = await archiveRef.get();
     if (existingDoc.exists) {
       console.log(
-        `[archiveClassicWar] War archive for clan ${clanId} (endTime: ${docId}) already exists. Skipping.`
+        `[archiveClassicWar] War archive for clan ${clanId} (ID: ${docId}) already exists. Skipping.`
       );
       return;
     }
@@ -370,7 +374,7 @@ export const archiveClassicWar = async (
     await archiveRef.set(archiveData);
 
     console.log(
-      `[archiveClassicWar] Successfully archived classic war for clan ${clanId} (War End: ${docId}).`
+      `[archiveClassicWar] Successfully archived classic war for clan ${clanId} (ID: ${docId}).`
     );
   } catch (error) {
     console.error(

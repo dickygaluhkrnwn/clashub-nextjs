@@ -134,20 +134,27 @@ export async function POST(
         // Properti 'hasDetails' akan default undefined (opsional)
       };
 
-      // --- [MODIFIKASI PERBAIKAN] ---
-      // Kita NONAKTIFKAN penulisan data ringkasan ini ke 'warArchives'
-      // agar tidak mencemari data detail dari 'sync/war'.
-      /*
-      // [PERBAIKAN] Hapus 'as any'
-      batch.set(docRef, archiveData, { merge: true });
-      processedCount++;
-      */
-      // --- [AKHIR MODIFIKASI PERBAIKAN] ---
+      // --- [MODIFIKASI FASE 4: MENGGABUNGKAN HASIL (MERGE)] ---
+      // Kita "menghidupkan" kembali batch, tapi dengan logika cerdas.
+      // Hanya perbarui/merge jika 'warItem.result' (dari warlog) ADA.
+      // Ini akan menambahkan 'result' (win/lose/tie) ke arsip detail
+      // yang sudah ada (dibuat oleh sync/war) tanpa menimpa detailnya.
+      if (warItem.result) {
+        // { merge: true } adalah kuncinya.
+        // 1. Jika doc (detail) ada: merge (tambahkan) field 'result'.
+        // 2. Jika doc (detail) tidak ada: buat doc (ringkasan) baru (fallback).
+        batch.set(docRef, archiveData, { merge: true });
+        processedCount++;
+      } else {
+        // Jika warlog itu sendiri tidak punya 'result' (misal: perang baru di log),
+        // jangan lakukan apa-apa. Jangan cemari arsip dengan 'result: undefined'.
+      }
+      // --- [AKHIR MODIFIKASI FASE 4] ---
     }
 
     // 7. Commit batch
-    // [MODIFIKASI PERBAIKAN] Nonaktifkan commit batch
-    // await batch.commit();
+    // [MODIFIKASI FASE 4] "Hidupkan" kembali commit batch
+    await batch.commit();
 
     // 8. Update timestamp sinkronisasi di dokumen klan utama
     // [PERBAIKAN 3] Ganti 'clanDoc.ref.update' dengan path absolut
@@ -161,16 +168,16 @@ export async function POST(
       lastSyncedWarLog: FieldValue.serverTimestamp(),
     });
 
-    // [MODIFIKASI PERBAIKAN] Ubah pesan log
+    // [MODIFIKASI FASE 4] Ubah pesan log
     console.log(
-      `[Sync WarLog - Admin] Successfully checked ${warLogData.items.length} war log entries for ${clanName}. (Archiving disabled to prevent summary override)`
+      `[Sync WarLog - Admin] Successfully synced and merged ${processedCount} war log results for ${clanName}.`
     );
 
     // 9. Kembalikan respons sukses
-    // [MODIFIKASI PERBAIKAN] Ubah pesan response
+    // [MODIFIKASI FASE 4] Ubah pesan response
     return NextResponse.json({
-      message: `War log successfully checked for ${clanName}. (Archiving disabled)`,
-      processedCount: 0, // Kita tidak memproses apa-apa ke arsip
+      message: `War log successfully synced and merged for ${clanName}.`,
+      processedCount: processedCount, // <-- Kembalikan jumlah yang diproses
     });
   } catch (error) {
     console.error(
