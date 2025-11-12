@@ -414,8 +414,9 @@ const TournamentDetailClient: React.FC<TournamentDetailClientProps> = ({
   // Format tanggal menggunakan date-fns
   // Kita pakai new Date() untuk mengurai string tanggal yang diserialisasi dari Server Component
   const formattedDate = format(
-    // [TAHAP 6] Ganti 'startDate' (string) lama menjadi 'startsAt' (Date) baru
-    new Date(tournament.startsAt),
+    // [PERBAIKAN FASE 8.2] Ganti 'startsAt' (string) lama menjadi 'tournamentStartsAt' (Date) baru
+    // Ini adalah penyebab error "Invalid time value"
+    new Date(tournament.tournamentStartsAt),
     'dd MMMM yyyy - HH:mm',
     // { locale: id } // Opsional jika ingin format bahasa Indonesia
   );
@@ -425,11 +426,16 @@ const TournamentDetailClient: React.FC<TournamentDetailClientProps> = ({
       // [TAHAP 6] Sesuaikan status dengan Tipe Baru
       case 'registration_open':
         return 'bg-green-600/20 text-green-300 border-green-500';
+      // [BARU FASE 8.2] Tambahkan status 'scheduled' dan 'cancelled'
+      case 'scheduled':
+        return 'bg-cyan-600/20 text-cyan-300 border-cyan-500';
       case 'registration_closed':
         return 'bg-yellow-600/20 text-yellow-300 border-yellow-500';
       case 'ongoing':
         return 'bg-blue-600/20 text-blue-300 border-blue-500';
       case 'completed':
+        return 'bg-purple-600/20 text-purple-300 border-purple-500';
+      case 'cancelled':
         return 'bg-red-600/20 text-red-300 border-red-500';
       default:
         // Hapus status lama, biarkan default
@@ -438,6 +444,17 @@ const TournamentDetailClient: React.FC<TournamentDetailClientProps> = ({
         // case 'COMPLETED':
         return 'bg-gray-600/20 text-gray-300 border-gray-500';
     }
+  };
+
+  // [BARU FASE 8.2] Helper untuk memformat status agar lebih rapi
+  const formatStatusText = (status: string) => {
+    if (status === 'registration_open') return 'Pendaftaran Dibuka';
+    if (status === 'registration_closed') return 'Pendaftaran Ditutup';
+    if (status === 'scheduled') return 'Terjadwal';
+    if (status === 'ongoing') return 'Sedang Berlangsung';
+    if (status === 'completed') return 'Selesai';
+    if (status === 'cancelled') return 'Dibatalkan';
+    return status.replace('_', ' '); // Fallback
   };
 
   return (
@@ -459,8 +476,8 @@ const TournamentDetailClient: React.FC<TournamentDetailClientProps> = ({
             <span
               className={`mb-2 inline-block rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-widest ${getStatusClasses()}`}
             >
-              {/* [TAHAP 6] Ganti format status (misal: 'registration_open' -> 'Registration Open') */}
-              {tournament.status.replace('_', ' ')}
+              {/* [PERBAIKAN FASE 8.2] Gunakan helper formatStatusText */}
+              {formatStatusText(tournament.status)}
             </span>
             <h1 className="font-clash text-4xl font-bold leading-tight text-white md:text-5xl">
               {tournament.title}
@@ -481,7 +498,8 @@ const TournamentDetailClient: React.FC<TournamentDetailClientProps> = ({
         />
         <InfoCard
           icon={ClockIcon}
-          title="Tanggal Mulai"
+          // [PERBAIKAN FASE 8.2] Ubah title "Tanggal Mulai" menjadi "Turnamen Dimulai"
+          title="Turnamen Dimulai"
           value={`${formattedDate} WIB`}
         />
         <InfoCard
@@ -505,6 +523,23 @@ const TournamentDetailClient: React.FC<TournamentDetailClientProps> = ({
           icon={UserIcon}
           title="Organizer"
           value={tournament.organizerName}
+        />
+        {/* [BARU FASE 8.2] Tambahkan 2 InfoCard baru untuk tanggal pendaftaran */}
+        <InfoCard
+          icon={ClockIcon}
+          title="Pendaftaran Dibuka"
+          value={`${format(
+            new Date(tournament.registrationStartsAt),
+            'dd MMMM yyyy - HH:mm',
+          )} WIB`}
+        />
+        <InfoCard
+          icon={ClockIcon}
+          title="Pendaftaran Ditutup"
+          value={`${format(
+            new Date(tournament.registrationEndsAt),
+            'dd MMMM yyyy - HH:mm',
+          )} WIB`}
         />
       </section>
 

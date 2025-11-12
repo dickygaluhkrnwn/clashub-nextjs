@@ -2,6 +2,8 @@ import { StarIcon } from '@/app/components/icons';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/app/components/ui/Button';
+// [BARU FASE 8.3] Impor tipe Tournament
+import { Tournament } from '@/lib/clashub.types';
 
 // -- Tipe Data untuk Props --
 export type TeamCardProps = {
@@ -26,8 +28,8 @@ export type PostCardProps = {
 export type TournamentCardProps = {
   id: string; // ID diperlukan untuk membuat link
   title: string;
-  // [PERBAIKAN ERROR 1] Menambahkan 'Dibatalkan' agar cocok dengan TournamentClient.tsx
-  status: 'Akan Datang' | 'Live' | 'Selesai' | 'Dibatalkan';
+  // [PERBAIKAN FASE 8.3] Gunakan tipe status mentah dari types.ts
+  status: Tournament['status'];
   thRequirement: string;
   prizePool: string;
 };
@@ -40,6 +42,56 @@ export type PlayerCardProps = {
   reputation: number;
   role: 'Leader' | 'Co-Leader' | 'Elder' | 'Member' | 'Free Agent';
   avatarUrl?: string;
+};
+
+// [BARU FASE 8.3] Helper untuk status dan styling turnamen
+// Memindahkan logika dari TournamentClient ke sini
+const getTournamentStatusUI = (status: Tournament['status']) => {
+  switch (status) {
+    case 'scheduled':
+      return {
+        text: 'Terjadwal',
+        badge: 'bg-cyan-600/20 text-cyan-300',
+        border: 'border-cyan-500',
+      };
+    case 'registration_open':
+      return {
+        text: 'Pendaftaran Dibuka',
+        badge: 'bg-green-600/20 text-green-300',
+        border: 'border-green-500',
+      };
+    case 'registration_closed':
+      return {
+        text: 'Pendaftaran Ditutup',
+        badge: 'bg-yellow-600/20 text-yellow-300',
+        border: 'border-yellow-500',
+      };
+    case 'ongoing':
+      return {
+        text: 'Live',
+        badge: 'bg-blue-600/20 text-blue-300 animate-pulse',
+        border: 'border-blue-500',
+      };
+    case 'completed':
+      return {
+        text: 'Selesai',
+        badge: 'bg-purple-600/20 text-purple-300',
+        border: 'border-purple-500',
+      };
+    case 'cancelled':
+      return {
+        text: 'Dibatalkan',
+        badge: 'bg-red-600/20 text-red-300',
+        border: 'border-red-500',
+      };
+    case 'draft':
+    default:
+      return {
+        text: 'Draft',
+        badge: 'bg-gray-600/20 text-gray-300',
+        border: 'border-gray-500',
+      };
+  }
 };
 
 // -- Komponen TeamCard --
@@ -155,30 +207,31 @@ export const TournamentCard = ({
   thRequirement,
   prizePool,
 }: TournamentCardProps) => {
-  const statusStyles: { [key in TournamentCardProps['status']]: string } = {
-    'Akan Datang': 'border-coc-gold bg-coc-gold/10',
-    Live: 'border-coc-red bg-coc-red/10 animate-pulse',
-    Selesai: 'border-gray-500 bg-gray-500/10 opacity-70',
-    // [PERBAIKAN ERROR 1] Styling untuk status Dibatalkan
-    Dibatalkan: 'border-gray-500 bg-gray-500/10 opacity-70',
-  };
-  const statusBadgeStyles: { [key in TournamentCardProps['status']]: string } = {
-    'Akan Datang': 'bg-coc-gold text-coc-stone',
-    Live: 'bg-coc-red text-white',
-    Selesai: 'bg-gray-500 text-white',
-    // [PERBAIKAN ERROR 1] Styling untuk badge Dibatalkan
-    Dibatalkan: 'bg-gray-500 text-white',
-  };
+  // [PERBAIKAN FASE 8.3] Hapus objek styling lama
+  // const statusStyles: ...
+  // const statusBadgeStyles: ...
+
+  // [PERBAIKAN FASE 8.3] Panggil helper baru
+  const { text: statusText, badge: badgeClass, border: borderClass } =
+    getTournamentStatusUI(status);
 
   return (
     <div
       className={`card-stone flex flex-col sm:flex-row justify-between items-center p-6 gap-4 border-l-4 ${
-        statusStyles[status] || statusStyles['Selesai']
+        // [PERBAIKAN FASE 8.3] Gunakan borderClass dari helper
+        borderClass
       } transition-shadow hover:shadow-xl rounded-lg`}
     >
-      <div className="flex-grow w-full sm:w-auto">
+      {/* [PERBAIKAN LAYOUT FASE 8.3] 
+        - Mengganti 'sm:w-auto' menjadi 'sm:min-w-0'
+        - Ini mengizinkan container untuk menyusut dan membungkus teks jika judul terlalu panjang.
+      */}
+      <div className="flex-grow w-full sm:min-w-0">
         {/* Menambahkan font-clash */}
-        <h4 className="font-clash text-xl text-white leading-snug">{title}</h4>
+        {/* [PERBAIKAN LAYOUT FASE 8.3] Tambahkan 'break-words' untuk menangani judul panjang */}
+        <h4 className="font-clash text-xl text-white leading-snug break-words">
+          {title}
+        </h4>
         <div className="text-sm text-gray-300 space-y-1 mt-2 font-sans">
           <p>
             Syarat: <span className="font-bold text-white">{thRequirement}</span>
@@ -188,13 +241,19 @@ export const TournamentCard = ({
           </p>
         </div>
       </div>
-      <div className="flex flex-col items-stretch sm:items-end gap-3 w-full sm:w-auto mt-4 sm:mt-0">
+      {/* [PERBAIKAN LAYOUT FASE 8.3] 
+        - Menambahkan 'sm:flex-shrink-0'
+        - Ini mencegah bagian tombol/badge menyusut saat judul panjang.
+      */}
+      <div className="flex flex-col items-stretch sm:items-end gap-3 w-full sm:w-auto mt-4 sm:mt-0 sm:flex-shrink-0">
         <span
           className={`px-3 py-1 text-xs font-bold rounded-full text-center font-sans ${
-            statusBadgeStyles[status] || statusBadgeStyles['Selesai']
+            // [PERBAIKAN FASE 8.3] Gunakan badgeClass dari helper
+            badgeClass
           }`}
         >
-          {status}
+          {/* [PERBAIKAN FASE 8.3] Gunakan statusText dari helper */}
+          {statusText}
         </span>
         <Button href={`/tournament/${id}`} variant="secondary" className="w-full sm:w-auto">
           Lihat Detail
