@@ -193,3 +193,22 @@ export const UploadIcon = (props: IconProps) => (
     <line x1="12" y1="3" x2="12" y2="15" />
   </svg>
 );
+
+// --- [BARU] Menambahkan PlayIcon (Fase 10.1) ---
+export const PlayIcon = (props: IconProps) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="currentColor" // Di-set ke 'currentColor' agar bisa di-warnai
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <polygon points="5 3 19 12 5 21 5 3" />
+  </svg>
+);
+// --- [AKHIR BARU] ---
