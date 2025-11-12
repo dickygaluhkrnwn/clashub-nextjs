@@ -1,6 +1,7 @@
 // File: app/api/tournaments/[tournamentId]/register/route.ts
 // Deskripsi: [FIX V2.9] API route (POST) untuk mendaftarkan tim baru (TournamentTeam) ke Turnamen.
 // - Menggunakan 'tournament.title' untuk notifikasi.
+// [UPDATE FASE 7.5] Menambahkan validasi status dan waktu yang lebih ketat.
 
 import { NextResponse, NextRequest } from 'next/server';
 import { adminFirestore } from '@/lib/firebase-admin';
@@ -13,6 +14,8 @@ import {
   UserProfile,
 } from '@/lib/clashub.types';
 import { docToDataAdmin } from '@/lib/firestore-admin/utils';
+// [FASE 7.5] Impor Timestamp admin untuk perbandingan waktu
+import { Timestamp } from 'firebase-admin/firestore';
 
 // Impor fungsi helper dari file yang sudah ada
 import {
@@ -81,16 +84,41 @@ export async function POST(
       );
     }
 
-    // Validasi Status Turnamen
-    if (tournament.status !== 'registration_open') {
+    // [UPDATE FASE 7.5] Validasi Status Turnamen & Waktu
+    const now = Timestamp.now();
+    // Konversi 'Date' (dari 'lib/clashub.types.ts') ke Timestamp admin untuk perbandingan
+    const regEnds = Timestamp.fromDate(
+      new Date(tournament.registrationEndsAt),
+    );
+
+    // CEK TAMBAHAN: Apakah waktu pendaftaran sudah lewat?
+    // Ini adalah jaring pengaman jika cron job/trigger telat berjalan.
+    if (now > regEnds) {
       return NextResponse.json(
-        {
-          error: `Pendaftaran untuk turnamen ini ${
-            tournament.status === 'completed'
-              ? 'sudah selesai'
-              : 'belum dibuka atau sudah ditutup'
-          }.`,
-        },
+        { error: 'Batas waktu pendaftaran untuk turnamen ini telah lewat.' },
+        { status: 403 },
+      );
+    }
+
+    // Validasi Status Turnamen (diperketat)
+    if (tournament.status !== 'registration_open') {
+      let message =
+        'Pendaftaran untuk turnamen ini belum dibuka atau sudah ditutup.';
+      if (tournament.status === 'scheduled') {
+        message = 'Pendaftaran untuk turnamen ini belum dibuka.';
+      } else if (tournament.status === 'registration_closed') {
+        message = 'Pendaftaran untuk turnamen ini sudah ditutup.';
+      } else if (
+        tournament.status === 'ongoing' ||
+        tournament.status === 'completed'
+      ) {
+        message = 'Turnamen ini sedang berjalan atau sudah selesai.';
+      } else if (tournament.status === 'cancelled') {
+        message = 'Turnamen ini telah dibatalkan.';
+      }
+
+      return NextResponse.json(
+        { error: message },
         { status: 403 }, // 403 Forbidden
       );
     }

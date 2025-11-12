@@ -30,8 +30,8 @@ export const FormatDatesSection: React.FC<FormatDatesSectionProps> = ({
 }) => {
   return (
     // [ROMBAK V2] Detail Teknis (Format, Slot, Tanggal)
-    // (dari CreateTournamentClient.tsx baris 438)
-    <div className="grid grid-cols-2 md:grid-cols-2 gap-6">
+    // [UPDATE V2.1 / FASE 7.2] Grid diubah menjadi 2x3 untuk 4 input tanggal
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <FormGroup
         label="Format Turnamen"
         htmlFor="format"
@@ -68,36 +68,69 @@ export const FormatDatesSection: React.FC<FormatDatesSectionProps> = ({
           <option value={64}>64 Tim/Player</option>
         </select>
       </FormGroup>
+
+      {/* --- [UPDATE FASE 7.2] Input Tanggal Baru --- */}
       <FormGroup
-        label="Tanggal & Waktu Mulai"
-        htmlFor="startsAt"
-        error={errors.startsAt}
+        label="Pendaftaran Dibuka"
+        htmlFor="registrationStartsAt"
+        error={errors.registrationStartsAt}
       >
         <input
           type="datetime-local"
-          id="startsAt"
-          name="startsAt"
-          value={formData.startsAt}
+          id="registrationStartsAt"
+          name="registrationStartsAt"
+          value={formData.registrationStartsAt}
           onChange={handleChange}
-          className={getInputClasses(!!errors.startsAt)}
+          className={getInputClasses(!!errors.registrationStartsAt)}
           disabled={isLoading}
         />
       </FormGroup>
       <FormGroup
-        label="Tanggal & Waktu Selesai"
-        htmlFor="endsAt"
-        error={errors.endsAt}
+        label="Pendaftaran Ditutup"
+        htmlFor="registrationEndsAt"
+        error={errors.registrationEndsAt}
       >
         <input
           type="datetime-local"
-          id="endsAt"
-          name="endsAt"
-          value={formData.endsAt}
+          id="registrationEndsAt"
+          name="registrationEndsAt"
+          value={formData.registrationEndsAt}
           onChange={handleChange}
-          className={getInputClasses(!!errors.endsAt)}
+          className={getInputClasses(!!errors.registrationEndsAt)}
           disabled={isLoading}
         />
       </FormGroup>
+      <FormGroup
+        label="Turnamen Dimulai (Match Pertama)"
+        htmlFor="tournamentStartsAt"
+        error={errors.tournamentStartsAt}
+      >
+        <input
+          type="datetime-local"
+          id="tournamentStartsAt"
+          name="tournamentStartsAt"
+          value={formData.tournamentStartsAt}
+          onChange={handleChange}
+          className={getInputClasses(!!errors.tournamentStartsAt)}
+          disabled={isLoading}
+        />
+      </FormGroup>
+      <FormGroup
+        label="Turnamen Selesai (Final)"
+        htmlFor="tournamentEndsAt"
+        error={errors.tournamentEndsAt}
+      >
+        <input
+          type="datetime-local"
+          id="tournamentEndsAt"
+          name="tournamentEndsAt"
+          value={formData.tournamentEndsAt}
+          onChange={handleChange}
+          className={getInputClasses(!!errors.tournamentEndsAt)}
+          disabled={isLoading}
+        />
+      </FormGroup>
+      {/* --- [AKHIR UPDATE FASE 7.2] --- */}
     </div>
   );
 };

@@ -2,11 +2,7 @@
 
 // [FASE 3] ROMBAK TOTAL
 // File ini dirombak total untuk FASE 3 Peta Develop.
-// - Menggunakan hooks (useAuth, useManagedClanCache) untuk mengambil data, bukan props.
-// - Menghapus logika EsportsTeam yang lama.
-// - Menambahkan form input 'teamName'.
-// - Menambahkan UI multi-select member dari daftar 'clanCache.members'.
-// - Menambahkan validasi TH (CEK 1, 2, 3) di sisi klien.
+// [UPDATE FASE 7.5] Menambahkan validasi status UI (scheduled, closed, dll.)
 
 import React, { useState, useMemo } from 'react';
 import Image from 'next/image';
@@ -26,7 +22,8 @@ import Notification, {
 import {
   Loader2Icon,
   AlertTriangleIcon,
-  CheckIcon, // <-- [PERBAIKAN ERROR 2] Impor CheckIcon
+  CheckIcon,
+  ClockIcon, // [FASE 7.5] Impor ikon jam
 } from '@/app/components/icons/ui-feedback';
 import {
   UsersIcon,
@@ -42,6 +39,18 @@ import { getThImage, validateTeamThRequirements } from '@/lib/th-utils'; // Impo
 interface TournamentRegisterClientProps {
   tournament: Tournament;
 }
+
+/**
+ * [FASE 7.5] Helper untuk format tanggal
+ */
+const formatTanggal = (dateInput: Date | string): string => {
+  const date = new Date(dateInput);
+  return date.toLocaleString('id-ID', {
+    dateStyle: 'full',
+    timeStyle: 'short',
+    timeZone: 'Asia/Jakarta', // Pastikan WIB
+  });
+};
 
 /**
  * Komponen Client-side untuk menangani logika pendaftaran turnamen (FASE 3).
@@ -258,6 +267,81 @@ export default function TournamentRegisterClient({
     );
   }
 
+  // [BARU: FASE 7.5] Render Kondisi Status Turnamen
+  // Cek status turnamen SEBELUM menampilkan form
+  switch (tournament.status) {
+    case 'scheduled':
+      return (
+        <div className="card-stone p-6 text-center">
+          <ClockIcon className="w-12 h-12 text-blue-400 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold clash-font mb-2">
+            Pendaftaran Belum Dibuka
+          </h3>
+          <p className="text-muted-foreground">
+            Pendaftaran untuk turnamen ini akan dibuka pada:
+          </p>
+          <p className="text-white font-semibold mt-1">
+            {formatTanggal(tournament.registrationStartsAt)}
+          </p>
+        </div>
+      );
+    case 'registration_closed':
+    case 'ongoing':
+    case 'completed':
+      return (
+        <div className="card-stone p-6 text-center">
+          <AlertTriangleIcon className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold clash-font mb-2">
+            Pendaftaran Ditutup
+          </h3>
+          <p className="text-muted-foreground">
+            Pendaftaran untuk turnamen ini sudah ditutup atau turnamen sedang
+            berjalan/selesai.
+          </p>
+        </div>
+      );
+    case 'cancelled':
+      return (
+        <div className="card-stone p-6 text-center">
+          <XIcon className="w-12 h-12 text-coc-red mx-auto mb-4" />
+          <h3 className="text-xl font-semibold clash-font mb-2">
+            Turnamen Dibatalkan
+          </h3>
+          <p className="text-muted-foreground">
+            Turnamen ini telah dibatalkan oleh panitia.
+          </p>
+        </div>
+      );
+    case 'draft':
+      return (
+        <div className="card-stone p-6 text-center">
+          <AlertTriangleIcon className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold clash-font mb-2">
+            Turnamen Belum Siap
+          </h3>
+          <p className="text-muted-foreground">
+            Turnamen ini masih dalam status draft oleh panitia.
+          </p>
+        </div>
+      );
+    case 'registration_open':
+      // Status OK, lanjutkan render form di bawah
+      break;
+    default:
+      // Default case, anggap saja ditutup
+      return (
+        <div className="card-stone p-6 text-center">
+          <AlertTriangleIcon className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold clash-font mb-2">
+            Status Turnamen Tidak Valid
+          </h3>
+          <p className="text-muted-foreground">
+            Pendaftaran tidak tersedia saat ini.
+          </p>
+        </div>
+      );
+  }
+
   if (availableMembers.length === 0) {
     return (
       <div className="card-stone p-6 text-center">
@@ -274,7 +358,7 @@ export default function TournamentRegisterClient({
     );
   }
 
-  // --- Render Form Pendaftaran (FASE 3 - Step 2) ---
+  // --- Render Form Pendaftaran (HANYA JIKA 'registration_open') ---
   return (
     <>
       {notification && <Notification notification={notification} />}

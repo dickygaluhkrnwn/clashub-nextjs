@@ -3,11 +3,12 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 // [ROMBAK V2] Impor Tipe Baru (Tournament & ThRequirement)
-import { UserProfile, Tournament, ThRequirement } from '@/lib/types'; // Tetap
-import { Button } from '@/app/components/ui/Button'; // Tetap
+// [Fase 7.1] Tipe Tournament di sini sudah memiliki 4 field tanggal baru
+import { UserProfile, Tournament, ThRequirement } from '@/lib/clashub.types';
+import { Button } from '@/app/components/ui/Button';
 import Notification, {
   NotificationProps,
-} from '@/app/components/ui/Notification'; // Tetap
+} from '@/app/components/ui/Notification';
 import {
   FormGroup,
   // getInputClasses, // [DIHAPUS] Sudah tidak dipakai di sini
@@ -43,15 +44,22 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
 }) => {
   const router = useRouter();
 
-  // [ROMBAK V2] State default baru (Tetap)
+  // [ROMBAK V2] State default baru
+  // [UPDATE FASE 7.2] Mengganti startsAt/endsAt dengan 4 field baru
   const [formData, setFormData] = useState<TournamentFormData>({
     title: '',
     description: '',
     rules: '',
     prizePool: '',
     bannerUrl: '',
-    startsAt: '',
-    endsAt: '',
+    // [Fase 7.2] Dihapus
+    // startsAt: '',
+    // endsAt: '',
+    // [Fase 7.2] Baru
+    registrationStartsAt: '',
+    registrationEndsAt: '',
+    tournamentStartsAt: '',
+    tournamentEndsAt: '',
     format: '5v5',
     participantCount: 16,
     thRequirementType: 'any',
@@ -126,7 +134,8 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
     }
   };
 
-  // --- 2. Handler Validasi Form --- (Tetap)
+  // --- 2. Handler Validasi Form ---
+  // [UPDATE FASE 7.2] Logika validasi tanggal diperbarui
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
     const {
@@ -134,8 +143,12 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
       description,
       rules,
       prizePool,
-      startsAt,
-      endsAt,
+      // [Fase 7.2] Dihapus: startsAt, endsAt,
+      // [Fase 7.2] Baru: 4 field tanggal
+      registrationStartsAt,
+      registrationEndsAt,
+      tournamentStartsAt,
+      tournamentEndsAt,
       thMinLevel,
       thMaxLevel,
       format,
@@ -147,12 +160,41 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
     if (!description.trim()) newErrors.description = 'Deskripsi wajib diisi.';
     if (!rules.trim()) newErrors.rules = 'Aturan wajib diisi.';
     if (!prizePool.trim()) newErrors.prizePool = 'Info hadiah wajib diisi.';
-    if (!startsAt) newErrors.startsAt = 'Tanggal & jam mulai wajib diisi.';
-    if (!endsAt) newErrors.endsAt = 'Tanggal & jam selesai wajib diisi.';
 
-    if (new Date(endsAt) <= new Date(startsAt)) {
-      newErrors.endsAt = 'Tanggal selesai harus setelah tanggal mulai.';
+    // [Fase 7.2] Validasi 4 field tanggal baru
+    if (!registrationStartsAt)
+      newErrors.registrationStartsAt = 'Waktu pendaftaran dibuka wajib diisi.';
+    if (!registrationEndsAt)
+      newErrors.registrationEndsAt = 'Waktu pendaftaran ditutup wajib diisi.';
+    if (!tournamentStartsAt)
+      newErrors.tournamentStartsAt = 'Waktu turnamen dimulai wajib diisi.';
+    if (!tournamentEndsAt)
+      newErrors.tournamentEndsAt = 'Waktu turnamen selesai wajib diisi.';
+
+    // [Fase 7.2] Validasi Urutan Waktu
+    if (registrationStartsAt && registrationEndsAt && tournamentStartsAt && tournamentEndsAt) {
+      const regStarts = new Date(registrationStartsAt);
+      const regEnds = new Date(registrationEndsAt);
+      const tournStarts = new Date(tournamentStartsAt);
+      const tournEnds = new Date(tournamentEndsAt);
+      const now = new Date();
+
+      if (regStarts < now) {
+         // Memperbolehkan waktu mulai di masa lalu (misal: "sekarang")
+         // tapi kita bisa tambahkan validasi jika diperlukan
+         // newErrors.registrationStartsAt = 'Pendaftaran tidak boleh dimulai di masa lalu.';
+      }
+      if (regEnds <= regStarts) {
+        newErrors.registrationEndsAt = 'Pendaftaran ditutup harus setelah dibuka.';
+      }
+      if (tournStarts <= regEnds) {
+        newErrors.tournamentStartsAt = 'Turnamen dimulai harus setelah pendaftaran ditutup.';
+      }
+      if (tournEnds <= tournStarts) {
+        newErrors.tournamentEndsAt = 'Turnamen selesai harus setelah dimulai.';
+      }
     }
+    // [Akhir Fase 7.2]
 
     if (thMinLevel < 1 || thMinLevel > 17)
       newErrors.thMinLevel = 'Min TH harus antara 1-17.';
@@ -172,7 +214,8 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  // --- 3. Handler Submit Form --- (Tetap)
+  // --- 3. Handler Submit Form ---
+  // [UPDATE FASE 7.2] Payload API diperbarui
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setNotification(null);
@@ -189,12 +232,13 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
     setIsLoading(true);
 
     // [ROMBAK V2] Tipe payload baru dari 'lib/clashub.types.ts'
+    // Tipe ini (Tournament) sudah diperbarui di Fase 7.1
     type TournamentPayload = Omit<
       Tournament,
       'id' | 'createdAt' | 'participantCountCurrent' | 'status'
     >;
 
-    // Membangun Objek ThRequirement
+    // Membangun Objek ThRequirement (Tetap)
     const thRequirement: ThRequirement = {
       type: formData.format === '1v1' ? 'any' : formData.thRequirementType,
       minLevel: Number(formData.thMinLevel),
@@ -212,6 +256,7 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
       }
     }
 
+    // [UPDATE FASE 7.2] Payload disesuaikan dengan 4 field tanggal baru
     const payload: TournamentPayload = {
       title: formData.title,
       description: formData.description,
@@ -220,8 +265,13 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
       bannerUrl:
         formData.bannerUrl ||
         'https://placehold.co/1200x400/374151/9CA3AF?text=Banner+Turnamen',
-      startsAt: new Date(formData.startsAt), // Konversi string datetime-local ke objek Date
-      endsAt: new Date(formData.endsAt), // [BARU] Tambah tanggal selesai
+      
+      // [Fase 7.2] Field Tanggal Baru (menggantikan startsAt/endsAt)
+      registrationStartsAt: new Date(formData.registrationStartsAt),
+      registrationEndsAt: new Date(formData.registrationEndsAt),
+      tournamentStartsAt: new Date(formData.tournamentStartsAt),
+      tournamentEndsAt: new Date(formData.tournamentEndsAt),
+
       format: formData.format,
       teamSize: formData.format === '1v1' ? 1 : 5, // [FIX] Otomatis
       participantCount: Number(formData.participantCount), // [FIX] Nama field baru
@@ -283,6 +333,7 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
         />
 
         {/* [BARU] Komponen terpisah untuk Format, Jumlah, Tanggal */}
+        {/* Komponen ini sudah di-update di file-nya sendiri (Fase 7.2) */}
         <FormatDatesSection
           formData={formData}
           errors={errors}

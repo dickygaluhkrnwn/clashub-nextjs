@@ -10,8 +10,16 @@ export type TournamentFormData = {
   rules: string;
   prizePool: string;
   bannerUrl: string;
-  startsAt: string; // Tanggal & Jam Mulai
-  endsAt: string; // Tanggal & Jam Selesai
+  // [Fase 7.2] Dihapus
+  // startsAt: string; // Tanggal & Jam Mulai
+  // endsAt: string; // Tanggal & Jam Selesai
+
+  // [Fase 7.2] Field Tanggal Baru
+  registrationStartsAt: string; // Kapan pendaftaran mulai dibuka
+  registrationEndsAt: string; // Kapan pendaftaran ditutup
+  tournamentStartsAt: string; // Kapan pertandingan pertama dimulai
+  tournamentEndsAt: string; // Target tanggal selesai turnamen
+
   format: '1v1' | '5v5';
   participantCount: number; // Jumlah Tim (8, 16, 32, 64)
 

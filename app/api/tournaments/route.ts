@@ -3,8 +3,8 @@
 
 import { NextResponse, NextRequest } from 'next/server';
 import { getSessionUser } from '@/lib/server-auth'; // (1) Otentikasi
-// [ROMBAK V2] Impor Tipe Tournament (yang sudah update)
-import { Tournament } from '@/lib/types';
+// [ROMBAK V2] Impor Tipe Tournament (yang sudah update di Fase 7.1)
+import { Tournament } from '@/lib/clashub.types';
 import {
   createTournamentAdmin,
   getAllTournamentsAdmin,
@@ -12,8 +12,7 @@ import {
 import { incrementPopularity } from '@/lib/firestore-admin/popularity'; // (3) Poin
 
 // [ROMBAK V2] Tipe data payload yang diharapkan dari CreateTournamentClient.tsx
-// Tipe ini harus cocok dengan payload yang dikirim dari form baru
-// (Semua field Tournament kecuali 'id', 'createdAt', 'participantCountCurrent', 'status')
+// Tipe ini OKE karena 'Tournament' di types.ts sudah diupdate di Fase 7.1
 type CreateTournamentPayload = Omit<
   Tournament,
   'id' | 'createdAt' | 'participantCountCurrent' | 'status'
@@ -23,6 +22,7 @@ type CreateTournamentPayload = Omit<
  * @handler GET
  * @description Mengambil daftar semua turnamen (Tahap 3, Poin 1).
  * Endpoint ini publik, tidak perlu otentikasi.
+ * [NOTE FASE 7.3] Handler ini tidak diubah. Logika Cron Job akan ada di file terpisah.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 /**
  * @handler POST
  * @description Membuat turnamen baru (Tahap 2, Poin 3).
- * Endpoint ini privat, memerlukan otentikasi.
+ * [UPDATE FASE 7.3] Diperbarui untuk menangani 4 field tanggal baru dan status awal.
  */
 export async function POST(request: NextRequest) {
   // 1. Verifikasi Sesi Pengguna
@@ -54,18 +54,24 @@ export async function POST(request: NextRequest) {
     // 2. Parse dan Validasi Body Request
     const body = (await request.json()) as CreateTournamentPayload;
 
-    // [ROMBAK V2] Validasi field-field baru dari Peta Develop
+    // [UPDATE FASE 7.3] Validasi field-field baru dari Peta Develop
     const {
       title,
       description,
       rules,
       prizePool,
-      startsAt,
-      endsAt, // Baru
-      format, // Baru
-      participantCount, // Baru
-      thRequirement, // Baru
-      organizerUid, // [FIX] Diubah dari organizerId ke organizerUid
+      // [Fase 7.3] Hapus field lama
+      // startsAt,
+      // endsAt,
+      // [Fase 7.3] Tambah field baru
+      registrationStartsAt,
+      registrationEndsAt,
+      tournamentStartsAt,
+      tournamentEndsAt,
+      format,
+      participantCount,
+      thRequirement,
+      organizerUid,
     } = body;
 
     // Validasi dasar
@@ -74,11 +80,14 @@ export async function POST(request: NextRequest) {
       !description ||
       !rules ||
       !prizePool ||
-      !startsAt ||
-      !endsAt || // Baru
-      !format || // Baru
-      !participantCount || // Baru
-      !thRequirement // Baru
+      // [Fase 7.3] Cek field baru
+      !registrationStartsAt ||
+      !registrationEndsAt ||
+      !tournamentStartsAt ||
+      !tournamentEndsAt ||
+      !format ||
+      !participantCount ||
+      !thRequirement
     ) {
       return NextResponse.json(
         { error: 'Semua field wajib diisi' },
@@ -88,12 +97,19 @@ export async function POST(request: NextRequest) {
 
     // 3. Validasi Keamanan (PENTING)
     // Pastikan UID pengguna yang login adalah UID yang dikirim sebagai organizer.
-    if (organizerUid !== sessionUser.uid) { // [FIX] Diubah dari organizerId ke organizerUid
+    if (organizerUid !== sessionUser.uid) {
       return NextResponse.json(
         { error: 'Forbidden: Organizer ID mismatch' },
         { status: 403 },
       );
     }
+
+    // [BARU: FASE 7.3] Tentukan status awal berdasarkan registrationStartsAt
+    // Konversi string JSON ke objek Date untuk perbandingan
+    const regStartDate = new Date(registrationStartsAt);
+    const now = new Date(); // Waktu server saat ini
+    const initialStatus =
+      regStartDate > now ? 'scheduled' : 'registration_open';
 
     // 4. Siapkan data lengkap untuk disimpan (termasuk data server-side)
     // Tipe ini Omit<'id'> karena createTournamentAdmin akan men-generate ID
@@ -101,11 +117,14 @@ export async function POST(request: NextRequest) {
       ...body,
       // Konversi string JSON (dari body) kembali ke objek Date
       // agar cleanDataForAdminSDK bisa mengubahnya jadi Timestamp
-      startsAt: new Date(startsAt),
-      endsAt: new Date(endsAt),
-      
-      // [ROMBAK V2] Tambahkan field sisi server sesuai Peta Develop
-      status: 'registration_open', // Status default saat dibuat
+      // [UPDATE FASE 7.3] Konversi 4 field tanggal baru
+      registrationStartsAt: regStartDate,
+      registrationEndsAt: new Date(registrationEndsAt),
+      tournamentStartsAt: new Date(tournamentStartsAt),
+      tournamentEndsAt: new Date(tournamentEndsAt),
+
+      // [UPDATE FASE 7.3] Tambahkan field sisi server
+      status: initialStatus, // Status dinamis (scheduled atau registration_open)
       participantCountCurrent: 0, // Counter tim terdaftar, mulai dari 0
       createdAt: new Date(), // Waktu pembuatan (akan dikonversi oleh adminSDK)
     };

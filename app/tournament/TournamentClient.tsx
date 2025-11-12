@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+// [Fase 7.4] Tambahkan useEffect
+import { useState, useMemo, useEffect } from 'react';
 import { TournamentCard } from '@/app/components/cards';
 import TournamentFilter, {
   TournamentFilters,
@@ -22,7 +23,8 @@ interface TournamentClientProps {
 }
 
 // --- Tipe untuk Status Terjemahan ---
-type TournamentStatusUI = 'Akan Datang' | 'Live' | 'Selesai';
+// [Fase 7.5] Diperbarui untuk mencakup status baru
+type TournamentStatusUI = 'Akan Datang' | 'Live' | 'Selesai' | 'Dibatalkan';
 
 // --- Konstanta Pagination ---
 const ITEMS_PER_LOAD_TOURNAMENT = 5;
@@ -68,6 +70,29 @@ const TournamentClient = ({
   );
   const [isFiltering, setIsFiltering] = useState(false);
 
+  // [BARU: Fase 7.4] Pemicu Cron Job Lokal
+  useEffect(() => {
+    // Panggil API trigger di background saat halaman dimuat
+    // Ini berfungsi sebagai cron-job tiruan di localhost
+    const triggerUpdateStates = async () => {
+      try {
+        // TODO: HAPUS INI SAAT DEPLOYMENT PRODUCTION
+        // Di production, ini akan diganti oleh Vercel Cron / GitHub Actions
+        // yang memanggil /api/tournaments/cron?secret=...
+        console.log('[Dev Trigger] Memanggil update status turnamen...');
+        await fetch('/api/tournaments/update-states', { method: 'POST' });
+        console.log('[Dev Trigger] Update status selesai.');
+        // Kita tidak perlu me-refresh data di sini,
+        // karena data yang ditampilkan adalah initialProps dari server
+        // yang dimuat SETELAH trigger ini (pada navigasi berikutnya).
+      } catch (error) {
+        console.warn('[Dev Trigger] Gagal memicu update status:', error);
+      }
+    };
+
+    triggerUpdateStates();
+  }, []); // Hanya berjalan sekali saat komponen mount
+
   const setTournamentFilters = (newFilters: TournamentFilters) => {
     setIsFiltering(true);
     setVisibleTournamentsCount(ITEMS_PER_LOAD_TOURNAMENT);
@@ -77,7 +102,7 @@ const TournamentClient = ({
     }, 50);
   };
 
-  // Logika filter V2 yang defensif
+  // [UPDATE FASE 7.5] Logika filter diperbarui untuk status baru
   const filteredTournaments = useMemo(() => {
     return allTournaments.filter((tournament) => {
       const { status: filterStatus, thLevel, prize } = tournamentFilters;
@@ -85,6 +110,7 @@ const TournamentClient = ({
       // 1. Filter Status
       if (filterStatus === 'Akan Datang') {
         const isUpcoming =
+          tournament.status === 'scheduled' || // [Fase 7.5] Ditambahkan
           tournament.status === 'registration_open' ||
           tournament.status === 'draft' ||
           tournament.status === 'registration_closed';
@@ -92,7 +118,10 @@ const TournamentClient = ({
       } else if (filterStatus === 'Live') {
         if (tournament.status !== 'ongoing') return false;
       } else if (filterStatus === 'Selesai') {
-        if (tournament.status !== 'completed') return false;
+        const isFinished =
+          tournament.status === 'completed' ||
+          tournament.status === 'cancelled'; // [Fase 7.5] Ditambahkan
+        if (!isFinished) return false;
       }
 
       // 2. Filter TH (Defensif)
@@ -159,12 +188,13 @@ const TournamentClient = ({
 
   const isLoading = false;
 
-  // Helper status
+  // [UPDATE FASE 7.5] Helper status diperbarui
   const translateStatus = (
     status: Tournament['status'],
   ): TournamentStatusUI => {
     switch (status) {
       case 'draft':
+      case 'scheduled': // [Fase 7.5] Ditambahkan
       case 'registration_open':
       case 'registration_closed':
         return 'Akan Datang';
@@ -172,6 +202,8 @@ const TournamentClient = ({
         return 'Live';
       case 'completed':
         return 'Selesai';
+      case 'cancelled': // [Fase 7.5] Ditambahkan
+        return 'Dibatalkan';
       default:
         return 'Akan Datang';
     }

@@ -37,8 +37,9 @@ import {
 // --- [AKHIR PERBAIKAN ERROR V6] ---
 
 // [ROMBAK V2: Fase 1] Impor DocumentReference untuk Fase 1 Peta Develop
-// Hapus impor Timestamp dari 'firebase/firestore' (client-side)
-import { DocumentReference } from 'firebase/firestore';
+// [PERBAIKAN ERROR TIPE] Mengganti impor dari 'firebase/firestore' (client) ke 'firebase-admin/firestore' (admin)
+// agar tipe data konsisten antara definisi (file ini) dan implementasi (API routes).
+import { DocumentReference } from 'firebase-admin/firestore';
 
 // =========================================================================
 // 1. TIPE DATA FIRESTORE CLASHUB (INTERNAL)
@@ -256,12 +257,20 @@ export interface Tournament {
   // Status & Waktu
   status:
     | 'draft'
+    | 'scheduled' // [Fase 7.1] Ditambahkan: Siap, tapi pendaftaran belum dibuka
     | 'registration_open'
     | 'registration_closed'
     | 'ongoing'
-    | 'completed';
-  startsAt: Date; // [FIX] Diubah dari Timestamp ke Date (Netral)
-  endsAt: Date; // [FIX] Diubah dari Timestamp ke Date (Netral)
+    | 'completed'
+    | 'cancelled'; // [Fase 7.1] Ditambahkan: Dibatalkan oleh panitia
+
+  // [Fase 7.1] Rombak field waktu
+  // startsAt: Date; // [Fase 7.1] Dihapus
+  // endsAt: Date; // [Fase 7.1] Dihapus
+  registrationStartsAt: Date; // [Fase 7.1] Baru: Kapan pendaftaran mulai dibuka
+  registrationEndsAt: Date; // [Fase 7.1] Baru: Kapan pendaftaran ditutup
+  tournamentStartsAt: Date; // [Fase 7.1] Baru: Kapan pertandingan pertama dimulai
+  tournamentEndsAt: Date; // [Fase 7.1] Baru: Target tanggal selesai turnamen
 
   // Info Organizer
   organizerUid: string; // UID dari UserProfile pembuat
