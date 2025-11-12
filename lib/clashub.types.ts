@@ -1,6 +1,7 @@
 // File: lib/clashub.types.ts
 // Deskripsi: Mendefinisikan semua struktur data (interface) TypeScript
 // yang digunakan secara internal oleh aplikasi Clashub (Data Firestore).
+// [UPDATE FASE 15.1] Menambahkan field untuk alur "2 Klan Panitia".
 
 // =========================================================================
 // 0. ENUMERASI DAN TIPE BANTUAN INTERNAL
@@ -242,7 +243,7 @@ export interface Player {
 /**
  * @interface Tournament
  * [ROMBAK V2: Fase 1 Peta Develop]
- * Mengganti struktur lama dengan aturan E-sports yang fleksibel.
+ * [UPDATE FASE 15.1] Menambahkan field klan panitia.
  */
 export interface Tournament {
   id: string; // ID dokumen Firestore
@@ -282,6 +283,10 @@ export interface Tournament {
   teamSize: 1 | 5; // Otomatis diset berdasarkan format
   participantCount: number; // Jumlah tim (misal: 16, 32)
   thRequirement: ThRequirement; // Objek aturan TH baru
+
+  // [BARU FASE 15.1] Info Klan War Panitia (Sesuai ide baru Anda)
+  panitiaClanA_Tag: string | null;
+  panitiaClanB_Tag: string | null;
 
   // Metadata
   participantCountCurrent: number; // Denormalisasi jumlah peserta (tim) yang sudah 'approved'
@@ -330,7 +335,7 @@ export interface TournamentTeamMember {
 /**
  * @interface TournamentMatch
  * [BARU: Fase 1 Peta Develop]
- * Mendefinisikan satu match di dalam bracket turnamen.
+ * [UPDATE FASE 15.1] Menambahkan field penugasan klan.
  */
 export interface TournamentMatch {
   matchId: string;
@@ -347,6 +352,12 @@ export interface TournamentMatch {
   team2ClanTag: string | null;
   team1ClanBadge: string | null;
   team2ClanBadge: string | null;
+
+  // [BARU FASE 15.1] Penugasan Klan Panitia & Info War (Sesuai ide baru Anda)
+  team1AssignedClanTag: string | null; // Tag Klan Panitia (A atau B)
+  team2AssignedClanTag: string | null; // Tag Klan Panitia (A atau B)
+  team1WarTag: string | null; // War Tag spesifik (jika 5v5, bisa beda)
+  team2WarTag: string | null; // War Tag spesifik (jika 5v5, bisa beda)
 
   // Hasil
   winnerTeamRef: DocumentReference<TournamentTeam> | null;
