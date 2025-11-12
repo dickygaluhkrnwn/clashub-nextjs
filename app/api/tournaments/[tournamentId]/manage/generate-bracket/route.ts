@@ -1,5 +1,6 @@
 // File: app/api/tournaments/[tournamentId]/manage/generate-bracket/route.ts
-// Deskripsi: [BARU - FASE 5] API route (POST) untuk membuat bracket turnamen.
+// Deskripsi: [UPDATE FASE 15.3] API route (POST) untuk membuat bracket turnamen
+// dan MENUGASKAN KLAN PANITIA (A/B) ke setiap match.
 
 import { NextResponse, NextRequest } from 'next/server';
 import { adminFirestore } from '@/lib/firebase-admin';
@@ -14,7 +15,10 @@ import {
 } from '@/lib/clashub.types';
 // [PERBAIKAN] Tambahkan 'DocumentReference' ke impor
 import { FieldValue, DocumentReference } from 'firebase-admin/firestore';
-import { docToDataAdmin, cleanDataForAdminSDK } from '@/lib/firestore-admin/utils';
+import {
+  docToDataAdmin,
+  cleanDataForAdminSDK,
+} from '@/lib/firestore-admin/utils';
 
 /**
  * @function shuffleArray
@@ -44,6 +48,7 @@ function shuffleArray<T>(array: T[]): T[] {
  * @handler POST
  * @description Meng-generate bracket (Ronde 1 Upper) untuk turnamen.
  * Hanya bisa dilakukan oleh Panitia (Organizer atau Committee).
+ * [UPDATE FASE 15.3] Sekarang juga menugaskan klan panitia A & B.
  */
 export async function POST(
   request: NextRequest,
@@ -62,6 +67,8 @@ export async function POST(
     }
 
     // 2. Ambil Data Turnamen (Pre-check)
+    // Kita panggil di luar transaksi HANYA untuk cek otorisasi.
+    // Data aslinya akan di-fetch lagi DI DALAM transaksi.
     const tournament = await getTournamentByIdAdmin(tournamentId);
     if (!tournament) {
       return NextResponse.json(
@@ -112,13 +119,21 @@ export async function POST(
         );
       }
 
+      // [BARU FASE 15.3] Validasi Klan Panitia (Sesuai ide Anda)
+      const { panitiaClanA_Tag, panitiaClanB_Tag } = tournamentData;
+      if (!panitiaClanA_Tag || !panitiaClanB_Tag) {
+        throw new Error(
+          'Panitia belum mengatur Klan A & B. Harap atur di Tab "Pengaturan" terlebih dahulu.',
+        );
+      }
+
       // 6. Ambil Semua Tim 'approved' (di dalam Transaksi)
       const teamsRef = tournamentRef.collection('teams');
       const teamsQuery = teamsRef.where('status', '==', 'approved');
       const teamsSnap = await t.get(teamsQuery);
-      
+
       const approvedTeams: FirestoreDocument<TournamentTeam>[] = [];
-      teamsSnap.docs.forEach(doc => {
+      teamsSnap.docs.forEach((doc) => {
         const teamData = docToDataAdmin<TournamentTeam>(doc);
         if (teamData) {
           // Penting: Simpan referensi dokumen Firestore-nya
@@ -152,23 +167,34 @@ export async function POST(
         const team1Ref = teamsRef.doc(team1.id) as any;
         const team2Ref = teamsRef.doc(team2.id) as any;
 
-        const newMatch: Omit<TournamentMatch, 'matchId'> = {
+        // [PERBAIKAN FASE 15.3] Objek newMatch sekarang menyertakan
+        // 4 field baru yang wajib diisi (memperbaiki error TS2739).
+        const newMatch: TournamentMatch = {
+          matchId: matchId, // [FIX] matchId harus jadi bagian dari objek
           round: 1,
           bracket: 'upper',
           status: 'pending', // Menunggu jadwal
           team1Ref: team1Ref,
           team2Ref: team2Ref,
-          team1ClanTag: null,
-          team2ClanTag: null,
-          team1ClanBadge: null,
-          team2ClanBadge: null,
+          team1ClanTag: null, // Diisi saat check-in
+          team2ClanTag: null, // Diisi saat check-in
+          team1ClanBadge: null, // Diisi saat check-in
+          team2ClanBadge: null, // Diisi saat check-in
           winnerTeamRef: null,
           scheduledTime: null,
           liveWarData: null,
+
+          // [BARU FASE 15.3] Tugaskan Klan A/B sesuai ide Anda
+          team1AssignedClanTag: panitiaClanA_Tag, // Tim 1 (index genap) selalu ke Klan A
+          team2AssignedClanTag: panitiaClanB_Tag, // Tim 2 (index ganjil) selalu ke Klan B
+          team1WarTag: null, // Diisi nanti oleh panitia/sistem
+          team2WarTag: null, // Diisi nanti oleh panitia/sistem
         };
 
         // Set dokumen match baru di dalam transaksi
-        t.set(matchDocRef, cleanDataForAdminSDK(newMatch));
+        // Kita buang 'matchId' karena itu adalah ID dokumen
+        const { matchId: _, ...dataToSet } = newMatch;
+        t.set(matchDocRef, cleanDataForAdminSDK(dataToSet));
       }
 
       // 9. Update Status Turnamen Utama

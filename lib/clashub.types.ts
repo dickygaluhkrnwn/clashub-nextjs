@@ -1,7 +1,7 @@
 // File: lib/clashub.types.ts
 // Deskripsi: Mendefinisikan semua struktur data (interface) TypeScript
 // yang digunakan secara internal oleh aplikasi Clashub (Data Firestore).
-// [UPDATE FASE 15.1] Menambahkan field untuk alur "2 Klan Panitia".
+// [UPDATE FASE 16.1] Mengekspor CocCurrentWar.
 
 // =========================================================================
 // 0. ENUMERASI DAN TIPE BANTUAN INTERNAL
@@ -36,6 +36,9 @@ import {
   CocWarLogEntry, // <-- [PERBAIKAN] Menambahkan CocWarLogEntry
 } from './coc.types';
 // --- [AKHIR PERBAIKAN ERROR V6] ---
+
+// [BARU FASE 16.1] Ekspor tipe yang diimpor agar bisa digunakan file lain
+export type { CocCurrentWar } from './coc.types';
 
 // [ROMBAK V2: Fase 1] Impor DocumentReference untuk Fase 1 Peta Develop
 // [PERBAIKAN ERROR TIPE] Mengganti impor dari 'firebase/firestore' (client) ke 'firebase-admin/firestore' (admin)

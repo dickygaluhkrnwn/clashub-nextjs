@@ -1,8 +1,8 @@
 'use client';
 
 // File: app/tournament/[tournamentId]/manage/ManageTournamentClient.tsx
-// Deskripsi: [FILE BARU] Client Component untuk layout tab manajemen turnamen.
-// Dipisahkan dari page.tsx untuk mengatasi error "use client".
+// Deskripsi: Client Component untuk layout tab manajemen turnamen.
+// [UPDATE FASE 15.2] Memperbaiki error TS2741 dan menambahkan tab Settings.
 
 import React, { useState } from 'react';
 import Image from 'next/image';
@@ -26,6 +26,8 @@ import StaffManager from './StaffManager';
 import ParticipantManager from './ParticipantManager';
 import BracketGenerator from './BracketGenerator';
 import ScheduleManager from './ScheduleManager';
+// [BARU FASE 15.2] Impor komponen SettingsManager baru
+import SettingsManager from './components/SettingsManager';
 
 type ActiveTab = 'participants' | 'staff' | 'bracket' | 'settings';
 
@@ -45,14 +47,17 @@ const ManageTournamentClient: React.FC<ManageTournamentClientProps> = ({
 
   const handleRefreshData = () => {
     setNotification({
-      message: 'Data sedang diperbarui...',
+      message: 'Aksi berhasil! Memuat ulang data...',
       type: 'info',
       onClose: () => setNotification(null),
     });
-    // Di aplikasi nyata, ini akan memanggil 'mutate()' dari SWR atau 'refetch()' dari React Query
-    // Untuk saat ini, kita bisa reload (meski kurang ideal) atau biarkan notifikasi
-    // window.location.reload(); // Opsi refresh paksa
-    console.log('Refreshing data...');
+    
+    // [FIX FASE 15.2]
+    // Kita tambahkan reload halaman agar data baru (Tag Klan atau status Batal)
+    // langsung terlihat setelah aksi selesai.
+    setTimeout(() => {
+      window.location.reload();
+    }, 1500); // Beri waktu 1.5 detik agar notifikasi terbaca
   };
 
   const TABS: { tabName: ActiveTab; icon: React.ReactNode; label: string }[] = [
@@ -118,19 +123,21 @@ const ManageTournamentClient: React.FC<ManageTournamentClientProps> = ({
             <BracketGenerator
               tournament={tournament}
               onBracketGenerated={handleRefreshData}
+              // [PERBAIKAN ERROR TS2741] Tambahkan prop yang hilang
+              // Kita gunakan handleRefreshData agar halaman me-refresh
+              // datanya saat turnamen dibatalkan.
+              onTournamentCancelled={handleRefreshData}
             />
             <ScheduleManager tournament={tournament} />
           </React.Fragment>
         );
       case 'settings':
+        // [PERBAIKAN FASE 15.2] Ganti placeholder dengan komponen baru
         return (
-          <div className="p-8 text-center bg-coc-stone/40 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
-            <SettingsIcon className="h-12 w-12 text-coc-gold/50 mb-3" />
-            <p className="text-lg font-clash text-white">Pengaturan Turnamen</p>
-            <p className="text-sm text-gray-400 font-sans mt-1">
-              Fitur untuk mengedit turnamen akan hadir di sini.
-            </p>
-          </div>
+          <SettingsManager
+            tournament={tournament}
+            onSettingsSaved={handleRefreshData}
+          />
         );
       default:
         setActiveTab('participants');
