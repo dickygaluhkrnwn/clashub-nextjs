@@ -1,5 +1,6 @@
 // File: lib/firestore/tournaments.ts
 // Deskripsi: Berisi fungsi utilitas Firestore Client SDK yang spesifik untuk 'tournaments'.
+// [PERBAIKAN FASE 14.2] Memperbaiki converter dan query untuk V2.1 (4 field tanggal baru).
 
 import { firestore } from '../firebase'; // Client SDK instance
 import {
@@ -19,11 +20,14 @@ import {
   limit as clientLimit,
 } from 'firebase/firestore';
 import { COLLECTIONS } from '../firestore-collections';
+// [PERBAIKAN FASE 14.2] Impor tipe 'Tournament' yang sudah benar dari 'types'
 import { Tournament, FirestoreDocument, TournamentTeam } from '../types';
 
-// Converter untuk Tipe Tournament
+// [PERBAIKAN FASE 14.2] Converter untuk Tipe Tournament diperbarui
 const tournamentConverter: FirestoreDataConverter<Tournament> = {
   toFirestore(tournament: Tournament): DocumentData {
+    // Data yang dikirim KE firestore sudah di-handle oleh cleanDataForAdminSDK (new Date())
+    // jadi di sisi client kita bisa biarkan ini
     return tournament;
   },
   fromFirestore(
@@ -31,11 +35,31 @@ const tournamentConverter: FirestoreDataConverter<Tournament> = {
     options: SnapshotOptions,
   ): Tournament {
     const data = snapshot.data(options)!;
+    // Logika ini sangat penting.
+    // Kita harus konversi semua field Timestamp (dari Firestore)
+    // kembali menjadi objek Date (untuk JavaScript di client).
     return {
       ...data,
-      startsAt: (data.startsAt as ClientTimestamp).toDate(),
-      endsAt: (data.endsAt as ClientTimestamp).toDate(),
-      createdAt: (data.createdAt as ClientTimestamp).toDate(),
+      // Hapus 'startsAt' dan 'endsAt' yang sudah tidak ada
+      // startsAt: (data.startsAt as ClientTimestamp).toDate(),
+      // endsAt: (data.endsAt as ClientTimestamp).toDate(),
+
+      // Tambahkan 4 field tanggal baru (dan createdAt)
+      // Kita tambahkan pengecekan '&& data.fieldName.toDate'
+      // untuk memastikan data tidak crash jika field-nya (karena suatu hal) null.
+      createdAt: data.createdAt && (data.createdAt as ClientTimestamp).toDate(),
+      registrationStartsAt:
+        data.registrationStartsAt &&
+        (data.registrationStartsAt as ClientTimestamp).toDate(),
+      registrationEndsAt:
+        data.registrationEndsAt &&
+        (data.registrationEndsAt as ClientTimestamp).toDate(),
+      tournamentStartsAt:
+        data.tournamentStartsAt &&
+        (data.tournamentStartsAt as ClientTimestamp).toDate(),
+      tournamentEndsAt:
+        data.tournamentEndsAt &&
+        (data.tournamentEndsAt as ClientTimestamp).toDate(),
     } as Tournament;
   },
 };
@@ -70,7 +94,11 @@ export const getAllTournamentsClient = async (): Promise<
       COLLECTIONS.TOURNAMENTS,
     ).withConverter(tournamentConverter);
 
-    const q = clientQuery(tournamentsRef, clientOrderBy('startsAt', 'desc'));
+    // [PERBAIKAN FASE 14.2] Ganti 'startsAt' ke 'tournamentStartsAt'
+    const q = clientQuery(
+      tournamentsRef,
+      clientOrderBy('tournamentStartsAt', 'desc'),
+    );
     const snapshot = await clientGetDocs(q);
 
     return snapshot.docs.map(
@@ -119,7 +147,7 @@ export const getTournamentClient = async (
 /**
  * @function getManagedTournamentsForUserClient
  * [FIX V2.2] Mengambil turnamen di mana user adalah 'organizer' ATAU 'committee'.
- * Menggunakan dua query terpisah untuk menghindari kegagalan index composite 'OR'.
+ * [FIX FASE 14.2] Memperbaiki logika sorting.
  * @param userId UID pengguna yang sedang login.
  */
 export const getManagedTournamentsForUserClient = async (
@@ -179,9 +207,13 @@ export const getManagedTournamentsForUserClient = async (
     const combinedList = Array.from(managedTournaments.values());
 
     combinedList.sort((a, b) => {
-      // Urutkan berdasarkan startsAt (Timestamp/Date), terbaru dulu (descending)
-      // Gunakan getTime() untuk perbandingan yang aman
-      return b.startsAt.getTime() - a.startsAt.getTime();
+      // [PERBAIKAN FASE 14.2]
+      // Ganti 'startsAt' (error TS2339) dengan 'tournamentStartsAt'.
+      // 'tournamentConverter' yang baru diperbaiki akan memastikan
+      // 'tournamentStartsAt' adalah objek Date yang valid.
+      return (
+        b.tournamentStartsAt.getTime() - a.tournamentStartsAt.getTime()
+      );
     });
 
     return combinedList;

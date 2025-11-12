@@ -34,6 +34,37 @@ interface CreateTournamentClientProps {
 
 // [DIHAPUS] Tipe TournamentFormData & FormErrors dipindah ke ./types.ts
 
+// --- [BARU FASE 10.2] Helper untuk default tanggal ---
+/**
+ * @function getLocalDateTimeString
+ * @description Mengambil objek Date dan mengembalikannya sebagai string YYYY-MM-DDTHH:mm
+ * yang kompatibel dengan input <input type="datetime-local">.
+ * Ini penting untuk menghindari bug 'Invalid Date' dari string kosong.
+ * @param dateObj Objek Date (misal: new Date())
+ * @returns string (misal: "2025-11-12T19:30")
+ */
+const getLocalDateTimeString = (dateObj: Date): string => {
+  // Mengurangi offset timezone agar waktu lokal tampil benar di input
+  const tzOffset = dateObj.getTimezoneOffset() * 60000; // offset in milliseconds
+  const localISOTime = new Date(dateObj.getTime() - tzOffset)
+    .toISOString()
+    .slice(0, 16);
+  return localISOTime;
+};
+
+// Helper untuk menambah jam/hari (untuk default value)
+const addHours = (date: Date, hours: number) => {
+  const newDate = new Date(date);
+  newDate.setHours(newDate.getHours() + hours);
+  return newDate;
+};
+const addDays = (date: Date, days: number) => {
+  const newDate = new Date(date);
+  newDate.setDate(newDate.getDate() + days);
+  return newDate;
+};
+// --- [AKHIR BARU FASE 10.2] ---
+
 /**
  * @component CreateTournamentClient
  * [ROMBAK V2] Form panitia yang fleksibel untuk membuat turnamen.
@@ -44,8 +75,18 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
 }) => {
   const router = useRouter();
 
+  // [PERBAIKAN FASE 10.2]
+  // Inisialisasi state tanggal dengan nilai default yang valid (BUKAN string ''),
+  // untuk mencegah bug 'Invalid Date' saat submit.
+  const now = new Date();
+  const defaultRegStarts = addHours(now, 1); // Pendaftaran dibuka 1 jam dari sekarang
+  const defaultRegEnds = addDays(defaultRegStarts, 1); // Ditutup 1 hari setelah dibuka
+  const defaultTournStarts = addHours(defaultRegEnds, 1); // Turnamen mulai 1 jam setelah ditutup
+  const defaultTournEnds = addDays(defaultTournStarts, 2); // Selesai 2 hari setelah mulai
+
   // [ROMBAK V2] State default baru
   // [UPDATE FASE 7.2] Mengganti startsAt/endsAt dengan 4 field baru
+  // [UPDATE FASE 10.2] Mengganti string '' dengan default tanggal yang valid
   const [formData, setFormData] = useState<TournamentFormData>({
     title: '',
     description: '',
@@ -55,11 +96,11 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
     // [Fase 7.2] Dihapus
     // startsAt: '',
     // endsAt: '',
-    // [Fase 7.2] Baru
-    registrationStartsAt: '',
-    registrationEndsAt: '',
-    tournamentStartsAt: '',
-    tournamentEndsAt: '',
+    // [Fase 10.2] Baru - Gunakan helper untuk format YYYY-MM-DDTHH:mm
+    registrationStartsAt: getLocalDateTimeString(defaultRegStarts),
+    registrationEndsAt: getLocalDateTimeString(defaultRegEnds),
+    tournamentStartsAt: getLocalDateTimeString(defaultTournStarts),
+    tournamentEndsAt: getLocalDateTimeString(defaultTournEnds),
     format: '5v5',
     participantCount: 16,
     thRequirementType: 'any',
@@ -136,6 +177,7 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
 
   // --- 2. Handler Validasi Form ---
   // [UPDATE FASE 7.2] Logika validasi tanggal diperbarui
+  // [UPDATE FASE 10.2] Logika validasi tanggal disederhanakan
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
     const {
@@ -162,6 +204,7 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
     if (!prizePool.trim()) newErrors.prizePool = 'Info hadiah wajib diisi.';
 
     // [Fase 7.2] Validasi 4 field tanggal baru
+    // [PERBAIKAN FASE 10.2] Cukup cek eksistensi, karena default state sudah valid
     if (!registrationStartsAt)
       newErrors.registrationStartsAt = 'Waktu pendaftaran dibuka wajib diisi.';
     if (!registrationEndsAt)
@@ -177,13 +220,12 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
       const regEnds = new Date(registrationEndsAt);
       const tournStarts = new Date(tournamentStartsAt);
       const tournEnds = new Date(tournamentEndsAt);
-      const now = new Date();
+      // [PERBAIKAN FASE 10.2] 'now' tidak diperlukan lagi untuk validasi "masa lalu"
+      // const now = new Date(); 
 
-      if (regStarts < now) {
-         // Memperbolehkan waktu mulai di masa lalu (misal: "sekarang")
-         // tapi kita bisa tambahkan validasi jika diperlukan
-         // newErrors.registrationStartsAt = 'Pendaftaran tidak boleh dimulai di masa lalu.';
-      }
+      // if (regStarts < now) {
+      //   // Memperbolehkan waktu mulai di masa lalu (misal: "sekarang")
+      // }
       if (regEnds <= regStarts) {
         newErrors.registrationEndsAt = 'Pendaftaran ditutup harus setelah dibuka.';
       }
@@ -216,6 +258,7 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
 
   // --- 3. Handler Submit Form ---
   // [UPDATE FASE 7.2] Payload API diperbarui
+  // [UPDATE FASE 10.2] Konversi ke Date dipindahkan ke sini
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setNotification(null);
@@ -256,7 +299,12 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
       }
     }
 
-    // [UPDATE FASE 7.2] Payload disesuaikan dengan 4 field tanggal baru
+    // [PERBAIKAN FASE 10.2]
+    // Konversi string 'datetime-local' (YYYY-MM-DDTHH:mm) ke Objek Date
+    // dilakukan DI SINI, tepat sebelum dikirim.
+    // Ini memastikan new Date() mem-parsing string lokal dengan benar
+    // di timezone klien, lalu JSON.stringify akan mengubahnya ke UTC ISO
+    // yang siap diterima server.
     const payload: TournamentPayload = {
       title: formData.title,
       description: formData.description,
@@ -266,7 +314,7 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
         formData.bannerUrl ||
         'https://placehold.co/1200x400/374151/9CA3AF?text=Banner+Turnamen',
       
-      // [Fase 7.2] Field Tanggal Baru (menggantikan startsAt/endsAt)
+      // [PERBAIKAN FASE 10.2] Konversi ke Date dipindahkan ke sini
       registrationStartsAt: new Date(formData.registrationStartsAt),
       registrationEndsAt: new Date(formData.registrationEndsAt),
       tournamentStartsAt: new Date(formData.tournamentStartsAt),

@@ -25,6 +25,8 @@ import {
   ShieldIcon, // Menggunakan ShieldIcon sebagai pengganti THIcon
   Loader2Icon, // [TAHAP 6] Tambahkan Loader2Icon
   SwordsIcon, // [FIX] Ganti SwordIcon menjadi SwordsIcon
+  // [BARU FASE 12.2] Tambahkan CogsIcon untuk tombol Manage
+  CogsIcon,
 } from '@/app/components/icons';
 import { format } from 'date-fns';
 // import { id } from 'date-fns/locale/id'; // Opsional jika ingin format bahasa Indonesia
@@ -82,6 +84,7 @@ const InfoCard: React.FC<{
 /**
  * @component RegisterButtonLogic
  * Komponen internal untuk menangani logika tombol pendaftaran.
+ * [UPDATE FASE 12.2] Sekarang juga menangani tombol Manajemen.
  */
 const RegisterButtonLogic: React.FC<{
   tournament: FirestoreDocument<Tournament>;
@@ -94,6 +97,23 @@ const RegisterButtonLogic: React.FC<{
     router.push(`/tournament/${tournament.id}/register`);
   };
 
+  // --- [PERBAIKAN FASE 12.2] ---
+  // Cek kepemilikan (organizer) SEBAGAI PRIORITAS PERTAMA.
+  if (userProfile && userProfile.uid === tournament.organizerUid) {
+    return (
+      <Button
+        size="lg"
+        // [PERBAIKAN FASE 13.2] Ganti "primaryOutline" (error) menjadi "secondary" (valid)
+        variant="secondary" // Variant berbeda untuk organizer
+        href={`/tournament/${tournament.id}/manage`}
+      >
+        <CogsIcon className="mr-2 h-5 w-5" />
+        Kelola Turnamen
+      </Button>
+    );
+  }
+  // --- [AKHIR PERBAIKAN FASE 12.2] ---
+
   // 1. Saat loading status auth
   if (loading) {
     return (
@@ -103,12 +123,22 @@ const RegisterButtonLogic: React.FC<{
     );
   }
 
-  // 2. Jika turnamen tidak lagi UPCOMING
-  // [TAHAP 6] Ganti status 'UPCOMING' lama menjadi 'registration_open' baru
+  // 2. Jika turnamen tidak lagi 'registration_open'
   if (tournament.status !== 'registration_open') {
+    let closedMessage = 'Pendaftaran Ditutup';
+    if (tournament.status === 'scheduled') {
+      closedMessage = 'Pendaftaran Belum Dibuka';
+    } else if (
+      tournament.status === 'ongoing' ||
+      tournament.status === 'completed' ||
+      tournament.status === 'cancelled'
+    ) {
+      closedMessage = 'Turnamen Selesai/Berlangsung';
+    }
+
     return (
       <Button size="lg" variant="secondary" disabled>
-        Pendaftaran Ditutup
+        {closedMessage}
       </Button>
     );
   }
@@ -131,7 +161,7 @@ const RegisterButtonLogic: React.FC<{
     );
   }
 
-  // 5. User sudah login dan terverifikasi
+  // 5. User sudah login dan terverifikasi (dan BUKAN organizer)
   return (
     <Button size="lg" variant="primary" onClick={handleRegisterClick}>
       Daftar Sekarang
@@ -213,8 +243,15 @@ const MatchCard: React.FC<{
     statusText = 'Live';
     statusColor = 'text-red-500 animate-pulse';
   } else if (status === 'scheduled' && match.scheduledTime) {
-    statusText = format(new Date(match.scheduledTime), 'dd/MM HH:mm');
-    statusColor = 'text-blue-400';
+    // [FIX FASE 12.2] Pastikan scheduledTime ada sebelum memformat
+    const scheduleDate = new Date(match.scheduledTime);
+    if (!isNaN(scheduleDate.getTime())) {
+      statusText = format(scheduleDate, 'dd/MM HH:mm');
+      statusColor = 'text-blue-400';
+    } else {
+      statusText = 'Dijadwalkan'; // Fallback jika tanggal tidak valid
+      statusColor = 'text-blue-400';
+    }
   }
 
   return (
@@ -434,6 +471,7 @@ const TournamentDetailClient: React.FC<TournamentDetailClientProps> = ({
       case 'ongoing':
         return 'bg-blue-600/20 text-blue-300 border-blue-500';
       case 'completed':
+        // [PERBAIKAN FASE 12.2] Ganti warna Selesai agar beda dari Dibatalkan
         return 'bg-purple-600/20 text-purple-300 border-purple-500';
       case 'cancelled':
         return 'bg-red-600/20 text-red-300 border-red-500';
@@ -484,6 +522,7 @@ const TournamentDetailClient: React.FC<TournamentDetailClientProps> = ({
             </h1>
           </div>
           <div className="flex-shrink-0">
+            {/* [PERBAIKAN FASE 12.2] Komponen ini sekarang punya logika 'Manage' */}
             <RegisterButtonLogic tournament={tournament} />
           </div>
         </div>

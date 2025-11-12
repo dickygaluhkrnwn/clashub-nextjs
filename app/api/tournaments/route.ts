@@ -11,6 +11,9 @@ import {
 } from '@/lib/firestore-admin/tournaments'; // (2) Fungsi Admin
 import { incrementPopularity } from '@/lib/firestore-admin/popularity'; // (3) Poin
 
+// [PERBAIKAN FASE 9.2] Impor 'admin' untuk mendapatkan Timestamp server
+import { admin } from '@/lib/firebase-admin';
+
 // [ROMBAK V2] Tipe data payload yang diharapkan dari CreateTournamentClient.tsx
 // Tipe ini OKE karena 'Tournament' di types.ts sudah diupdate di Fase 7.1
 type CreateTournamentPayload = Omit<
@@ -42,6 +45,7 @@ export async function GET(request: NextRequest) {
  * @handler POST
  * @description Membuat turnamen baru (Tahap 2, Poin 3).
  * [UPDATE FASE 7.3] Diperbarui untuk menangani 4 field tanggal baru dan status awal.
+ * [UPDATE FASE 9.2] Memperbaiki logika perbandingan status awal.
  */
 export async function POST(request: NextRequest) {
   // 1. Verifikasi Sesi Pengguna
@@ -104,12 +108,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // [BARU: FASE 7.3] Tentukan status awal berdasarkan registrationStartsAt
-    // Konversi string JSON ke objek Date untuk perbandingan
+    // [PERBAIKAN FASE 9.2] Tentukan status awal berdasarkan registrationStartsAt
+    // 1. Konversi string JSON (dari client) ke objek Date
     const regStartDate = new Date(registrationStartsAt);
-    const now = new Date(); // Waktu server saat ini
+
+    // 2. Dapatkan waktu SERVER DATABASE (BUKAN server API)
+    const now = admin.firestore.Timestamp.now();
+
+    // 3. Konversi 'regStartDate' (objek Date) ke Timestamp Firestore agar bisa dibandingkan
+    const regStartTimestamp = admin.firestore.Timestamp.fromDate(regStartDate);
+
+    // 4. Bandingkan 'Timestamp' vs 'Timestamp'
+    //    Gunakan toMillis() untuk perbandingan yang aman
     const initialStatus =
-      regStartDate > now ? 'scheduled' : 'registration_open';
+      regStartTimestamp.toMillis() > now.toMillis()
+        ? 'scheduled'
+        : 'registration_open';
 
     // 4. Siapkan data lengkap untuk disimpan (termasuk data server-side)
     // Tipe ini Omit<'id'> karena createTournamentAdmin akan men-generate ID
@@ -124,6 +138,7 @@ export async function POST(request: NextRequest) {
       tournamentEndsAt: new Date(tournamentEndsAt),
 
       // [UPDATE FASE 7.3] Tambahkan field sisi server
+      // [UPDATE FASE 9.2] 'initialStatus' sekarang sudah benar
       status: initialStatus, // Status dinamis (scheduled atau registration_open)
       participantCountCurrent: 0, // Counter tim terdaftar, mulai dari 0
       createdAt: new Date(), // Waktu pembuatan (akan dikonversi oleh adminSDK)
