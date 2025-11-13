@@ -46,7 +46,7 @@ function NewReviewPage() {
   const [comment, setComment] = useState('');
   // State untuk 'reviewContext' TAHAP 2.4
   const [reviewContext, setReviewContext] = useState<'clan' | 'esports'>('clan');
-  
+
   // State untuk UI
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,8 +55,10 @@ function NewReviewPage() {
   useEffect(() => {
     // Membaca parameter dari URL saat komponen dimuat
     const type = searchParams.get('type');
-    const id = searchParams.get('targetId');
-    const name = searchParams.get('targetName');
+    // [PERBAIKAN SINKRONISASI] Mengubah 'targetId' -> 'id'
+    const id = searchParams.get('id');
+    // [PERBAIKAN SINKRONISASI] Mengubah 'targetName' -> 'name'
+    const name = searchParams.get('name');
     const cId = searchParams.get('clanId'); // Opsional, untuk PlayerReview
 
     if (type === 'clan' || type === 'player') {
@@ -64,11 +66,10 @@ function NewReviewPage() {
     } else {
       setError('Tipe ulasan tidak valid.');
     }
-    
+
     if (id) setTargetId(id);
     if (name) setTargetName(decodeURIComponent(name)); // Dekode nama dari URL
     if (cId) setClanId(cId);
-
   }, [searchParams]);
 
   // Handler untuk submit form
@@ -100,9 +101,8 @@ function NewReviewPage() {
       let payload: any = {
         rating,
         comment,
-        targetId, // ID target (clanId atau playerUid)
-        authorUid: currentUser.uid,
-        authorName: currentUser.displayName || 'Anonim',
+        // 'targetId' di sini adalah variabel state, yang bisa jadi clanId atau playerUid
+        // 'authorUid' dan 'authorName' akan diambil dari sesi di backend
       };
 
       // Menentukan API endpoint dan payload berdasarkan tipe ulasan
@@ -112,7 +112,7 @@ function NewReviewPage() {
       } else {
         // Tipe 'player'
         apiUrl = '/api/reviews/player';
-        payload.targetPlayerUid = targetId;
+        payload.targetPlayerUid = targetId; // targetId di sini adalah UID (sesuai perbaikan)
         payload.reviewContext = reviewContext;
         if (clanId) payload.clanId = clanId;
         // Nanti kita tambahkan 'esportsTeamId' jika reviewContext === 'esports'
@@ -132,19 +132,18 @@ function NewReviewPage() {
 
       // Sesuai TAHAP 2.4, API akan memberi +10 poin
       setSuccess('Ulasan berhasil dikirim! Anda mendapat +10 Poin Popularitas.');
-      
+
       // Redirect setelah sukses
       setTimeout(() => {
         // Kembali ke halaman profil target (jika ada) atau halaman utama
-        if (reviewType === 'clan' && clanId) {
-          router.push(`/clan/internal/${clanId}`);
+        if (reviewType === 'clan' && targetId) { // targetId di sini adalah clanId
+          router.push(`/clan/internal/${targetId}`);
         } else if (reviewType === 'player') {
           router.push(`/profile`); // Asumsi kembali ke profil sendiri
         } else {
           router.push('/');
         }
       }, 3000);
-
     } catch (err: any) {
       setError(err.message || 'Terjadi kesalahan.');
     } finally {
@@ -176,30 +175,32 @@ function NewReviewPage() {
   // Jika parameter URL belum siap
   if (!reviewType || !targetId || !targetName) {
     if (error) {
-       return (
-         <div className="container mx-auto max-w-2xl py-12 px-4 text-center">
-           {/* PERBAIKAN: Mengganti size={48} dengan width={48} dan height={48} */}
-           <AlertCircle className="mx-auto text-coc-red" width={48} height={48} />
-           <h1 className="text-2xl font-clash text-coc-red mt-4">Error</h1>
-           <p className="text-lg mt-2">{error}</p>
-           <Button variant="primary" size="md" className="mt-6" href="/">
-             Kembali ke Beranda
-           </Button>
-         </div>
-       );
+      return (
+        <div className="container mx-auto max-w-2xl py-12 px-4 text-center">
+          {/* PERBAIKAN: Mengganti size={48} dengan width={48} dan height={48} */}
+          <AlertCircle className="mx-auto text-coc-red" width={48} height={48} />
+          <h1 className="text-2xl font-clash text-coc-red mt-4">Error</h1>
+          <p className="text-lg mt-2">{error}</p>
+          <Button variant="primary" size="md" className="mt-6" href="/">
+            Kembali ke Beranda
+          </Button>
+        </div>
+      );
     }
     return <LoadingSpinner />;
   }
 
   // Jika sudah sukses
   if (success) {
-     return (
-       <div className="container mx-auto max-w-2xl py-12 px-4 text-center">
-         <h1 className="text-3xl font-clash text-coc-gold mb-4">Ulasan Terkirim!</h1>
-         <p className="text-lg mt-2">{success}</p>
-         <LoadingSpinner />
-       </div>
-     );
+    return (
+      <div className="container mx-auto max-w-2xl py-12 px-4 text-center">
+        <h1 className="text-3xl font-clash text-coc-gold mb-4">
+          Ulasan Terkirim!
+        </h1>
+        <p className="text-lg mt-2">{success}</p>
+        <LoadingSpinner />
+      </div>
+    );
   }
 
   // Tampilan Form Utama
@@ -207,7 +208,9 @@ function NewReviewPage() {
     <div className="container mx-auto max-w-2xl py-12 px-4">
       <h1 className="text-3xl font-clash text-coc-gold mb-2">Beri Ulasan</h1>
       <p className="text-lg text-gray-300 mb-6">
-        Anda sedang mengulas: <strong className="font-bold text-white">{targetName}</strong> ({reviewType === 'clan' ? 'Klan' : 'Pemain'})
+        Anda sedang mengulas:{' '}
+        <strong className="font-bold text-white">{targetName}</strong> (
+        {reviewType === 'clan' ? 'Klan' : 'Pemain'})
       </p>
 
       <form onSubmit={handleSubmitReview} className="space-y-6">
@@ -250,14 +253,18 @@ function NewReviewPage() {
               </label>
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              Pilih konteks ulasan ini (misal: 'Aktivitas Klan' untuk partisipasi war/raid, atau 'E-Sports' untuk turnamen).
+              Pilih konteks ulasan ini (misal: 'Aktivitas Klan' untuk
+              partisipasi war/raid, atau 'E-Sports' untuk turnamen).
             </p>
           </div>
         )}
 
         {/* 3. Komentar */}
         <div>
-          <label htmlFor="comment" className="block text-sm font-medium text-gray-300">
+          <label
+            htmlFor="comment"
+            className="block text-sm font-medium text-gray-300"
+          >
             Komentar Ulasan
           </label>
           <textarea
@@ -294,9 +301,9 @@ function NewReviewPage() {
             )}
           </Button>
           {!currentUser && (
-             <p className="text-coc-red text-center text-sm mt-2">
-               Anda harus login untuk mengirim ulasan.
-             </p>
+            <p className="text-coc-red text-center text-sm mt-2">
+              Anda harus login untuk mengirim ulasan.
+            </p>
           )}
         </div>
       </form>

@@ -12,12 +12,14 @@ import {
 } from '../types';
 // [PERBAIKAN] Hapus impor 'FirestoreDocument' dari './utils' karena sudah diimpor dari '../types'
 import { docToDataAdmin, cleanDataForAdminSDK } from './utils';
+// [UPDATE Fase 1.3] Tambahkan FieldValue
+import { FieldValue } from 'firebase-admin/firestore';
 
 /**
  * Mengambil data ManagedClan berdasarkan ID internal Clashub (Admin).
  */
 export const getManagedClanDataAdmin = async (
-  clanId: string
+  clanId: string,
 ): Promise<FirestoreDocument<ManagedClan> | null> => {
   try {
     const docRef = adminFirestore
@@ -28,7 +30,7 @@ export const getManagedClanDataAdmin = async (
   } catch (error) {
     console.error(
       `Firestore Error [getManagedClanDataAdmin - Admin(${clanId})]:`,
-      error
+      error,
     );
     return null;
   }
@@ -38,7 +40,7 @@ export const getManagedClanDataAdmin = async (
  * Mengambil cache API klan (sub-koleksi) (Admin).
  */
 export const getClanApiCacheAdmin = async (
-  clanId: string
+  clanId: string,
 ): Promise<ClanApiCache | null> => {
   try {
     const cacheRef = adminFirestore
@@ -51,7 +53,7 @@ export const getClanApiCacheAdmin = async (
   } catch (error) {
     console.error(
       `Firestore Error [getClanApiCacheAdmin - Admin(${clanId})]:`,
-      error
+      error,
     );
     return null;
   }
@@ -64,18 +66,18 @@ export const getClanApiCacheAdmin = async (
 export const createOrLinkManagedClan = async (
   clanTag: string,
   clanName: string,
-  ownerUid: string
+  ownerUid: string,
 ): Promise<string> => {
   try {
     const managedClansRef = adminFirestore.collection(
-      COLLECTIONS.MANAGED_CLANS
+      COLLECTIONS.MANAGED_CLANS,
     );
     const q = managedClansRef.where('tag', '==', clanTag).limit(1);
     const snapshot = await q.get();
 
     if (!snapshot.empty) {
       console.log(
-        `[ManagedClan - Admin] Klan ${clanTag} sudah dikelola. ID: ${snapshot.docs[0].id}`
+        `[ManagedClan - Admin] Klan ${clanTag} sudah dikelola. ID: ${snapshot.docs[0].id}`,
       );
       return snapshot.docs[0].id;
     }
@@ -93,6 +95,8 @@ export const createOrLinkManagedClan = async (
       clanLevel: 0, // Akan diupdate saat sync pertama
       memberCount: 0, // Akan diupdate saat sync pertama
       lastSynced: new Date(0), // Set ke waktu epoch agar sync pertama ter-trigger
+      // [UPDATE Fase 1.3] Tambahkan field memberList (snapshot)
+      memberList: [], // Default array kosong
     };
 
     const cleanedData = cleanDataForAdminSDK(newClanData);
@@ -101,13 +105,13 @@ export const createOrLinkManagedClan = async (
     await docRef.set({ id: docRef.id }, { merge: true });
 
     console.log(
-      `[ManagedClan - Admin] Klan baru dibuat: ${clanName} (${docRef.id})`
+      `[ManagedClan - Admin] Klan baru dibuat: ${clanName} (${docRef.id})`,
     );
     return docRef.id;
   } catch (error) {
     console.error(
       `Firestore Error [createOrLinkManagedClan - Admin(${clanTag})]:`,
-      error
+      error,
     );
     throw new Error('Gagal membuat atau menautkan klan yang dikelola (Admin SDK).');
   }
@@ -120,10 +124,10 @@ export const createOrLinkManagedClan = async (
 export const updateClanApiCache = async (
   clanId: string,
   cacheData: Omit<ClanApiCache, 'id' | 'lastUpdated'>,
-  updatedManagedClanFields: Partial<ManagedClan>
+  updatedManagedClanFields: Partial<ManagedClan>,
 ): Promise<void> => {
   console.warn(
-    '[updateClanApiCache - Admin] This function is deprecated. Use batch operations within the sync API route instead.'
+    '[updateClanApiCache - Admin] This function is deprecated. Use batch operations within the sync API route instead.',
   );
   try {
     const batch = adminFirestore.batch();
@@ -153,12 +157,12 @@ export const updateClanApiCache = async (
 
     await batch.commit();
     console.log(
-      `[updateClanApiCache - Admin(${clanId})] Batch commit successful (legacy function).`
+      `[updateClanApiCache - Admin(${clanId})] Batch commit successful (legacy function).`,
     );
   } catch (error) {
     console.error(
       `Firestore Error [updateClanApiCache - Admin(${clanId})]:`,
-      error
+      error,
     );
     throw new Error('Gagal menyimpan cache API klan (Admin SDK - legacy).');
   }
@@ -170,7 +174,7 @@ export const updateClanApiCache = async (
  */
 export const updatePublicClanIndex = async (
   clanTag: string,
-  clanData: Partial<PublicClanIndex>
+  clanData: Partial<PublicClanIndex>,
 ): Promise<void> => {
   try {
     const docRef = adminFirestore
@@ -185,34 +189,70 @@ export const updatePublicClanIndex = async (
 
     // Siapkan payload lengkap dengan fallback dan timestamp
     const payload: Omit<PublicClanIndex, 'lastUpdated'> & { lastUpdated: Date } =
-    {
-      tag: clanData.tag || clanTag,
-      name: clanData.name || 'Nama Klan Tidak Ditemukan',
-      clanLevel: clanData.clanLevel || 1,
-      memberCount: clanData.memberCount || 0,
-      clanPoints: clanData.clanPoints || 0,
-      clanCapitalPoints: clanData.clanCapitalPoints || 0,
-      clanVersusPoints: clanData.clanVersusPoints || 0,
-      badgeUrls: clanData.badgeUrls || defaultBadgeUrls,
-      lastUpdated: new Date(), // Timestamp saat ini
-      requiredTrophies: clanData.requiredTrophies || 0,
-      warFrequency: clanData.warFrequency || 'unknown',
-      warWinStreak: clanData.warWinStreak || 0,
-      warWins: clanData.warWins || 0,
-      type: clanData.type || 'closed',
-      description: clanData.description || '',
-      location: clanData.location || undefined,
-      warLeague: clanData.warLeague || undefined, // Sertakan warLeague
-    };
+      {
+        tag: clanData.tag || clanTag,
+        name: clanData.name || 'Nama Klan Tidak Ditemukan',
+        clanLevel: clanData.clanLevel || 1,
+        memberCount: clanData.memberCount || 0,
+        clanPoints: clanData.clanPoints || 0,
+        clanCapitalPoints: clanData.clanCapitalPoints || 0,
+        clanVersusPoints: clanData.clanVersusPoints || 0,
+        badgeUrls: clanData.badgeUrls || defaultBadgeUrls,
+        lastUpdated: new Date(), // Timestamp saat ini
+        requiredTrophies: clanData.requiredTrophies || 0,
+        warFrequency: clanData.warFrequency || 'unknown',
+        warWinStreak: clanData.warWinStreak || 0,
+        warWins: clanData.warWins || 0,
+        type: clanData.type || 'closed',
+        description: clanData.description || '',
+        location: clanData.location || undefined,
+        warLeague: clanData.warLeague || undefined, // Sertakan warLeague
+      };
 
     const finalPayload = cleanDataForAdminSDK(payload); // Konversi Date ke Timestamp
     await docRef.set(finalPayload, { merge: true }); // Gunakan merge true
   } catch (error) {
     console.error(
       `Firestore Error [updatePublicClanIndex - Admin(${clanTag})]:`,
-      error
+      error,
     );
     // Jangan throw error agar cron job tidak berhenti jika satu klan gagal
   }
 };
 
+// --- [BARU: TAHAP 1.3 - Roadmap] ---
+// Fungsi baru ditambahkan di sini
+
+/**
+ * [BARU] Memperbarui snapshot 'memberList' di dokumen ManagedClan.
+ * Ini digunakan untuk perbandingan join/leave di sinkronisasi berikutnya.
+ * Ini juga memperbarui 'memberCount' dan 'lastSynced'
+ */
+export const updateManagedClanMemberList = async (
+  clanId: string,
+  newMemberList: { tag: string; name: string }[],
+): Promise<void> => {
+  try {
+    const clanRef = adminFirestore
+      .collection(COLLECTIONS.MANAGED_CLANS)
+      .doc(clanId);
+
+    const updateData = {
+      memberList: newMemberList,
+      memberCount: newMemberList.length,
+      lastSynced: FieldValue.serverTimestamp(), // Gunakan server timestamp
+    };
+
+    await clanRef.update(updateData);
+
+    console.log(
+      `[updateManagedClanMemberList] Snapshot memberList untuk clan ${clanId} berhasil diperbarui.`,
+    );
+  } catch (error) {
+    console.error(
+      `Firestore Error [updateManagedClanMemberList - Admin(${clanId})]:`,
+      error,
+    );
+    // Tidak melempar error agar proses sinkronisasi utama bisa lanjut
+  }
+};

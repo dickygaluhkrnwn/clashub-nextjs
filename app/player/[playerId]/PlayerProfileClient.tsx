@@ -1,6 +1,6 @@
 // File: app/player/[playerId]/PlayerProfileClient.tsx
 // Deskripsi: Client Component baru untuk Halaman Profil Publik.
-//            Menggunakan komponen yang sama dengan app/profile/ untuk sinkronisasi UI.
+//            [PERBAIKAN] Menyamakan logika rating default menjadi 0.0
 
 'use client';
 
@@ -66,12 +66,16 @@ const PlayerProfileClient = ({
   // Role CoC
   const inGameRole = userProfile?.clanRole || 'not in clan';
 
-  // Kalkulasi Reputasi
-  const totalRating =
-    playerReviews.reduce((acc, review) => acc + review.rating, 0) /
-    (playerReviews.length || 1);
-  const reputation = playerReviews.length > 0 ? totalRating : 5.0; // Default 5.0
+  // [PERBAIKAN] Kalkulasi Reputasi disamakan dengan Halaman Klan
   const playerReviewsCount = playerReviews.length;
+  const totalRating = playerReviews.reduce(
+    (acc, review) => acc + review.rating,
+    0,
+  );
+  // Jika 0 ulasan, reputasi = 0.0. Jika ada, hitung rata-ratanya.
+  const reputation =
+    playerReviewsCount > 0 ? totalRating / playerReviewsCount : 0.0;
+  // --- AKHIR PERBAIKAN ---
 
   // PENTING: Untuk profil PUBLIK, 'isClanManager' selalu false
   // agar tombol "Kelola Klan" atau info sinkronisasi tidak muncul.
@@ -132,7 +136,7 @@ const PlayerProfileClient = ({
           isFreeAgent={isFreeAgent}
           isCompetitiveVision={isCompetitiveVision}
           isClanManager={isClanManagerForPublicView} // Selalu false di publik
-          reputation={reputation}
+          reputation={reputation} // <-- Menggunakan reputasi yang sudah diperbaiki
           playerReviewsCount={playerReviewsCount}
         />
 

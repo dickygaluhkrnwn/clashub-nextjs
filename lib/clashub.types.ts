@@ -129,6 +129,10 @@ export interface ManagedClan {
   avgTh: number; // Rata-rata Level TH anggota (dikalkulasi)
   clanLevel: number; // Level Klan CoC (dari API)
   memberCount: number; // Jumlah anggota (dari API)
+
+  // --- [BARU: TAHAP 1.3 - Roadmap] ---
+  // Snapshot dari daftar anggota, digunakan untuk deteksi join/leave
+  memberList: { tag: string; name: string }[];
 }
 
 /**

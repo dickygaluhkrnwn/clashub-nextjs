@@ -92,11 +92,16 @@ const ProfileClient = ({
 
     const inGameRole = userProfile?.clanRole || 'not in clan';
 
-    // [FIX] Logika reputasi tetap di sini karena datanya (playerReviews) ada di sini
-    const totalRating =
-      playerReviews.reduce((acc, review) => acc + review.rating, 0) /
-      (playerReviews.length || 1);
-    const reputation = playerReviews.length > 0 ? totalRating : 5.0; // Default 5.0
+    // [PERBAIKAN] Logika reputasi disamakan dengan profil publik (default 0.0)
+    const playerReviewsCount = playerReviews.length;
+    const totalRating = playerReviews.reduce(
+      (acc, review) => acc + review.rating,
+      0,
+    );
+    // Jika 0 ulasan, reputasi = 0.0. Jika ada, hitung rata-ratanya.
+    const reputation =
+      playerReviewsCount > 0 ? totalRating / playerReviewsCount : 0.0;
+    // --- AKHIR PERBAIKAN ---
 
     // [FIX] Hapus logika:
     // - cleanUrlDisplay (pindah ke ProfileSidebar)
@@ -120,7 +125,7 @@ const ProfileClient = ({
             isVerified={isVerified}
             isFreeAgent={isFreeAgent}
             isCompetitiveVision={isCompetitiveVision}
-            reputation={reputation}
+            reputation={reputation} // <-- Reputasi yang sudah diperbaiki
             playerReviewsCount={playerReviews.length} // [FIX] Mengirim prop 'playerReviewsCount'
             isClanManager={isClanManager}
           />

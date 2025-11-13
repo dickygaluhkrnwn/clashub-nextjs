@@ -20,7 +20,8 @@ import {
 // [PERBAIKAN] Hapus FirestoreDocument dari impor ./utils
 import { docToDataAdmin, cleanDataForAdminSDK } from './utils';
 // [UPDATE 4.2 & FIX 404] Tambahkan DocumentData dan FieldPath
-import { DocumentData, FieldPath } from 'firebase-admin/firestore';
+// [UPDATE Fase 1.2] Tambahkan FieldValue untuk serverTimestamp
+import { DocumentData, FieldPath, FieldValue } from 'firebase-admin/firestore';
 
 /**
  * Mengambil dokumen UserProfile berdasarkan UID (Admin).
@@ -183,6 +184,84 @@ export const getPlayerReviewsAdmin = async (
   }
 };
 
+// --- [BARU: TAHAP 1.2 - Roadmap] ---
+// Fungsi baru ditambahkan di sini
+
+/**
+ * [BARU] Mencatat data riwayat klan saat seorang player TERDETEKSI BERGABUNG.
+ * Dokumen ID menggunakan clanTag untuk kemudahan pencarian.
+ */
+export const recordPlayerClanJoin = async (
+  uid: string,
+  clanTag: string,
+  clanName: string,
+): Promise<void> => {
+  try {
+    const historyRef = adminFirestore
+      .collection(COLLECTIONS.USERS)
+      .doc(uid)
+      .collection(COLLECTIONS.CLAN_HISTORY)
+      .doc(clanTag); // Gunakan clanTag sebagai ID Dokumen
+
+    const historyData = {
+      clanTag: clanTag,
+      clanName: clanName,
+      joinedAt: FieldValue.serverTimestamp(),
+      leftAt: null, // Set null saat bergabung
+      hasLeft: false,
+    };
+
+    // Gunakan set + merge: true.
+    // Ini akan membuat dokumen jika belum ada, atau
+    // menimpanya (me-reset) jika player ini keluar dan bergabung kembali.
+    await historyRef.set(historyData, { merge: true });
+    console.log(
+      `[recordPlayerClanJoin] Riwayat join dicatat untuk UID: ${uid}, Clan: ${clanTag}`,
+    );
+  } catch (error) {
+    console.error(
+      `Firestore Error [recordPlayerClanJoin - Admin(${uid}, ${clanTag})]:`,
+      error,
+    );
+    // Tidak melempar error agar proses sinkronisasi lain bisa lanjut
+  }
+};
+
+/**
+ * [BARU] Mencatat data riwayat klan saat seorang player TERDETEKSI KELUAR.
+ */
+export const recordPlayerClanLeave = async (
+  uid: string,
+  clanTag: string,
+): Promise<void> => {
+  try {
+    const historyRef = adminFirestore
+      .collection(COLLECTIONS.USERS)
+      .doc(uid)
+      .collection(COLLECTIONS.CLAN_HISTORY)
+      .doc(clanTag); // Target dokumen yang sama
+
+    const updateData = {
+      leftAt: FieldValue.serverTimestamp(),
+      hasLeft: true,
+    };
+
+    // Gunakan update. Kita berasumsi dokumen sudah ada dari saat join.
+    await historyRef.update(updateData);
+    console.log(
+      `[recordPlayerClanLeave] Riwayat leave dicatat untuk UID: ${uid}, Clan: ${clanTag}`,
+    );
+  } catch (error) {
+    console.error(
+      `Firestore Error [recordPlayerClanLeave - Admin(${uid}, ${clanTag})]:`,
+      error,
+    );
+    // Tidak melempar error agar proses sinkronisasi lain bisa lanjut
+  }
+};
+
+// --- [AKHIR FUNGSI BARU TAHAP 1.2] ---
+
 // [TAMBAHAN BARU UNTUK FIX ERROR 404]
 /**
  * [BARU] Mengambil beberapa dokumen UserProfile berdasarkan array UID (Admin).
@@ -225,3 +304,40 @@ export const getUserProfilesByIdsAdmin = async (
     return [];
   }
 };
+
+// --- [BARU: TAHAP 1.4 - Roadmap] ---
+// Fungsi baru ditambahkan di sini
+
+/**
+ * [BARU] Mengambil satu UserProfile berdasarkan playerTag CoC (Admin).
+ * Dibuat untuk API route /sync-members untuk mencari user yang join/leave.
+ */
+export const getUserProfileByPlayerTagAdmin = async (
+  playerTag: string,
+): Promise<FirestoreDocument<UserProfile> | null> => {
+  if (!playerTag) {
+    return null;
+  }
+
+  try {
+    const usersRef = adminFirestore.collection(COLLECTIONS.USERS);
+    // Query field 'playerTag' yang sudah kita simpan saat verifikasi
+    const q = usersRef.where('playerTag', '==', playerTag).limit(1);
+    const snapshot = await q.get();
+
+    if (snapshot.empty) {
+      // User ini tidak terverifikasi di Clashub, tidak masalah.
+      return null;
+    }
+
+    // Kembalikan data user yang terverifikasi
+    return docToDataAdmin<UserProfile>(snapshot.docs[0]);
+  } catch (error) {
+    console.error(
+      `Firestore Error [getUserProfileByPlayerTagAdmin - Admin(${playerTag})]:`,
+      error,
+    );
+    return null;
+  }
+};
+// --- [AKHIR FUNGSI BARU] ---
