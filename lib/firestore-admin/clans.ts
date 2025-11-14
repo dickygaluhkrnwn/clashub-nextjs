@@ -60,6 +60,30 @@ export const getClanApiCacheAdmin = async (
 };
 
 /**
+ * [BARU] Mengambil SEMUA data ManagedClan (Admin).
+ * Dibuat untuk menggantikan getManagedClans (client) yang salah digunakan di server-utils.
+ */
+export const getManagedClansAdmin = async (): Promise<
+  FirestoreDocument<ManagedClan>[]
+> => {
+  try {
+    const collectionRef = adminFirestore.collection(COLLECTIONS.MANAGED_CLANS);
+    const snapshot = await collectionRef.get();
+
+    if (snapshot.empty) {
+      return [];
+    }
+
+    return snapshot.docs
+      .map((doc) => docToDataAdmin<ManagedClan>(doc))
+      .filter(Boolean) as FirestoreDocument<ManagedClan>[];
+  } catch (error) {
+    console.error(`Firestore Error [getManagedClansAdmin - Admin]:`, error);
+    return []; // Kembalikan array kosong jika gagal
+  }
+};
+
+/**
  * Membuat dokumen ManagedClan baru atau mengembalikan ID yang sudah ada.
  * Menggunakan Admin SDK. Dipanggil dari server (verifikasi).
  */

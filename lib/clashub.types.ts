@@ -665,3 +665,11 @@ export interface ManagedClanDataPayload {
   clan: FirestoreDocument<ManagedClan>; // Data induk (untuk badgeUrl, name, dll)
   cache: ClanApiCache | null; // Data cache (untuk members, currentWar, dll)
 }
+
+/**
+ * [BARU] Tipe data untuk rekomendasi tim di Halaman Utama.
+ * Menggabungkan data klan dengan rating rata-rata yang dihitung.
+ */
+export type RecommendedTeam = FirestoreDocument<ManagedClan> & {
+  averageRating: number;
+};

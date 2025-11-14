@@ -1,32 +1,64 @@
 // File: lib/server-utils.ts
 // Deskripsi: Kumpulan fungsi utilitas yang dijalankan HANYA di sisi server (misal: API Routes).
 
-import { getManagedClans } from '@/lib/firestore'; // Menggunakan absolute path
-import { ManagedClan } from '@/lib/types'; // Menggunakan absolute path
+// [PERBAIKAN] Ganti impor client-side (firestore) dengan admin-side (firestore-admin)
+import { getManagedClansAdmin } from '@/lib/firestore-admin/clans';
+import { getClanReviewsAdmin } from '@/lib/firestore-admin/reviews'; // [BARU] Impor fungsi ulasan
+import { ManagedClan, RecommendedTeam, FirestoreDocument } from '@/lib/types'; // [PERBAIKAN] Impor tipe baru
 
 /**
  * @function getRecommendedTeams
  * Mengambil dan memilih klan secara acak untuk direkomendasikan di halaman utama.
  * Logika ini berjalan di Server Component (SSR).
- * @returns Array 5 klan internal terbaik atau klan acak.
+ * [PERBAIKAN] Fungsi ini sekarang menghitung dan mengembalikan rating asli.
+ * @returns Array 5 klan internal terbaik (berdasarkan rating) atau klan acak.
  */
-export async function getRecommendedTeams(): Promise<ManagedClan[]> {
+export async function getRecommendedTeams(): Promise<RecommendedTeam[]> {
   try {
-    const allClans = await getManagedClans();
+    // [PERBAIKAN] Menggunakan getManagedClansAdmin (Admin SDK) bukan getManagedClans (Client SDK)
+    const allClans: FirestoreDocument<ManagedClan>[] =
+      await getManagedClansAdmin();
 
-    // 1. Prioritaskan klan dengan logo/website yang diisi (proxy rating)
-    const prioritizedClans = allClans
-      .filter((clan) => clan.logoUrl || clan.website)
-      .sort((a, b) => b.avgTh - a.avgTh);
+    if (allClans.length === 0) {
+      return [];
+    }
 
-    // 2. Ambil 5 klan dari yang diprioritaskan
-    let selectedClans: ManagedClan[] = prioritizedClans.slice(0, 5);
+    // [BARU] Hitung averageRating untuk setiap klan
+    const clansWithRating: RecommendedTeam[] = await Promise.all(
+      allClans.map(async (clan) => {
+        // Panggil fungsi admin untuk mengambil ulasan
+        const reviews = await getClanReviewsAdmin(clan.id);
+        let averageRating = 0;
 
-    // 3. Jika kurang dari 5, tambahkan klan lain secara acak
+        if (reviews.length > 0) {
+          const totalRating = reviews.reduce(
+            (acc, review) => acc + review.rating,
+            0,
+          );
+          averageRating = totalRating / reviews.length;
+        }
+
+        // Kembalikan objek baru yang menggabungkan ManagedClan dengan averageRating
+        return {
+          ...clan,
+          averageRating: averageRating,
+        };
+      }),
+    );
+
+    // [PERBAIKAN] Logika sorting sekarang berdasarkan rating, bukan lagi logo/website
+    const prioritizedClans = clansWithRating.sort(
+      (a, b) => b.averageRating - a.averageRating,
+    );
+
+    // 2. Ambil 5 klan teratas berdasarkan rating
+    let selectedClans: RecommendedTeam[] = prioritizedClans.slice(0, 5);
+
+    // 3. Jika kurang dari 5, tambahkan klan lain secara acak (logika lama dipertahankan)
     if (selectedClans.length < 5) {
       const remainingNeeded = 5 - selectedClans.length;
-      const remainingClans = allClans.filter(
-        (clan) => !selectedClans.find((s) => s.id === clan.id)
+      const remainingClans = clansWithRating.filter(
+        (clan) => !selectedClans.find((s) => s.id === clan.id),
       );
 
       // Logika shuffle/acak dasar
@@ -84,7 +116,7 @@ export function parseCocApiTimestamp(cocDateString: string): Date {
     // Jika tanggal tidak ada atau formatnya aneh, kembalikan Date epoch
     // Ini lebih aman daripada melempar error yang menghentikan seluruh batch
     console.warn(
-      `Invalid CoC date string format received: ${cocDateString}. Using epoch.`
+      `Invalid CoC date string format received: ${cocDateString}. Using epoch.`,
     );
     return new Date(0); // Kembali ke Jan 1, 1970 UTC
   }
@@ -107,7 +139,7 @@ export function parseCocApiTimestamp(cocDateString: string): Date {
     if (isNaN(date.getTime())) {
       // Jika parsing gagal (misal tanggal invalid)
       console.warn(
-        `Failed to parse date string: ${cocDateString} (ISO: ${isoString}). Using epoch.`
+        `Failed to parse date string: ${cocDateString} (ISO: ${isoString}). Using epoch.`,
       );
       return new Date(0);
     }
@@ -115,7 +147,7 @@ export function parseCocApiTimestamp(cocDateString: string): Date {
   } catch (error) {
     console.error(
       `Exception during date parsing for: ${cocDateString}`,
-      error
+      error,
     );
     return new Date(0); // Fallback jika terjadi exception
   }
