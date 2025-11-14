@@ -1,13 +1,15 @@
 import React from 'react';
-import { ManagedClan } from '@/lib/types';
+// [PERBAIKAN] Ganti impor ManagedClan ke RecommendedTeam
+import { RecommendedTeam } from '@/lib/types';
 import { TeamCard } from '@/app/components/cards';
 import { Button } from '@/app/components/ui/Button';
 import { RefreshCwIcon } from '@/app/components/icons';
 
 interface ClashubTeamsTabProps {
   isFiltering: boolean;
-  filteredClans: ManagedClan[];
-  clansToShow: ManagedClan[];
+  // [PERBAIKAN] Ganti tipe props ke RecommendedTeam[]
+  filteredClans: RecommendedTeam[];
+  clansToShow: RecommendedTeam[];
   showLoadMoreClans: boolean;
   onLoadMoreClans: () => void;
 }
@@ -44,13 +46,15 @@ export const ClashubTeamsTab = ({
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {clansToShow.map((clan: ManagedClan) => (
+            {/* [PERBAIKAN] Ganti tipe map ke RecommendedTeam */}
+            {clansToShow.map((clan: RecommendedTeam) => (
               <TeamCard
                 key={clan.id}
                 id={clan.id}
                 name={clan.name}
                 tag={clan.tag}
-                rating={5.0} // Placeholder rating dari file asli
+                // [PERBAIKAN UTAMA] Ganti placeholder dengan rating asli
+                rating={clan.averageRating}
                 vision={clan.vision}
                 avgTh={clan.avgTh}
                 logoUrl={clan.logoUrl}

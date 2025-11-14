@@ -63,8 +63,8 @@ const TeamHubFilter = ({ filters, onFilterChange }: TeamHubFilterProps) => {
     const defaultFilters: ManagedClanFilters = {
       searchTerm: '',
       vision: 'all',
-      reputation: 3.0,
-      thLevel: 0, // <-- BUG DIPERBAIKI DI SINI
+      reputation: 0, // <-- [PERBAIKAN] BUG DIPERBAIKI DI SINI (dari 3.0 ke 0)
+      thLevel: 0,
     };
     onFilterChange(defaultFilters);
 
@@ -140,7 +140,7 @@ const TeamHubFilter = ({ filters, onFilterChange }: TeamHubFilterProps) => {
           <input
             type="range"
             id="rating-input"
-            min="3.0"
+            min="0" // <-- [PERBAIKAN] BUG DIPERBAIKI DI SINI (dari 3.0 ke 0)
             max="5.0"
             step="0.1"
             value={filters.reputation}

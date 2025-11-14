@@ -1,17 +1,15 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
-import { ManagedClan, Player, PublicClanIndex } from '@/lib/types';
+// [PERBAIKAN] Impor tipe RecommendedTeam
+import { ManagedClan, Player, PublicClanIndex, RecommendedTeam } from '@/lib/types';
 
 // --- [IMPOR DIHAPUS] ---
-// Image, TeamHubFilter, PlayerHubFilter, Link, PlayerCard, TeamCard
-// Ikon-ikon spesifik (Search, Clock, Alert, RefreshCw, Star)
-// dipindahkan ke komponen anak.
+// (Tidak ada perubahan di sini)
 
 // Button tetap dibutuhkan untuk 'Load More'
 import { Button } from '@/app/components/ui/Button';
-// Ikon-ikon ini tetap dibutuhkan untuk TeamHubTabNavigation (meski sudah ada di sana,
-// lebih baik impor di sini jika TabButton dipindah kembali nanti)
+// Ikon-ikon ini tetap dibutuhkan untuk TeamHubTabNavigation
 import { ShieldIcon, UserIcon, GlobeIcon } from '@/app/components/icons';
 
 // --- [IMPOR BARU DARI KOMPONEN HASIL REFACTOR] ---
@@ -27,22 +25,20 @@ import { PublicClansTab } from './components/PublicClansTab';
 const ITEMS_PER_LOAD = 6;
 
 // =========================================================================
-// 1. KOMPONEN KARTU KLAN PUBLIK (PINDAH KE ./components/PublicClanCard.tsx)
+// (Komponen PublicClanCard sudah dipindah)
 // =========================================================================
-// ... (Kode PublicClanCard dihapus dari sini) ...
 
 // =========================================================================
-// 2. MAIN COMPONENT & LOGIC (Sekarang JAUH LEBIH RAMPING)
+// 2. MAIN COMPONENT & LOGIC
 // =========================================================================
 interface TeamHubClientProps {
-  initialClans: ManagedClan[];
+  // [PERBAIKAN #1] Ganti tipe props dari ManagedClan[] ke RecommendedTeam[]
+  initialClans: RecommendedTeam[];
   initialPlayers: Player[];
   initialPublicClans: PublicClanIndex[]; // Cache Klan Publik
 }
 
 // --- [JENIS DIEKSPOR] ---
-// Tipe-tipe ini sekarang diekspor agar bisa digunakan oleh komponen anak
-// seperti TeamHubTabNavigation.tsx dan TeamHubFilterBar.tsx
 export type ActiveTab = 'clashubTeams' | 'publicClans' | 'players';
 
 export type ManagedClanFilters = {
@@ -65,20 +61,20 @@ const TeamHubClient = ({
   initialPublicClans,
 }: TeamHubClientProps) => {
   // --- [STATE MANAGEMENT] ---
-  // (Semua state tetap di sini, ini adalah "Container" Logic)
   const [activeTab, setActiveTab] = useState<ActiveTab>('clashubTeams');
-  const [allClans] = useState<ManagedClan[]>(initialClans);
+  // [PERBAIKAN #2] Ganti tipe state dari ManagedClan[] ke RecommendedTeam[]
+  const [allClans] = useState<RecommendedTeam[]>(initialClans);
   const [allPlayers] = useState<Player[]>(
     initialPlayers.map((p: Player) => ({
       ...p,
       name: p.displayName || p.name,
-    }))
+    })),
   );
   const [isFiltering, setIsFiltering] = useState(false);
   const [publicClansCache] = useState<PublicClanIndex[]>(() =>
     [...initialPublicClans].sort(
-      (a, b) => (b.clanLevel || 0) - (a.clanLevel || 0)
-    )
+      (a, b) => (b.clanLevel || 0) - (a.clanLevel || 0),
+    ),
   );
 
   // State Paginasi
@@ -92,13 +88,13 @@ const TeamHubClient = ({
   const [clanFilters, setClanFilters] = useState<ManagedClanFilters>({
     searchTerm: '',
     vision: 'all',
-    reputation: 3.0,
+    reputation: 0, // [PERBAIKAN] Ganti default dari 3.0 ke 0
     thLevel: 0,
   });
   const [playerFilters, setPlayerFilters] = useState<PlayerFilters>({
     searchTerm: '',
     role: 'all',
-    reputation: 3.0,
+    reputation: 0, // [PERBAIKAN] Ganti 3.0 ke 0 (untuk filter pemain)
     thLevel: 0,
   });
 
@@ -108,28 +104,34 @@ const TeamHubClient = ({
     useState<PublicClanIndex | null>(null);
   const [isSearchingPublicClan, setIsSearchingPublicClan] = useState(false);
   const [publicSearchError, setPublicSearchError] = useState<string | null>(
-    null
+    null,
   );
   // --- [AKHIR STATE MANAGEMENT] ---
 
   // --- [MEMOIZED LOGIC] ---
-  // (Semua useMemo tetap di sini)
   const filteredClans = useMemo(() => {
     return allClans
-      .filter((clan: ManagedClan) => {
+      .filter((clan: RecommendedTeam) => { // [PERBAIKAN #3] Ganti tipe ke RecommendedTeam
         const searchTermLower = clanFilters.searchTerm.toLowerCase();
         const visionMatch =
           clanFilters.vision === 'all' || clan.vision === clanFilters.vision;
         const clanName = clan.name ?? '';
         const clanTag = clan.tag ?? '';
+
+        // [BARU] Logika filter untuk reputasi/rating
+        const ratingMatch = clan.averageRating >= clanFilters.reputation;
+        const thMatch = clan.avgTh >= clanFilters.thLevel;
+
         return (
           (clanName.toLowerCase().includes(searchTermLower) ||
             clanTag.toLowerCase().includes(searchTermLower)) &&
           visionMatch &&
-          clan.avgTh >= clanFilters.thLevel
+          thMatch &&
+          ratingMatch // <-- [BARU] Terapkan filter rating
         );
       })
-      .sort((a: ManagedClan, b: ManagedClan) => b.avgTh - a.avgTh);
+      // [PERBAIKAN #4] Urutkan berdasarkan rating asli, bukan avgTh
+      .sort((a: RecommendedTeam, b: RecommendedTeam) => b.averageRating - a.averageRating);
   }, [allClans, clanFilters]);
 
   const filteredPlayers = useMemo(() => {
@@ -154,15 +156,15 @@ const TeamHubClient = ({
   // Data yang akan ditampilkan (setelah dipaginasi)
   const clansToShow = useMemo(
     () => filteredClans.slice(0, visibleClansCount),
-    [filteredClans, visibleClansCount]
+    [filteredClans, visibleClansCount],
   );
   const playersToShow = useMemo(
     () => filteredPlayers.slice(0, visiblePlayersCount),
-    [filteredPlayers, visiblePlayersCount]
+    [filteredPlayers, visiblePlayersCount],
   );
   const publicClansToShow = useMemo(
     () => publicClansDataSource.slice(0, visiblePublicClansCount),
-    [publicClansDataSource, visiblePublicClansCount]
+    [publicClansDataSource, visiblePublicClansCount],
   );
 
   // Tampilkan tombol "Load More"
@@ -236,14 +238,14 @@ const TeamHubClient = ({
 
       try {
         const response = await fetch(
-          `/api/coc/search-clan?clanTag=${encodedTag}`
+          `/api/coc/search-clan?clanTag=${encodedTag}`,
         );
         let result: any;
         try {
           result = await response.json();
         } catch (jsonError) {
           throw new Error(
-            `Failed to parse response from server. Status: ${response.status}`
+            `Failed to parse response from server. Status: ${response.status}`,
           );
         }
 
@@ -255,7 +257,7 @@ const TeamHubClient = ({
           setPublicSearchError(
             response.status === 404
               ? `Klan dengan tag ${tagToSearch} tidak ditemukan di CoC API.`
-              : errorMessage
+              : errorMessage,
           );
           return;
         }
@@ -268,31 +270,30 @@ const TeamHubClient = ({
       } catch (error) {
         setPublicSearchError(
           (error instanceof Error ? error.message : String(error)) ||
-            'Terjadi kesalahan saat mencari klan.'
+            'Terjadi kesalahan saat mencari klan.',
         );
       } finally {
         setIsSearchingPublicClan(false);
         console.log('[handlePublicClanSearch] Tag search finished.');
       }
     },
-    [publicClanTag]
+    [publicClanTag],
   );
 
   // --- [HANDLER BARU UNTUK TAB] ---
-  // Logika ini diambil dari komponen TabButton yang lama
   const handleTabChange = useCallback((tab: ActiveTab) => {
     setActiveTab(tab);
     // Reset semua state filter dan pagination saat berganti tab
     setClanFilters({
       searchTerm: '',
       vision: 'all',
-      reputation: 3.0,
+      reputation: 0, // [PERBAIKAN] Ganti 3.0 ke 0
       thLevel: 0,
     });
     setPlayerFilters({
       searchTerm: '',
       role: 'all',
-      reputation: 3.0,
+      reputation: 0, // [PERBAIKAN] Ganti 3.0 ke 0 (untuk filter pemain)
       thLevel: 0,
     });
     setPublicClanTag('');
@@ -305,13 +306,8 @@ const TeamHubClient = ({
   // --- [AKHIR HANDLER FUNCTIONS] ---
 
   // =========================================================================
-  // RENDER LOGIC (FUNGSI render...() DIHAPUS)
+  // RENDER LOGIC
   // =========================================================================
-  // ... (TabButton dihapus)
-  // ... (renderContent dihapus)
-  // ... (renderClashubTeams dihapus)
-  // ... (renderPlayers dihapus)
-  // ... (renderPublicClansContent dihapus)
 
   // --- [MAIN RETURN (REFACTORED)] ---
   return (
@@ -364,8 +360,8 @@ const TeamHubClient = ({
               {activeTab === 'clashubTeams' && (
                 <ClashubTeamsTab
                   isFiltering={isFiltering}
-                  filteredClans={filteredClans}
-                  clansToShow={clansToShow}
+                  filteredClans={filteredClans} // <-- [PERBAIKAN] Data sudah berisi rating
+                  clansToShow={clansToShow} // <-- [PERBAIKAN] Data sudah berisi rating
                   showLoadMoreClans={showLoadMoreClans}
                   onLoadMoreClans={handleLoadMoreClans}
                 />
