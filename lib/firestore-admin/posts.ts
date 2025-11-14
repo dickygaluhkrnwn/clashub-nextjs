@@ -166,3 +166,27 @@ export const getPostsByAuthorAdmin = async (
     return [];
   }
 }; // <-- Menambahkan '}' dan ';' yang hilang
+
+/**
+ * @function getRecentPostsAdmin
+ * [BARU] Mengambil postingan terbaru (misal: 4) untuk halaman utama.
+ * Dibuat untuk menggantikan data statis di LatestStrategies.
+ */
+export const getRecentPostsAdmin = async (
+  limitCount: number = 4,
+): Promise<FirestoreDocument<Post>[]> => {
+  try {
+    const postsRef = adminFirestore.collection(COLLECTIONS.POSTS);
+    const q = postsRef.orderBy('createdAt', 'desc').limit(limitCount);
+
+    const snapshot = await q.get();
+
+    return snapshot.docs
+      .map((doc) => docToDataAdmin<Post>(doc))
+      .filter(Boolean) as FirestoreDocument<Post>[];
+  } catch (error) {
+    console.error(`Firestore Error [getRecentPostsAdmin - Admin]:`, error);
+    // Kembalikan array kosong jika terjadi error
+    return [];
+  }
+};
