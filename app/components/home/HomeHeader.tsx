@@ -118,10 +118,10 @@ export default function HomeHeader({
         </div>
       </section>
 
-      {/* Top Section - [PERBAIKAN] Sekarang Dinamis */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+      {/* Top Section - [PERBAIKAN UI] Menambahkan container, padding (px, py) untuk spasi dari tepi layar dan banner */}
+      <section className="container mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 mb-12 py-8 px-4">
         {/* Kolom Kiri & Tengah (Status Panel) */}
-        <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
           
           {/* ========== [BLOK 1: STATUS WAR (DINAMIS)] ========== */}
           <div className="card-stone p-6 flex flex-col justify-between">
@@ -160,8 +160,13 @@ export default function HomeHeader({
                   <div className="bg-coc-stone/50 p-2 rounded-lg border border-coc-gold-dark/20">
                     <PercentageIcon className="mx-auto text-3xl text-coc-green mb-2" />
                     <span className="block text-xl font-bold font-clash text-white">
-                      {/* [PERBAIKAN] Tambahkan fallback 0 sebelum .toFixed() */}
-                      {(currentWar.clan.destruction || 0).toFixed(1)}%
+                      {/* ============================================================
+                        [PERBAIKAN DATA 99.27%]
+                        Mengganti 'destruction' menjadi 'destructionPercentage'
+                        Mengganti 'toFixed(1)' menjadi 'toFixed(2)' agar konsisten
+                        ============================================================
+                      */}
+                      {(currentWar.clan.destructionPercentage || 0).toFixed(2)}%
                     </span>
                     <p className="text-xs text-gray-400 uppercase font-sans">
                       Destruction
@@ -298,7 +303,7 @@ export default function HomeHeader({
         </div>
 
         {/* Kolom Kanan (Side Info) */}
-        <div className="space-y-8">
+        <div className="space-y-6 md:space-y-8">
           
           {/* ========== [BLOK 3: RINGKASAN PROFIL (DINAMIS)] ========== */}
           <div className="card-stone p-6 text-center">
