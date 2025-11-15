@@ -88,9 +88,16 @@ export default async function Home() {
       />
 
       {/* Main Content Area */}
-      <main className="container mx-auto p-4 md:p-8">
-        {/* [BARU] Menambahkan Tautan Cepat di sini */}
-        <QuickLinks />
+      {/* [PERBAIKAN SPACING] 
+        Padding atas (pt-4/md:pt-8) dihapus dari <main> 
+        dan diganti dengan margin-top (mt-12) pada section pertama
+        agar jaraknya konsisten (3rem) dengan jarak antar section lain.
+      */}
+      <main className="container mx-auto px-4 pb-4 md:px-8 md:pb-8">
+        {/* [PERBAIKAN SPACING] Wrapper div dengan mt-12 (3rem) */}
+        <div className="mt-12">
+          <QuickLinks />
+        </div>
 
         {/* 2. Komponen Rekomendasi Tim (Sudah Dinamis) */}
         <Suspense fallback={<RecommendedTeamsLoading />}>

@@ -37,11 +37,13 @@ export const ClashubTeamsTab = ({
   return (
     <div className="space-y-6">
       <h2 className="text-3xl font-clash text-white">
-        {filteredClans.length} Tim Internal Ditemukan
+        {/* [PERBAIKAN 1] Mengganti "Tim Internal" menjadi "Clan Internal" */}
+        {filteredClans.length} Clan Internal Ditemukan
       </h2>
       {clansToShow.length === 0 ? (
         <p className="text-gray-400 text-center py-10">
-          Tidak ada Tim Clashub yang cocok dengan filter Anda.
+          {/* [PERBAIKAN 2] Mengganti "Tim Clashub" menjadi "Clan Internal" */}
+          Tidak ada Clan Internal yang cocok dengan filter Anda.
         </p>
       ) : (
         <>

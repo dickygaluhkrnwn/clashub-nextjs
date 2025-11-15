@@ -52,14 +52,16 @@ export const TeamHubTabNavigation = ({
     <div className="flex border-b-2 border-coc-stone overflow-x-auto custom-scrollbar rounded-t-lg">
       <TabButton
         tab="clashubTeams"
-        label="Tim Clashub"
+        // [PERBAIKAN 1] Mengganti "Tim Clashub" menjadi "Clan Internal"
+        label="Clan Internal"
         icon={ShieldIcon}
         activeTab={activeTab}
         onClick={onTabChange}
       />
       <TabButton
         tab="publicClans"
-        label="Pencarian Klan"
+        // [PERBAIKAN 2] Mengganti "Pencarian Klan" menjadi "Pencarian Klan Publik"
+        label="Pencarian Klan Publik"
         icon={GlobeIcon}
         activeTab={activeTab}
         onClick={onTabChange}
@@ -68,6 +70,7 @@ export const TeamHubTabNavigation = ({
         tab="players"
         label="Cari Pemain"
         icon={UserIcon}
+        // [PERBAIKAN 3] Typo 'activeT' diubah menjadi 'activeTab'
         activeTab={activeTab}
         onClick={onTabChange}
       />

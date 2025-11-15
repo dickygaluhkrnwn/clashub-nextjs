@@ -155,7 +155,8 @@ export const TeamCard = ({
       {/* PERBAIKAN: Mengubah link dari /team/[id] ke /clan/internal/[clanId] */}
       <Link href={`/clan/internal/${id}`} className="mt-5">
         <Button variant="secondary" className="w-full">
-          Lihat Profil Tim
+          {/* [PERBAIKAN] Mengganti "Lihat Profil Tim" menjadi "Lihat Profil Clan" */}
+          Lihat Profil Clan
         </Button>
       </Link>
     </div>

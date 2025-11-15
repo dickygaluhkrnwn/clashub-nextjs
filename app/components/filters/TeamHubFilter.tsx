@@ -77,7 +77,8 @@ const TeamHubFilter = ({ filters, onFilterChange }: TeamHubFilterProps) => {
     <aside className="card-stone p-6 h-fit sticky top-28 rounded-lg">
       <h2 className="text-2xl font-clash text-white border-l-4 border-coc-gold-dark pl-3 mb-6 flex items-center gap-3">
         <UsersCogIcon className="h-6 w-6 text-coc-gold-dark" />
-        Filter Tim Clashub
+        {/* [PERBAIKAN 1] Mengganti "Filter Tim Clashub" menjadi "Filter Clan" */}
+        Filter Clan
       </h2>
 
       <div className="space-y-6">
@@ -87,7 +88,8 @@ const TeamHubFilter = ({ filters, onFilterChange }: TeamHubFilterProps) => {
             htmlFor="search-input"
             className="block text-sm font-bold text-gray-300 mb-2 font-sans"
           >
-            Nama Tim / Tag
+            {/* [PERBAIKAN 2] Mengganti "Nama Tim / Tag" menjadi "Nama Clan / Tag" */}
+            Nama Clan / Tag
           </label>
           <input
             type="text"
@@ -105,7 +107,8 @@ const TeamHubFilter = ({ filters, onFilterChange }: TeamHubFilterProps) => {
             htmlFor="vision-filter"
             className="block text-sm font-bold text-gray-300 mb-2"
           >
-            Visi Tim
+            {/* [PERBAIKAN 3] Mengganti "Visi Tim" menjadi "Visi Clan" */}
+            Visi Clan
           </label>
           <select
             id="vision-filter"

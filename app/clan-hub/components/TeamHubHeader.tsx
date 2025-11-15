@@ -14,7 +14,8 @@ export const TeamHubHeader = () => {
       <div className="relative z-10 p-4">
         <h1 className="text-4xl md:text-5xl mb-4">Hub Komunitas Clashub</h1>
         <p className="text-lg text-gray-300 mb-8 max-w-2xl mx-auto">
-          Temukan Tim Clashub Internal, cari Klan Publik, atau rekrut Pemain
+          {/* [PERBAIKAN] Mengganti "Tim Clashub Internal" menjadi "Clan Internal" */}
+          Temukan Clan Internal, cari Klan Publik, atau rekrut Pemain
           baru.
         </p>
       </div>
