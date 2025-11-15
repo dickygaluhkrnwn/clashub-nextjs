@@ -22,7 +22,8 @@ export default async function RecommendedTeams() {
 
   return (
     <CarouselSection
-      title="Rekomendasi Tim untuk Anda"
+      // [PERBAIKAN JUDUL] Diubah sesuai permintaan
+      title="Rekomendasi Clan"
       icon={<CogsIcon className="inline-block h-5 w-5" />}
     >
       {error ? (

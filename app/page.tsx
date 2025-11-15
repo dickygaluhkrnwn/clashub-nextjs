@@ -1,46 +1,86 @@
 import { Suspense } from "react";
+// [BARU] Paksa rendering dinamis untuk memastikan cookie selalu dibaca
+export const dynamic = 'force-dynamic';
+
 import HomeHeader from "@/app/components/home/HomeHeader";
 import RecommendedTeams from "@/app/components/home/RecommendedTeams";
 import LatestStrategies from "@/app/components/home/LatestStrategies";
 import CarouselSection from "@/app/components/layout/CarouselSection";
-// [EDIT] Impor CogsIcon dan BookOpenIcon
 import { CogsIcon, BookOpenIcon } from "@/app/components/icons";
-// [BARU] Impor fungsi data fetching untuk postingan
 import { getRecentPostsAdmin } from "@/lib/firestore-admin/posts";
+
+// Impor untuk data fetching header yang BENAR
+import { getSessionUser } from "@/lib/server-auth";
+import { getUserProfileAdmin } from "@/lib/firestore-admin/users";
+import {
+  getClanApiCacheAdmin,
+  getManagedClanDataAdmin,
+} from "@/lib/firestore-admin/clans";
+import {
+  FirestoreDocument,
+  UserProfile,
+  CocCurrentWar,
+  Tournament,
+  ManagedClan,
+} from "@/lib/types";
 
 /**
  * Halaman utama (Server Component)
- * [PERBAIKAN] Sekarang async untuk fetch data postingan terbaru.
+ * [PERBAIKAN] Sekarang mengambil data untuk Header dan Body
  */
 export default async function Home() {
-  
-  // [PERBAIKAN] Mengubah dari 4 menjadi 8 postingan agar bisa di-scroll
-  const recentPosts = await getRecentPostsAdmin(8);
+  // Data fetching diparalelkan untuk performa
+  const [sessionUser, recentPosts] = await Promise.all([
+    getSessionUser(),
+    getRecentPostsAdmin(8), // Ambil 8 postingan terbaru
+  ]);
+
+  // Variabel untuk data header (default null)
+  let userProfile: FirestoreDocument<UserProfile> | null = null;
+  let currentWar: CocCurrentWar | null = null;
+  let managedClan: FirestoreDocument<ManagedClan> | null = null;
+
+  // 1. Ambil data Profil Pengguna (jika login)
+  if (sessionUser) {
+    userProfile = await getUserProfileAdmin(sessionUser.uid);
+
+    // 2. Ambil data Klan & War (jika user punya klan terkelola)
+    if (userProfile?.clanId) {
+      // Ambil data klan dan data cache war secara paralel
+      const [clanData, clanCache] = await Promise.all([
+        getManagedClanDataAdmin(userProfile.clanId),
+        getClanApiCacheAdmin(userProfile.clanId),
+      ]);
+
+      managedClan = clanData; // Simpan data klan (untuk "The Golden Army")
+
+      // Pastikan currentWar ada dan bukan null/undefined
+      if (clanCache && clanCache.currentWar) {
+        currentWar = clanCache.currentWar; // Simpan data war (untuk "Status War")
+      }
+    }
+  }
 
   return (
     <>
-      {/* 1. Komponen Header dan Info Panel (Statis) */}
-      <HomeHeader />
+      {/* 1. Komponen Header sekarang menerima data dinamis yang BENAR */}
+      <HomeHeader
+        userProfile={userProfile}
+        currentWar={currentWar}
+        managedClan={managedClan}
+      />
 
       {/* Main Content Area */}
       <main className="container mx-auto p-4 md:p-8">
-
-        {/* 2. Komponen Rekomendasi Tim (Dinamis / Async) */}
-        {/* Biarkan komponen ini fetch datanya sendiri, sudah bagus. */}
+        {/* 2. Komponen Rekomendasi Tim (Sudah Dinamis) */}
         <Suspense fallback={<RecommendedTeamsLoading />}>
-          {/* [DIHAPUS] Komentar @ts-expect-error sudah tidak diperlukan lagi */}
           <RecommendedTeams />
         </Suspense>
 
-        {/* 3. Komponen Strategi Terbaru (Sekarang Dinamis) */}
-        {/* [PERBAIKAN] Dibungkus Suspense dan data di-pass sebagai props. */}
+        {/* 3. Komponen Strategi Terbaru (Sudah Dinamis) */}
         <Suspense fallback={<LatestStrategiesLoading />}>
-          {/* * [DIHAPUS] Komentar @ts-expect-error sudah tidak diperlukan
-           * karena LatestStrategies.tsx sekarang menerima props 'posts'.
-           */}
           <LatestStrategies posts={recentPosts} />
         </Suspense>
-
       </main>
     </>
   );
@@ -48,13 +88,14 @@ export default async function Home() {
 
 /**
  * Komponen placeholder loading untuk RecommendedTeams.
- * (Tidak ada perubahan di sini)
  */
 const RecommendedTeamsLoading = () => {
-// ... (kode loading tidak berubah) ...
   return (
-    <CarouselSection title="Rekomendasi Tim untuk Anda" icon={<CogsIcon className="inline-block h-5 w-5" />}>
-      {/* Tampilkan 4 skeleton card */}
+    <CarouselSection
+      // [PERBAIKAN JUDUL] Diubah sesuai permintaan
+      title="Rekomendasi Clan"
+      icon={<CogsIcon className="inline-block h-5 w-5" />}
+    >
       {[...Array(4)].map((_, i) => (
         <div key={i} className="card-stone p-4 animate-pulse">
           <div className="flex items-center gap-4 mb-3">
@@ -74,20 +115,20 @@ const RecommendedTeamsLoading = () => {
       ))}
     </CarouselSection>
   );
-}
+};
 
 /**
- * [BARU] Komponen placeholder loading untuk LatestStrategies.
- * [PERBAIKAN] Skeleton loading disamakan menjadi 8
+ * Komponen placeholder loading untuk LatestStrategies.
  */
 const LatestStrategiesLoading = () => {
-// ... (kode loading tidak berubah) ...
   return (
-    <CarouselSection title="Strategi & Tips Terbaru" icon={<BookOpenIcon className="inline-block h-6 w-6" />}>
-      {/* [PERBAIKAN] Tampilkan 8 skeleton card agar konsisten */}
+    <CarouselSection
+      // [PERBAIKAN JUDUL] Diubah sesuai permintaan
+      title="Strategi & Tips"
+      icon={<BookOpenIcon className="inline-block h-6 w-6" />}
+    >
       {[...Array(8)].map((_, i) => (
         <div key={i} className="card-stone p-4 animate-pulse">
-          {/* Skeleton untuk PostCard */}
           <div className="flex justify-between items-center mb-2">
             <div className="h-4 w-1/4 rounded bg-coc-stone-light/50"></div>
             <div className="h-4 w-1/3 rounded bg-coc-stone-light/50"></div>
@@ -102,4 +143,4 @@ const LatestStrategiesLoading = () => {
       ))}
     </CarouselSection>
   );
-}
+};

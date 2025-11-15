@@ -60,7 +60,8 @@ export default function LatestStrategies({ posts }: LatestStrategiesProps) {
   if (!posts || posts.length === 0) {
     return (
       <CarouselSection
-        title="Strategi & Tips Terbaru"
+        // [PERBAIKAN JUDUL] Diubah sesuai permintaan
+        title="Strategi & Tips"
         icon={<BookOpenIcon className="inline-block h-6 w-6" />}
       >
         <div className="p-4 bg-coc-stone-light/50 text-gray-400 rounded-lg col-span-full">
@@ -72,7 +73,8 @@ export default function LatestStrategies({ posts }: LatestStrategiesProps) {
 
   return (
     <CarouselSection
-      title="Strategi & Tips Terbaru"
+      // [PERBAIKAN JUDUL] Diubah sesuai permintaan
+      title="Strategi & Tips"
       icon={<BookOpenIcon className="inline-block h-6 w-6" />}
     >
       {/* [PERBAIKAN] Me-render 'posts' dari props, bukan data statis */}
