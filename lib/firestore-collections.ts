@@ -32,5 +32,8 @@ export const COLLECTIONS = {
   REGISTRATIONS: 'registrations', // Sub-koleksi di bawah 'tournaments'
 
   // --- [BARU: TAHAP 4.2] ---
-  CLAN_HISTORY: 'clanHistory', // Sub-koleksi di bawah 'users'
+  CLAN_HISTORY: 'clanHistory', // Sub-koleksi di bawah 'users',
+
+  // --- [BARU: ROMBAK V2 - FASE 2] ---
+  PROMOTIONS: 'promotions', // Sub-koleksi di bawah 'managedClans'
 };

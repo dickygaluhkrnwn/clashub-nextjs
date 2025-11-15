@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/Button';
 // Import Tipe Data
-import { ManagedClan, UserProfile } from '@/lib/types';
+import { ManagedClan, UserProfile } from '@/lib/clashub.types';
 // Import Ikon
 import {
   UserCircleIcon,
@@ -52,6 +52,9 @@ import RaidTabContent from './components/RaidTabContent';
 import EsportsTabContent from './components/EsportsTabContent';
 // --- [AKHIR BARU] ---
 
+// [BARU FASE 3] Impor komponen tab promosi
+import PromotionTabContent from './components/PromotionTabContent';
+
 interface ManageClanClientProps {
   clan: ManagedClan | null;
   profile: UserProfile | null;
@@ -67,6 +70,7 @@ type ActiveTab =
   | 'cwl-history'
   | 'raid'
   | 'esports' // <-- [BARU: TAHAP 3.2] Ditambahkan
+  | 'promotion' // <-- [BARU FASE 3] Ditambahkan
   | 'settings';
 
 // --- DAFTAR TAB ---
@@ -109,6 +113,8 @@ const MEMBER_TABS: { tabName: ActiveTab; icon: React.ReactNode; label: string }[
 const MANAGER_TABS: { tabName: ActiveTab; icon: React.ReactNode; label: string }[] =
   [
     { tabName: 'requests', icon: <MailOpenIcon />, label: 'Permintaan Gabung' },
+    // [BARU FASE 3] Tab promosi ditambahkan
+    { tabName: 'promotion', icon: <GlobeIcon />, label: 'Promosi' },
     { tabName: 'settings', icon: <SettingsIcon />, label: 'Pengaturan Klan' },
   ];
 // --- AKHIR DAFTAR TAB ---
@@ -137,7 +143,7 @@ const ManageClanClient = ({
 
   const showNotification = (
     message: string,
-    type: NotificationProps['type']
+    type: NotificationProps['type'],
   ) => {
     setNotification({ message, type, onClose: () => setNotification(null) });
   };
@@ -147,7 +153,7 @@ const ManageClanClient = ({
     if (!clan || !profile || profile.role === 'Leader') {
       showNotification(
         'Aksi tidak diizinkan. Leader harus transfer kepemilikan.',
-        'error'
+        'error',
       );
       return;
     }
@@ -223,7 +229,8 @@ const ManageClanClient = ({
     label: string;
   }> = ({ tabName, icon, label }) => {
     // Logika untuk anggota biasa yang mencoba mengakses tab Manager
-    const isManagerTab = ['requests', 'settings'].includes(tabName);
+    // [EDIT FASE 3] Menambahkan 'promotion' ke daftar tab manager
+    const isManagerTab = ['requests', 'settings', 'promotion'].includes(tabName);
     if (!isManager && isManagerTab) {
       return null; // Jangan render tombol jika bukan manager
     }
@@ -257,7 +264,8 @@ const ManageClanClient = ({
   // Render Konten Tab Sesuai Pilihan
   const renderContent = () => {
     // Filter akses tab manager
-    const forbiddenTabs: ActiveTab[] = ['requests', 'settings'];
+    // [EDIT FASE 3] Menambahkan 'promotion' ke daftar tab terlarang
+    const forbiddenTabs: ActiveTab[] = ['requests', 'settings', 'promotion'];
     if (!isManager && forbiddenTabs.includes(activeTab)) {
       return (
         <div className="p-8 text-center bg-coc-red/10 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
@@ -317,6 +325,11 @@ const ManageClanClient = ({
         // --- [PERBAIKAN] Tampilkan komponen yang sebenarnya ---
         return <EsportsTabContent clan={clan} onAction={showNotification} />;
       // --- [AKHIR BARU] ---
+      
+      // [BARU FASE 3] Render komponen promosi
+      case 'promotion':
+        return <PromotionTabContent clan={clan} onAction={showNotification} />;
+
       case 'settings':
         // (Placeholder)
         return (

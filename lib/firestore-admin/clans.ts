@@ -8,8 +8,9 @@ import {
   PublicClanIndex,
   ClanApiCache,
   CocIconUrls,
-  FirestoreDocument, // <-- Impor ini sudah benar
-} from '../types';
+  FirestoreDocument,
+  Promotion, // [BARU FASE 2] Impor Tipe Promosi
+} from '../clashub.types'; // [PERBAIKAN FASE 2] Path diubah ke clashub.types
 // [PERBAIKAN] Hapus impor 'FirestoreDocument' dari './utils' karena sudah diimpor dari '../types'
 import { docToDataAdmin, cleanDataForAdminSDK } from './utils';
 // [UPDATE Fase 1.3] Tambahkan FieldValue
@@ -106,6 +107,7 @@ export const createOrLinkManagedClan = async (
       return snapshot.docs[0].id;
     }
 
+    // [ROMBAK V2 FASE 1] Hapus field 'promotion' dari data klan baru
     const newClanData: Omit<ManagedClan, 'id'> = {
       name: clanName,
       tag: clanTag,
@@ -278,5 +280,159 @@ export const updateManagedClanMemberList = async (
       error,
     );
     // Tidak melempar error agar proses sinkronisasi utama bisa lanjut
+  }
+};
+
+// --- [ROMBAK V2 - FASE 2] ---
+// Fungsi promosi lama (updateClanPromotion, deleteClanPromotion, getActivePromotions) dihapus.
+// Fungsi baru ditambahkan di bawah:
+
+/**
+ * [ROMBAK V2] Membuat dokumen promosi baru di sub-koleksi.
+ * @returns {Promise<string>} ID dokumen promosi baru.
+ */
+export const createClanPromotion = async (
+  clanId: string,
+  // Data Omit 'id', 'clanId', dan 'clicks' karena akan di-set di server
+  promotionData: Omit<Promotion, 'id' | 'clanId' | 'clicks'>,
+): Promise<string> => {
+  try {
+    const subCollectionRef = adminFirestore
+      .collection(COLLECTIONS.MANAGED_CLANS)
+      .doc(clanId)
+      .collection(COLLECTIONS.PROMOTIONS);
+
+    const newDocData = {
+      ...promotionData,
+      clanId: clanId,
+      clicks: 0,
+      // 'id' akan ditambahkan setelah dokumen dibuat
+    };
+
+    const docRef = await subCollectionRef.add(
+      cleanDataForAdminSDK(newDocData),
+    );
+
+    // Update dokumen dengan ID-nya sendiri
+    await docRef.update({ id: docRef.id });
+
+    console.log(
+      `[createClanPromotion - Admin(${clanId})] Promosi baru ${docRef.id} dibuat.`,
+    );
+    return docRef.id;
+  } catch (error) {
+    console.error(
+      `Firestore Error [createClanPromotion - Admin(${clanId})]:`,
+      error,
+    );
+    throw new Error('Gagal membuat promosi klan (Admin SDK).');
+  }
+};
+
+/**
+ * [ROMBAK V2] Menghapus dokumen promosi spesifik dari sub-koleksi.
+ */
+export const deleteClanPromotion = async (
+  clanId: string,
+  promotionId: string,
+): Promise<void> => {
+  try {
+    const docRef = adminFirestore
+      .collection(COLLECTIONS.MANAGED_CLANS)
+      .doc(clanId)
+      .collection(COLLECTIONS.PROMOTIONS)
+      .doc(promotionId);
+
+    await docRef.delete();
+
+    console.log(
+      `[deleteClanPromotion - Admin(${clanId})] Promosi ${promotionId} dihapus.`,
+    );
+  } catch (error) {
+    console.error(
+      `Firestore Error [deleteClanPromotion - Admin(${clanId}, ${promotionId})]:`,
+      error,
+    );
+    throw new Error('Gagal menghapus promosi klan (Admin SDK).');
+  }
+};
+
+/**
+ * [ROMBAK V2] Mengambil SEMUA promosi untuk SATU klan (untuk halaman manajemen).
+ */
+export const getClanPromotions = async (
+  clanId: string,
+): Promise<FirestoreDocument<Promotion>[]> => {
+  try {
+    const subCollectionRef = adminFirestore
+      .collection(COLLECTIONS.MANAGED_CLANS)
+      .doc(clanId)
+      .collection(COLLECTIONS.PROMOTIONS);
+
+    const snapshot = await subCollectionRef.orderBy('clicks', 'desc').get();
+    if (snapshot.empty) {
+      return [];
+    }
+    return snapshot.docs
+      .map((doc) => docToDataAdmin<Promotion>(doc))
+      .filter(Boolean) as FirestoreDocument<Promotion>[];
+  } catch (error) {
+    console.error(`Firestore Error [getClanPromotions - Admin(${clanId})]:`, error);
+    return [];
+  }
+};
+
+/**
+ * [ROMBAK V2] Mengambil semua promosi aktif dari SEMUA klan (Collection Group Query).
+ */
+export const getActivePromotions = async (): Promise<
+  FirestoreDocument<Promotion>[]
+> => {
+  try {
+    const collectionGroupRef = adminFirestore.collectionGroup(
+      COLLECTIONS.PROMOTIONS,
+    );
+
+    // Kita bisa tambahkan .orderBy('clicks', 'desc') jika kita membuat indeks komposit
+    // Untuk saat ini, kita limit saja
+    const snapshot = await collectionGroupRef.limit(20).get();
+
+    if (snapshot.empty) {
+      return [];
+    }
+
+    return snapshot.docs
+      .map((doc) => docToDataAdmin<Promotion>(doc))
+      .filter(Boolean) as FirestoreDocument<Promotion>[];
+  } catch (error) {
+    console.error(`Firestore Error [getActivePromotions - Admin]:`, error);
+    return []; // Kembalikan array kosong jika gagal
+  }
+};
+
+/**
+ * [ROMBAK V2] Menambah jumlah klik pada dokumen promosi spesifik.
+ */
+export const incrementPromotionClick = async (
+  clanId: string,
+  promotionId: string,
+): Promise<void> => {
+  try {
+    const docRef = adminFirestore
+      .collection(COLLECTIONS.MANAGED_CLANS)
+      .doc(clanId)
+      .collection(COLLECTIONS.PROMOTIONS)
+      .doc(promotionId);
+
+    // Gunakan FieldValue.increment() untuk statistik
+    await docRef.update({
+      clicks: FieldValue.increment(1),
+    });
+  } catch (error) {
+    console.error(
+      `Firestore Error [incrementPromotionClick - Admin(${clanId}, ${promotionId})]:`,
+      error,
+    );
+    // Tidak melempar error karena ini adalah "fire and forget" dari sisi klien
   }
 };

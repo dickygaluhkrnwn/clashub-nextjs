@@ -1,8 +1,14 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
-// [PERBAIKAN] Impor tipe RecommendedTeam
-import { ManagedClan, Player, PublicClanIndex, RecommendedTeam } from '@/lib/types';
+// [PERBAIKAN FASE 4] Impor tipe Promotion
+import {
+  ManagedClan,
+  Player,
+  PublicClanIndex,
+  RecommendedTeam,
+  Promotion,
+} from '@/lib/types';
 
 // --- [IMPOR DIHAPUS] ---
 // (Tidak ada perubahan di sini)
@@ -36,6 +42,7 @@ interface TeamHubClientProps {
   initialClans: RecommendedTeam[];
   initialPlayers: Player[];
   initialPublicClans: PublicClanIndex[]; // Cache Klan Publik
+  promotions: Promotion[]; // <-- [BARU FASE 4] Menerima data promosi
 }
 
 // --- [JENIS DIEKSPOR] ---
@@ -59,6 +66,7 @@ const TeamHubClient = ({
   initialClans,
   initialPlayers,
   initialPublicClans,
+  promotions, // <-- [BARU FASE 4] Destructure prop promosi
 }: TeamHubClientProps) => {
   // --- [STATE MANAGEMENT] ---
   const [activeTab, setActiveTab] = useState<ActiveTab>('clashubTeams');
@@ -111,7 +119,8 @@ const TeamHubClient = ({
   // --- [MEMOIZED LOGIC] ---
   const filteredClans = useMemo(() => {
     return allClans
-      .filter((clan: RecommendedTeam) => { // [PERBAIKAN #3] Ganti tipe ke RecommendedTeam
+      .filter((clan: RecommendedTeam) => {
+        // [PERBAIKAN #3] Ganti tipe ke RecommendedTeam
         const searchTermLower = clanFilters.searchTerm.toLowerCase();
         const visionMatch =
           clanFilters.vision === 'all' || clan.vision === clanFilters.vision;
@@ -131,7 +140,10 @@ const TeamHubClient = ({
         );
       })
       // [PERBAIKAN #4] Urutkan berdasarkan rating asli, bukan avgTh
-      .sort((a: RecommendedTeam, b: RecommendedTeam) => b.averageRating - a.averageRating);
+      .sort(
+        (a: RecommendedTeam, b: RecommendedTeam) =>
+          b.averageRating - a.averageRating,
+      );
   }, [allClans, clanFilters]);
 
   const filteredPlayers = useMemo(() => {
@@ -313,7 +325,8 @@ const TeamHubClient = ({
   return (
     <>
       {/* 1. Render Header Statis */}
-      <TeamHubHeader />
+      {/* [EDIT FASE 4] Teruskan prop promosi ke header */}
+      <TeamHubHeader promotions={promotions} />
 
       <div className="container mx-auto space-y-8 p-4 md:p-8">
         {/* 2. Render Navigasi Tab */}

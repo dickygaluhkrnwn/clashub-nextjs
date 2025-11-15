@@ -38,7 +38,8 @@ import {
 // --- [AKHIR PERBAIKAN ERROR V6] ---
 
 // [BARU FASE 16.1] Ekspor tipe yang diimpor agar bisa digunakan file lain
-export type { CocCurrentWar } from './coc.types';
+// [FIX ERROR 2] Menambahkan CocIconUrls ke dalam re-export
+export type { CocCurrentWar, CocIconUrls } from './coc.types';
 
 // [ROMBAK V2: Fase 1] Impor DocumentReference untuk Fase 1 Peta Develop
 // [PERBAIKAN ERROR TIPE] Mengganti impor dari 'firebase/firestore' (client) ke 'firebase-admin/firestore' (admin)
@@ -107,6 +108,21 @@ export interface TopPerformerPlayer {
   role?: ClanRole | ManagerRole | StandardMemberRole;
 }
 
+// [ROMBAK V2 - FASE 1]
+/**
+ * @interface Promotion
+ * Struktur data untuk banner promosi dinamis di /clan-hub
+ * Disimpan di sub-koleksi: managedClans/{clanId}/promotions/{promotionId}
+ */
+export interface Promotion {
+  id: string; // ID unik dokumen promosi
+  clanId: string; // ID ManagedClan (induk)
+  imageUrl: string; // Link Imgur ke gambar banner
+  title: string; // Judul singkat (untuk manajemen)
+  description: string; // Deskripsi singkat (untuk manajemen)
+  clicks: number; // Statistik klik
+}
+
 /**
  * @interface ManagedClan
 // ... (Kode ManagedClan tidak berubah)
@@ -129,6 +145,9 @@ export interface ManagedClan {
   avgTh: number; // Rata-rata Level TH anggota (dikalkulasi)
   clanLevel: number; // Level Klan CoC (dari API)
   memberCount: number; // Jumlah anggota (dari API)
+
+  // [ROMBAK V2 - FASE 1] Dihapus. Dipindah ke sub-koleksi.
+  // promotion?: Promotion;
 
   // --- [BARU: TAHAP 1.3 - Roadmap] ---
   // Snapshot dari daftar anggota, digunakan untuk deteksi join/leave

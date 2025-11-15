@@ -3,7 +3,11 @@
 import TeamHubClient from './TeamHubClient';
 // [PERBAIKAN] Mengganti getManagedClans (client) dengan getManagedClansAdmin (admin)
 import { getPlayers, getPublicClansForHub } from '@/lib/firestore';
-import { getManagedClansAdmin } from '@/lib/firestore-admin/clans'; // <-- [PERBAIKAN] Impor admin
+// [EDIT FASE 4] Impor getActivePromotions
+import {
+  getManagedClansAdmin,
+  getActivePromotions, // <-- [BARU FASE 4] Impor fungsi promosi
+} from '@/lib/firestore-admin/clans'; // <-- [PERBAIKAN] Impor admin
 import { getClanReviewsAdmin } from '@/lib/firestore-admin/reviews'; // <-- [BARU] Impor ulasan admin
 // [PERBAIKAN] Menggunakan tipe data ManagedClan dan PublicClanIndex yang baru, DAN RecommendedTeam
 import {
@@ -12,7 +16,8 @@ import {
   PublicClanIndex,
   RecommendedTeam, // <-- [BARU] Impor tipe yang diperkaya
   FirestoreDocument,
-} from '@/lib/types';
+  Promotion, // <-- [BARU FASE 4] Impor tipe promosi
+} from '@/lib/clashub.types'; // [PERBAIKAN FASE 4] Path diubah ke clashub.types
 import { Metadata } from 'next';
 
 // Metadata untuk SEO (Best practice Next.js)
@@ -29,15 +34,18 @@ const ClanHubPage = async () => {
   let initialClans: RecommendedTeam[] = []; // <-- [PERBAIKAN] Gunakan tipe RecommendedTeam
   let initialPlayers: Player[] = [];
   let initialPublicClans: PublicClanIndex[] = []; // BARU: Menampung cache klan publik
+  let promotions: Promotion[] = []; // <-- [BARU FASE 4] Menampung data promosi
   let loadError: string | null = null;
 
   // Menggunakan Promise.all untuk mengambil semua data secara paralel
   try {
     // [PERBAIKAN KRITIS] Mengganti getManagedClans() dengan getManagedClansAdmin()
-    const [clans, players, publicClans] = await Promise.all([
+    // [EDIT FASE 4] Tambahkan getActivePromotions ke Promise.all
+    const [clans, players, publicClans, activePromotions] = await Promise.all([
       getManagedClansAdmin(), // <-- [PERBAIKAN] Mengambil ManagedClan (Admin SDK)
       getPlayers(), // Mengambil daftar Player
       getPublicClansForHub(), // MENGAMBIL SEMUA KLAN PUBLIK (ARRAY)
+      getActivePromotions(), // <-- [BARU FASE 4] Mengambil promosi aktif
     ]);
 
     // [BARU] Hitung averageRating untuk setiap klan (ManagedClan)
@@ -63,6 +71,7 @@ const ClanHubPage = async () => {
     initialClans = clansWithRating; // <-- [PERBAIKAN] Simpan data dengan rating
     initialPlayers = players;
     initialPublicClans = publicClans;
+    promotions = activePromotions; // <-- [BARU FASE 4] Simpan data promosi
   } catch (err) {
     console.error('Error fetching data on server:', err);
     loadError = 'Gagal memuat daftar hub klan. Silakan coba lagi.';
@@ -100,6 +109,7 @@ const ClanHubPage = async () => {
         initialClans={initialClans} // <-- [PERBAIKAN] Data sekarang berisi rating
         initialPlayers={initialPlayers}
         initialPublicClans={initialPublicClans} // BARU: Data untuk tab Pencarian Klan Publik
+        promotions={promotions} // <-- [BARU FASE 4] Teruskan promosi ke client
       />
     </main>
   );
