@@ -1,30 +1,31 @@
 // [BARU] "use client" diperlukan untuk logic countdown (useEffect, useState)
-"use client";
+'use client';
 
-import { Button } from "@/app/components/ui/Button";
+import { Button } from '@/app/components/ui/Button';
 import {
   TrophyIcon,
   SkullIcon,
   PercentageIcon,
   ShieldIcon,
   StarIcon, // [BARU] Impor StarIcon
-} from "@/app/components/icons";
-import Image from "next/image";
+} from '@/app/components/icons';
+import Image from 'next/image';
 // [BARU] Impor untuk countdown
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
 // [BARU] Impor tipe data yang diterima dari app/page.tsx
 import {
   FirestoreDocument,
   UserProfile,
   CocCurrentWar,
   ManagedClan,
-} from "@/lib/types";
+} from '@/lib/types';
 
-// [BARU] Mendefinisikan props yang diterima dari app/page.tsx
+// [PERBAIKAN] Mendefinisikan props, MENAMBAHKAN clanReputation
 interface HomeHeaderProps {
   userProfile: FirestoreDocument<UserProfile> | null;
   currentWar: CocCurrentWar | null;
   managedClan: FirestoreDocument<ManagedClan> | null;
+  clanReputation: number; // [BARU] Menerima reputasi klan
 }
 
 // [BARU] Helper function untuk mengubah string ISO 8601 dari API
@@ -45,7 +46,7 @@ function formatWarTime(targetDate: Date): string {
   let difference = targetDate.getTime() - now.getTime();
 
   if (difference < 0) {
-    return "00:00:00"; // Waktu sudah habis
+    return '00:00:00'; // Waktu sudah habis
   }
 
   const hours = Math.floor(difference / (1000 * 60 * 60));
@@ -55,15 +56,15 @@ function formatWarTime(targetDate: Date): string {
   const seconds = Math.floor(difference / 1000);
 
   // Format HH:MM:SS
-  return `${hours.toString().padStart(2, "0")}:${minutes
+  return `${hours.toString().padStart(2, '0')}:${minutes
     .toString()
-    .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+    .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
 // [BARU] Komponen Client untuk Countdown Timer
 const WarCountdown: React.FC<{
   targetTime: string;
-  state: "preparationDay" | "inWar" | string;
+  state: 'preparationDay' | 'inWar' | string;
 }> = ({ targetTime, state }) => {
   const targetDate = parseISOString(targetTime);
   const [timeLeft, setTimeLeft] = useState(formatWarTime(targetDate));
@@ -79,7 +80,7 @@ const WarCountdown: React.FC<{
   }, [targetTime]); // Hanya re-run jika targetTime berubah
 
   const textLabel =
-    state === "preparationDay" ? "War Berikutnya Dimulai:" : "War Berakhir Dalam:";
+    state === 'preparationDay' ? 'War Berikutnya Dimulai:' : 'War Berakhir Dalam:';
 
   return (
     <>
@@ -98,6 +99,7 @@ export default function HomeHeader({
   userProfile,
   currentWar,
   managedClan,
+  clanReputation, // [BARU] Terima prop reputasi
 }: HomeHeaderProps) {
   return (
     <>
@@ -122,50 +124,36 @@ export default function HomeHeader({
       <section className="container mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 mb-12 py-8 px-4">
         {/* Kolom Kiri & Tengah (Status Panel) */}
         <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-          
           {/* ========== [BLOK 1: STATUS WAR (DINAMIS)] ========== */}
+          {/* Card ini tidak diubah */}
           <div className="card-stone p-6 flex flex-col justify-between">
-            {/* [PERBAIKAN] Judul diubah sesuai permintaan */}
             <h3 className="text-xl mb-4 text-center border-b-2 border-coc-gold-dark/30 pb-2 flex items-center justify-center">
               <ShieldIcon className="h-5 w-5 mr-2" /> STATUS WAR CLAN
             </h3>
-
-            {/* Cek jika ada data war DAN war sedang berlangsung */}
-            {currentWar && currentWar.state !== "notInWar" ? (
+            {currentWar && currentWar.state !== 'notInWar' ? (
               <>
                 <div className="grid grid-cols-3 gap-4 text-center my-4">
-                  {/* Data Dinamis: Bintang Kita */}
                   <div className="bg-coc-stone/50 p-2 rounded-lg border border-coc-gold-dark/20">
                     <StarIcon className="mx-auto text-3xl text-coc-gold mb-2" />
                     <span className="block text-xl font-bold font-clash text-white">
-                      {/* [PERBAIKAN] Tambahkan fallback 0 */}
                       {currentWar.clan.stars || 0}
                     </span>
                     <p className="text-xs text-gray-400 uppercase font-sans">
                       Bintang Kita
                     </p>
                   </div>
-                  {/* Data Dinamis: Bintang Musuh */}
                   <div className="bg-coc-stone/50 p-2 rounded-lg border border-coc-gold-dark/20">
                     <StarIcon className="mx-auto text-3xl text-coc-red mb-2" />
                     <span className="block text-xl font-bold font-clash text-white">
-                      {/* [PERBAIKAN] Tambahkan fallback 0 */}
                       {currentWar.opponent.stars || 0}
                     </span>
                     <p className="text-xs text-gray-400 uppercase font-sans">
                       Bintang Musuh
                     </p>
                   </div>
-                  {/* Data Dinamis: Destruction Kita */}
                   <div className="bg-coc-stone/50 p-2 rounded-lg border border-coc-gold-dark/20">
                     <PercentageIcon className="mx-auto text-3xl text-coc-green mb-2" />
                     <span className="block text-xl font-bold font-clash text-white">
-                      {/* ============================================================
-                        [PERBAIKAN DATA 99.27%]
-                        Mengganti 'destruction' menjadi 'destructionPercentage'
-                        Mengganti 'toFixed(1)' menjadi 'toFixed(2)' agar konsisten
-                        ============================================================
-                      */}
                       {(currentWar.clan.destructionPercentage || 0).toFixed(2)}%
                     </span>
                     <p className="text-xs text-gray-400 uppercase font-sans">
@@ -173,17 +161,16 @@ export default function HomeHeader({
                     </p>
                   </div>
                 </div>
-                {/* Data Dinamis: Countdown Timer */}
                 <WarCountdown
                   targetTime={
-                    currentWar.state === "preparationDay"
+                    currentWar.state === 'preparationDay'
                       ? currentWar.startTime
                       : currentWar.endTime
                   }
                   state={currentWar.state}
                 />
                 <Button
-                  href={`/clan/manage`} // Asumsi link ke manajemen klan
+                  href={`/clan/manage`}
                   variant="secondary"
                   className="w-full mt-4"
                 >
@@ -191,35 +178,34 @@ export default function HomeHeader({
                 </Button>
               </>
             ) : (
-              // Tampilan jika tidak ada war / belum login
               <div className="flex-grow flex flex-col items-center justify-center text-center my-4">
                 <p className="text-gray-400 font-sans mb-4">
                   {userProfile
-                    ? "Klan Anda sedang tidak dalam war."
-                    : "Login dan kelola klan Anda untuk melihat status war."}
+                    ? 'Klan Anda sedang tidak dalam war.'
+                    : 'Login dan kelola klan Anda untuk melihat status war.'}
                 </p>
                 <Button
-                  href={userProfile ? "/clan/manage" : "/auth"}
+                  href={userProfile ? '/clan/manage' : '/auth'}
                   variant="secondary"
                   className="w-full mt-4"
                 >
-                  {userProfile ? "Lihat Halaman Klan" : "Login Sekarang"}
+                  {userProfile ? 'Lihat Halaman Klan' : 'Login Sekarang'}
                 </Button>
               </div>
             )}
           </div>
 
-          {/* ========== [BLOK 2: INFO KLAN PENGGUNA (DINAMIS)] ========== */}
+          {/* ========== [BLOK 2: INFO KLAN PENGGUNA (ROMBAK UI)] ========== */}
           <div className="card-stone p-6 flex flex-col justify-between">
             {/* Cek jika pengguna sudah mengelola klan */}
             {managedClan ? (
               <>
+                {/* Header Info Klan (Logo, Nama, Tag) - Tidak berubah */}
                 <div className="flex items-center gap-4 border-b border-coc-gold-dark/30 pb-4 mb-4">
                   <Image
-                    // [DINAMIS] Logo Klan
                     src={
                       managedClan.logoUrl ||
-                      "/images/clan-badge-placeholder.png"
+                      '/images/clan-badge-placeholder.png'
                     }
                     alt="Clan Badge"
                     width={64}
@@ -227,52 +213,67 @@ export default function HomeHeader({
                     className="w-16 h-16 rounded-lg border-2 border-coc-gold object-cover flex-shrink-0 shadow-lg"
                   />
                   <div>
-                    {/* [DINAMIS] Nama Klan */}
                     <h3 className="text-xl">{managedClan.name}</h3>
-                    {/* [DINAMIS] Tag Klan */}
                     <p className="text-sm text-coc-gold-dark font-bold font-mono">
                       {managedClan.tag}
                     </p>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4 text-center flex-grow">
-                  <div className="bg-coc-stone/50 p-2 rounded-lg border border-coc-gold-dark/20">
-                    {/* [DINAMIS] Level Klan */}
-                    <span className="block font-bold text-lg text-coc-gold font-clash">
-                      {managedClan.clanLevel}
-                    </span>
-                    <p className="text-xs uppercase text-gray-400 font-sans">
-                      Level Klan
+
+                {/* ============================================================
+                  [ROMBAK UI] Mengganti Grid 2x2 menjadi Daftar Vertikal 1x4
+                  - Menggunakan `space-y-4` untuk jarak
+                  - Menggunakan `flex justify-between` untuk layout per baris
+                  - Font angka diperbesar ke `text-2xl`
+                  - Menambah `justify-center` agar daftar terpusat secara vertikal
+                  ============================================================
+                */}
+                <div className="flex flex-col space-y-4 flex-grow justify-center py-2">
+                  {/* [BARU] Item Reputasi */}
+                  <div className="flex justify-between items-baseline bg-coc-stone/50 p-3 rounded-lg border border-coc-gold-dark/20">
+                    <p className="text-sm uppercase text-gray-400 font-sans">
+                      Reputasi Clan
                     </p>
-                  </div>
-                  <div className="bg-coc-stone/50 p-2 rounded-lg border border-coc-gold-dark/20">
-                    {/* [STATIS] Data ini tidak ada di 'ManagedClan' */}
-                    <span className="block font-bold text-lg text-coc-gold font-clash">
-                      N/A
+                    <span className="font-bold text-2xl text-coc-gold font-clash">
+                      {(clanReputation || 0).toFixed(1)} ★
                     </span>
-                    <p className="text-xs uppercase text-gray-400 font-sans">
-                      CWL League
+                  </div>
+
+                  {/* [BARU] Item Rata-rata TH */}
+                  <div className="flex justify-between items-baseline bg-coc-stone/50 p-3 rounded-lg border border-coc-gold-dark/20">
+                    <p className="text-sm uppercase text-gray-400 font-sans">
+                      Rata-rata TH
                     </p>
-                  </div>
-                  <div className="bg-coc-stone/50 p-2 rounded-lg border border-coc-gold-dark/20">
-                    {/* [DINAMIS] Anggota */}
-                    <span className="block font-bold text-lg text-coc-gold font-clash">
-                      {managedClan.memberCount}/50
+                    <span className="font-bold text-2xl text-coc-gold font-clash">
+                      TH {(managedClan.avgTh || 0).toFixed(1)}
                     </span>
-                    <p className="text-xs uppercase text-gray-400 font-sans">
+                  </div>
+
+                  {/* [BARU] Item Anggota */}
+                  <div className="flex justify-between items-baseline bg-coc-stone/50 p-3 rounded-lg border border-coc-gold-dark/20">
+                    <p className="text-sm uppercase text-gray-400 font-sans">
                       Anggota
                     </p>
-                  </div>
-                  <div className="bg-coc-stone/50 p-2 rounded-lg border border-coc-gold-dark/20">
-                    {/* [STATIS] Data ini tidak ada di 'ManagedClan' */}
-                    <span className="block font-bold text-lg text-coc-gold font-clash">
-                      N/A
+                    <span className="font-bold text-2xl text-coc-gold font-clash">
+                      {managedClan.memberCount || 0}/50
                     </span>
-                    <p className="text-xs uppercase text-gray-400 font-sans">
+                  </div>
+
+                  {/* [BARU] Item War Wins */}
+                  <div className="flex justify-between items-baseline bg-coc-stone/50 p-3 rounded-lg border border-coc-gold-dark/20">
+                    <p className="text-sm uppercase text-gray-400 font-sans">
                       War Wins
                     </p>
+                    <span className="font-bold text-2xl text-gray-500 font-clash">
+                      N/A
+                    </span>
                   </div>
                 </div>
+                {/* ============================================================
+                  [AKHIR ROMBAK UI]
+                  ============================================================
+                */}
+
                 <Button
                   // [DINAMIS] Link ke halaman klan internal
                   href={`/clan/internal/${managedClan.id}`}
@@ -291,11 +292,11 @@ export default function HomeHeader({
                   perang, manajemen anggota, dan lainnya.
                 </p>
                 <Button
-                  href={userProfile ? "/clan/manage" : "/auth"}
+                  href={userProfile ? '/clan/manage' : '/auth'}
                   variant="primary"
                   className="w-full mt-4"
                 >
-                  {userProfile ? "Mulai Kelola Klan" : "Login untuk Mulai"}
+                  {userProfile ? 'Mulai Kelola Klan' : 'Login untuk Mulai'}
                 </Button>
               </div>
             )}
@@ -304,7 +305,6 @@ export default function HomeHeader({
 
         {/* Kolom Kanan (Side Info) */}
         <div className="space-y-6 md:space-y-8">
-          
           {/* ========== [BLOK 3: RINGKASAN PROFIL (DINAMIS)] ========== */}
           <div className="card-stone p-6 text-center">
             {/* [PERBAIKAN JUDUL] Diubah sesuai permintaan */}
@@ -315,7 +315,7 @@ export default function HomeHeader({
                 <Image
                   // [DINAMIS] Avatar
                   src={
-                    userProfile.avatarUrl || "/images/placeholder-avatar.png"
+                    userProfile.avatarUrl || '/images/placeholder-avatar.png'
                   }
                   alt="Avatar Pengguna"
                   width={80}
@@ -327,7 +327,7 @@ export default function HomeHeader({
                     <p className="text-xs text-gray-400 font-sans">TH LEVEL</p>
                     {/* [DINAMIS] TH Level */}
                     <span className="text-2xl font-bold text-white">
-                      {userProfile.thLevel || "N/A"}
+                      {userProfile.thLevel || 'N/A'}
                     </span>
                   </div>
                   <div>
