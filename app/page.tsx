@@ -3,6 +3,8 @@ import { Suspense } from 'react';
 export const dynamic = 'force-dynamic';
 
 import HomeHeader from '@/app/components/home/HomeHeader';
+// [BARU] Impor komponen QuickLinks
+import QuickLinks from '@/app/components/home/QuickLinks';
 import RecommendedTeams from '@/app/components/home/RecommendedTeams';
 import LatestStrategies from '@/app/components/home/LatestStrategies';
 import CarouselSection from '@/app/components/layout/CarouselSection';
@@ -87,6 +89,9 @@ export default async function Home() {
 
       {/* Main Content Area */}
       <main className="container mx-auto p-4 md:p-8">
+        {/* [BARU] Menambahkan Tautan Cepat di sini */}
+        <QuickLinks />
+
         {/* 2. Komponen Rekomendasi Tim (Sudah Dinamis) */}
         <Suspense fallback={<RecommendedTeamsLoading />}>
           <RecommendedTeams />
