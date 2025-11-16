@@ -325,7 +325,7 @@ const ManageClanClient = ({
         // --- [PERBAIKAN] Tampilkan komponen yang sebenarnya ---
         return <EsportsTabContent clan={clan} onAction={showNotification} />;
       // --- [AKHIR BARU] ---
-      
+
       // [BARU FASE 3] Render komponen promosi
       case 'promotion':
         return <PromotionTabContent clan={clan} onAction={showNotification} />;
@@ -394,6 +394,19 @@ const ManageClanClient = ({
                   label={tab.label}
                 />
               ))}
+
+              {/* --- [BARU: FASE 2.1] Tombol Link ke Profil Klan --- */}
+              {/* Ini adalah LINK, bukan tab state, sesuai idemu */}
+              <div className="pt-2 my-2 border-t border-coc-gold-dark/30"></div>
+              <Button
+                href={`/clan/internal/${clan.id}`}
+                variant="ghost" // Gunakan variant ghost dan style manual
+                className="w-full flex items-center justify-start px-4 py-3 text-sm font-medium rounded-md transition-colors duration-150 group text-gray-300 hover:bg-coc-dark/60 hover:text-white"
+              >
+                <UserCircleIcon className="h-5 w-5 mr-3 flex-shrink-0 text-gray-400 group-hover:text-gray-300" />
+                <span>Profil Klan</span>
+              </Button>
+              {/* --- [AKHIR BARU] --- */}
 
               {/* --- [BARU: TAHAP 2.3] Tombol Keluar Klan --- */}
               {/* Tampilkan jika user BUKAN Leader */}

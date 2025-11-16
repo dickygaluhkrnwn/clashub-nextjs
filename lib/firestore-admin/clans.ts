@@ -108,14 +108,17 @@ export const createOrLinkManagedClan = async (
     }
 
     // [ROMBAK V2 FASE 1] Hapus field 'promotion' dari data klan baru
+    // [PERBAIKAN FASE 1.2] Memperbaiki error TS(2353)
     const newClanData: Omit<ManagedClan, 'id'> = {
       name: clanName,
       tag: clanTag,
       ownerUid: ownerUid,
       vision: 'Kompetitif', // Default vision
       recruitingStatus: 'Open', // Default status
-      website: undefined,
-      discordId: undefined,
+      // [FIX FASE 1.2] Mengganti field 'website' dan 'discordId' yang error
+      socialLinks: [], // [BARU: FASE 1.2] Menggunakan field baru
+      profileDescription: 'Selamat datang di klan kami!', // [BARU: FASE 1.2] Default
+      clanRules: 'Hormati satu sama lain dan serang di WAR.', // [BARU: FASE 1.2] Default
       logoUrl: undefined,
       avgTh: 0,
       clanLevel: 0, // Akan diupdate saat sync pertama

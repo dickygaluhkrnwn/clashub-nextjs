@@ -3,13 +3,14 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Metadata } from 'next';
 import { Button } from '@/app/components/ui/Button';
-// [Fase 4.3] Impor tipe ClanReview
+// [FASE 3.1] Impor tipe ClanReview dan ClanSocialLink
 import {
   ManagedClan,
   UserProfile,
   ClanApiCache,
   ClanRole,
-  ClanReview, // <-- [BARU] Impor tipe ClanReview
+  ClanReview,
+  ClanSocialLink, // <-- [BARU FASE 3.1] Impor tipe link sosial
 } from '@/lib/types';
 
 // [PERBAIKAN KRITIS] Ganti impor client-side ke admin-side untuk Server Component
@@ -36,6 +37,7 @@ import {
   // MapPinIcon, // Tidak terpakai
   InfoIcon,
   ExternalLinkIcon,
+  EditIcon, // <-- [FIX ERROR 2305] Mengganti PencilIcon dengan EditIcon
 } from '@/app/components/icons';
 import { getSessionUser } from '@/lib/server-auth';
 
@@ -138,11 +140,17 @@ const ClanDetailPage = async ({ params }: ClanDetailPageProps) => {
     tag,
     vision,
     avgTh,
-    website,
-    discordId,
+    // [GANTI: FASE 3.1] Hapus 'website' dan 'discordId' lama
+    // website,
+    // discordId,
     clanLevel,
     ownerUid,
+    // [BARU: FASE 3.1] Ambil data profil dinamis
+    profileDescription,
+    clanRules,
+    socialLinks,
   } = managedClan;
+
   const isCompetitive = vision === 'Kompetitif';
   const isFull = members.length >= 50;
   const isClanOwner = sessionUser?.uid === ownerUid;
@@ -197,6 +205,23 @@ const ClanDetailPage = async ({ params }: ClanDetailPageProps) => {
     time: '20:00 WIB (Persiapan)',
   };
 
+  // [BARU: FASE 3.1] Helper untuk ikon sosial media
+  const getSocialIcon = (platform: string) => {
+    const lowerPlatform = platform.toLowerCase();
+    if (lowerPlatform.includes('discord')) {
+      return (
+        <DiscordIcon className="h-4 w-4 text-coc-gold-dark flex-shrink-0" />
+      );
+    }
+    if (lowerPlatform.includes('website') || lowerPlatform.includes('web')) {
+      return <GlobeIcon className="h-4 w-4 text-coc-gold-dark flex-shrink-0" />;
+    }
+    // Default ikon
+    return (
+      <ExternalLinkIcon className="h-4 w-4 text-coc-gold-dark flex-shrink-0" />
+    );
+  };
+
   return (
     <main className="container mx-auto p-4 md:p-8 mt-10">
       {/* Header Profil Klan */}
@@ -237,11 +262,21 @@ const ClanDetailPage = async ({ params }: ClanDetailPageProps) => {
             </Button>
           </a>
           {isClanOwner ? (
-            <Link href={`/clan/manage?clanId=${clanId}`}>
-              <Button variant="primary" size="lg">
-                <InfoIcon className="h-5 w-5 mr-2" /> Kelola Klan
-              </Button>
-            </Link>
+            // [BARU: FASE 3.2] Tambahkan tombol Edit Profil & Kelola Klan
+            <>
+              <Link href={`/clan/internal/${clanId}/edit`}>
+                {/* [FIX ERROR 2322] Mengganti variant "primary_outline" menjadi "secondary" */}
+                <Button variant="secondary" size="lg">
+                  {/* [FIX ERROR 2305] Mengganti PencilIcon dengan EditIcon */}
+                  <EditIcon className="h-5 w-5 mr-2" /> Edit Profil Klan
+                </Button>
+              </Link>
+              <Link href={`/clan/manage?clanId=${clanId}`}>
+                <Button variant="primary" size="lg">
+                  <InfoIcon className="h-5 w-5 mr-2" /> Kelola Klan
+                </Button>
+              </Link>
+            </>
           ) : isFull ? (
             <span className="px-4 py-2 bg-coc-red border-2 border-red-900 text-white rounded-lg text-sm font-bold shadow-md flex items-center">
               Roster Penuh
@@ -339,47 +374,34 @@ const ClanDetailPage = async ({ params }: ClanDetailPageProps) => {
             <p className="text-xs text-gray-400">{upcomingEvent.time}</p>
           </div>
 
-          {/* Kontak & Sosial */}
+          {/* [GANTI: FASE 3.1] Kontak & Sosial Dinamis */}
           <h3 className="text-xl text-coc-gold-dark font-clash border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2 mt-6">
             Kontak & Sosial
           </h3>
           <ul className="text-sm space-y-3">
-            {website ? (
-              <li className="flex items-center gap-2">
-                <GlobeIcon className="h-4 w-4 text-coc-gold-dark flex-shrink-0" />
-                <a
-                  href={website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-coc-gold hover:underline truncate"
-                  title={website}
-                >
-                  {website.replace(/^(https?:\/\/)?(www\.)?/, '')}
-                </a>
-              </li>
+            {socialLinks && socialLinks.length > 0 ? (
+              socialLinks.map((link, index) => (
+                <li key={index} className="flex items-center gap-2">
+                  {getSocialIcon(link.platform)}
+                  <a
+                    href={link.url.startsWith('http') ? link.url : `https://${link.url}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-coc-gold hover:underline truncate"
+                    title={link.url}
+                  >
+                    {link.platform}
+                  </a>
+                </li>
+              ))
             ) : (
               <li className="text-gray-500 flex items-center gap-2">
-                <GlobeIcon className="h-4 w-4 text-gray-500" /> Website belum
-                diatur
-              </li>
-            )}
-            {discordId ? (
-              <li className="flex items-center gap-2">
-                <DiscordIcon className="h-4 w-4 text-coc-gold-dark flex-shrink-0" />
-                <span
-                  className="text-gray-300 truncate"
-                  title={discordId}
-                >
-                  {discordId}
-                </span>
-              </li>
-            ) : (
-              <li className="text-gray-500 flex items-center gap-2">
-                <DiscordIcon className="h-4 w-4 text-gray-500" /> Discord belum
-                diatur
+                <GlobeIcon className="h-4 w-4 text-gray-500" />
+                Kontak sosial belum diatur.
               </li>
             )}
           </ul>
+          {/* [AKHIR GANTI: FASE 3.1] */}
         </aside>
 
         {/* Kolom Kanan: Detail & Daftar Anggota (UTAMA) */}
@@ -387,52 +409,22 @@ const ClanDetailPage = async ({ params }: ClanDetailPageProps) => {
           {/* 1. VISI & ATURAN (Diubah dari Tab menjadi Section) */}
           <div className="card-stone p-6 space-y-6 rounded-lg">
             <h2 className="text-2xl font-clash text-white border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2">
-              <InfoIcon className="h-6 w-6 text-coc-gold" /> Visi & Aturan Tim
+              <InfoIcon className="h-6 w-6 text-coc-gold" /> Tentang Klan
             </h2>
-            <p className="text-gray-300 text-sm leading-relaxed">
-              {isCompetitive
-                ? 'Tim War Clan League yang berfokus pada meta TH 16 dan strategi serangan 3-bintang. Kami mencari pemain berkomitmen tinggi yang siap bertarung di liga Master ke atas.'
-                : 'Tim kasual yang berfokus pada kesenangan, donasi teratur, dan partisipasi War santai. Cocok untuk pemain yang ingin tumbuh tanpa tekanan.'}
+            {/* [GANTI: FASE 3.1] Deskripsi dinamis */}
+            <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line">
+              {profileDescription || 'Deskripsi klan belum diatur oleh Leader.'}
             </p>
+            {/* [AKHIR GANTI: FASE 3.1] */}
 
             <h3 className="text-xl text-coc-gold-dark font-clash border-b border-coc-gold-dark/30 pb-2 mt-6 flex items-center gap-2">
               Aturan Tim
             </h3>
-            <ul className="text-gray-300 space-y-3 list-none p-0 text-sm">
-              <li className="flex items-start gap-2">
-                <StarIcon
-                  className={`h-4 w-4 mt-1 flex-shrink-0 ${
-                    isCompetitive ? 'text-coc-red' : 'text-coc-green'
-                  }`}
-                />{' '}
-                Wajib hadir saat War, jika absen harus izin 24 jam sebelumnya.
-              </li>
-              <li className="flex items-start gap-2">
-                <StarIcon
-                  className={`h-4 w-4 mt-1 flex-shrink-0 ${
-                    isCompetitive ? 'text-coc-red' : 'text-coc-green'
-                  }`}
-                />{' '}
-                Donasi *troops* sesuai permintaan dan minimal rasio 1:2.
-              </li>
-              <li className="flex items-start gap-2">
-                <StarIcon
-                  className={`h-4 w-4 mt-1 flex-shrink-0 ${
-                    isCompetitive ? 'text-coc-red' : 'text-coc-green'
-                  }`}
-                />{' '}
-                Komunikasi aktif wajib di Discord.
-              </li>
-              <li className="flex items-start gap-2">
-                <StarIcon
-                  className={`h-4 w-4 mt-1 flex-shrink-0 ${
-                    isCompetitive ? 'text-coc-red' : 'text-coc-green'
-                  }`}
-                />{' '}
-                Persyaratan TH Minimum:{' '}
-                <strong className="text-white">TH 15+</strong>
-              </li>
-            </ul>
+            {/* [GANTI: FASE 3.1] Aturan dinamis */}
+            <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line">
+              {clanRules || 'Aturan klan belum diatur oleh Leader.'}
+            </p>
+            {/* [AKHIR GANTI: FASE 3.1] */}
           </div>
 
           {/* 2. DAFTAR ROSTER/ANGGOTA */}
