@@ -67,7 +67,7 @@ const ClanHubPage = async () => {
       }),
     );
 
-    // [PERBAIKAN] Menyimpan hasil yang sudah diperkaya ke initialClans
+    // [PERBAIKAN] Menyimpan hasil yang diperkaya ke initialClans
     initialClans = clansWithRating; // <-- [PERBAIKAN] Simpan data dengan rating
     initialPlayers = players;
     initialPublicClans = publicClans;
@@ -81,7 +81,8 @@ const ClanHubPage = async () => {
   if (loadError) {
     return (
       // PENYESUAIAN UI: Menghapus container/padding dari sini
-      <main className="mt-10">
+      // [FIX] Menghapus mt-10 yang menyebabkan jarak
+      <main>
         {/* Menambahkan wrapper layout standar di dalam pesan error */}
         <div className="max-w-7xl mx-auto p-4 md:p-8">
           <div className="text-center py-20 card-stone p-6 max-w-lg mx-auto">
@@ -104,7 +105,8 @@ const ClanHubPage = async () => {
   // [PERBAIKAN] Mengirim initialClans (sekarang RecommendedTeam[])
   return (
     // PENYESUAIAN UI: Menghapus container/padding dari sini dan memindahkannya ke Client Component
-    <main className="mt-10">
+    // [FIX] Menghapus mt-10 yang menyebabkan jarak
+    <main>
       <TeamHubClient
         initialClans={initialClans} // <-- [PERBAIKAN] Data sekarang berisi rating
         initialPlayers={initialPlayers}
