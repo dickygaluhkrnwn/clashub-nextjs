@@ -293,8 +293,11 @@ export const updateManagedClanMemberList = async (
  */
 export const createClanPromotion = async (
   clanId: string,
-  // Data Omit 'id', 'clanId', dan 'clicks' karena akan di-set di server
-  promotionData: Omit<Promotion, 'id' | 'clanId' | 'clicks'>,
+  // [EDIT V3] Sesuaikan Omit dengan Tipe Promotion baru
+  promotionData: Omit<
+    Promotion,
+    'id' | 'clanId' | 'totalClicks' | 'clicksByTH'
+  >,
 ): Promise<string> => {
   try {
     const subCollectionRef = adminFirestore
@@ -305,7 +308,9 @@ export const createClanPromotion = async (
     const newDocData = {
       ...promotionData,
       clanId: clanId,
-      clicks: 0,
+      // [EDIT V3] Inisialisasi field statistik baru
+      totalClicks: 0,
+      clicksByTH: {},
       // 'id' akan ditambahkan setelah dokumen dibuat
     };
 
@@ -369,7 +374,7 @@ export const getClanPromotions = async (
       .doc(clanId)
       .collection(COLLECTIONS.PROMOTIONS);
 
-    const snapshot = await subCollectionRef.orderBy('clicks', 'desc').get();
+    const snapshot = await subCollectionRef.orderBy('totalClicks', 'desc').get(); // [EDIT V3] Diubah dari 'clicks'
     if (snapshot.empty) {
       return [];
     }
@@ -393,8 +398,8 @@ export const getActivePromotions = async (): Promise<
       COLLECTIONS.PROMOTIONS,
     );
 
-    // Kita bisa tambahkan .orderBy('clicks', 'desc') jika kita membuat indeks komposit
-    // Untuk saat ini, kita limit saja
+    // [FIX ERROR INDEKS] Menghapus .orderBy('totalClicks', 'desc')
+    // Sesuai Solusi 2 yang dipilih pengguna.
     const snapshot = await collectionGroupRef.limit(20).get();
 
     if (snapshot.empty) {
@@ -411,11 +416,13 @@ export const getActivePromotions = async (): Promise<
 };
 
 /**
- * [ROMBAK V2] Menambah jumlah klik pada dokumen promosi spesifik.
+ * [EDIT V3] Mencatat klik promosi, termasuk total DAN berdasarkan TH.
+ * Menggantikan incrementPromotionClick.
  */
-export const incrementPromotionClick = async (
+export const recordPromotionClick = async (
   clanId: string,
   promotionId: string,
+  thLevel: number | string, // [EDIT V3] Parameter baru
 ): Promise<void> => {
   try {
     const docRef = adminFirestore
@@ -424,13 +431,19 @@ export const incrementPromotionClick = async (
       .collection(COLLECTIONS.PROMOTIONS)
       .doc(promotionId);
 
+    // [EDIT V3] Tentukan kunci untuk map clicksByTH
+    const thKey = thLevel ? String(thLevel) : 'unknown';
+
     // Gunakan FieldValue.increment() untuk statistik
+    // Ini akan meng-increment totalClicks dan field spesifik di map clicksByTH
     await docRef.update({
-      clicks: FieldValue.increment(1),
+      totalClicks: FieldValue.increment(1), // [EDIT V3] Diubah dari 'clicks'
+      [`clicksByTH.${thKey}`]: FieldValue.increment(1), // [EDIT V3] Menambah data map
     });
   } catch (error) {
     console.error(
-      `Firestore Error [incrementPromotionClick - Admin(${clanId}, ${promotionId})]:`,
+      // [EDIT V3] Update nama fungsi di log error
+      `Firestore Error [recordPromotionClick - Admin(${clanId}, ${promotionId})]:`,
       error,
     );
     // Tidak melempar error karena ini adalah "fire and forget" dari sisi klien

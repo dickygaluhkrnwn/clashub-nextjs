@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
-import { incrementPromotionClick } from '@/lib/firestore-admin/clans';
+// [EDIT V3] Ganti impor ke fungsi baru
+import { recordPromotionClick } from '@/lib/firestore-admin/clans';
 
 /**
  * @handler POST
  * @description [ROMBAK V2] Mencatat klik pada sebuah promosi.
+ * [EDIT V3] Sekarang juga mencatat TH Level.
  * Ini adalah endpoint publik, "fire-and-forget".
  */
 export async function POST(request: Request) {
@@ -11,9 +13,11 @@ export async function POST(request: Request) {
     const body = (await request.json()) as {
       clanId: string;
       promotionId: string;
+      thLevel?: number | string; // [EDIT V3] Tambahkan thLevel (opsional)
     };
 
-    const { clanId, promotionId } = body;
+    // [EDIT V3] Ekstrak thLevel dari body
+    const { clanId, promotionId, thLevel } = body;
 
     if (!clanId || !promotionId) {
       return new NextResponse(
@@ -22,9 +26,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Panggil fungsi increment.
+    // [EDIT V3] Panggil fungsi 'record' baru, teruskan thLevel.
+    // Gunakan 'unknown' sebagai fallback jika thLevel tidak ada atau 0.
     // Kita tidak 'await' agar respons bisa dikirim cepat (fire-and-forget).
-    incrementPromotionClick(clanId, promotionId);
+    recordPromotionClick(clanId, promotionId, thLevel || 'unknown');
 
     // 200 OK (atau 202 Accepted) sudah cukup.
     return NextResponse.json(

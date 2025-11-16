@@ -7,6 +7,7 @@ import { Promotion } from '@/lib/clashub.types';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import { ChevronLeftIcon, ChevronRightIcon } from '@/app/components/icons';
+import { useAuth } from '@/app/context/AuthContext'; // [BARU V3] Impor hook Auth
 
 /**
  * [EDIT] Komponen Header sekarang menerima props 'promotions'
@@ -19,6 +20,8 @@ interface TeamHubHeaderProps {
 export const TeamHubHeader = ({ promotions }: TeamHubHeaderProps) => {
   // [ROMBAK V2] Inisialisasi router
   const router = useRouter();
+  // [BARU V3] Ambil userProfile dari AuthContext
+  const { userProfile } = useAuth();
 
   // Cek apakah ada promosi yang valid
   // Kita juga pastikan data promosi memiliki 'id' dan 'clanId'
@@ -43,6 +46,9 @@ export const TeamHubHeader = ({ promotions }: TeamHubHeaderProps) => {
 
   // [ROMBAK V2] Handler untuk klik banner
   const handleBannerClick = (promo: Promotion) => {
+    // [EDIT V3] Ambil thLevel dari userProfile. Sesuai Peta Develop V3, Tugas 4.1
+    const thLevel = userProfile?.thLevel || 'unknown';
+
     // 1. Catat statistik (Api fire-and-forget, tidak perlu ditunggu)
     fetch('/api/promotions/click', {
       method: 'POST',
@@ -50,6 +56,7 @@ export const TeamHubHeader = ({ promotions }: TeamHubHeaderProps) => {
       body: JSON.stringify({
         clanId: promo.clanId,
         promotionId: promo.id,
+        thLevel: thLevel, // [BARU V3] Kirim thLevel ke API
       }),
     }).catch((err) => {
       // Jika gagal, cukup log di console, jangan hentikan navigasi
@@ -80,7 +87,9 @@ export const TeamHubHeader = ({ promotions }: TeamHubHeaderProps) => {
       <style>{emblaStyles}</style>
       <section
         className="relative h-[400px] bg-coc-dark text-white border-b-4 border-coc-gold shadow-lg 
-                   mt-[-68px] pt-[68px] embla"
+                   embla"
+        // [FIX 1.1 FINAL] Dihapus mt-[-68px] DAN pt-[68px]
+        // Layout akan mengalir secara alami setelah header sticky
       >
         <div className="overflow-hidden h-full" ref={emblaRef}>
           <div className="embla__container h-full">
@@ -93,9 +102,7 @@ export const TeamHubHeader = ({ promotions }: TeamHubHeaderProps) => {
                 }}
                 onClick={() => handleBannerClick(promo)} // [EDIT] Tambah onClick handler
               >
-                {/* Overlay Gelap (sedikit transparan saat hover) */}
-                <div className="absolute inset-0 bg-black/50 transition-all duration-300 group-hover:bg-black/30" />
-                {/* KONTEN (JUDUL, DESKRIPSI, TOMBOL) DIHAPUS SESUAI PERMINTAAN */}
+                {/* [FIX 1.2] Overlay Gelap Dihapus */}
               </div>
             ))}
           </div>
@@ -123,8 +130,8 @@ export const TeamHubHeader = ({ promotions }: TeamHubHeaderProps) => {
   // [FALLBACK] Render Banner Statis (Kode Asli Anda)
   const renderStaticFallback = () => (
     <section
-      className="relative h-[400px] bg-teamhub-banner bg-cover bg-top bg-no-repeat flex flex-col items-center justify-center text-center text-white border-b-4 border-coc-gold shadow-lg 
-      mt-[-68px] pt-[68px]"
+      className="relative h-[400px] bg-teamhub-banner bg-cover bg-top bg-no-repeat flex flex-col items-center justify-center text-center text-white border-b-4 border-coc-gold shadow-lg"
+      // [FIX 1.1 FINAL] Dihapus mt-[-68px] DAN pt-[68px]
     >
       <div className="absolute inset-0 bg-black/60" />
       <div className="relative z-10 p-4">

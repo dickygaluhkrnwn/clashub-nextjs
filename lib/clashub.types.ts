@@ -120,7 +120,10 @@ export interface Promotion {
   imageUrl: string; // Link Imgur ke gambar banner
   title: string; // Judul singkat (untuk manajemen)
   description: string; // Deskripsi singkat (untuk manajemen)
-  clicks: number; // Statistik klik
+
+  // [EDIT V3 - TUGAS 2.1] Mengubah 'clicks' menjadi 'totalClicks' dan menambah 'clicksByTH'
+  totalClicks: number; // Total statistik klik
+  clicksByTH: { [key: string]: number }; // Statistik klik per TH (misal: {"16": 10, "15": 5})
 }
 
 /**

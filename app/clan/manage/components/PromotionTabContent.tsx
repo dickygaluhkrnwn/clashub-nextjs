@@ -12,20 +12,25 @@ import { Input } from '@/app/components/ui/Input';
 import {
   RefreshCwIcon,
   TrashIcon,
-  CheckIcon,
   AlertTriangleIcon,
   ThumbsUpIcon,
-  UploadIcon, // [PERBAIKAN] Mengganti UploadCloudIcon menjadi UploadIcon
+  UploadIcon,
+  PlusIcon, // [BARU V4] Ikon untuk tombol tambah
+  XIcon, // [BARU V4] Ikon untuk tombol batal
 } from '@/app/components/icons';
 import { NotificationProps } from '@/app/components/ui/Notification';
+import PromotionAnalytics from './PromotionAnalytics'; // [BARU V4] Impor Komponen Analitik
 
 interface PromotionTabContentProps {
   clan: ManagedClan;
   onAction: (message: string, type: NotificationProps['type']) => void;
 }
 
-// [ROMBAK V2] Tipe data untuk form 'Tambah Baru'
-type NewPromotionData = Omit<Promotion, 'id' | 'clanId' | 'clicks'>;
+// [EDIT V3] Sesuaikan Tipe Omit dengan interface Promotion yang baru
+type NewPromotionData = Omit<
+  Promotion,
+  'id' | 'clanId' | 'totalClicks' | 'clicksByTH'
+>;
 
 const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
   clan,
@@ -43,7 +48,9 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
-  // ---
+
+  // --- [BARU V4] State untuk menampilkan/menyembunyikan form ---
+  const [showAddForm, setShowAddForm] = useState(false);
 
   // [ROMBAK V2] Fungsi untuk mengambil daftar promosi
   const fetchPromotions = async () => {
@@ -111,6 +118,7 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
       onAction('Promosi berhasil ditambahkan!', 'success');
       setFormData({ imageUrl: '', title: '', description: '' }); // Reset form
       await fetchPromotions(); // Muat ulang daftar promosi
+      setShowAddForm(false); // [BARU V4] Tutup form setelah berhasil
     } catch (err) {
       onAction((err as Error).message, 'error');
     } finally {
@@ -150,111 +158,153 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
 
   return (
     <div className="mx-auto">
-      {/* --- BAGIAN FORM TAMBAH BARU --- */}
-      <div className="max-w-2xl mb-8">
-        <h2 className="text-2xl font-clash text-coc-gold mb-2">
-          Tambah Banner Promosi
-        </h2>
-        <p className="text-gray-400 font-sans mb-6">
-          Banner yang Anda tambahkan akan muncul di carousel halaman Clan Hub dan
-          mengarahkan pengguna ke profil klan Anda.
-        </p>
+      {/* --- [BARU V4] BAGIAN ANALITIK --- */}
+      {/* Komponen ini akan menampilkan "memuat" atau "belum ada data" jika array 'promotions' kosong */}
+      <PromotionAnalytics promotions={promotions} />
 
-        {/* Peringatan Imgur */}
-        <div className="mb-6 p-4 rounded-lg bg-coc-yellow/10 border border-coc-yellow/30 flex items-start gap-3">
-          <AlertTriangleIcon className="h-6 w-6 text-coc-yellow flex-shrink-0 mt-0.5" />
-          <div className="font-sans">
-            <h4 className="font-bold text-coc-yellow">Perhatian: Link Gambar</h4>
-            <p className="text-sm text-gray-300">
-              Gunakan link gambar langsung dari{' '}
-              <strong className="text-white">Imgur</strong> (harus diawali dengan{' '}
-              <code className="text-xs bg-black/50 px-1 py-0.5 rounded">
-                https://i.imgur.com/...
-              </code>
-              ).
+      {/* --- [ROMBAK V4] BAGIAN FORM (SEKARANG KONDISIONAL) --- */}
+      <div className="mt-8 max-w-2xl">
+        {!showAddForm ? (
+          // Tombol untuk menampilkan form
+          <Button
+            variant="primary"
+            onClick={() => setShowAddForm(true)}
+            className="w-full sm:w-auto"
+            disabled={isLoadingList} // Jangan izinkan tambah jika daftar masih loading
+          >
+            <PlusIcon className="h-5 w-5 mr-2" />
+            Buat Promosi Baru
+          </Button>
+        ) : (
+          // Form (dibungkus dalam kartu agar rapi)
+          <div className="card-stone p-6 relative">
+            <div className="flex justify-between items-start mb-2">
+              <h2 className="text-2xl font-clash text-coc-gold">
+                Tambah Banner Promosi
+              </h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAddForm(false)}
+                className="text-gray-400 hover:text-white"
+                aria-label="Tutup form"
+              >
+                <XIcon className="h-5 w-5" />
+              </Button>
+            </div>
+            <p className="text-gray-400 font-sans mb-6">
+              Banner yang Anda tambahkan akan muncul di carousel halaman Clan Hub
+              dan mengarahkan pengguna ke profil klan Anda.
             </p>
-          </div>
-        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label
-              htmlFor="imageUrl"
-              className="block text-sm font-medium text-gray-300 mb-1 font-sans"
-            >
-              Link Gambar (Imgur)
-            </label>
-            <Input
-              id="imageUrl"
-              name="imageUrl"
-              type="text"
-              placeholder="https://i.imgur.com/xxxxxx.png"
-              value={formData.imageUrl}
-              onChange={handleChange}
-              disabled={isSubmitting}
-              required
-              className="font-sans"
-            />
-          </div>
+            {/* Peringatan Imgur */}
+            <div className="mb-6 p-4 rounded-lg bg-coc-yellow/10 border border-coc-yellow/30 flex items-start gap-3">
+              <AlertTriangleIcon className="h-6 w-6 text-coc-yellow flex-shrink-0 mt-0.5" />
+              <div className="font-sans">
+                <h4 className="font-bold text-coc-yellow">
+                  Perhatian: Link Gambar
+                </h4>
+                <p className="text-sm text-gray-300">
+                  Gunakan link gambar langsung dari{' '}
+                  <strong className="text-white">Imgur</strong> (harus diawali
+                  dengan{' '}
+                  <code className="text-xs bg-black/50 px-1 py-0.5 rounded">
+                    https://i.imgur.com/...
+                  </code>
+                  ).
+                </p>
+              </div>
+            </div>
 
-          <div>
-            <label
-              htmlFor="title"
-              className="block text-sm font-medium text-gray-300 mb-1 font-sans"
-            >
-              Judul (Hanya untuk referensi Anda)
-            </label>
-            <Input
-              id="title"
-              name="title"
-              type="text"
-              placeholder="Rekrutmen TH 15-16 Dibuka!"
-              value={formData.title}
-              onChange={handleChange}
-              disabled={isSubmitting}
-              required
-              maxLength={50}
-              className="font-sans"
-            />
-          </div>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label
+                  htmlFor="imageUrl"
+                  className="block text-sm font-medium text-gray-300 mb-1 font-sans"
+                >
+                  Link Gambar (Imgur)
+                </label>
+                <Input
+                  id="imageUrl"
+                  name="imageUrl"
+                  type="text"
+                  placeholder="https://i.imgur.com/xxxxxx.png"
+                  value={formData.imageUrl}
+                  onChange={handleChange}
+                  disabled={isSubmitting}
+                  required
+                  className="font-sans"
+                />
+              </div>
 
-          <div>
-            <label
-              htmlFor="description"
-              className="block text-sm font-medium text-gray-300 mb-1 font-sans"
-            >
-              Deskripsi Singkat (Hanya untuk referensi Anda)
-            </label>
-            <Input
-              id="description"
-              name="description"
-              type="text"
-              placeholder="Klan kami mencari pemain aktif untuk CWL."
-              value={formData.description}
-              onChange={handleChange}
-              disabled={isSubmitting}
-              required
-              maxLength={100}
-              className="font-sans"
-            />
-          </div>
+              <div>
+                <label
+                  htmlFor="title"
+                  className="block text-sm font-medium text-gray-300 mb-1 font-sans"
+                >
+                  Judul (Hanya untuk referensi Anda)
+                </label>
+                <Input
+                  id="title"
+                  name="title"
+                  type="text"
+                  placeholder="Rekrutmen TH 15-16 Dibuka!"
+                  value={formData.title}
+                  onChange={handleChange}
+                  disabled={isSubmitting}
+                  required
+                  maxLength={50}
+                  className="font-sans"
+                />
+              </div>
 
-          <div className="pt-4 border-t border-coc-gold-dark/20">
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={isSubmitting}
-              className="w-full sm:w-auto"
-            >
-              {isSubmitting ? (
-                <RefreshCwIcon className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <UploadIcon className="h-4 w-4 mr-2" /> // [PERBAIKAN] Ikon diubah
-              )}
-              {isSubmitting ? 'Menambahkan...' : 'Tambah Promosi'}
-            </Button>
+              <div>
+                <label
+                  htmlFor="description"
+                  className="block text-sm font-medium text-gray-300 mb-1 font-sans"
+                >
+                  Deskripsi Singkat (Hanya untuk referensi Anda)
+                </label>
+                <Input
+                  id="description"
+                  name="description"
+                  type="text"
+                  placeholder="Klan kami mencari pemain aktif untuk CWL."
+                  value={formData.description}
+                  onChange={handleChange}
+                  disabled={isSubmitting}
+                  required
+                  maxLength={100}
+                  className="font-sans"
+                />
+              </div>
+
+              <div className="pt-4 border-t border-coc-gold-dark/20 flex items-center gap-4">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={isSubmitting}
+                  className="w-full sm:w-auto"
+                >
+                  {isSubmitting ? (
+                    <RefreshCwIcon className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <UploadIcon className="h-4 w-4 mr-2" />
+                  )}
+                  {isSubmitting ? 'Menambahkan...' : 'Tambah Promosi'}
+                </Button>
+                <Button
+                  type="button" // Pastikan tipe "button" agar tidak submit form
+                  variant="secondary"
+                  onClick={() => setShowAddForm(false)}
+                  disabled={isSubmitting}
+                >
+                  Batal
+                </Button>
+              </div>
+            </form>
           </div>
-        </form>
+        )}
       </div>
 
       {/* --- BAGIAN DAFTAR PROMOSI --- */}
@@ -296,9 +346,34 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
                   <div className="flex items-center justify-center sm:justify-start gap-2 text-coc-gold mt-2">
                     <ThumbsUpIcon className="h-4 w-4" />
                     <span className="text-sm font-sans font-bold">
-                      {promo.clicks} Klik
+                      {/* [EDIT V3 - TUGAS 5.1] Menggunakan totalClicks */}
+                      {promo.totalClicks} Total Klik
                     </span>
                   </div>
+                  {/* [BARU V3] Tampilkan rincian klik per TH */}
+                  {promo.clicksByTH &&
+                    Object.keys(promo.clicksByTH).length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2 justify-center sm:justify-start">
+                        {Object.entries(promo.clicksByTH)
+                          .sort((a, b) => {
+                            // Sortir descending berdasarkan TH numerik, 'unknown' di akhir
+                            const thA =
+                              a[0] === 'unknown' ? 0 : parseInt(a[0]);
+                            const thB =
+                              b[0] === 'unknown' ? 0 : parseInt(b[0]);
+                            return thB - thA;
+                          })
+                          .map(([th, count]) => (
+                            <span
+                              key={th}
+                              className="text-xs font-sans bg-coc-dark px-2 py-0.5 rounded-full text-gray-300 border border-coc-gold-dark/50"
+                            >
+                              TH {th}:{' '}
+                              <strong className="text-white">{count}</strong>
+                            </span>
+                          ))}
+                      </div>
+                    )}
                 </div>
                 <Button
                   variant="danger"
