@@ -1,11 +1,11 @@
 // File: app/player/[playerId]/PlayerProfileClient.tsx
 // Deskripsi: Client Component baru untuk Halaman Profil Publik.
-//           [PERBAIKAN] Menyamakan logika rating default menjadi 0.0
-//           [MODIFIKASI] Menghapus tombol "Kembali ke Hub" & menambah Tittle
+// [MODIFIKASI FASE 3.5]: Menambahkan card untuk Hero, Troops, dan Spells.
 
 'use client';
 
-import React from 'react';
+// [MODIFIKASI FASE 2] Impor hook React dan tipe CocPlayer
+import React, { useState, useEffect } from 'react';
 import {
   UserProfile,
   Post,
@@ -13,18 +13,23 @@ import {
   FirestoreDocument,
 } from '@/lib/types';
 import { DocumentData } from 'firebase/firestore';
+import { CocPlayer } from '@/lib/coc.types'; // <-- [BARU] Impor tipe data lengkap
 
 // --- Impor Komponen UI yang Digunakan Ulang dari app/profile/components ---
-// Kita tidak mengimpor ProfileHeader karena header publik berbeda
 import { ProfileSidebar } from '@/app/profile/components/ProfileSidebar';
 import { GameStatusCard } from '@/app/profile/components/GameStatusCard';
 import { RecentActivityCard } from '@/app/profile/components/RecentActivityCard';
 import { TeamHistoryCard } from '@/app/profile/components/TeamHistoryCard';
 import { ReceivedReviewsCard } from '@/app/profile/components/ReceivedReviewsCard';
 
+// --- [BARU FASE 3.5] Impor card-card baru ---
+import { PlayerHeroesCard } from '@/app/profile/components/PlayerHeroesCard';
+import { PlayerTroopsCard } from '@/app/profile/components/PlayerTroopsCard';
+import { PlayerSpellsCard } from '@/app/profile/components/PlayerSpellsCard';
+// --- [AKHIR BARU FASE 3.5] ---
+
 // --- Impor untuk Header Publik (dari page.tsx lama) ---
 import { Button } from '@/app/components/ui/Button';
-// [MODIFIKASI] Icon ArrowLeftIcon sudah tidak digunakan lagi
 import { ExternalLinkIcon } from '@/app/components/icons';
 
 // --- Props Interface ---
@@ -37,8 +42,7 @@ interface PlayerProfileClientProps {
 
 /**
  * @component PlayerProfileClient
- * Client component yang merakit UI profil publik menggunakan komponen
- * yang sudah ada dari app/profile/components/
+ * Client component yang merakit UI profil publik
  */
 const PlayerProfileClient = ({
   userProfile,
@@ -46,17 +50,19 @@ const PlayerProfileClient = ({
   clanHistory,
   playerReviews,
 }: PlayerProfileClientProps) => {
-  // --- 1. Logika Turunan (Variabel) ---
-  // Logika ini diambil dari ProfileClient.tsx dan page.tsx lama
-  // untuk memastikan konsistensi props
+  // --- [MODIFIKASI FASE 2] State untuk data lengkap ---
+  const [fullPlayer, setFullPlayer] = useState<CocPlayer | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  // --- [AKHIR MODIFIKASI FASE 2] ---
 
+  // --- 1. Logika Turunan (Variabel) ---
   const isVerified = userProfile?.isVerified || false;
   const isFreeAgent = userProfile?.role === 'Free Agent' || !userProfile?.role;
   const isCompetitiveVision =
     userProfile?.playStyle === 'Attacker Utama' ||
     userProfile?.playStyle === 'Strategist';
 
-  // Link ke profil in-game CoC
   const cocProfileUrl =
     isVerified && userProfile?.playerTag
       ? `https://link.clashofclans.com/en/?action=OpenPlayerProfile&tag=${userProfile.playerTag.replace(
@@ -65,37 +71,90 @@ const PlayerProfileClient = ({
         )}`
       : null;
 
-  // Role CoC
   const inGameRole = userProfile?.clanRole || 'not in clan';
 
-  // [PERBAIKAN] Kalkulasi Reputasi disamakan dengan Halaman Klan
   const playerReviewsCount = playerReviews.length;
   const totalRating = playerReviews.reduce(
     (acc, review) => acc + review.rating,
     0,
   );
-  // Jika 0 ulasan, reputasi = 0.0. Jika ada, hitung rata-ratanya.
   const reputation =
     playerReviewsCount > 0 ? totalRating / playerReviewsCount : 0.0;
-  // --- AKHIR PERBAIKAN ---
 
-  // PENTING: Untuk profil PUBLIK, 'isClanManager' selalu false
-  // agar tombol "Kelola Klan" atau info sinkronisasi tidak muncul.
   const isClanManagerForPublicView = false;
+
+  // --- [PERBAIKAN ERROR 404/JSON dan TS 2345] ---
+  useEffect(() => {
+    // [FIX 1] Salin tag ke const
+    const tagToFetch = userProfile.playerTag;
+
+    // Hanya jalankan jika ada playerTag di profil (dari Firebase)
+    if (!tagToFetch) {
+      setIsLoading(false);
+      setError('Profil ini tidak memiliki CoC Player Tag terverifikasi.');
+      return;
+    }
+
+    // [FIX 2] Encode tag di DILUAR async function (mengatasi ts(2345) juga)
+    // Di sini, TypeScript tahu 'tagToFetch' adalah 'string' (bukan undefined)
+    const encodedTagForApi = encodeURIComponent(tagToFetch);
+
+    // [FIX 3] Modifikasi fungsi agar menerima 'encodedTag' sebagai argumen
+    async function fetchFullPlayerData(encodedTag: string) {
+      setIsLoading(true);
+      setError(null);
+      try {
+        // [FIX 4] Gunakan argumen 'encodedTag' yang sudah aman
+        const response = await fetch(
+          `/api/coc/get-player/${encodedTag}`, // URL sekarang aman
+        );
+
+        const data = await response.json(); // Coba parse dulu
+
+        if (!response.ok) {
+          // Tangani error JSON dari API route kita
+          throw new Error(
+            data.error || `Error ${response.status}: Gagal mengambil data player`,
+          );
+        }
+
+        setFullPlayer(data as CocPlayer);
+      } catch (err) {
+        console.error('[PlayerProfileClient] Gagal fetch data lengkap:', err);
+        if (err instanceof Error) {
+          // [FIX 5] Tangani error "Unexpected token"
+          if (
+            err.message.includes('Unexpected token') ||
+            err.message.includes('not valid JSON')
+          ) {
+            setError(
+              `Gagal parse JSON. Kemungkinan API route 404 (salah URL) atau server down.`,
+            );
+          } else {
+            setError(err.message);
+          }
+        } else {
+          setError(
+            'Terjadi kesalahan yang tidak diketahui saat mengambil data CoC.',
+          );
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    // [FIX 6] Panggil fungsi dengan argumen yang sudah di-encode
+    fetchFullPlayerData(encodedTagForApi);
+  }, [userProfile.playerTag]); // Dependensi: userProfile.playerTag
+  // --- [AKHIR PERBAIKAN] ---
 
   // --- 2. Render Komponen ---
   return (
     <main className="max-w-7xl mx-auto space-y-8 p-4 md:p-8 mt-10">
-      {/* --- Bagian 1: Header Publik (Diambil dari page.tsx lama) --- */}
+      {/* --- Bagian 1: Header Publik (Tetap sama) --- */}
       <header className="flex justify-between items-center flex-wrap gap-4 mb-6 card-stone p-6 rounded-lg">
-        {/* --- MODIFIKASI: Tombol 'Kembali' dihapus dan diganti Judul --- */}
-        <h2 className="text-2xl font-clash-bold text-white">
-          Profil Pemain
-        </h2>
-        {/* --- AKHIR MODIFIKASI --- */}
-
+        <h2 className="text-2xl font-clash-bold text-white">Profil Pemain</h2>
         <div className="flex gap-4">
-          {/* Tombol Lihat Profil CoC */}
           {cocProfileUrl && (
             <Button
               href={cocProfileUrl}
@@ -128,26 +187,54 @@ const PlayerProfileClient = ({
 
       {/* --- Bagian 2: Layout Utama (Grid) --- */}
       <section className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* --- Kolom Kiri: Sidebar (Komponen Baru) --- */}
+        {/* --- Kolom Kiri: Sidebar (Tetap sama, data dari Firebase) --- */}
         <ProfileSidebar
           userProfile={userProfile}
           isVerified={isVerified}
           isFreeAgent={isFreeAgent}
           isCompetitiveVision={isCompetitiveVision}
           isClanManager={isClanManagerForPublicView} // Selalu false di publik
-          reputation={reputation} // <-- Menggunakan reputasi yang sudah diperbaiki
+          reputation={reputation}
           playerReviewsCount={playerReviewsCount}
         />
 
-        {/* --- Kolom Kanan: Detail CV (Komponen Baru) --- */}
+        {/* --- Kolom Kanan: Detail CV --- */}
         <section className="lg:col-span-3 space-y-8">
-          {/* Card Status Permainan */}
+          {/* [MODIFIKASI FASE 2] Mengirim data lengkap ke GameStatusCard */}
           <GameStatusCard
+            // Data ringkasan (dari Firebase) tetap dikirim untuk loading cepat
             userProfile={userProfile}
             isVerified={isVerified}
             isClanManager={isClanManagerForPublicView} // Selalu false di publik
             inGameRole={inGameRole}
+            // [BARU] Kirim data lengkap dari API (hasil fetch), loading, dan error
+            fullPlayerData={fullPlayer}
+            isLoading={isLoading}
+            error={error}
           />
+
+          {/* --- [BARU FASE 3.5] Tambahkan card-card baru --- */}
+          {/* Tampilkan card-card ini hanya jika terverifikasi */}
+          {isVerified && (
+            <>
+              <PlayerHeroesCard
+                fullPlayerData={fullPlayer}
+                isLoading={isLoading}
+                error={error}
+              />
+              <PlayerTroopsCard
+                fullPlayerData={fullPlayer}
+                isLoading={isLoading}
+                error={error}
+              />
+              <PlayerSpellsCard
+                fullPlayerData={fullPlayer}
+                isLoading={isLoading}
+                error={error}
+              />
+            </>
+          )}
+          {/* --- [AKHIR BARU FASE 3.5] --- */}
 
           {/* Card Aktivitas Terbaru */}
           <RecentActivityCard

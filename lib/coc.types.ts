@@ -1,6 +1,7 @@
 // File: lib/coc.types.ts
 // Deskripsi: Mendefinisikan semua struktur data (interface) TypeScript
 // yang berhubungan langsung dengan data mentah dari API Clash of Clans.
+// [MODIFIKASI FASE 2]: Menambahkan tipe data detail untuk CocPlayer.
 
 import { ClanRole } from './enums';
 
@@ -94,6 +95,35 @@ export interface CocMember {
   donationsReceived: number;
 }
 
+// --- [MODIFIKASI FASE 2] Tipe baru untuk item (Heroes, Troops, Spells) ---
+/**
+ * @interface CocPlayerItem
+ * Struktur generik untuk Troops, Heroes, Spells, dan Equipment dari API Player
+ */
+export interface CocPlayerItem {
+  name: string;
+  level: number;
+  maxLevel: number;
+  village: 'home' | 'builderBase';
+  superTroopIsActive?: boolean; // Khusus untuk super troops
+  equipment?: CocPlayerItem[]; // Khusus untuk equipment hero
+}
+
+/**
+ * @interface CocAchievement
+ * Struktur generik untuk Achievements dari API Player
+ */
+export interface CocAchievement {
+  name: string;
+  stars: number;
+  value: number;
+  target: number;
+  info: string;
+  village: 'home' | 'builderBase';
+  completionInfo?: string;
+}
+// --- [AKHIR MODIFIKASI FASE 2] ---
+
 /**
  * @interface CocPlayer
  * Data lengkap Player dari API. Digunakan saat Verifikasi Player.
@@ -116,8 +146,14 @@ export interface CocPlayer
     badgeUrls: CocIconUrls;
     clanLevel: number;
   };
-  // Data lebih detail lainnya dari API CocPlayer...
-  // Misal: heroes, spells, troops, achievements
+
+  // --- [MODIFIKASI FASE 2] ---
+  // Mengganti komentar dengan tipe data aktual berdasarkan API:
+  achievements: CocAchievement[];
+  heroes: CocPlayerItem[];
+  troops: CocPlayerItem[];
+  spells: CocPlayerItem[];
+  // --- [AKHIR MODIFIKASI FASE 2] ---
 }
 
 /**

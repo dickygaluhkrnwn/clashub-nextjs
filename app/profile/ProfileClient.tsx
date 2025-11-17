@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+// [MODIFIKASI FASE 3] Impor useEffect dan CocPlayer
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/context/AuthContext';
 import {
@@ -8,6 +9,7 @@ import {
   Post,
   PlayerReview,
   FirestoreDocument,
+  CocPlayer, // <-- [BARU FASE 3] Impor tipe data lengkap
 } from '@/lib/types';
 import { DocumentData } from 'firebase/firestore';
 
@@ -20,6 +22,12 @@ import { GameStatusCard } from './components/GameStatusCard';
 import { RecentActivityCard } from './components/RecentActivityCard';
 import { TeamHistoryCard } from './components/TeamHistoryCard';
 import { ReceivedReviewsCard } from './components/ReceivedReviewsCard';
+
+// --- [BARU FASE 3.5] Impor card-card baru ---
+import { PlayerHeroesCard } from './components/PlayerHeroesCard';
+import { PlayerTroopsCard } from './components/PlayerTroopsCard';
+import { PlayerSpellsCard } from './components/PlayerSpellsCard';
+// --- [AKHIR BARU FASE 3.5] ---
 
 interface ProfileClientProps {
   initialProfile: UserProfile | null;
@@ -42,9 +50,14 @@ const ProfileClient = ({
   const [error] = useState<string | null>(serverError);
   const [userProfile] = useState<UserProfile | null>(initialProfile);
 
+  // --- [BARU FASE 3] State untuk data lengkap (Live dari API) ---
+  const [fullPlayer, setFullPlayer] = useState<CocPlayer | null>(null);
+  const [isLoadingApi, setIsLoadingApi] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
+  // --- [AKHIR BARU FASE 3] ---
+
   // --- 1. Handle Loading Auth Awal ---
   if (authLoading) {
-    // [REFACTOR] Menggunakan komponen Loading
     return <ProfileLoading />;
   }
 
@@ -55,21 +68,82 @@ const ProfileClient = ({
     error.includes('Profil E-Sports CV Anda belum ditemukan');
 
   if (isMissingProfile) {
-    // [REFACTOR] Menggunakan komponen Error
-    // [FIX] onRetry tidak diperlukan untuk case 'missing profile'
     return <ProfileError error={error} isMissingProfile={true} />;
   }
 
   if (!userProfile && error) {
-    // [REFACTOR] Menggunakan komponen Error
     return (
       <ProfileError
         error={error}
         isMissingProfile={false}
-        onRetry={() => router.refresh()} // [FIX] Prop onRetry dikirim ke komponen
+        onRetry={() => router.refresh()}
       />
     );
   }
+
+  // --- [PERBAIKAN ERROR TS 2345] ---
+  useEffect(() => {
+    const tagToFetch = userProfile?.playerTag;
+
+    if (!tagToFetch) {
+      setIsLoadingApi(false);
+      if (userProfile?.isVerified) {
+        setApiError('Profil ini terverifikasi namun player tag tidak ditemukan.');
+      }
+      return;
+    }
+
+    // [FIX 2345] Encode tag di DILUAR async function.
+    // Di sini, TypeScript tahu 'tagToFetch' adalah 'string' (bukan undefined)
+    // karena sudah lolos pengecekan 'if' di atas.
+    const encodedTagForApi = encodeURIComponent(tagToFetch);
+
+    // [FIX 2345] Modifikasi fungsi agar menerima 'encodedTag' sebagai argumen
+    async function fetchFullPlayerData(encodedTag: string) {
+      setIsLoadingApi(true);
+      setApiError(null);
+      try {
+        // Gunakan argumen 'encodedTag' yang sudah aman
+        const response = await fetch(
+          `/api/coc/get-player/${encodedTag}`, // URL sekarang aman
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.error || `Error ${response.status}: Gagal mengambil data player`,
+          );
+        }
+
+        setFullPlayer(data as CocPlayer);
+      } catch (err) {
+        console.error('[ProfileClient] Gagal fetch data lengkap:', err);
+        if (err instanceof Error) {
+          if (
+            err.message.includes('Unexpected token') ||
+            err.message.includes('not valid JSON')
+          ) {
+            setApiError(
+              `Gagal parse JSON. Kemungkinan API route 404 (salah URL) atau server down.`,
+            );
+          } else {
+            setApiError(err.message);
+          }
+        } else {
+          setApiError(
+            'Terjadi kesalahan yang tidak diketahui saat mengambil data CoC.',
+          );
+        }
+      } finally {
+        setIsLoadingApi(false);
+      }
+    }
+
+    // [FIX 2345] Panggil fungsi dengan argumen yang sudah di-encode
+    fetchFullPlayerData(encodedTagForApi);
+  }, [userProfile?.playerTag]);
+  // --- [AKHIR PERBAIKAN] ---
 
   // --- 3. Tampilkan Profil Jika Semua OK ---
   if (currentUser && userProfile) {
@@ -92,29 +166,19 @@ const ProfileClient = ({
 
     const inGameRole = userProfile?.clanRole || 'not in clan';
 
-    // [PERBAIKAN] Logika reputasi disamakan dengan profil publik (default 0.0)
     const playerReviewsCount = playerReviews.length;
     const totalRating = playerReviews.reduce(
       (acc, review) => acc + review.rating,
       0,
     );
-    // Jika 0 ulasan, reputasi = 0.0. Jika ada, hitung rata-ratanya.
     const reputation =
       playerReviewsCount > 0 ? totalRating / playerReviewsCount : 0.0;
-    // --- AKHIR PERBAIKAN ---
 
-    // [FIX] Hapus logika:
-    // - cleanUrlDisplay (pindah ke ProfileSidebar)
-    // - validThLevel (pindah ke GameStatusCard)
-    // - thImage (pindah ke GameStatusCard)
-    // - avatarSrc (pindah ke ProfileSidebar)
-
-    // [REFACTOR] Merakit halaman menggunakan komponen-komponen baru
     return (
       <main className="max-w-7xl mx-auto space-y-8 p-4 md:p-8 mt-10">
         <ProfileHeader
           isVerified={isVerified}
-          inGameName={userProfile.inGameName} // [FIX] Tipe inGameName (string | undefined) sudah ditangani di ProfileHeader
+          inGameName={userProfile.inGameName}
           displayName={userProfile.displayName}
           cocProfileUrl={cocProfileUrl}
         />
@@ -125,19 +189,46 @@ const ProfileClient = ({
             isVerified={isVerified}
             isFreeAgent={isFreeAgent}
             isCompetitiveVision={isCompetitiveVision}
-            reputation={reputation} // <-- Reputasi yang sudah diperbaiki
-            playerReviewsCount={playerReviews.length} // [FIX] Mengirim prop 'playerReviewsCount'
+            reputation={reputation}
+            playerReviewsCount={playerReviews.length}
             isClanManager={isClanManager}
           />
 
           <section className="lg:col-span-3 space-y-8">
+            {/* [MODIFIKASI FASE 3] Kirim props baru ke GameStatusCard */}
             <GameStatusCard
               userProfile={userProfile}
               isVerified={isVerified}
               inGameRole={inGameRole}
               isClanManager={isClanManager}
-              // [FIX] Props thImage dan validThLevel dihapus (sudah dihandle di dalam komponen)
+              // Props baru untuk data live:
+              fullPlayerData={fullPlayer}
+              isLoading={isLoadingApi}
+              error={apiError}
             />
+
+            {/* --- [BARU FASE 3.5] Tambahkan card-card baru --- */}
+            {/* Tampilkan card-card ini hanya jika terverifikasi */}
+            {isVerified && (
+              <>
+                <PlayerHeroesCard
+                  fullPlayerData={fullPlayer}
+                  isLoading={isLoadingApi}
+                  error={apiError}
+                />
+                <PlayerTroopsCard
+                  fullPlayerData={fullPlayer}
+                  isLoading={isLoadingApi}
+                  error={apiError}
+                />
+                <PlayerSpellsCard
+                  fullPlayerData={fullPlayer}
+                  isLoading={isLoadingApi}
+                  error={apiError}
+                />
+              </>
+            )}
+            {/* --- [AKHIR BARU FASE 3.5] --- */}
 
             <RecentActivityCard
               recentPosts={recentPosts}
