@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image'; // <-- [MODIFIKASI UI] Import Image
 import { Metadata } from 'next';
 import { Button } from '@/app/components/ui/Button';
 // [FASE 3.1] Impor tipe ClanReview dan ClanSocialLink
@@ -38,7 +39,7 @@ import {
 import { RosterMember } from '@/app/clan/manage/components/MemberTableRow';
 
 import {
-  ArrowLeftIcon,
+  // ArrowLeftIcon, // <-- [MODIFIKASI UI] Dihapus, tidak terpakai
   StarIcon,
   ShieldIcon,
   UserIcon,
@@ -138,7 +139,12 @@ const ClanDetailPage = async ({ params }: ClanDetailPageProps) => {
     profileDescription,
     clanRules,
     socialLinks,
+    logoUrl, // <-- [FIX ERROR] Menambahkan logoUrl (nama yang benar)
+    // badgeUrls, // <-- [FIX ERROR] Dihapus dari managedClan
   } = managedClan;
+
+  // [FIX ERROR] Hapus baris yang salah ini. badgeUrls tidak ada di apiCache.
+  // const badgeUrls = apiCache?.badgeUrls;
 
   const isCompetitive = vision === 'Kompetitif';
 
@@ -223,32 +229,12 @@ const ClanDetailPage = async ({ params }: ClanDetailPageProps) => {
 
   return (
     <main className="container mx-auto p-4 md:p-8 mt-10">
-      {/* [PERBAIKAN LAYOUT] Tombol "Kembali ke Hub" DIHAPUS */}
-
-      {/* Header Profil Klan */}
+      {/* [MODIFIKASI UI] Header Profil Klan Baru (gaya Profil Pemain) */}
       <header className="flex justify-between items-center flex-wrap gap-4 mb-8 card-stone p-6 rounded-lg">
-        {/* Div pembungkus tombol dan judul diubah, tombolnya dipindah */}
-        <div className="flex items-center gap-4">
-          {/* Tombol "Kembali ke Hub" dipindahkan dari sini */}
+        {/* Sisi Kiri: Judul Halaman */}
+        <h2 className="text-2xl font-clash-bold text-white">Profil Clan</h2>
 
-          <div>
-            <h1 className="text-3xl lg:text-4xl text-white font-clash m-0">
-              {name}
-            </h1>
-            <p className="text-sm text-coc-gold font-bold mb-1">{tag}</p>
-            <span
-              className={`px-3 py-1 text-xs font-bold rounded-full ${
-                isCompetitive
-                  ? 'bg-coc-red text-white'
-                  : 'bg-coc-green text-coc-stone'
-              }`}
-            >
-              {vision} (TH Avg: {avgTh.toFixed(1)}) | Level Klan: {clanLevel}
-            </span>
-          </div>
-        </div>
-
-        {/* Tombol Aksi */}
+        {/* Sisi Kanan: Tombol Aksi (Dipindahkan dari header lama) */}
         <div className="flex flex-col sm:flex-row gap-3">
           <a href={cocApiUrl} target="_blank" rel="noopener noreferrer">
             <Button variant="secondary" size="lg">
@@ -256,12 +242,9 @@ const ClanDetailPage = async ({ params }: ClanDetailPageProps) => {
             </Button>
           </a>
           {isClanOwner ? (
-            // [BARU: FASE 3.2] Tambahkan tombol Edit Profil & Kelola Klan
             <>
               <Link href={`/clan/internal/${clanId}/edit`}>
-                {/* [FIX ERROR 2322] Mengganti variant "primary_outline" menjadi "secondary" */}
                 <Button variant="secondary" size="lg">
-                  {/* [FIX ERROR 2305] Mengganti PencilIcon dengan EditIcon */}
                   <EditIcon className="h-5 w-5 mr-2" /> Edit Profil Klan
                 </Button>
               </Link>
@@ -276,7 +259,6 @@ const ClanDetailPage = async ({ params }: ClanDetailPageProps) => {
               Roster Penuh
             </span>
           ) : (
-            // FIX: Menggunakan clanId di link Join
             <Button
               href={`/clan/internal/${clanId}/join`}
               variant="primary"
@@ -287,12 +269,40 @@ const ClanDetailPage = async ({ params }: ClanDetailPageProps) => {
           )}
         </div>
       </header>
+      {/* [AKHIR MODIFIKASI UI] Header Baru Selesai */}
 
       {/* Layout Utama Profil - FIX DENGAN STRUKTUR STACKED (UNIK UNTUK PAGE INI) */}
       <section className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Kolom Kiri: Statistik & Kontak (SIDEBAR) */}
         {/* FIX: Menambahkan Z-index dan menstabilkan lebar kolom */}
         <aside className="lg:col-span-1 card-stone p-6 h-fit sticky top-28 space-y-6 rounded-lg z-10">
+          {/* [MODIFIKASI UI] Info Klan Inti (Dipindahkan dari header lama) */}
+          <div className="flex flex-col items-center text-center">
+            <Image
+              // [FIX ERROR] Gunakan logoUrl (string) bukan badgeUrls.medium (objek)
+              src={logoUrl || '/images/clan-badge-placeholder.png'}
+              alt={`Lencana ${name}`}
+              width={128} // Ukuran yang wajar untuk sidebar
+              height={128}
+              className="mb-4"
+              priority // Prioritaskan load gambar lencana
+            />
+            <h1 className="text-3xl lg:text-4xl text-white font-clash m-0">
+              {name}
+            </h1>
+            <p className="text-sm text-coc-gold font-bold mb-2">{tag}</p>
+            <span
+              className={`px-3 py-1 text-xs font-bold rounded-full ${
+                isCompetitive
+                  ? 'bg-coc-red text-white'
+                  : 'bg-coc-green text-coc-stone'
+              }`}
+            >
+              {vision} (TH Avg: {avgTh.toFixed(1)}) | Level Klan: {clanLevel}
+            </span>
+          </div>
+          {/* [AKHIR MODIFIKASI UI] */}
+
           {/* Reputasi Tim */}
           <h3 className="text-xl text-coc-gold-dark font-clash border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2">
             <StarIcon className="h-5 w-5" /> Reputasi Tim
