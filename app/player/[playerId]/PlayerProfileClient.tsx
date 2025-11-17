@@ -1,6 +1,7 @@
 // File: app/player/[playerId]/PlayerProfileClient.tsx
 // Deskripsi: Client Component baru untuk Halaman Profil Publik.
-//            [PERBAIKAN] Menyamakan logika rating default menjadi 0.0
+//           [PERBAIKAN] Menyamakan logika rating default menjadi 0.0
+//           [MODIFIKASI] Menghapus tombol "Kembali ke Hub" & menambah Tittle
 
 'use client';
 
@@ -23,7 +24,8 @@ import { ReceivedReviewsCard } from '@/app/profile/components/ReceivedReviewsCar
 
 // --- Impor untuk Header Publik (dari page.tsx lama) ---
 import { Button } from '@/app/components/ui/Button';
-import { ArrowLeftIcon, ExternalLinkIcon } from '@/app/components/icons';
+// [MODIFIKASI] Icon ArrowLeftIcon sudah tidak digunakan lagi
+import { ExternalLinkIcon } from '@/app/components/icons';
 
 // --- Props Interface ---
 interface PlayerProfileClientProps {
@@ -86,14 +88,11 @@ const PlayerProfileClient = ({
     <main className="max-w-7xl mx-auto space-y-8 p-4 md:p-8 mt-10">
       {/* --- Bagian 1: Header Publik (Diambil dari page.tsx lama) --- */}
       <header className="flex justify-between items-center flex-wrap gap-4 mb-6 card-stone p-6 rounded-lg">
-        <Button
-          href="/clan-hub" // Diarahkan ke Clan Hub
-          variant="secondary"
-          size="md"
-          className="flex items-center flex-shrink-0"
-        >
-          <ArrowLeftIcon className="h-4 w-4 mr-2" /> Kembali ke Hub
-        </Button>
+        {/* --- MODIFIKASI: Tombol 'Kembali' dihapus dan diganti Judul --- */}
+        <h2 className="text-2xl font-clash-bold text-white">
+          Profil Pemain
+        </h2>
+        {/* --- AKHIR MODIFIKASI --- */}
 
         <div className="flex gap-4">
           {/* Tombol Lihat Profil CoC */}
