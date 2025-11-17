@@ -56,8 +56,8 @@ import EsportsTabContent from './components/EsportsTabContent';
 // [BARU FASE 3] Impor komponen tab promosi
 import PromotionTabContent from './components/PromotionTabContent';
 
-// [BARU FASE 4] Impor komponen tab Asisten AI
-import GeminiAssistantTab from './components/GeminiAssistantTab';
+// [FASE 2] Ganti nama impor (meski file sama) agar lebih jelas ini adalah Modal
+import GeminiAssistantModal from './components/GeminiAssistantTab';
 
 interface ManageClanClientProps {
   clan: ManagedClan | null;
@@ -75,7 +75,7 @@ type ActiveTab =
   | 'raid'
   | 'esports' // <-- [BARU: TAHAP 3.2] Ditambahkan
   | 'promotion' // <-- [BARU FASE 3] Ditambahkan
-  | 'ai-assistant' // <-- [BARU FASE 4] Ditambahkan
+  // | 'ai-assistant' // <-- [FASE 2] Dihapus dari tipe tab
   | 'settings';
 
 // --- DAFTAR TAB ---
@@ -120,12 +120,12 @@ const MANAGER_TABS: { tabName: ActiveTab; icon: React.ReactNode; label: string }
     { tabName: 'requests', icon: <MailOpenIcon />, label: 'Permintaan Gabung' },
     // [BARU FASE 3] Tab promosi ditambahkan
     { tabName: 'promotion', icon: <GlobeIcon />, label: 'Promosi' },
-    // [BARU FASE 4] Tab Asisten AI ditambahkan
-    {
-      tabName: 'ai-assistant',
-      icon: <IconSparkle />,
-      label: 'Asisten AI',
-    },
+    // [FASE 2] Tab Asisten AI dihapus dari navigasi
+    // {
+    //   tabName: 'ai-assistant',
+    //   icon: <IconSparkle />,
+    //   label: 'Asisten AI',
+    // },
     { tabName: 'settings', icon: <SettingsIcon />, label: 'Pengaturan Klan' },
   ];
 // --- AKHIR DAFTAR TAB ---
@@ -148,6 +148,9 @@ const ManageClanClient = ({
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false); // Loading state untuk API leave
   // --- [AKHIR BARU] ---
+
+  // [FASE 2] State untuk Modal Asisten AI
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
 
   // Cek Peran Pengguna
   const isManager = profile?.role === 'Leader' || profile?.role === 'Co-Leader';
@@ -240,12 +243,12 @@ const ManageClanClient = ({
     label: string;
   }> = ({ tabName, icon, label }) => {
     // Logika untuk anggota biasa yang mencoba mengakses tab Manager
-    // [BARU FASE 4] Menambahkan 'ai-assistant' ke daftar tab manager
+    // [FASE 2] Menghapus 'ai-assistant' dari daftar tab manager
     const isManagerTab = [
       'requests',
       'settings',
       'promotion',
-      'ai-assistant',
+      // 'ai-assistant', // <-- [FASE 2] Dihapus
     ].includes(tabName);
     if (!isManager && isManagerTab) {
       return null; // Jangan render tombol jika bukan manager
@@ -280,12 +283,12 @@ const ManageClanClient = ({
   // Render Konten Tab Sesuai Pilihan
   const renderContent = () => {
     // Filter akses tab manager
-    // [BARU FASE 4] Menambahkan 'ai-assistant' ke daftar tab terlarang
+    // [FASE 2] Menghapus 'ai-assistant' dari daftar tab terlarang
     const forbiddenTabs: ActiveTab[] = [
       'requests',
       'settings',
       'promotion',
-      'ai-assistant',
+      // 'ai-assistant', // <-- [FASE 2] Dihapus
     ];
     if (!isManager && forbiddenTabs.includes(activeTab)) {
       return (
@@ -350,10 +353,10 @@ const ManageClanClient = ({
       // [BARU FASE 3] Render komponen promosi
       case 'promotion':
         return <PromotionTabContent clan={clan} onAction={showNotification} />;
-      
-      // [BARU FASE 4] Render komponen Asisten AI
-      case 'ai-assistant':
-        return <GeminiAssistantTab clanId={clan.id} />;
+
+      // [FASE 2] Hapus case 'ai-assistant'
+      // case 'ai-assistant':
+      //   return <GeminiAssistantTab clanId={clan.id} />;
 
       case 'settings':
         // (Placeholder)
@@ -536,6 +539,30 @@ const ManageClanClient = ({
         </div>
       )}
       {/* --- [AKHIR BARU] --- */}
+
+      {/* --- [FASE 2] Tombol Floating & Modal AI --- */}
+      {/* Hanya tampilkan tombol jika user adalah Manager */}
+      {isManager && (
+        <Button
+          variant="primary"
+          size="lg" // Dibuat lebih besar
+          className="fixed z-40 bottom-6 right-6 rounded-full shadow-lg p-4 h-16 w-16" // Styling FAB
+          onClick={() => setIsAiModalOpen(true)}
+          aria-label="Buka Asisten AI"
+        >
+          <IconSparkle className="h-8 w-8" />
+        </Button>
+      )}
+
+      {/* Render Modal AI di sini. 
+        Modal ini akan menangani visibilitasnya sendiri berdasarkan prop 'isOpen' 
+      */}
+      <GeminiAssistantModal
+        clanId={clan.id}
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+      />
+      {/* --- [AKHIR FASE 2] --- */}
     </main>
   );
 };
