@@ -1,5 +1,4 @@
 import { notFound } from 'next/navigation';
-// import Image from 'next/image'; // Tidak terpakai, bisa dihapus
 import Link from 'next/link';
 import { Metadata } from 'next';
 import { Button } from '@/app/components/ui/Button';
@@ -11,6 +10,9 @@ import {
   ClanRole,
   ClanReview,
   ClanSocialLink, // <-- [BARU FASE 3.1] Impor tipe link sosial
+  // [FASE 2.3] Impor tipe role dari enums (diasumsikan dari lib/types)
+  ManagerRole,
+  StandardMemberRole,
 } from '@/lib/types';
 
 // [PERBAIKAN KRITIS] Ganti impor client-side ke admin-side untuk Server Component
@@ -23,7 +25,17 @@ import { getTeamMembersAdmin } from '@/lib/firestore-admin/users';
 import { getClanReviewsAdmin } from '@/lib/firestore-admin/reviews';
 // [PERBAIKAN PATH] Path diubah dari './components' ke '../components'
 import { ClanReviewsCard } from '../components/ClanReviewsCard';
+
+// --- [REFACTOR 1.4] Impor komponen dan tipe baru ---
+import {
+  TeamMemberTable,
+  // [FASE 2.3] Hapus impor EnrichedMember
+  // EnrichedMember,
+} from '../components/TeamMemberTable';
 // ---
+
+// [FASE 2.3] Impor tipe RosterMember dari file yang relevan
+import { RosterMember } from '@/app/clan/manage/components/MemberTableRow';
 
 import {
   ArrowLeftIcon,
@@ -48,34 +60,9 @@ interface ClanDetailPageProps {
   };
 }
 
-// --- HELPER UNTUK KETERANGAN PARTISIPASI (Diambil dari ManageClanClient) ---
-const getParticipationStatusClass = (
-  status: ClanApiCache['members'][number]['participationStatus'] | 'Aman',
-) => {
-  switch (status) {
-    case 'Promosi':
-      return 'bg-coc-gold/20 text-coc-gold border border-coc-gold/30';
-    case 'Demosi':
-      return 'bg-coc-red/20 text-coc-red border border-coc-red/30';
-    case 'Leader/Co-Leader':
-      return 'bg-coc-blue/20 text-coc-blue border border-coc-blue/30';
-    case 'Aman':
-    default:
-      return 'bg-coc-green/20 text-coc-green border border-coc-green/30';
-  }
-};
-
-// Tambahkan tipe untuk anggota yang diperkaya
-type EnrichedMember = UserProfile & {
-  warSuccessCount: number;
-  warFailCount: number;
-  participationStatus:
-    | ClanApiCache['members'][number]['participationStatus']
-    | 'Aman';
-  trophies: number;
-  donations: number;
-  statusKeterangan: string; // Tambahkan keterangan status
-};
+// --- [REFACTOR 1.4] Helper getParticipationStatusClass DIPINDAHKAN ke TeamMemberTable.tsx ---
+// --- [REFACTOR 1.4] Tipe EnrichedMember DIPINDAHKAN ke TeamMemberTable.tsx ---
+// --- [FASE 2.3] Tipe EnrichedMember tidak lagi digunakan di file ini ---
 
 // =========================================================================
 // SERVER DATA FETCHING
@@ -112,13 +99,15 @@ const ClanDetailPage = async ({ params }: ClanDetailPageProps) => {
   const sessionUser = await getSessionUser();
 
   // [PERBAIKAN KRITIS] Mengambil data menggunakan Admin SDK di Server Component
-  // [BARU: Fase 4.3] Menambahkan getClanReviewsAdmin
-  const [managedClan, apiCache, members, clanReviews] = await Promise.all([
-    getManagedClanDataAdmin(clanId),
-    getClanApiCacheAdmin(clanId), // Mengambil data cache Partisipasi
-    getTeamMembersAdmin(clanId), // Mengambil anggota (UserProfile yang clanId-nya cocok)
-    getClanReviewsAdmin(clanId), // <-- [BARU] Mengambil data ulasan
-  ]);
+  // [FASE 2.3] Ganti nama 'members' menjadi 'verifiedMembers'
+  const [managedClan, apiCache, verifiedMembers, clanReviews] = await Promise.all(
+    [
+      getManagedClanDataAdmin(clanId),
+      getClanApiCacheAdmin(clanId), // Mengambil data cache Partisipasi
+      getTeamMembersAdmin(clanId), // Mengambil anggota (UserProfile yang clanId-nya cocok)
+      getClanReviewsAdmin(clanId), // <-- [BARU] Mengambil data ulasan
+    ],
+  );
 
   if (!managedClan) {
     notFound();
@@ -152,35 +141,45 @@ const ClanDetailPage = async ({ params }: ClanDetailPageProps) => {
   } = managedClan;
 
   const isCompetitive = vision === 'Kompetitif';
-  const isFull = members.length >= 50;
+
+  // [FASE 2.3] Ambil total anggota dari apiCache, bukan dari 'verifiedMembers'
+  const totalMembers = apiCache?.members?.length || 0;
+  const isFull = totalMembers >= 50;
   const isClanOwner = sessionUser?.uid === ownerUid;
 
-  // Temukan data Partisipasi anggota klan dari cache
-  const enrichedMembers: EnrichedMember[] = members.map((member) => {
-    const cacheMember = apiCache?.members.find(
-      (cm) => cm.tag === member.playerTag,
-    );
+  // [FASE 2.3] Hapus 'enrichedMembers' lama.
+  // const enrichedMembers: EnrichedMember[] = ... (BLOK INI DIHAPUS)
+
+  // [FASE 2.3] Buat Roster Gabungan (Logika dari MemberTabContent.tsx)
+  const allApiMembers = apiCache?.members || [];
+
+  // Buat map untuk pencarian cepat data UserProfile
+  const verifiedMembersMap = new Map<string, UserProfile>();
+  verifiedMembers.forEach((user) => {
+    verifiedMembersMap.set(user.playerTag, user);
+  });
+
+  // Gabungkan data
+  const rosterForTable: RosterMember[] = allApiMembers.map((apiMember) => {
+    const verifiedProfile = verifiedMembersMap.get(apiMember.tag);
 
     return {
-      ...member,
-      // Partisipasi dikalkulasi dari cache
-      warSuccessCount: cacheMember?.warSuccessCount || 0,
-      warFailCount: cacheMember?.warFailCount || 0,
-      participationStatus: cacheMember?.participationStatus || 'Aman',
-      statusKeterangan:
-        (cacheMember as any)?.statusKeterangan || 'N/A', // Ambil keterangan dari cache
-      // Gunakan data CoC yang lebih baru dari cache/API jika ada
-      trophies: cacheMember?.trophies || member.trophies,
-      donations: cacheMember?.donations || 0,
-      clanRole:
-        (cacheMember?.role as unknown as ClanRole) ||
-        member.clanRole ||
-        ClanRole.NOT_IN_CLAN,
+      ...apiMember, // Data dari ClanApiCache (termasuk donasi, partisipasi, dll)
+      uid: verifiedProfile?.uid,
+      // [FIX ERROR TS-2693] Ganti 'StandardMemberRole.MEMBER' (tipe) menjadi 'Member' (string)
+      clashubRole: verifiedProfile?.role || 'Member',
+      isVerified: !!verifiedProfile,
+      // Memastikan properti yang mungkin tidak ada di apiMember tetap ada
+      warSuccessCount: apiMember.warSuccessCount || 0,
+      warFailCount: apiMember.warFailCount || 0,
+      cwlSuccessCount: apiMember.cwlSuccessCount || 0,
+      cwlFailCount: apiMember.cwlFailCount || 0,
+      participationStatus: apiMember.participationStatus || 'Aman',
+      statusKeterangan: apiMember.statusKeterangan || 'N/A',
     };
   });
 
-  // Sort anggota berdasarkan TH level (Tertinggi ke Terendah)
-  enrichedMembers.sort((a, b) => b.thLevel - a.thLevel);
+  // --- [REFACTOR 1.4] Logic sorting DIPINDAHKAN ke TeamMemberTable.tsx ---
 
   // Data dummy untuk Riwayat Kompetisi (dipertahankan)
   const competitionHistory = [
@@ -224,18 +223,13 @@ const ClanDetailPage = async ({ params }: ClanDetailPageProps) => {
 
   return (
     <main className="container mx-auto p-4 md:p-8 mt-10">
+      {/* [PERBAIKAN LAYOUT] Tombol "Kembali ke Hub" DIHAPUS */}
+
       {/* Header Profil Klan */}
       <header className="flex justify-between items-center flex-wrap gap-4 mb-8 card-stone p-6 rounded-lg">
+        {/* Div pembungkus tombol dan judul diubah, tombolnya dipindah */}
         <div className="flex items-center gap-4">
-          {/* PERBAIKAN KRITIS: Mengubah href="/clan-hub" (sudah benar) */}
-          <Button
-            href="/clan-hub"
-            variant="secondary"
-            size="md"
-            className="flex items-center flex-shrink-0"
-          >
-            <ArrowLeftIcon className="h-4 w-4 mr-2" /> Kembali ke Hub
-          </Button>
+          {/* Tombol "Kembali ke Hub" dipindahkan dari sini */}
 
           <div>
             <h1 className="text-3xl lg:text-4xl text-white font-clash m-0">
@@ -339,7 +333,8 @@ const ClanDetailPage = async ({ params }: ClanDetailPageProps) => {
                 <UserIcon className="h-4 w-4 text-coc-gold-dark" /> Anggota:
               </span>{' '}
               <strong className="text-white font-clash text-base">
-                {members.length}/50
+                {/* [FASE 2.3] Gunakan 'totalMembers' baru */}
+                {totalMembers}/50
               </strong>
             </li>
             <li className="flex justify-between items-center">
@@ -427,83 +422,11 @@ const ClanDetailPage = async ({ params }: ClanDetailPageProps) => {
             {/* [AKHIR GANTI: FASE 3.1] */}
           </div>
 
+          {/* --- [REFACTOR 1.4] --- */}
           {/* 2. DAFTAR ROSTER/ANGGOTA */}
-          <div className="card-stone p-6 space-y-6 rounded-lg">
-            <h2 className="text-2xl font-clash text-white border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2">
-              <UserIcon className="h-6 w-6 text-coc-gold" /> Anggota Tim (
-              {members.length}/50)
-            </h2>
-            {enrichedMembers.length === 0 ? (
-              <p className="text-gray-400 text-center py-4">
-                Tim ini belum memiliki anggota yang terdaftar di Clashub.
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-coc-gold-dark/20 text-xs">
-                  <thead className="bg-coc-stone/50 sticky top-0">
-                    <tr>
-                      <th className="px-3 py-2 text-left font-clash text-coc-gold uppercase tracking-wider">
-                        Pemain (TH)
-                      </th>
-                      <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">
-                        Role Clashub
-                      </th>
-                      <th className="px-3 py-2 text-center font-clash text-coc-green uppercase tracking-wider">
-                        Sukses War
-                      </th>
-                      <th className="px-3 py-2 text-center font-clash text-coc-red uppercase tracking-wider">
-                        Gagal War
-                      </th>
-                      <th className="px-3 py-2 text-left font-clash text-coc-gold uppercase tracking-wider">
-                        Status Partisipasi
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-coc-gold-dark/10">
-                    {enrichedMembers.map((member) => (
-                      <tr
-                        key={member.uid}
-                        className="hover:bg-coc-stone/20 transition-colors"
-                      >
-                        <td className="px-3 py-3 whitespace-nowrap text-sm font-semibold text-white">
-                          <Link
-                            href={`/player/${member.uid}`}
-                            className="hover:text-coc-gold-light transition-colors"
-                          >
-                            {member.displayName}
-                          </Link>
-                          <span className="text-gray-500 block text-xs">
-                            TH{member.thLevel} | {member.playerTag}
-                          </span>
-                        </td>
-                        {/* FIX: Menggunakan role Clashub internal */}
-                        <td className="px-3 py-3 whitespace-nowrap text-center text-xs uppercase font-medium text-coc-blue">
-                          {member.role || 'N/A'}
-                        </td>
-
-                        <td className="px-3 py-3 whitespace-nowrap text-center text-sm text-coc-green font-bold">
-                          {member.warSuccessCount}
-                        </td>
-                        <td className="px-3 py-3 whitespace-nowrap text-center text-sm text-coc-red font-bold">
-                          {member.warFailCount}
-                        </td>
-                        <td className="px-3 py-3 whitespace-nowrap text-left">
-                          <span
-                            title={member.statusKeterangan}
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-sans font-medium ${getParticipationStatusClass(
-                              member.participationStatus,
-                            )}`}
-                          >
-                            {member.participationStatus}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+          {/* [FASE 2.3] Ganti prop 'enrichedMembers' menjadi 'rosterMembers' */}
+          <TeamMemberTable rosterMembers={rosterForTable} />
+          {/* --- [AKHIR REFACTOR 1.4 & 2.3] --- */}
 
           {/* 3. RIWAYAT KOMPETISI (Diubah dari Tab menjadi Section) */}
           <div className="card-stone p-6 space-y-6 rounded-lg">
