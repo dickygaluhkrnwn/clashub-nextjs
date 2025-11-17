@@ -32,7 +32,8 @@ import {
   CalendarCheck2Icon,
   CoinsIcon,
   MenuIcon,
-  LogOutIcon, // <-- [BARU] Ditambahkan untuk tombol Leave
+  LogOutIcon,
+  IconSparkle, // <-- [BARU] Menambahkan IconSparkle
 } from '@/app/components/icons';
 // Import Komponen UI
 import Notification, {
@@ -55,6 +56,9 @@ import EsportsTabContent from './components/EsportsTabContent';
 // [BARU FASE 3] Impor komponen tab promosi
 import PromotionTabContent from './components/PromotionTabContent';
 
+// [BARU FASE 4] Impor komponen tab Asisten AI
+import GeminiAssistantTab from './components/GeminiAssistantTab';
+
 interface ManageClanClientProps {
   clan: ManagedClan | null;
   profile: UserProfile | null;
@@ -71,6 +75,7 @@ type ActiveTab =
   | 'raid'
   | 'esports' // <-- [BARU: TAHAP 3.2] Ditambahkan
   | 'promotion' // <-- [BARU FASE 3] Ditambahkan
+  | 'ai-assistant' // <-- [BARU FASE 4] Ditambahkan
   | 'settings';
 
 // --- DAFTAR TAB ---
@@ -115,6 +120,12 @@ const MANAGER_TABS: { tabName: ActiveTab; icon: React.ReactNode; label: string }
     { tabName: 'requests', icon: <MailOpenIcon />, label: 'Permintaan Gabung' },
     // [BARU FASE 3] Tab promosi ditambahkan
     { tabName: 'promotion', icon: <GlobeIcon />, label: 'Promosi' },
+    // [BARU FASE 4] Tab Asisten AI ditambahkan
+    {
+      tabName: 'ai-assistant',
+      icon: <IconSparkle />,
+      label: 'Asisten AI',
+    },
     { tabName: 'settings', icon: <SettingsIcon />, label: 'Pengaturan Klan' },
   ];
 // --- AKHIR DAFTAR TAB ---
@@ -229,8 +240,13 @@ const ManageClanClient = ({
     label: string;
   }> = ({ tabName, icon, label }) => {
     // Logika untuk anggota biasa yang mencoba mengakses tab Manager
-    // [EDIT FASE 3] Menambahkan 'promotion' ke daftar tab manager
-    const isManagerTab = ['requests', 'settings', 'promotion'].includes(tabName);
+    // [BARU FASE 4] Menambahkan 'ai-assistant' ke daftar tab manager
+    const isManagerTab = [
+      'requests',
+      'settings',
+      'promotion',
+      'ai-assistant',
+    ].includes(tabName);
     if (!isManager && isManagerTab) {
       return null; // Jangan render tombol jika bukan manager
     }
@@ -264,8 +280,13 @@ const ManageClanClient = ({
   // Render Konten Tab Sesuai Pilihan
   const renderContent = () => {
     // Filter akses tab manager
-    // [EDIT FASE 3] Menambahkan 'promotion' ke daftar tab terlarang
-    const forbiddenTabs: ActiveTab[] = ['requests', 'settings', 'promotion'];
+    // [BARU FASE 4] Menambahkan 'ai-assistant' ke daftar tab terlarang
+    const forbiddenTabs: ActiveTab[] = [
+      'requests',
+      'settings',
+      'promotion',
+      'ai-assistant',
+    ];
     if (!isManager && forbiddenTabs.includes(activeTab)) {
       return (
         <div className="p-8 text-center bg-coc-red/10 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
@@ -329,6 +350,10 @@ const ManageClanClient = ({
       // [BARU FASE 3] Render komponen promosi
       case 'promotion':
         return <PromotionTabContent clan={clan} onAction={showNotification} />;
+      
+      // [BARU FASE 4] Render komponen Asisten AI
+      case 'ai-assistant':
+        return <GeminiAssistantTab clanId={clan.id} />;
 
       case 'settings':
         // (Placeholder)

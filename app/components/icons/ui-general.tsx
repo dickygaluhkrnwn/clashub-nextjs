@@ -320,3 +320,22 @@ export const PieChartIcon = (props: IconProps) => (
     <path d="M22 12A10 10 0 0 0 12 2v10z" />
   </svg>
 );
+
+// --- [BARU FASE 4] Menambahkan IconSparkle untuk AI Assistant ---
+export const IconSparkle = (props: IconProps) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <path d="M12 2a.7.7 0 0 1 .7.7v3.6a.7.7 0 0 1-1.4 0V2.7A.7.7 0 0 1 12 2zM17.6 4.4a.7.7 0 0 1 .7.7l-2.5 2.5a.7.7 0 0 1-.99-.99l2.5-2.5a.7.7 0 0 1 .29-.2zM21.3 11.3a.7.7 0 0 1 .7.7h-3.6a.7.7 0 0 1 0-1.4h3.6a.7.7 0 0 1 .7.7zM17.6 19.6a.7.7 0 0 1-.7.7l-2.5-2.5a.7.7 0 0 1 .99-.99l2.5 2.5a.7.7 0 0 1-.29.2zM12 21.3a.7.7 0 0 1-.7.7v-3.6a.7.7 0 0 1 1.4 0v3.6a.7.7 0 0 1-.7.7zM6.4 19.6a.7.7 0 0 1-.7-.7l2.5-2.5a.7.7 0 0 1 .99.99l-2.5 2.5a.7.7 0 0 1-.29.2zM2.7 12.7a.7.7 0 0 1-.7-.7h3.6a.7.7 0 0 1 0 1.4H2.7a.7.7 0 0 1-.7-.7zM6.4 4.4a.7.7 0 0 1 .7-.7l2.5 2.5a.7.7 0 0 1-.99.99L6.4 4.7a.7.7 0 0 1-.29-.2z" />
+  </svg>
+);
+// --- [AKHIR BARU] ---
