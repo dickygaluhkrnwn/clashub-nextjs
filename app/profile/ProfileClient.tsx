@@ -1,6 +1,6 @@
 'use client';
 
-// [MODIFIKASI FASE 3] Impor useEffect dan CocPlayer
+// [MODIFIKASI FASE 4.4]: Menambahkan panggilan "fire-and-forget" ke /api/player/update-cache
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/context/AuthContext';
@@ -117,6 +117,23 @@ const ProfileClient = ({
         }
 
         setFullPlayer(data as CocPlayer);
+
+        // --- [BARU FASE 4.4] ---
+        // Setelah berhasil fetch, kirim data ke API route untuk di-cache
+        // "Fire and forget" - kita tidak perlu await di sini.
+        // Ini adalah optimasi, jika gagal, user tidak perlu tahu.
+        fetch('/api/player/update-cache', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data), // 'data' adalah fullPlayer
+        }).catch((cacheError) => {
+          // Log error ke konsol, tapi jangan ganggu user
+          console.warn(
+            '[ProfileClient] Gagal mengirim cache ke server:',
+            cacheError,
+          );
+        });
+        // --- [AKHIR BARU FASE 4.4] ---
       } catch (err) {
         console.error('[ProfileClient] Gagal fetch data lengkap:', err);
         if (err instanceof Error) {

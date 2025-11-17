@@ -1,5 +1,6 @@
 // File: lib/firestore-admin/users.ts
 // Deskripsi: Berisi fungsi utilitas Firestore Admin SDK terkait koleksi 'users'.
+// [MODIFIKASI FASE 4.2]: Menambahkan fungsi updatePlayerCacheAdmin.
 
 import { adminFirestore } from '../firebase-admin';
 import { COLLECTIONS } from '../firestore-collections';
@@ -10,6 +11,7 @@ import {
   FirestoreDocument,
   JoinRequest,
   PlayerReview, // <-- TAMBAHAN TAHAP 4.2
+  CocPlayer, // <-- [BARU FASE 4.2] Impor tipe CocPlayer
 } from '../types';
 // [EDIT] Impor tipe string literal DAN Enum
 import {
@@ -262,6 +264,52 @@ export const recordPlayerClanLeave = async (
 
 // --- [AKHIR FUNGSI BARU TAHAP 1.2] ---
 
+// --- [BARU FASE 4.2] ---
+/**
+ * [BARU FASE 4.2] Memperbarui cache data CoC lengkap di UserProfile.
+ * Dipanggil oleh API route /api/player/update-cache.
+ */
+export const updatePlayerCacheAdmin = async (
+  uid: string,
+  playerData: CocPlayer,
+): Promise<void> => {
+  try {
+    const userRef = adminFirestore.collection(COLLECTIONS.USERS).doc(uid);
+
+    // Buat objek update yang sesuai dengan field di UserProfile
+    const cacheData: Partial<UserProfile> = {
+      // Data Live
+      inGameName: playerData.name,
+      thLevel: playerData.townHallLevel,
+      trophies: playerData.trophies,
+      clanTag: playerData.clan?.tag || null,
+      clanName: playerData.clan?.name || null,
+      clanRole: playerData.role,
+      // Data Cache
+      cachedHeroes: playerData.heroes,
+      cachedTroops: playerData.troops,
+      cachedSpells: playerData.spells,
+      cachedAchievements: playerData.achievements,
+      // [FIX TS 2352] Ganti 'as Date' menjadi 'as unknown as Date'
+      lastCacheTimestamp: FieldValue.serverTimestamp() as unknown as Date,
+    };
+
+    // Gunakan .update() untuk memperbarui field yang ada
+    await userRef.update(cacheData);
+    console.log(
+      `[updatePlayerCacheAdmin] Cache data CoC diperbarui untuk UID: ${uid}`,
+    );
+  } catch (error) {
+    console.error(
+      `Firestore Error [updatePlayerCacheAdmin - Admin(${uid})]:`,
+      error,
+    );
+    // Lempar error agar API route bisa menangkapnya
+    throw new Error('Gagal memperbarui cache data player (Admin SDK).');
+  }
+};
+// --- [AKHIR BARU FASE 4.2] ---
+
 // [TAMBAHAN BARU UNTUK FIX ERROR 404]
 /**
  * [BARU] Mengambil beberapa dokumen UserProfile berdasarkan array UID (Admin).
@@ -334,7 +382,7 @@ export const getUserProfileByPlayerTagAdmin = async (
     return docToDataAdmin<UserProfile>(snapshot.docs[0]);
   } catch (error) {
     console.error(
-      `Firestore Error [getUserProfileByPlayerTagAdmin - Admin(${playerTag})]:`,
+      `[getUserProfileByPlayerTagAdmin - Admin(${playerTag})]:`,
       error,
     );
     return null;

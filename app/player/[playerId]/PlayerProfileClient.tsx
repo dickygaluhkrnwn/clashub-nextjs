@@ -1,6 +1,6 @@
 // File: app/player/[playerId]/PlayerProfileClient.tsx
 // Deskripsi: Client Component baru untuk Halaman Profil Publik.
-// [MODIFIKASI FASE 3.5]: Menambahkan card untuk Hero, Troops, dan Spells.
+// [MODIFIKASI FASE 4.5]: Menambahkan panggilan "fire-and-forget" ke /api/player/update-cache
 
 'use client';
 
@@ -119,6 +119,23 @@ const PlayerProfileClient = ({
         }
 
         setFullPlayer(data as CocPlayer);
+
+        // --- [BARU FASE 4.5] ---
+        // Setelah berhasil fetch, kirim data ke API route untuk di-cache
+        // "Fire and forget" - kita tidak perlu await di sini.
+        // Ini adalah optimasi, jika gagal, user tidak perlu tahu.
+        fetch('/api/player/update-cache', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data), // 'data' adalah fullPlayer
+        }).catch((cacheError) => {
+          // Log error ke konsol, tapi jangan ganggu user
+          console.warn(
+            '[PlayerProfileClient] Gagal mengirim cache ke server:',
+            cacheError,
+          );
+        });
+        // --- [AKHIR BARU FASE 4.5] ---
       } catch (err) {
         console.error('[PlayerProfileClient] Gagal fetch data lengkap:', err);
         if (err instanceof Error) {
