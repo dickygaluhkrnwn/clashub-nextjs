@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Metadata } from 'next';
 import { Button } from '@/app/components/ui/Button';
 // PERBAIKAN #1: Hapus TeamProfileTabs.tsx yang lama
-import { ManagedClan, UserProfile, ClanApiCache, ClanRole } from '@/lib/types';
+import { ManagedClan, UserProfile, ClanApiCache, ClanRole } from '@/lib/types'; // Mengimpor ClanRole dari lib/types
 import { getManagedClanData, getTeamMembers, getClanApiCache } from '@/lib/firestore';
 import {
     ArrowLeftIcon, StarIcon, ShieldIcon, UserIcon, GlobeIcon,
@@ -78,7 +78,7 @@ const ClanDetailPage = async ({ params }: ClanDetailPageProps) => {
     // Mengambil data ManagedClan, Cache API, dan Anggota secara paralel
     const [managedClan, apiCache, members] = await Promise.all([
         getManagedClanData(clanId),
-        getClanApiCache(clanId), // Mengambil data cache Partisipasi
+        getClanApiCache(clanId), // Mengambil data cache Partisip-asi
         getTeamMembers(clanId) // Mengambil anggota (UserProfile yang clanId-nya cocok)
     ]);
 
@@ -92,10 +92,15 @@ const ClanDetailPage = async ({ params }: ClanDetailPageProps) => {
     // Mengambil rating dummy
     const clanRating = 5.0; 
 
-    const { name, tag, vision, avgTh, website, discordId, clanLevel, ownerUid } = managedClan;
+    // [PERBAIKAN ERROR 1/3] Mengganti 'website' dan 'discordId' dengan 'socialLinks'
+    const { name, tag, vision, avgTh, socialLinks, clanLevel, ownerUid } = managedClan;
     const isCompetitive = vision === 'Kompetitif';
     const isFull = members.length >= 50;
     const isClanOwner = sessionUser?.uid === ownerUid;
+    
+    // [PERBAIKAN ERROR 2/3] Mencari link website dan discord dari array socialLinks
+    const websiteLink = socialLinks?.find(link => link.platform.toLowerCase() === 'website');
+    const discordLink = socialLinks?.find(link => link.platform.toLowerCase() === 'discord');
     
     // Temukan data Partisipasi anggota klan dari cache
     const enrichedMembers: EnrichedMember[] = members.map(member => {
@@ -178,63 +183,83 @@ const ClanDetailPage = async ({ params }: ClanDetailPageProps) => {
             {/* Layout Utama Profil - FIX DENGAN STRUKTUR STACKED (UNIK UNTUK PAGE INI) */}
             <section className="grid grid-cols-1 lg:grid-cols-4 gap-8">
 
-                {/* Kolom Kiri: Statistik & Kontak (SIDEBAR) */}
-                {/* FIX: Menambahkan Z-index dan menstabilkan lebar kolom */}
-                <aside className="lg:col-span-1 card-stone p-6 h-fit sticky top-28 space-y-6 rounded-lg z-10">
-                    {/* Reputasi Tim */}
-                    <h3 className="text-xl text-coc-gold-dark font-clash border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2">
-                        <StarIcon className="h-5 w-5"/> Reputasi Tim
-                    </h3>
-                    <div className="text-center">
-                        <p className="text-5xl font-clash text-coc-gold my-1">{clanRating.toFixed(1)} <StarIcon className="inline h-8 w-8"/></p>
-                        <p className="text-xs text-gray-500">(Berdasarkan 120 Ulasan)</p>
-                        {/* FIX: Menggunakan clanId di link reviews */}
-                        <Link href={`/clan/internal/${clanId}/reviews`} className="text-xs text-coc-gold hover:underline mt-2 inline-block">Lihat Semua Ulasan</Link>
-                    </div>
+                {/* =========================================================================
+                  REFACTOR UI SIDEBAR (TAHAP 2)
+                  - Menghapus 'space-y-6' dari <aside>
+                  - Menambahkan wrapper 'div' dengan 'space-y-6'
+                  - Mengganti 'h3' menjadi 'text-lg' dan menghapus 'border-b', 'pb-2', 'mt-6'
+                  - Menambahkan 'div' wrapper untuk setiap blok
+                  - Menambahkan 'pt-6 border-t' untuk pemisah antar blok (kecuali blok pertama)
+                  - Menambahkan 'space-y-4' untuk spasi internal (judul ke konten)
+                  =========================================================================
+                */}
+                <aside className="lg:col-span-1 card-stone p-6 h-fit sticky top-28 rounded-lg z-10">
+                    <div className="space-y-6"> {/* Wrapper baru untuk mengontrol spasi antar blok */}
 
-                    {/* Ringkasan Statistik */}
-                    <h3 className="text-xl text-coc-gold-dark font-clash border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2 mt-6">
-                        <ShieldIcon className="h-5 w-5"/> Ringkasan Statistik
-                    </h3>
-                    <ul className="text-sm space-y-3">
-                        <li className="flex justify-between items-center"><span className='font-medium text-gray-400 flex items-center gap-2'><ShieldIcon className="h-4 w-4 text-coc-gold-dark"/> Level Klan:</span> <strong className='text-white font-clash text-base'>{clanLevel}</strong></li>
-                        <li className="flex justify-between items-center"><span className='font-medium text-gray-400 flex items-center gap-2'><UserIcon className="h-4 w-4 text-coc-gold-dark"/> Anggota:</span> <strong className='text-white font-clash text-base'>{members.length}/50</strong></li>
-                        <li className="flex justify-between items-center"><span className='font-medium text-gray-400 flex items-center gap-2'><TrophyIcon className="h-4 w-4 text-coc-gold-dark"/> Rata-rata TH:</span> <strong className='text-white font-clash text-base'>{avgTh.toFixed(1)}</strong></li>
-                        <li className="flex justify-between items-center"><span className='font-medium text-gray-400 flex items-center gap-2'><TrophyIcon className="h-4 w-4 text-coc-gold-dark"/> War Winstreak:</span> <strong className='text-white font-clash text-base'>N/A</strong></li>
-                    </ul>
+                        {/* Blok 1: Reputasi Tim - (Blok pertama, tanpa border-t) */}
+                        <div className="space-y-4">
+                            <h3 className="text-lg text-coc-gold-dark font-clash flex items-center gap-2">
+                                <StarIcon className="h-5 w-5"/> Reputasi Tim
+                            </h3>
+                            <div className="text-center">
+                                <p className="text-5xl font-clash text-coc-gold my-1">{clanRating.toFixed(1)} <StarIcon className="inline h-8 w-8"/></p>
+                                <p className="text-xs text-gray-500">(Berdasarkan 120 Ulasan)</p>
+                                {/* FIX: Menggunakan clanId di link reviews */}
+                                <Link href={`/clan/internal/${clanId}/reviews`} className="text-xs text-coc-gold hover:underline mt-2 inline-block">Lihat Semua Ulasan</Link>
+                            </div>
+                        </div>
 
-                    {/* Event Terdekat */}
-                    <h3 className="text-xl text-coc-gold-dark font-clash border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2 mt-6">
-                        <ClockIcon className="h-5 w-5"/> Event Terdekat
-                    </h3>
-                    <div className="bg-coc-stone/70 p-4 rounded-lg text-center border border-coc-gold-dark/30 shadow-inner">
-                        <p className="font-semibold text-gray-300 mb-1">{upcomingEvent.name}:</p>
-                        <p className="font-clash text-2xl text-coc-gold">{upcomingEvent.date}</p>
-                        <p className="text-xs text-gray-400">{upcomingEvent.time}</p>
-                    </div>
+                        {/* Blok 2: Ringkasan Statistik */}
+                        <div className="space-y-4 pt-6 border-t border-coc-gold-dark/30">
+                            <h3 className="text-lg text-coc-gold-dark font-clash flex items-center gap-2">
+                                <ShieldIcon className="h-5 w-5"/> Ringkasan Statistik
+                            </h3>
+                            <ul className="text-sm space-y-3">
+                                <li className="flex justify-between items-center"><span className='font-medium text-gray-400 flex items-center gap-2'><ShieldIcon className="h-4 w-4 text-coc-gold-dark"/> Level Klan:</span> <strong className='text-white font-clash text-base'>{clanLevel}</strong></li>
+                                <li className="flex justify-between items-center"><span className='font-medium text-gray-400 flex items-center gap-2'><UserIcon className="h-4 w-4 text-coc-gold-dark"/> Anggota:</span> <strong className='text-white font-clash text-base'>{members.length}/50</strong></li>
+                                <li className="flex justify-between items-center"><span className='font-medium text-gray-400 flex items-center gap-2'><TrophyIcon className="h-4 w-4 text-coc-gold-dark"/> Rata-rata TH:</span> <strong className='text-white font-clash text-base'>{avgTh.toFixed(1)}</strong></li>
+                                <li className="flex justify-between items-center"><span className='font-medium text-gray-400 flex items-center gap-2'><TrophyIcon className="h-4 w-4 text-coc-gold-dark"/> War Winstreak:</span> <strong className='text-white font-clash text-base'>N/A</strong></li>
+                            </ul>
+                        </div>
 
-                    {/* Kontak & Sosial */}
-                    <h3 className="text-xl text-coc-gold-dark font-clash border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2 mt-6">
-                        Kontak & Sosial
-                    </h3>
-                    <ul className="text-sm space-y-3">
-                        {website ? (
-                            <li className="flex items-center gap-2">
-                                <GlobeIcon className="h-4 w-4 text-coc-gold-dark flex-shrink-0"/>
-                                <a href={website} target="_blank" rel="noopener noreferrer" className='text-coc-gold hover:underline truncate' title={website}>{website.replace(/^(https?:\/\/)?(www\.)?/, '')}</a>
-                            </li>
-                        ) : (
-                            <li className="text-gray-500 flex items-center gap-2"><GlobeIcon className="h-4 w-4 text-gray-500"/> Website belum diatur</li>
-                        )}
-                        {discordId ? (
-                            <li className="flex items-center gap-2">
-                                <DiscordIcon className="h-4 w-4 text-coc-gold-dark flex-shrink-0"/>
-                                <span className='text-gray-300 truncate' title={discordId}>{discordId}</span>
-                            </li>
-                        ) : (
-                            <li className="text-gray-500 flex items-center gap-2"><DiscordIcon className="h-4 w-4 text-gray-500"/> Discord belum diatur</li>
-                        )}
-                    </ul>
+                        {/* Blok 3: Event Terdekat */}
+                        <div className="space-y-4 pt-6 border-t border-coc-gold-dark/30">
+                            <h3 className="text-lg text-coc-gold-dark font-clash flex items-center gap-2">
+                                <ClockIcon className="h-5 w-5"/> Event Terdekat
+                            </h3>
+                            <div className="bg-coc-stone/70 p-4 rounded-lg text-center border border-coc-gold-dark/30 shadow-inner">
+                                <p className="font-semibold text-gray-300 mb-1">{upcomingEvent.name}:</p>
+                                <p className="font-clash text-2xl text-coc-gold">{upcomingEvent.date}</p>
+                                <p className="text-xs text-gray-400">{upcomingEvent.time}</p>
+                            </div>
+                        </div>
+
+                        {/* Blok 4: Kontak & Sosial */}
+                        <div className="space-y-4 pt-6 border-t border-coc-gold-dark/30">
+                            <h3 className="text-lg text-coc-gold-dark font-clash flex items-center gap-2">
+                                Kontak & Sosial
+                            </h3>
+                            <ul className="text-sm space-y-3">
+                                {/* [PERBAIKAN ERROR 3/3] Menggunakan 'websiteLink' dan 'discordLink' */}
+                                {websiteLink ? (
+                                    <li className="flex items-center gap-2">
+                                        <GlobeIcon className="h-4 w-4 text-coc-gold-dark flex-shrink-0"/>
+                                        <a href={websiteLink.url} target="_blank" rel="noopener noreferrer" className='text-coc-gold hover:underline truncate' title={websiteLink.url}>{websiteLink.url.replace(/^(https?:\/\/)?(www\.)?/, '')}</a>
+                                    </li>
+                                ) : (
+                                    <li className="text-gray-500 flex items-center gap-2"><GlobeIcon className="h-4 w-4 text-gray-500"/> Website belum diatur</li>
+                                )}
+                                {discordLink ? (
+                                    <li className="flex items-center gap-2">
+                                        <DiscordIcon className="h-4 w-4 text-coc-gold-dark flex-shrink-0"/>
+                                        <span className='text-gray-300 truncate' title={discordLink.url}>{discordLink.url}</span>
+                                    </li>
+                                ) : (
+                                    <li className="text-gray-500 flex items-center gap-2"><DiscordIcon className="h-4 w-4 text-gray-500"/> Discord belum diatur</li>
+                                )}
+                            </ul>
+                        </div>
+                    </div> {/* Akhir dari wrapper space-y-6 */}
                 </aside>
 
                 {/* Kolom Kanan: Detail & Daftar Anggota (UTAMA) */}
