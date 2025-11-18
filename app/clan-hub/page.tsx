@@ -1,92 +1,85 @@
 // File: app/clan-hub/page.tsx
-// PERBAIKAN 1: Mengganti import path dari "./TeamHubClient" menjadi "../clan-hub/TeamHubClient"
 import TeamHubClient from './TeamHubClient';
-// [PERBAIKAN] Mengganti getManagedClans (client) dengan getManagedClansAdmin (admin)
 import { getPlayers, getPublicClansForHub } from '@/lib/firestore';
-// [EDIT FASE 4] Impor getActivePromotions
 import {
   getManagedClansAdmin,
-  getActivePromotions, // <-- [BARU FASE 4] Impor fungsi promosi
-} from '@/lib/firestore-admin/clans'; // <-- [PERBAIKAN] Impor admin
-import { getClanReviewsAdmin } from '@/lib/firestore-admin/reviews'; // <-- [BARU] Impor ulasan admin
-// [PERBAIKAN] Menggunakan tipe data ManagedClan dan PublicClanIndex yang baru, DAN RecommendedTeam
+  getActivePromotions,
+} from '@/lib/firestore-admin/clans';
+import { getClanReviewsAdmin } from '@/lib/firestore-admin/reviews';
 import {
-  ManagedClan,
   Player,
   PublicClanIndex,
-  RecommendedTeam, // <-- [BARU] Impor tipe yang diperkaya
-  FirestoreDocument,
-  Promotion, // <-- [BARU FASE 4] Impor tipe promosi
-} from '@/lib/clashub.types'; // [PERBAIKAN FASE 4] Path diubah ke clashub.types
+  RecommendedTeam,
+  Promotion,
+} from '@/lib/clashub.types';
 import { Metadata } from 'next';
 
-// Metadata untuk SEO (Best practice Next.js)
 export const metadata: Metadata = {
   title: 'Clashub | Hub Tim & Pencarian Klan',
   description:
     'Cari tim kompetitif Clashub atau cari klan publik CoC. Filter berdasarkan Level TH, reputasi, dan visi tim.',
 };
 
-// Mengubah komponen ini menjadi fungsi async menjadikannya Server Component
-// FIX: Ganti nama komponen menjadi ClanHubPage untuk konsistensi
 const ClanHubPage = async () => {
-  // [PERBAIKAN] Inisialisasi array untuk Klan Publik dan ubah initialClans
-  let initialClans: RecommendedTeam[] = []; // <-- [PERBAIKAN] Gunakan tipe RecommendedTeam
+  let initialClans: RecommendedTeam[] = [];
   let initialPlayers: Player[] = [];
-  let initialPublicClans: PublicClanIndex[] = []; // BARU: Menampung cache klan publik
-  let promotions: Promotion[] = []; // <-- [BARU FASE 4] Menampung data promosi
+  let initialPublicClans: PublicClanIndex[] = [];
+  let promotions: Promotion[] = [];
   let loadError: string | null = null;
 
-  // Menggunakan Promise.all untuk mengambil semua data secara paralel
   try {
-    // [PERBAIKAN KRITIS] Mengganti getManagedClans() dengan getManagedClansAdmin()
-    // [EDIT FASE 4] Tambahkan getActivePromotions ke Promise.all
+    // Mengambil data secara paralel
+    // getManagedClansAdmin() di dalamnya sudah menggunakan 'docToDataAdmin'
+    // dari utils.ts, sehingga Timestamp sudah dikonversi menjadi Date.
+    // Next.js App Router BISA menerima object Date, jadi ini AMAN.
     const [clans, players, publicClans, activePromotions] = await Promise.all([
-      getManagedClansAdmin(), // <-- [PERBAIKAN] Mengambil ManagedClan (Admin SDK)
-      getPlayers(), // Mengambil daftar Player
-      getPublicClansForHub(), // MENGAMBIL SEMUA KLAN PUBLIK (ARRAY)
-      getActivePromotions(), // <-- [BARU FASE 4] Mengambil promosi aktif
+      getManagedClansAdmin(),
+      getPlayers(),
+      getPublicClansForHub(),
+      getActivePromotions(),
     ]);
 
-    // [BARU] Hitung averageRating untuk setiap klan (ManagedClan)
+    // Menghitung rating rata-rata (Server-Side Logic)
+    // Kita tetap mempertahankan logika ini agar rating muncul di UI
     const clansWithRating: RecommendedTeam[] = await Promise.all(
       clans.map(async (clan) => {
-        const reviews = await getClanReviewsAdmin(clan.id);
-        let averageRating = 0;
-        if (reviews.length > 0) {
-          const totalRating = reviews.reduce(
-            (acc, review) => acc + review.rating,
-            0,
-          );
-          averageRating = totalRating / reviews.length;
+        try {
+          const reviews = await getClanReviewsAdmin(clan.id);
+          let averageRating = 0;
+          if (reviews.length > 0) {
+            const totalRating = reviews.reduce(
+              (acc, review) => acc + review.rating,
+              0
+            );
+            averageRating = totalRating / reviews.length;
+          }
+          return {
+            ...clan,
+            averageRating: averageRating,
+          };
+        } catch (e) {
+          console.error(`Failed to fetch reviews for clan ${clan.id}`, e);
+          return { ...clan, averageRating: 0 };
         }
-        return {
-          ...clan,
-          averageRating: averageRating,
-        };
-      }),
+      })
     );
 
-    // [PERBAIKAN] Menyimpan hasil yang diperkaya ke initialClans
-    initialClans = clansWithRating; // <-- [PERBAIKAN] Simpan data dengan rating
+    // Assign data langsung tanpa serialisasi manual
+    initialClans = clansWithRating;
     initialPlayers = players;
     initialPublicClans = publicClans;
-    promotions = activePromotions; // <-- [BARU FASE 4] Simpan data promosi
+    promotions = activePromotions;
+
   } catch (err) {
     console.error('Error fetching data on server:', err);
     loadError = 'Gagal memuat daftar hub klan. Silakan coba lagi.';
   }
 
-  // Jika ada error fatal, tampilkan pesan error yang di-render oleh server
   if (loadError) {
     return (
-      // PENYESUAIAN UI: Menghapus container/padding dari sini
-      // [FIX] Menghapus mt-10 yang menyebabkan jarak
       <main>
-        {/* Menambahkan wrapper layout standar di dalam pesan error */}
         <div className="max-w-7xl mx-auto p-4 md:p-8">
           <div className="text-center py-20 card-stone p-6 max-w-lg mx-auto">
-            {/* Menggunakan font-clash untuk judul error */}
             <h1 className="text-3xl text-coc-red font-clash mb-4">
               Kesalahan Server
             </h1>
@@ -101,17 +94,13 @@ const ClanHubPage = async () => {
     );
   }
 
-  // Meneruskan SEMUA data yang sudah di-fetch ke Client Component
-  // [PERBAIKAN] Mengirim initialClans (sekarang RecommendedTeam[])
   return (
-    // PENYESUAIAN UI: Menghapus container/padding dari sini dan memindahkannya ke Client Component
-    // [FIX] Menghapus mt-10 yang menyebabkan jarak
     <main>
       <TeamHubClient
-        initialClans={initialClans} // <-- [PERBAIKAN] Data sekarang berisi rating
+        initialClans={initialClans}
         initialPlayers={initialPlayers}
-        initialPublicClans={initialPublicClans} // BARU: Data untuk tab Pencarian Klan Publik
-        promotions={promotions} // <-- [BARU FASE 4] Teruskan promosi ke client
+        initialPublicClans={initialPublicClans}
+        promotions={promotions}
       />
     </main>
   );
