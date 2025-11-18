@@ -327,6 +327,10 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
       organizerUid: userProfile.uid,
       organizerName: userProfile.displayName,
       committeeUids: [], // [BARU] Default array kosong
+
+      // [PERBAIKAN BUILD ERROR] Menambahkan field wajib klan panitia dengan nilai null
+      panitiaClanA_Tag: null,
+      panitiaClanB_Tag: null,
     };
 
     try {
