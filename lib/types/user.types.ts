@@ -1,9 +1,10 @@
 // File: lib/types/user.types.ts
 // Deskripsi: Mendefinisikan struktur data terkait Pengguna (User), Pemain (Player), dan Ulasan.
-// [MODIFIKASI FASE 8.1]: Menambahkan field cache statistik tambahan.
+// [MODIFIKASI FASE 8.1]: Menambahkan field cache statistik tambahan (XP, Liga, dll).
+// [MODIFIKASI FASE 11]: Memastikan field clanBadgeUrl tetap ada.
 
 import { ClanRole, ManagerRole, StandardMemberRole } from '../enums';
-// [MODIFIKASI FASE 8.1] Impor tipe CocLeague
+// [MODIFIKASI FASE 8.1] Impor tipe CocLeague, CocPlayerItem, CocAchievement
 import { CocPlayerItem, CocAchievement, CocLeague } from '../coc.types';
 
 /**
@@ -25,7 +26,12 @@ export interface UserProfile {
   clanRole?: ClanRole; // MENGGUNAKAN ENUM CLANROLE
   lastVerified?: Date; // Timestamp verifikasi terakhir
 
-  // --- [BARU FASE 4.1 & 8.1] DATA CACHE PLAYER LENGKAP ---
+  // --- [BARU FASE 11] CACHE GAMBAR KLAN ---
+  clanBadgeUrl?: string | null; // URL Icon Klan untuk tampilan instan
+  clanName?: string | null;
+  clanId?: string | null; // ID klan internal (ManagedClan) yang diikuti pemain
+
+  // --- [BARU FASE 4.1] DATA CACHE PLAYER LENGKAP ---
   // Data ini adalah cache dari endpoint /players/{playerTag}
   // untuk mengurangi panggilan API.
   cachedHeroes?: CocPlayerItem[];
@@ -60,13 +66,7 @@ export interface UserProfile {
   activeHours?: string;
   reputation?: number;
 
-  // --- PERUBAHAN (Langkah 1.1) ---
-  // Mengganti 'teamId' dan 'teamName' menjadi 'clanId' dan 'clanName'
-  // untuk merujuk ke ManagedClan internal.
-  clanId?: string | null; // ID klan internal (ManagedClan) yang diikuti pemain
-  clanName?: string | null; // Nama klan internal (ManagedClan) yang diikuti pemain
-
-  // --- [BARU: TAHAP 2.1] ---
+  // --- Gamifikasi ---
   popularityPoints?: number; // Poin "Banana" untuk gamifikasi
 }
 

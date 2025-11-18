@@ -1,6 +1,6 @@
 'use client';
 
-// [MODIFIKASI FASE 7.1]: Mengimpor dan mengintegrasikan PlayerAchievementsCard
+// [MODIFIKASI FASE 11.4]: Integrasi Layout Summary Baru (Grid Klan & TH + Stats)
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/context/AuthContext';
@@ -9,11 +9,11 @@ import {
   Post,
   PlayerReview,
   FirestoreDocument,
-  CocPlayer, // <-- [BARU FASE 3] Impor tipe data lengkap
+  CocPlayer,
 } from '@/lib/types';
 import { DocumentData } from 'firebase/firestore';
 
-// [REFACTOR] Impor 8 komponen baru
+// Impor komponen UI
 import { ProfileLoading } from './components/ProfileLoading';
 import { ProfileError } from './components/ProfileError';
 import { ProfileHeader } from './components/ProfileHeader';
@@ -23,13 +23,18 @@ import { RecentActivityCard } from './components/RecentActivityCard';
 import { TeamHistoryCard } from './components/TeamHistoryCard';
 import { ReceivedReviewsCard } from './components/ReceivedReviewsCard';
 
-// --- [BARU FASE 3.5] Impor card-card baru ---
+// Impor card-card data lengkap
 import { PlayerHeroesCard } from './components/PlayerHeroesCard';
 import { PlayerTroopsCard } from './components/PlayerTroopsCard';
 import { PlayerSpellsCard } from './components/PlayerSpellsCard';
-// --- [BARU FASE 7.1] Impor card pencapaian ---
 import { PlayerAchievementsCard } from './components/PlayerAchievementsCard';
-// --- [AKHIR BARU FASE 7.1] ---
+
+// [BARU FASE 11.4] Impor Card Identitas Baru
+import { PlayerClanCard } from './components/PlayerClanCard';
+import { PlayerTownHallCard } from './components/PlayerTownHallCard';
+
+// Impor komponen Tabs
+import { ProfileTabs, ProfileTab } from './components/ProfileTabs';
 
 interface ProfileClientProps {
   initialProfile: UserProfile | null;
@@ -52,11 +57,13 @@ const ProfileClient = ({
   const [error] = useState<string | null>(serverError);
   const [userProfile] = useState<UserProfile | null>(initialProfile);
 
-  // --- [BARU FASE 3] State untuk data lengkap (Live dari API) ---
+  // State untuk data lengkap (Live dari API)
   const [fullPlayer, setFullPlayer] = useState<CocPlayer | null>(null);
   const [isLoadingApi, setIsLoadingApi] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
-  // --- [AKHIR BARU FASE 3] ---
+
+  // State untuk Tab Aktif
+  const [activeTab, setActiveTab] = useState<ProfileTab>('summary');
 
   // --- 1. Handle Loading Auth Awal ---
   if (authLoading) {
@@ -83,7 +90,7 @@ const ProfileClient = ({
     );
   }
 
-  // --- [PERBAIKAN ERROR TS 2345] ---
+  // --- 3. Fetch Data & Smart Cache V2 ---
   useEffect(() => {
     const tagToFetch = userProfile?.playerTag;
 
@@ -95,19 +102,33 @@ const ProfileClient = ({
       return;
     }
 
-    // [FIX 2345] Encode tag di DILUAR async function.
-    // Di sini, TypeScript tahu 'tagToFetch' adalah 'string' (bukan undefined)
-    // karena sudah lolos pengecekan 'if' di atas.
+    // [SMART CACHE V2] Durasi 60 menit
+    const CACHE_DURATION_MINUTES = 60; 
+    
+    if (userProfile?.lastCacheTimestamp) {
+      const lastCacheTime = new Date(userProfile.lastCacheTimestamp).getTime();
+      const now = new Date().getTime();
+      const diffMinutes = (now - lastCacheTime) / (1000 * 60);
+
+      if (diffMinutes < CACHE_DURATION_MINUTES) {
+        console.log(
+          `[ProfileClient] Menggunakan data cache (Umur: ${diffMinutes.toFixed(
+            1,
+          )} menit). Skip fetch API.`
+        );
+        setIsLoadingApi(false);
+        return; 
+      }
+    }
+
     const encodedTagForApi = encodeURIComponent(tagToFetch);
 
-    // [FIX 2345] Modifikasi fungsi agar menerima 'encodedTag' sebagai argumen
     async function fetchFullPlayerData(encodedTag: string) {
       setIsLoadingApi(true);
       setApiError(null);
       try {
-        // Gunakan argumen 'encodedTag' yang sudah aman
         const response = await fetch(
-          `/api/coc/get-player/${encodedTag}`, // URL sekarang aman
+          `/api/coc/get-player/${encodedTag}`,
         );
 
         const data = await response.json();
@@ -120,22 +141,17 @@ const ProfileClient = ({
 
         setFullPlayer(data as CocPlayer);
 
-        // --- [BARU FASE 4.4] ---
-        // Setelah berhasil fetch, kirim data ke API route untuk di-cache
-        // "Fire and forget" - kita tidak perlu await di sini.
-        // Ini adalah optimasi, jika gagal, user tidak perlu tahu.
+        // Fire and forget: Update cache
         fetch('/api/player/update-cache', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data), // 'data' adalah fullPlayer
+          body: JSON.stringify(data),
         }).catch((cacheError) => {
-          // Log error ke konsol, tapi jangan ganggu user
           console.warn(
             '[ProfileClient] Gagal mengirim cache ke server:',
             cacheError,
           );
         });
-        // --- [AKHIR BARU FASE 4.4] ---
       } catch (err) {
         console.error('[ProfileClient] Gagal fetch data lengkap:', err);
         if (err instanceof Error) {
@@ -159,14 +175,12 @@ const ProfileClient = ({
       }
     }
 
-    // [FIX 2345] Panggil fungsi dengan argumen yang sudah di-encode
     fetchFullPlayerData(encodedTagForApi);
-  }, [userProfile?.playerTag]);
-  // --- [AKHIR PERBAIKAN] ---
+  }, [userProfile?.playerTag, userProfile?.lastCacheTimestamp]);
 
-  // --- 3. Tampilkan Profil Jika Semua OK ---
+  // --- 4. Render Halaman ---
   if (currentUser && userProfile) {
-    // --- VARIABEL LOGIKA UNTUK PROPS ---
+    // Props Logika
     const isClanManager =
       userProfile?.clanRole === 'leader' || userProfile?.clanRole === 'coLeader';
     const isVerified = userProfile?.isVerified || false;
@@ -213,66 +227,130 @@ const ProfileClient = ({
             isClanManager={isClanManager}
           />
 
-          <section className="lg:col-span-3 space-y-8">
-            {/* [MODIFIKASI FASE 3] Kirim props baru ke GameStatusCard */}
-            <GameStatusCard
-              userProfile={userProfile}
-              isVerified={isVerified}
-              inGameRole={inGameRole}
-              isClanManager={isClanManager}
-              // Props baru untuk data live:
-              fullPlayerData={fullPlayer}
-              isLoading={isLoadingApi}
-              error={apiError}
-            />
+          <section className="lg:col-span-3 space-y-6">
+            {/* Navigasi Tab */}
+            <ProfileTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
-            {/* --- [MODIFIKASI FASE 7.1] Tambahkan card baru DAN prop userProfile --- */}
-            {/* Tampilkan card-card ini hanya jika terverifikasi */}
-            {isVerified && (
-              <>
-                <PlayerHeroesCard
-                  userProfile={userProfile} // <-- Prop FASE 6 (cache read)
+            {/* [TAB 1] SUMMARY */}
+            {activeTab === 'summary' && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                {/* [MODIFIKASI FASE 11.4] Grid Identitas: Klan & Town Hall */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <PlayerClanCard
+                    userProfile={userProfile}
+                    fullPlayerData={fullPlayer}
+                    isLoading={isLoadingApi}
+                  />
+                  <PlayerTownHallCard
+                    userProfile={userProfile}
+                    fullPlayerData={fullPlayer}
+                    isLoading={isLoadingApi}
+                  />
+                </div>
+
+                {/* [MODIFIKASI FASE 11.4] Stats Grid (GameStatusCard Baru) */}
+                <GameStatusCard
+                  userProfile={userProfile}
+                  isVerified={isVerified}
+                  inGameRole={inGameRole}
+                  isClanManager={isClanManager}
                   fullPlayerData={fullPlayer}
                   isLoading={isLoadingApi}
                   error={apiError}
                 />
-                <PlayerTroopsCard
-                  userProfile={userProfile} // <-- Prop FASE 6 (cache read)
-                  fullPlayerData={fullPlayer}
-                  isLoading={isLoadingApi}
-                  error={apiError}
+
+                {/* Preview 1 Postingan Terbaru */}
+                <RecentActivityCard
+                  recentPosts={recentPosts.slice(0, 1)}
+                  userProfile={userProfile}
                 />
-                <PlayerSpellsCard
-                  userProfile={userProfile} // <-- Prop FASE 6 (cache read)
-                  fullPlayerData={fullPlayer}
-                  isLoading={isLoadingApi}
-                  error={apiError}
-                />
-                <PlayerAchievementsCard
-                  userProfile={userProfile} // <-- Prop FASE 6 (cache read)
-                  fullPlayerData={fullPlayer}
-                  isLoading={isLoadingApi}
-                  error={apiError}
-                />
-              </>
+              </div>
             )}
-            {/* --- [AKHIR MODIFIKASI FASE 7.1] --- */}
 
-            <RecentActivityCard
-              recentPosts={recentPosts}
-              userProfile={userProfile}
-            />
+            {/* [TAB 2] REPUTASI */}
+            {activeTab === 'reputation' && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                <ReceivedReviewsCard playerReviews={playerReviews} />
+              </div>
+            )}
 
-            <TeamHistoryCard clanHistory={clanHistory} />
+            {/* [TAB 3] ARMY */}
+            {activeTab === 'army' && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                {isVerified ? (
+                  <>
+                    <PlayerHeroesCard
+                      userProfile={userProfile}
+                      fullPlayerData={fullPlayer}
+                      isLoading={isLoadingApi}
+                      error={apiError}
+                    />
+                    <PlayerTroopsCard
+                      userProfile={userProfile}
+                      fullPlayerData={fullPlayer}
+                      isLoading={isLoadingApi}
+                      error={apiError}
+                    />
+                    <PlayerSpellsCard
+                      userProfile={userProfile}
+                      fullPlayerData={fullPlayer}
+                      isLoading={isLoadingApi}
+                      error={apiError}
+                    />
+                  </>
+                ) : (
+                  <div className="card-stone p-8 text-center">
+                    <p className="text-gray-400">
+                      Hubungkan tag Clash of Clans Anda untuk melihat data pasukan.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
-            <ReceivedReviewsCard playerReviews={playerReviews} />
+            {/* [TAB 4] ACHIEVEMENTS */}
+            {activeTab === 'achievements' && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                {isVerified ? (
+                  <PlayerAchievementsCard
+                    userProfile={userProfile}
+                    fullPlayerData={fullPlayer}
+                    isLoading={isLoadingApi}
+                    error={apiError}
+                  />
+                ) : (
+                  <div className="card-stone p-8 text-center">
+                    <p className="text-gray-400">
+                      Hubungkan tag Clash of Clans Anda untuk melihat pencapaian.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* [TAB 5] HISTORY */}
+            {activeTab === 'history' && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                <TeamHistoryCard clanHistory={clanHistory} />
+              </div>
+            )}
+
+            {/* [TAB 6] POSTINGAN */}
+            {activeTab === 'posts' && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                <RecentActivityCard
+                  recentPosts={recentPosts} // Tampilkan semua postingan
+                  userProfile={userProfile}
+                />
+              </div>
+            )}
           </section>
         </section>
       </main>
     );
   }
 
-  return null; // Fallback jika state tidak terduga
+  return null;
 };
 
 export default ProfileClient;

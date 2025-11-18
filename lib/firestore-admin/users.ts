@@ -1,6 +1,6 @@
 // File: lib/firestore-admin/users.ts
 // Deskripsi: Berisi fungsi utilitas Firestore Admin SDK terkait koleksi 'users'.
-// [MODIFIKASI FASE 8.2]: Menambahkan 5 field statistik baru ke updatePlayerCacheAdmin.
+// [MODIFIKASI FASE 11]: Menambahkan logika penyimpanan clanBadgeUrl ke cache.
 
 import { adminFirestore } from '../firebase-admin';
 import { COLLECTIONS } from '../firestore-collections';
@@ -276,7 +276,7 @@ export const updatePlayerCacheAdmin = async (
   try {
     const userRef = adminFirestore.collection(COLLECTIONS.USERS).doc(uid);
 
-    // [MODIFIKASI FASE 8.2] Tambahkan 5 field statistik baru
+    // [MODIFIKASI FASE 8.2 & 11] Tambahkan field statistik dan badge URL
     const cacheData: Partial<UserProfile> = {
       // Data Live
       inGameName: playerData.name,
@@ -286,6 +286,10 @@ export const updatePlayerCacheAdmin = async (
       clanName: playerData.clan?.name || null,
       clanRole: playerData.role,
 
+      // [BARU FASE 11] Cache Badge URL
+      // Kita simpan URL ini agar bisa ditampilkan instan di PlayerClanCard
+      clanBadgeUrl: playerData.clan?.badgeUrls?.medium || playerData.clan?.badgeUrls?.small || null,
+
       // --- [BARU FASE 8.2] Menambahkan cache statistik ---
       expLevel: playerData.expLevel,
       league: playerData.league || null,
@@ -294,7 +298,7 @@ export const updatePlayerCacheAdmin = async (
       builderBaseTrophies: playerData.builderBaseTrophies,
       // --- [AKHIR BARU FASE 8.2] ---
 
-      // Data Cache
+      // Data Cache Array
       cachedHeroes: playerData.heroes,
       cachedTroops: playerData.troops,
       cachedSpells: playerData.spells,
