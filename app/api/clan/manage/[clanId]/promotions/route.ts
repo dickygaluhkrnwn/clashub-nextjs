@@ -107,9 +107,10 @@ export async function POST(
 
   // 3. Ambil data promosi dari body
   // Tipe Omit karena 'id', 'clanId', 'clicks' akan di-set di server
+  // 'totalClicks' dan 'clicksByTH' juga di-set default di server
   const body = (await request.json()) as Omit<
     Promotion,
-    'id' | 'clanId' | 'clicks'
+    'id' | 'clanId' | 'clicks' | 'totalClicks' | 'clicksByTH'
   >;
 
   // Validasi input
@@ -122,10 +123,13 @@ export async function POST(
 
   try {
     // 4. Siapkan data dan buat di Firestore
+    // PERBAIKAN: Menambahkan totalClicks dan clicksByTH dengan nilai default
     const promotionData: Omit<Promotion, 'id' | 'clanId' | 'clicks'> = {
       imageUrl: body.imageUrl,
       title: body.title,
       description: body.description,
+      totalClicks: 0,    // Default: 0 klik
+      clicksByTH: {},    // Default: map kosong
     };
 
     const newPromotionId = await createClanPromotion(
