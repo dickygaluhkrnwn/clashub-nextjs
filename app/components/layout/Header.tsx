@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image'; // <-- [MODIFIKASI] Import Next Image
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 // Menggunakan ShieldIcon
@@ -335,14 +336,29 @@ const Header = () => {
   return (
     <header className="sticky top-0 z-50 bg-coc-stone/80 backdrop-blur-sm border-b-2 border-coc-gold-dark/30 animate-header-glow">
       <div className="container mx-auto flex items-center justify-between p-4">
-        {/* Logo - Menerapkan font-clash */}
+        
+        {/* --- [MODIFIKASI LOGO] --- */}
+        {/* Menggabungkan Logo Image dan Text dalam satu Link dengan Flexbox */}
         <Link
           href="/"
-          className="font-clash text-3xl text-coc-gold z-20"
-          style={{ textShadow: '2px 2px 5px rgba(0,0,0,0.8)' }}
+          className="flex items-center gap-3 z-20 hover:opacity-90 transition-opacity"
         >
-          CLASHUB
+          <Image
+            src="/images/logoClashub.png"
+            alt="Clashub Logo"
+            width={40}
+            height={40}
+            className="object-contain"
+            priority // Prioritas tinggi agar logo dimuat segera
+          />
+          <span
+            className="font-clash text-3xl text-coc-gold"
+            style={{ textShadow: '2px 2px 5px rgba(0,0,0,0.8)' }}
+          >
+            CLASHUB
+          </span>
         </Link>
+        {/* --- [AKHIR MODIFIKASI LOGO] --- */}
 
         {/* Navigasi Utama (Desktop) */}
         <nav className="hidden md:flex items-center gap-2">
