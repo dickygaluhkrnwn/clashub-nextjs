@@ -166,9 +166,14 @@ async function getManagedTournaments(
 
     // Konversi Map kembali ke array dan urutkan
     const combinedList = Array.from(tournamentsMap.values());
-    combinedList.sort(
-      (a, b) => (b.startsAt as any) - (a.startsAt as any), // Urutkan terbaru dulu
-    );
+    
+    // [PERBAIKAN UTAMA] Ganti 'startsAt' menjadi 'tournamentStartsAt'
+    // Menggunakan .getTime() agar aman secara tipe data TypeScript
+    combinedList.sort((a, b) => {
+        const timeA = a.tournamentStartsAt ? a.tournamentStartsAt.getTime() : 0;
+        const timeB = b.tournamentStartsAt ? b.tournamentStartsAt.getTime() : 0;
+        return timeB - timeA; // Urutkan terbaru (descending)
+    });
 
     return combinedList;
   } catch (error) {
