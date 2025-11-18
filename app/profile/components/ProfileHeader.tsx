@@ -9,13 +9,11 @@ import {
   ShieldIcon,
   ExternalLinkIcon,
 } from '@/app/components/icons';
-// [FIX] Hapus impor UserProfile karena tidak digunakan
-// import { UserProfile } from '@/lib/types';
 
 interface ProfileHeaderProps {
   isVerified: boolean;
   displayName: string;
-  inGameName: string | null | undefined; // [FIX] Izinkan 'undefined' agar cocok dengan tipe UserProfile
+  inGameName: string | null | undefined;
   cocProfileUrl: string | null;
 }
 
@@ -45,14 +43,18 @@ export const ProfileHeader = ({
         <p className="text-sm font-sans font-semibold text-white">
           {isVerified ? (
             <>
-              Akun CoC **Terverifikasi**.
+              {/* [FIX] Ganti **...** dengan span font-bold */}
+              Akun CoC <span className="font-bold">Terverifikasi</span>
               {/* Tampilkan InGameName jika berbeda */}
               {inGameName && inGameName !== displayName
                 ? ` (${inGameName})`
                 : ''}
             </>
           ) : (
-            <>Akun CoC **Belum Terverifikasi**.</>
+            <>
+              {/* [FIX] Ganti **...** dengan span font-bold */}
+              Akun CoC <span className="font-bold">Belum Terverifikasi</span>.
+            </>
           )}
         </p>
       </div>
