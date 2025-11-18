@@ -1,10 +1,10 @@
 // File: lib/types/user.types.ts
 // Deskripsi: Mendefinisikan struktur data terkait Pengguna (User), Pemain (Player), dan Ulasan.
-// [MODIFIKASI FASE 4.1]: Menambahkan field cache data lengkap ke UserProfile.
+// [MODIFIKASI FASE 8.1]: Menambahkan field cache statistik tambahan.
 
 import { ClanRole, ManagerRole, StandardMemberRole } from '../enums';
-// [BARU FASE 4.1] Impor tipe data cache dari file coc.types (yang ada di folder lib/)
-import { CocPlayerItem, CocAchievement } from '../coc.types';
+// [MODIFIKASI FASE 8.1] Impor tipe CocLeague
+import { CocPlayerItem, CocAchievement, CocLeague } from '../coc.types';
 
 /**
  * @interface UserProfile
@@ -25,13 +25,22 @@ export interface UserProfile {
   clanRole?: ClanRole; // MENGGUNAKAN ENUM CLANROLE
   lastVerified?: Date; // Timestamp verifikasi terakhir
 
-  // --- [BARU FASE 4.1] DATA CACHE PLAYER LENGKAP ---
+  // --- [BARU FASE 4.1 & 8.1] DATA CACHE PLAYER LENGKAP ---
   // Data ini adalah cache dari endpoint /players/{playerTag}
   // untuk mengurangi panggilan API.
   cachedHeroes?: CocPlayerItem[];
   cachedTroops?: CocPlayerItem[];
   cachedSpells?: CocPlayerItem[];
   cachedAchievements?: CocAchievement[];
+
+  // --- [BARU FASE 8.1] Data Cache Statistik Tambahan ---
+  expLevel?: number;
+  league?: CocLeague | null;
+  attackWins?: number;
+  defenseWins?: number;
+  builderBaseTrophies?: number;
+  // --- [AKHIR BARU FASE 8.1] ---
+
   lastCacheTimestamp?: Date; // Timestamp kapan cache ini diperbarui
   // --- [AKHIR BARU FASE 4.1] ---
 

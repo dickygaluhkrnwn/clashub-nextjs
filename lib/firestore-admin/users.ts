@@ -1,6 +1,6 @@
 // File: lib/firestore-admin/users.ts
 // Deskripsi: Berisi fungsi utilitas Firestore Admin SDK terkait koleksi 'users'.
-// [MODIFIKASI FASE 4.2]: Menambahkan fungsi updatePlayerCacheAdmin.
+// [MODIFIKASI FASE 8.2]: Menambahkan 5 field statistik baru ke updatePlayerCacheAdmin.
 
 import { adminFirestore } from '../firebase-admin';
 import { COLLECTIONS } from '../firestore-collections';
@@ -276,7 +276,7 @@ export const updatePlayerCacheAdmin = async (
   try {
     const userRef = adminFirestore.collection(COLLECTIONS.USERS).doc(uid);
 
-    // Buat objek update yang sesuai dengan field di UserProfile
+    // [MODIFIKASI FASE 8.2] Tambahkan 5 field statistik baru
     const cacheData: Partial<UserProfile> = {
       // Data Live
       inGameName: playerData.name,
@@ -285,6 +285,15 @@ export const updatePlayerCacheAdmin = async (
       clanTag: playerData.clan?.tag || null,
       clanName: playerData.clan?.name || null,
       clanRole: playerData.role,
+
+      // --- [BARU FASE 8.2] Menambahkan cache statistik ---
+      expLevel: playerData.expLevel,
+      league: playerData.league || null,
+      attackWins: playerData.attackWins,
+      defenseWins: playerData.defenseWins,
+      builderBaseTrophies: playerData.builderBaseTrophies,
+      // --- [AKHIR BARU FASE 8.2] ---
+
       // Data Cache
       cachedHeroes: playerData.heroes,
       cachedTroops: playerData.troops,

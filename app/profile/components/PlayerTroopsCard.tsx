@@ -1,15 +1,17 @@
 // File: app/profile/components/PlayerTroopsCard.tsx
-// Deskripsi: [BARU FASE 3.5] Komponen Card baru untuk menampilkan
-// daftar Troops (Home Village) dari data live API.
+// Deskripsi: [MODIFIKASI FASE 6.3] Memperbarui card untuk
+// membaca dari cache 'userProfile.cachedTroops'.
 
 'use client';
 
 import React from 'react';
-import { CocPlayer } from '@/lib/types';
+// [MODIFIKASI 6.3] Impor UserProfile
+import { CocPlayer, UserProfile } from '@/lib/types';
 import { SwordsIcon } from '@/app/components/icons'; // Menggunakan ikon yang relevan
 
 interface PlayerTroopsCardProps {
-  // Props ini akan dikirim dari ProfileClient / PlayerProfileClient
+  // [MODIFIKASI 6.3] Tambahkan userProfile
+  userProfile: UserProfile; // Data cache dari Firebase
   fullPlayerData?: CocPlayer | null;
   isLoading?: boolean;
   error?: string | null;
@@ -19,13 +21,22 @@ interface PlayerTroopsCardProps {
  * Komponen Card untuk menampilkan "Pasukan (Home Village)" di halaman profil.
  */
 export const PlayerTroopsCard = ({
+  // [MODIFIKASI 6.3] Destructure userProfile
+  userProfile,
   fullPlayerData,
   isLoading,
   error,
 }: PlayerTroopsCardProps) => {
+  // --- [MODIFIKASI FASE 6.3] ---
+  // Logika Penggabungan Data:
+  // 1. Coba 'fullPlayerData.troops' (live)
+  // 2. Fallback ke 'userProfile.cachedTroops' (cache)
+  const troopsData =
+    fullPlayerData?.troops ?? userProfile?.cachedTroops ?? [];
+
   // Hanya ambil troops untuk Home Village
-  const homeTroops =
-    fullPlayerData?.troops?.filter((t) => t.village === 'home') ?? [];
+  const homeTroops = troopsData.filter((t) => t.village === 'home');
+  // --- [AKHIR MODIFIKASI] ---
 
   // Pisahkan Super Troops yang aktif
   const activeSuperTroops = homeTroops.filter((t) => t.superTroopIsActive);
@@ -33,14 +44,21 @@ export const PlayerTroopsCard = ({
     (t) => !t.superTroopIsActive && t.level > 1, // Filter troops yang belum di-unlock
   );
 
+  // --- [MODIFIKASI FASE 6.3] Logika Tampilan ---
+  // Tampilkan loading HANYA jika data live sedang loading
+  // DAN kita tidak punya data cache untuk ditampilkan.
+  const showLoading =
+    isLoading && !fullPlayerData && !userProfile.cachedTroops;
+  // --- [AKHIR MODIFIKASI] ---
+
   return (
     <div className="card-stone p-6 rounded-lg">
       <h2 className="mb-6 flex items-center gap-2 font-clash text-2xl text-white">
         <SwordsIcon className="h-6 w-6 text-coc-gold" /> Pasukan (Home Village)
       </h2>
 
-      {/* --- Handle Loading --- */}
-      {isLoading && (
+      {/* --- Handle Loading [MODIFIKASI 6.3] --- */}
+      {showLoading && (
         <p className="text-sm text-gray-400 font-sans text-center">
           Memuat data pasukan...
         </p>
@@ -53,8 +71,8 @@ export const PlayerTroopsCard = ({
         </p>
       )}
 
-      {/* --- Tampilkan Data --- */}
-      {!isLoading && !error && (
+      {/* --- Tampilkan Data [MODIFIKASI 6.3] --- */}
+      {!showLoading && !error && (
         <div className="space-y-6">
           {/* Bagian Super Troops (jika ada) */}
           {activeSuperTroops.length > 0 && (
@@ -105,6 +123,7 @@ export const PlayerTroopsCard = ({
           )}
 
           {/* Fallback jika tidak ada troops sama sekali */}
+          {/* [MODIFIKASI 6.3] Cek 'homeTroops' (data gabungan) */}
           {homeTroops.length === 0 && (
             <p className="text-sm text-gray-400 font-sans text-center">
               Data pasukan tidak ditemukan.

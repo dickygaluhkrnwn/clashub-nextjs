@@ -1,6 +1,6 @@
 'use client';
 
-// [MODIFIKASI FASE 4.4]: Menambahkan panggilan "fire-and-forget" ke /api/player/update-cache
+// [MODIFIKASI FASE 7.1]: Mengimpor dan mengintegrasikan PlayerAchievementsCard
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/context/AuthContext';
@@ -27,7 +27,9 @@ import { ReceivedReviewsCard } from './components/ReceivedReviewsCard';
 import { PlayerHeroesCard } from './components/PlayerHeroesCard';
 import { PlayerTroopsCard } from './components/PlayerTroopsCard';
 import { PlayerSpellsCard } from './components/PlayerSpellsCard';
-// --- [AKHIR BARU FASE 3.5] ---
+// --- [BARU FASE 7.1] Impor card pencapaian ---
+import { PlayerAchievementsCard } from './components/PlayerAchievementsCard';
+// --- [AKHIR BARU FASE 7.1] ---
 
 interface ProfileClientProps {
   initialProfile: UserProfile | null;
@@ -224,28 +226,37 @@ const ProfileClient = ({
               error={apiError}
             />
 
-            {/* --- [BARU FASE 3.5] Tambahkan card-card baru --- */}
+            {/* --- [MODIFIKASI FASE 7.1] Tambahkan card baru DAN prop userProfile --- */}
             {/* Tampilkan card-card ini hanya jika terverifikasi */}
             {isVerified && (
               <>
                 <PlayerHeroesCard
+                  userProfile={userProfile} // <-- Prop FASE 6 (cache read)
                   fullPlayerData={fullPlayer}
                   isLoading={isLoadingApi}
                   error={apiError}
                 />
                 <PlayerTroopsCard
+                  userProfile={userProfile} // <-- Prop FASE 6 (cache read)
                   fullPlayerData={fullPlayer}
                   isLoading={isLoadingApi}
                   error={apiError}
                 />
                 <PlayerSpellsCard
+                  userProfile={userProfile} // <-- Prop FASE 6 (cache read)
+                  fullPlayerData={fullPlayer}
+                  isLoading={isLoadingApi}
+                  error={apiError}
+                />
+                <PlayerAchievementsCard
+                  userProfile={userProfile} // <-- Prop FASE 6 (cache read)
                   fullPlayerData={fullPlayer}
                   isLoading={isLoadingApi}
                   error={apiError}
                 />
               </>
             )}
-            {/* --- [AKHIR BARU FASE 3.5] --- */}
+            {/* --- [AKHIR MODIFIKASI FASE 7.1] --- */}
 
             <RecentActivityCard
               recentPosts={recentPosts}
