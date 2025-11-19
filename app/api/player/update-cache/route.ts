@@ -1,10 +1,12 @@
 // File: app/api/player/update-cache/route.ts
-// Deskripsi: [BARU FASE 4.3] API route untuk client mem-push
+// Deskripsi: [PERBAIKAN BUG FASE 4.3] API route untuk client mem-push
 // data cache CocPlayer (heroes, troops, dll) ke Firestore.
+// LOGIC FIX: Update data pemilik tag, BUKAN user yang sedang login.
 
 import { NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/server-auth'; // Helper otentikasi
-import { updatePlayerCacheAdmin } from '@/lib/firestore-admin/users'; // Fungsi Admin
+// [PERBAIKAN] Impor getUserProfileByPlayerTagAdmin untuk mencari pemilik tag
+import { updatePlayerCacheAdmin, getUserProfileByPlayerTagAdmin } from '@/lib/firestore-admin/users'; 
 import { CocPlayer } from '@/lib/types'; // Tipe data
 
 /**
@@ -15,7 +17,7 @@ import { CocPlayer } from '@/lib/types'; // Tipe data
  */
 export async function POST(request: Request) {
   try {
-    // 1. Otentikasi: Pastikan pengguna sudah login
+    // 1. Otentikasi: Pastikan pengguna sudah login (untuk mencegah spammer anonim)
     const sessionUser = await getSessionUser();
     if (!sessionUser) {
       return NextResponse.json(
@@ -24,7 +26,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { uid } = sessionUser;
+    // const { uid } = sessionUser; // [HAPUS] Jangan gunakan UID login sebagai target update
 
     // 2. Baca data player dari body permintaan
     const playerData: CocPlayer = await request.json();
@@ -36,15 +38,31 @@ export async function POST(request: Request) {
       );
     }
 
+    // [PERBAIKAN KRITIS]
+    // Cari UserProfile yang memiliki tag ini di database.
+    // Kita tidak boleh mengasumsikan user yang login adalah pemilik data yang dikirim.
+    // Tag dari API CoC biasanya raw (misal #ABC), pastikan formatnya sesuai dengan di DB.
+    const targetUserProfile = await getUserProfileByPlayerTagAdmin(playerData.tag);
+
+    if (!targetUserProfile) {
+        // Jika tidak ada user di database dengan tag ini, kita tidak perlu update cache 
+        // (karena cache UserProfile hanya untuk user yang terdaftar di Clashub).
+        return NextResponse.json({
+            success: false,
+            message: 'User dengan tag tersebut tidak ditemukan di database. Cache tidak disimpan.',
+        });
+    }
+
     // 3. Panggil fungsi Admin SDK untuk menyimpan ke Firestore
-    // Kita gunakan UID dari sesi (AMAN) dan data dari body
-    await updatePlayerCacheAdmin(uid, playerData);
+    // Gunakan UID dari targetUserProfile yang ditemukan, BUKAN sessionUser
+    await updatePlayerCacheAdmin(targetUserProfile.uid, playerData);
 
     // 4. Kirim respons sukses
     return NextResponse.json({
       success: true,
-      message: 'Cache player berhasil diperbarui.',
+      message: `Cache player untuk ${playerData.name} (${targetUserProfile.uid}) berhasil diperbarui.`,
     });
+
   } catch (error) {
     console.error('[API /update-cache] Gagal memperbarui cache:', error);
     if (error instanceof Error) {
