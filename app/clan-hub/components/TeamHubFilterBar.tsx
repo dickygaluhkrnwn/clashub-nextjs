@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import TeamHubFilter from '@/app/components/filters/TeamHubFilter';
+import TeamHubFilter, { ManagedClanFilters } from '@/app/components/filters/TeamHubFilter'; // [PERBAIKAN] Import tipe dari sumber aslinya
 import PlayerHubFilter from '@/app/components/filters/PlayerHubFilter';
 import { Button } from '@/app/components/ui/Button';
 
-// Impor tipe yang diekspor dari TeamHubClient
-import { ManagedClanFilters, PlayerFilters } from '../TeamHubClient';
+// Impor tipe PlayerFilters dari TeamHubClient (karena masih didefinisikan di sana)
+import { PlayerFilters } from '../TeamHubClient';
 
-// Definisikan tipe ActiveTab di sini karena tidak diekspor dari file utama
+// Definisikan tipe ActiveTab di sini
 type ActiveTab = 'clashubTeams' | 'publicClans' | 'players';
 
 interface TeamHubFilterBarProps {
@@ -68,20 +68,22 @@ export const TeamHubFilterBar = ({
       </div>
 
       {/* [Fase 3] Container Filter
-         - Hidden di mobile kecuali isOpen === true
-         - Always Block di desktop (lg:block)
+          - Hidden di mobile kecuali isOpen === true
+          - Always Block di desktop (lg:block)
       */}
       <div className={`${isOpen ? 'block animate-fade-in' : 'hidden'} lg:block`}>
         {activeTab === 'clashubTeams' && (
           <TeamHubFilter
             filters={clanFilters}
-            onFilterChange={onClanFilterChange as any} // 'as any' dari file asli
+            // [PERBAIKAN UTAMA] Menghapus 'as any' karena tipe data sekarang sudah sinkron total!
+            // Ini membuktikan bahwa error build sebelumnya sudah teratasi secara logic.
+            onFilterChange={onClanFilterChange} 
           />
         )}
         {activeTab === 'players' && (
           <PlayerHubFilter
             filters={playerFilters}
-            onFilterChange={onPlayerFilterChange as any} // 'as any' dari file asli
+            onFilterChange={onPlayerFilterChange as any} // Biarkan as any untuk player dulu
           />
         )}
       </div>

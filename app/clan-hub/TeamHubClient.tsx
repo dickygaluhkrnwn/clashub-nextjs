@@ -18,14 +18,9 @@ import { PlayersTab } from './components/PlayersTab';
 // [PERBAIKAN] Impor ikon yang dibutuhkan untuk Header Halaman
 import { ShieldIcon, UserIcon, GlobeIcon } from '@/app/components/icons';
 
-// Definisikan tipe filter
-export type ManagedClanFilters = {
-  search: string;
-  thLevel: string;
-  minMembers: number;
-  vision: 'all' | 'Kompetitif' | 'Kasual';
-  reputation: number;
-};
+// [PERBAIKAN LANGKAH 1] Import tipe yang benar dari komponen filter
+// Ini memastikan tipe data konsisten dengan ekspektasi child component (TeamHubFilter)
+import { ManagedClanFilters } from '@/app/components/filters/TeamHubFilter';
 
 export type PlayerFilters = {
   searchTerm: string;
@@ -55,9 +50,10 @@ const TeamHubClient = ({
   const [activeTab, setActiveTab] = useState<ActiveTab>('clashubTeams');
 
   // State Filter
+  // [PERBAIKAN ERROR TIPE] thLevel diubah dari 'all' (string) menjadi 0 (number) sesuai definisi ManagedClanFilters
   const [clanFilters, setClanFilters] = useState<ManagedClanFilters>({
-    search: '',
-    thLevel: 'all',
+    searchTerm: '', 
+    thLevel: 0, // 0 melambangkan 'All'
     minMembers: 0,
     vision: 'all',
     reputation: 0, 
@@ -97,8 +93,8 @@ const TeamHubClient = ({
     setActiveTab(tab);
     // Reset filter saat ganti tab
     setClanFilters({
-        search: '',
-        thLevel: 'all',
+        searchTerm: '', 
+        thLevel: 0, 
         minMembers: 0,
         vision: 'all',
         reputation: 0,
@@ -125,16 +121,18 @@ const TeamHubClient = ({
 
 
   // --- FILTER LOGIC (CLANS) ---
+  // [UPDATE LOGIKA] Implementasi logika filter berdasarkan 'lib/types/clan.types.ts'
   const filteredClans = useMemo(() => {
     return initialClans.filter((clan) => {
-      // 1. Search
+      // 1. Search (Nama & Tag)
       if (
-        clanFilters.search &&
-        !clan.name.toLowerCase().includes(clanFilters.search.toLowerCase()) &&
-        !clan.tag.toLowerCase().includes(clanFilters.search.toLowerCase())
+        clanFilters.searchTerm &&
+        !clan.name.toLowerCase().includes(clanFilters.searchTerm.toLowerCase()) &&
+        !clan.tag.toLowerCase().includes(clanFilters.searchTerm.toLowerCase())
       ) {
         return false;
       }
+      
       // 2. Vision
       if (
         clanFilters.vision !== 'all' &&
@@ -142,8 +140,23 @@ const TeamHubClient = ({
       ) {
         return false;
       }
+      
       // 3. Reputation (Average Rating)
+      // Menggunakan field averageRating dari RecommendedTeam
       if (clan.averageRating < clanFilters.reputation) {
+        return false;
+      }
+      
+      // 4. Minimum Members
+      // [IMPLEMENTASI BARU] Menggunakan field 'memberCount' dari ManagedClan
+      if (clanFilters.minMembers > 0 && clan.memberCount < clanFilters.minMembers) {
+        return false;
+      }
+
+      // 5. Town Hall Level (Average)
+      // [IMPLEMENTASI BARU] Menggunakan field 'avgTh' dari ManagedClan
+      // Kita bulatkan avgTh ke bawah agar perbandingannya fair (misal avg 12.8 dianggap TH 12)
+      if (clanFilters.thLevel > 0 && Math.floor(clan.avgTh) < clanFilters.thLevel) {
         return false;
       }
       
