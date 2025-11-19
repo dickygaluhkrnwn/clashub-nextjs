@@ -14,7 +14,8 @@ import {
   FirestoreDocument,
   ThRequirement,
 } from '@/lib/clashub.types';
-import { TrophyIcon, CogsIcon } from '../components/icons';
+// [MODIFIKASI] Menambahkan import ikon yang dibutuhkan (Filter, Edit)
+import { TrophyIcon, CogsIcon, FilterIcon, EditIcon } from '@/app/components/icons';
 
 // Definisikan Props untuk Client Component
 interface TournamentClientProps {
@@ -23,12 +24,6 @@ interface TournamentClientProps {
   >[];
   error: string | null;
 }
-
-// --- [HAPUS Fase 8.3] ---
-// Tipe dan fungsi translateStatus dipindahkan ke cards.tsx
-// type TournamentStatusUI = ...
-// const translateStatus = (...) => { ... }
-// --- [AKHIR HAPUS] ---
 
 // --- Konstanta Pagination ---
 const ITEMS_PER_LOAD_TOURNAMENT = 5;
@@ -62,12 +57,16 @@ const TournamentClient = ({
     'tournaments',
   );
 
+  // State untuk filter turnamen
   const [tournamentFilters, setTournamentFiltersState] =
     useState<TournamentFilters>({
       status: 'Semua Status',
       thLevel: 'Semua Level',
       prize: 'all',
     });
+
+  // [MODIFIKASI FASE 3] State untuk toggle filter di mobile
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const [visibleTournamentsCount, setVisibleTournamentsCount] = useState(
     ITEMS_PER_LOAD_TOURNAMENT,
@@ -76,58 +75,47 @@ const TournamentClient = ({
 
   // [BARU: Fase 7.4] Pemicu Cron Job Lokal
   useEffect(() => {
-    // Panggil API trigger di background saat halaman dimuat
-    // Ini berfungsi sebagai cron-job tiruan di localhost
     const triggerUpdateStates = async () => {
       try {
-        // TODO: HAPUS INI SAAT DEPLOYMENT PRODUCTION
-        // Di production, ini akan diganti oleh Vercel Cron / GitHub Actions
-        // yang memanggil /api/tournaments/cron?secret=...
         console.log('[Dev Trigger] Memanggil update status turnamen...');
         await fetch('/api/tournaments/update-states', { method: 'POST' });
         console.log('[Dev Trigger] Update status selesai.');
-        // Kita tidak perlu me-refresh data di sini,
-        // karena data yang ditampilkan adalah initialProps dari server
-        // yang dimuat SETELAH trigger ini (pada navigasi berikutnya).
       } catch (error) {
         console.warn('[Dev Trigger] Gagal memicu update status:', error);
       }
     };
 
     triggerUpdateStates();
-  }, []); // Hanya berjalan sekali saat komponen mount
+  }, []);
 
   const setTournamentFilters = (newFilters: TournamentFilters) => {
     setIsFiltering(true);
     setVisibleTournamentsCount(ITEMS_PER_LOAD_TOURNAMENT);
+    // [MODIFIKASI] Tutup filter otomatis di mobile setelah memilih
+    setIsFilterOpen(false);
     setTimeout(() => {
       setTournamentFiltersState(newFilters);
       setIsFiltering(false);
     }, 50);
   };
 
-  // [UPDATE FASE 12.2] Logika filter diperbarui untuk menyembunyikan 'draft'
-  // dan 'cancelled' dari tampilan default.
+  // [UPDATE FASE 12.2] Logika filter diperbarui
   const filteredTournaments = useMemo(() => {
     return allTournaments.filter((tournament) => {
       const { status: filterStatus, thLevel, prize } = tournamentFilters;
 
       // --- [FIX FASE 12.2] Filter Wajib ---
-      // JANGAN PERNAH tampilkan turnamen 'draft' di list publik
       if (tournament.status === 'draft') {
         return false;
       }
-      // --- Akhir Fix ---
 
       // 1. Filter Status
       if (filterStatus === 'Semua Status') {
-        // [FIX FASE 12.2] Sembunyikan 'cancelled' dari "Semua Status"
         if (tournament.status === 'cancelled') return false;
       } else if (filterStatus === 'Akan Datang') {
         const isUpcoming =
           tournament.status === 'scheduled' ||
           tournament.status === 'registration_open' ||
-          // tournament.status === 'draft' || // [FIX FASE 12.2] Dihapus
           tournament.status === 'registration_closed';
         if (!isUpcoming) return false;
       } else if (filterStatus === 'Live') {
@@ -139,13 +127,12 @@ const TournamentClient = ({
         if (!isFinished) return false;
       }
 
-      // 2. Filter TH (Defensif)
+      // 2. Filter TH
       let thMatch = false;
       if (thLevel === 'Semua Level') {
         thMatch = true;
       } else if (tournament.thRequirement) {
         const thReq = tournament.thRequirement;
-        const filterIsRange = thLevel.includes(' - ');
         const filterThParts = thLevel
           .replace(/TH /g, '')
           .split(' - ')
@@ -201,126 +188,156 @@ const TournamentClient = ({
   const showLoadMoreTournaments =
     visibleTournamentsCount < filteredTournaments.length;
 
-  const isLoading = false;
-
-  // [PERBAIKAN] Ganti <> dengan <div> dan tambahkan kelas layout
   return (
-    <div className="container mx-auto p-4 md:p-8 mt-10">
-      <div className="mb-8 border-b-2 border-coc-gold-dark/20 flex overflow-x-auto custom-scrollbar">
-        <button
-          onClick={() => {
-            setActiveTab('tournaments');
-            setVisibleTournamentsCount(ITEMS_PER_LOAD_TOURNAMENT);
-          }}
-          className={`px-6 py-3 font-clash text-lg whitespace-nowrap transition-colors ${
-            activeTab === 'tournaments'
-              ? 'text-coc-gold border-b-2 border-coc-gold'
-              : 'text-gray-400 hover:text-white'
-          }`}
-        >
-          Daftar Turnamen
-        </button>
-        <button
-          onClick={() => setActiveTab('leagues')}
-          className={`px-6 py-3 font-clash text-lg whitespace-nowrap transition-colors ${
-            activeTab === 'leagues'
-              ? 'text-coc-gold border-b-2 border-coc-gold'
-              : 'text-gray-400 hover:text-white'
-          }`}
-        >
-          Liga & Klasemen
-        </button>
+    <div className="relative">
+      <div className="container mx-auto p-4 md:p-8 mt-10">
+        {/* Tab Navigation */}
+        <div className="mb-8 border-b-2 border-coc-gold-dark/20 flex overflow-x-auto custom-scrollbar">
+          <button
+            onClick={() => {
+              setActiveTab('tournaments');
+              setVisibleTournamentsCount(ITEMS_PER_LOAD_TOURNAMENT);
+            }}
+            className={`px-6 py-3 font-clash text-lg whitespace-nowrap transition-colors ${
+              activeTab === 'tournaments'
+                ? 'text-coc-gold border-b-2 border-coc-gold'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            Daftar Turnamen
+          </button>
+          <button
+            onClick={() => setActiveTab('leagues')}
+            className={`px-6 py-3 font-clash text-lg whitespace-nowrap transition-colors ${
+              activeTab === 'leagues'
+                ? 'text-coc-gold border-b-2 border-coc-gold'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            Liga & Klasemen
+          </button>
+        </div>
+
+        <section className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Sidebar Filter Responsif */}
+          <div className="lg:col-span-1 space-y-4">
+             {/* [MODIFIKASI] Tombol Toggle Filter (Hanya Mobile) */}
+             <div className="lg:hidden">
+                <Button
+                  variant="secondary"
+                  className="w-full flex justify-between items-center py-3"
+                  onClick={() => setIsFilterOpen(!isFilterOpen)}
+                >
+                  <span className="flex items-center gap-2">
+                    <FilterIcon className="h-5 w-5" />
+                    {isFilterOpen ? 'Sembunyikan Filter' : 'Filter Turnamen'}
+                  </span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={`h-5 w-5 transition-transform duration-200 ${isFilterOpen ? 'rotate-180' : ''}`}
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </Button>
+             </div>
+
+             {/* [MODIFIKASI] Wrapper Filter (Collapsible di Mobile) */}
+             <div className={`${isFilterOpen ? 'block animate-fade-in' : 'hidden'} lg:block`}>
+                <TournamentFilter
+                  filters={tournamentFilters}
+                  onFilterChange={setTournamentFilters}
+                />
+             </div>
+          </div>
+
+          {/* Konten Utama */}
+          <div className="lg:col-span-3">
+            {activeTab === 'tournaments' && (
+              <>
+                {/* [MODIFIKASI] Hapus Judul 'Turnamen Aktif' agar langsung tampil card */}
+                
+                {isFiltering ? (
+                  <div className="text-center py-20 card-stone rounded-lg">
+                    <CogsIcon className="h-10 w-10 text-coc-gold animate-spin mx-auto mb-4" />
+                    <h3 className="text-xl font-clash text-coc-gold">
+                      Menerapkan Filter...
+                    </h3>
+                  </div>
+                ) : serverError ? (
+                  <div className="text-center py-20 card-stone p-6 rounded-lg">
+                    <h3 className="text-xl font-clash text-coc-red">
+                      {serverError}
+                    </h3>
+                  </div>
+                ) : tournamentsToShow.length === 0 ? (
+                  <div className="text-center py-10 card-stone p-6 rounded-lg">
+                    <h3 className="text-xl font-clash text-gray-400">
+                      Tidak ada turnamen yang ditemukan.
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      Coba ubah kriteria filter Anda.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {tournamentsToShow.map((tournament) => (
+                      <TournamentCard
+                        key={tournament.id}
+                        id={tournament.id}
+                        title={tournament.title}
+                        thRequirement={formatThRequirementToString(
+                          tournament.thRequirement,
+                        )}
+                        status={tournament.status}
+                        prizePool={tournament.prizePool}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {showLoadMoreTournaments && (
+                  <div className="text-center mt-10">
+                    <Button
+                      variant="secondary"
+                      size="lg"
+                      onClick={handleLoadMoreTournaments}
+                      disabled={isFiltering}
+                    >
+                      Muat Lebih Banyak Turnamen
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+
+            {activeTab === 'leagues' && (
+              <div className="text-center py-20 card-stone rounded-lg">
+                <h2 className="text-2xl font-clash text-coc-gold">
+                  Klasemen Liga (Development)
+                </h2>
+                <p className="text-gray-400 mt-2">
+                  Fitur ini sedang dalam pengembangan.
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
       </div>
 
-      <section className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        <div className="lg:col-span-1">
-          <TournamentFilter
-            filters={tournamentFilters}
-            onFilterChange={setTournamentFilters}
-          />
-        </div>
-
-        <div className="lg:col-span-3">
-          {activeTab === 'tournaments' && (
-            <>
-              <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
-                <h1 className="text-3xl md:text-4xl flex items-center gap-2">
-                  <TrophyIcon className="h-8 w-8 text-coc-gold-dark" />
-                  Turnamen Aktif & Akan Datang
-                </h1>
-                <Button href="/tournament/create" variant="primary">
-                  Buat Turnamen
-                </Button>
-              </div>
-
-              {isFiltering ? (
-                <div className="text-center py-20 card-stone rounded-lg">
-                  <CogsIcon className="h-10 w-10 text-coc-gold animate-spin mx-auto mb-4" />
-                  <h3 className="text-xl font-clash text-coc-gold">
-                    Menerapkan Filter...
-                  </h3>
-                </div>
-              ) : serverError ? (
-                <div className="text-center py-20 card-stone p-6 rounded-lg">
-                  <h3 className="text-xl font-clash text-coc-red">
-                    {serverError}
-                  </h3>
-                </div>
-              ) : tournamentsToShow.length === 0 ? (
-                <div className="text-center py-10 card-stone p-6 rounded-lg">
-                  <h3 className="text-xl font-clash text-gray-400">
-                    Tidak ada turnamen yang ditemukan.
-                  </h3>
-                  <p className="text-sm text-gray-500">
-                    Coba ubah kriteria filter Anda.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {tournamentsToShow.map((tournament) => (
-                    <TournamentCard
-                      key={tournament.id}
-                      id={tournament.id}
-                      title={tournament.title}
-                      // [FIX V2] Gunakan helper baru yang sudah defensif
-                      thRequirement={formatThRequirementToString(
-                        tournament.thRequirement, // Ini bisa undefined
-                      )}
-                      // [PERBAIKAN FASE 8.3] Kirim status mentah
-                      status={tournament.status}
-                      prizePool={tournament.prizePool}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {showLoadMoreTournaments && (
-                <div className="text-center mt-10">
-                  <Button
-                    variant="secondary"
-                    size="lg"
-                    onClick={handleLoadMoreTournaments}
-                    disabled={isFiltering}
-                  >
-                    Muat Lebih Banyak Turnamen
-                  </Button>
-                </div>
-              )}
-            </>
-          )}
-
-          {activeTab === 'leagues' && (
-            <div className="text-center py-20 card-stone rounded-lg">
-              <h2 className="text-2xl font-clash text-coc-gold">
-                Klasemen Liga (Development)
-              </h2>
-              <p className="text-gray-400 mt-2">
-                Fitur ini sedang dalam pengembangan.
-              </p>
-            </div>
-          )}
-        </div>
-      </section>
+      {/* [FITUR BARU] Floating Action Button (FAB) Buat Turnamen */}
+      <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-4 fade-in duration-500">
+        <Button
+          href="/tournament/create"
+          variant="primary"
+          // Styling bulat sempurna seperti di Knowledge Hub
+          className="rounded-full w-14 h-14 p-0 flex items-center justify-center shadow-[0_0_20px_rgba(255,215,0,0.3)] hover:shadow-[0_0_30px_rgba(255,215,0,0.5)] hover:scale-110 transition-all duration-300 border-2 border-coc-gold bg-coc-stone"
+          title="Buat Turnamen Baru"
+        >
+          <EditIcon className="h-7 w-7 text-coc-gold" />
+        </Button>
+      </div>
     </div>
   );
 };

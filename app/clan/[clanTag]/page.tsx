@@ -8,18 +8,17 @@ import { PublicClanIndex, CocMember } from '@/lib/types';
 import { GlobeIcon, ShieldIcon, UserIcon, TrophyIcon, MapPinIcon, ClockIcon, ArrowLeftIcon, RefreshCwIcon, StarIcon, ExternalLinkIcon } from '@/app/components/icons';
 import { Button } from '@/app/components/ui/Button';
 import Image from 'next/image'; 
-import Link from 'next/link'; // PASTIKAN Link diimpor
+import Link from 'next/link'; 
 
 // Mendefinisikan Tipe Data Klan yang Diterima di Client
-// Ini adalah PublicClanIndex DITAMBAH memberList dan properti CocClan yang mungkin ada
 interface ClientClanData extends PublicClanIndex {
-    memberList?: CocMember[]; // Sekarang data ini akan tersedia jika sumbernya 'live'
+    memberList?: CocMember[]; 
     warLeague?: { id: number; name: string; };
     chatLanguage?: { id: number; name: string; };
     isFamilyFriendly?: boolean;
 }
 
-// Utility untuk memformat Tag (Tidak berubah)
+// Utility untuk memformat Tag
 const formatTag = (tag: string) => tag.replace('%23', '#');
 
 // =========================================================================
@@ -28,7 +27,6 @@ const formatTag = (tag: string) => tag.replace('%23', '#');
 const ClanPublicProfilePage: NextPage = () => {
     const params = useParams();
     const encodedTag = params.clanTag as string; 
-    // Menggunakan tipe baru ClientClanData
     const [clan, setClan] = useState<ClientClanData | null>(null); 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -91,7 +89,7 @@ const ClanPublicProfilePage: NextPage = () => {
         };
 
         fetchClanData();
-    }, [encodedTag]); // Re-fetch if tag changes
+    }, [encodedTag]); 
 
     // --- Loading State ---
     if (loading) {
@@ -105,7 +103,7 @@ const ClanPublicProfilePage: NextPage = () => {
         );
     }
 
-    // --- Error State (Includes Not Found Logic Now) ---
+    // --- Error State ---
      if (error || !clan) { 
           return (
                <main className="max-w-7xl mx-auto space-y-8 p-4 md:p-8 mt-10">
@@ -132,34 +130,22 @@ const ClanPublicProfilePage: NextPage = () => {
         ? new Date(clan.lastUpdated).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })
         : 'N/A';
 
-    // memberList sekarang diakses dengan aman karena menggunakan ClientClanData
     const memberList: CocMember[] = clan.memberList || [];
     const decodedTag = formatTag(clan.tag);
-    // Membuat tag klan tanpa '#' untuk URL
     const rawTag = decodedTag.replace('#', ''); 
 
-    // Implementasi Link Gabung Klan (Sesuai Permintaan)
     const joinUrl = `https://link.clashofclans.com/en/?action=OpenClanProfile&tag=${rawTag}`;
-
-    // *** PERBAIKAN BUG memberCount: MENGGUNAKAN memberList.length UNTUK MENGHITUNG ANGGOTA ***
     const memberCountValue = `${memberList.length || clan.memberCount || 0}/50`;
-    // ******************************************************************************
 
     return (
         <main className="max-w-7xl mx-auto space-y-8 p-4 md:p-8 mt-10">
-             {/* Tombol Kembali */}
-             <div className="mb-6">
-                 <Button href="/clan-hub" variant="secondary" size="md" className="flex items-center">
-                      <ArrowLeftIcon className="h-4 w-4 mr-2" /> Kembali ke Hub
-                 </Button>
-             </div>
+             {/* [MODIFIKASI] Tombol "Kembali ke Hub" di sini telah DIHAPUS agar sinkron dengan halaman lain */}
 
-            {/* Konten utama sekarang di dalam wrapper standar */}
+            {/* Konten utama */}
             <>
                 {/* Header Klan Publik */}
                 <div className="card-stone p-6 flex flex-col md:flex-row justify-between items-start md:items-center rounded-lg">
                     <div className="flex items-center gap-6">
-                        {/* Menggunakan Client Component Badge */}
                         <ClanBadgeImage
                             src={clan.badgeUrls.large || '/images/clan-badge-placeholder.png'}
                             alt={`${clan.name} Badge`}
@@ -175,7 +161,6 @@ const ClanPublicProfilePage: NextPage = () => {
                     </div>
 
                     <div className="mt-4 md:mt-0 flex flex-col items-end space-y-2">
-                        {/* Implementasi Tombol Gabung Klan */}
                         <Button href={joinUrl} target="_blank" variant="primary" size="lg" className="flex items-center justify-center">
                             <ExternalLinkIcon className='w-5 h-5 mr-2'/> Gabung Klan (In-Game Link)
                         </Button>
@@ -187,7 +172,6 @@ const ClanPublicProfilePage: NextPage = () => {
 
                 {/* Ringkasan Statistik */}
                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4"> 
-                    {/* Menggunakan nilai memberCountValue yang sudah diperbaiki */}
                     <StatCard icon={UserIcon} title="Anggota" value={memberCountValue} color="text-coc-blue" />
                     <StatCard icon={TrophyIcon} title="Poin Klan" value={clan.clanPoints.toLocaleString()} color="text-coc-gold" />
                     <StatCard icon={StarIcon} title="Poin Ibu Kota" value={clan.clanCapitalPoints?.toLocaleString() || 'N/A'} color="text-yellow-400" /> 
@@ -223,35 +207,32 @@ const ClanPublicProfilePage: NextPage = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-coc-gold-dark/10">
-                                    {/* Sorting: Sortir berdasarkan role (Leader, Co-Leader, Elder, Member) lalu TH level */}
                                     {memberList
-                                        .sort((a, b) => {
-                                            const rolePriority: { [key: string]: number } = { 'leader': 1, 'coLeader': 2, 'admin': 3, 'elder': 3, 'member': 4 };
-                                            const priorityA = rolePriority[a.role.toLowerCase()] || 5;
-                                            const priorityB = rolePriority[b.role.toLowerCase()] || 5;
-                                            
-                                            if (priorityA !== priorityB) return priorityA - priorityB;
-                                            return b.townHallLevel - a.townHallLevel;
-                                        })
-                                        .map((member) => (
-                                        <tr key={member.tag} className="hover:bg-coc-stone/20 transition-colors">
-                                            {/* *** PERUBAHAN DI SINI: MENGUBAH NAMA PEMAIN MENJADI LINK *** */}
-                                            <td className="px-3 py-3 whitespace-nowrap text-sm font-semibold">
-                                                <Link 
-                                                    href={`/player/${encodeURIComponent(member.tag)}`} // Menghubungkan ke halaman profil pemain
-                                                    className="text-white hover:text-coc-gold transition-colors block"
-                                                    title={`Lihat Profil Pemain: ${member.name}`}
-                                                >
-                                                    {member.name}
-                                                </Link>
-                                                <span className="text-gray-500 block text-xs">TH{member.townHallLevel} | {member.tag}</span>
-                                            </td>
-                                            {/* ********************************************************** */}
-                                            <td className="px-3 py-3 whitespace-nowrap text-center text-xs uppercase font-medium text-coc-gold-light">{member.role}</td>
-                                            <td className="px-3 py-3 whitespace-nowrap text-right text-sm text-gray-300">{member.trophies.toLocaleString()}</td>
-                                            <td className="px-3 py-3 whitespace-nowrap text-right text-sm text-coc-green">{member.donations.toLocaleString()}</td>
-                                            <td className="px-3 py-3 whitespace-nowrap text-right text-sm text-coc-red">{member.donationsReceived.toLocaleString()}</td>
-                                        </tr>
+                                    .sort((a, b) => {
+                                        const rolePriority: { [key: string]: number } = { 'leader': 1, 'coLeader': 2, 'admin': 3, 'elder': 3, 'member': 4 };
+                                        const priorityA = rolePriority[a.role.toLowerCase()] || 5;
+                                        const priorityB = rolePriority[b.role.toLowerCase()] || 5;
+                                        
+                                        if (priorityA !== priorityB) return priorityA - priorityB;
+                                        return b.townHallLevel - a.townHallLevel;
+                                    })
+                                    .map((member) => (
+                                    <tr key={member.tag} className="hover:bg-coc-stone/20 transition-colors">
+                                        <td className="px-3 py-3 whitespace-nowrap text-sm font-semibold">
+                                            <Link 
+                                                href={`/player/${encodeURIComponent(member.tag)}`} 
+                                                className="text-white hover:text-coc-gold transition-colors block"
+                                                title={`Lihat Profil Pemain: ${member.name}`}
+                                            >
+                                                {member.name}
+                                            </Link>
+                                            <span className="text-gray-500 block text-xs">TH{member.townHallLevel} | {member.tag}</span>
+                                        </td>
+                                        <td className="px-3 py-3 whitespace-nowrap text-center text-xs uppercase font-medium text-coc-gold-light">{member.role}</td>
+                                        <td className="px-3 py-3 whitespace-nowrap text-right text-sm text-gray-300">{member.trophies.toLocaleString()}</td>
+                                        <td className="px-3 py-3 whitespace-nowrap text-right text-sm text-coc-green">{member.donations.toLocaleString()}</td>
+                                        <td className="px-3 py-3 whitespace-nowrap text-right text-sm text-coc-red">{member.donationsReceived.toLocaleString()}</td>
+                                    </tr>
                                     ))}
                                 </tbody>
                             </table>
@@ -286,13 +267,11 @@ const ClanBadgeImage: React.FC<ClanBadgeImageProps> = ({ src: initialSrc, alt, w
     const [currentSrc, setCurrentSrc] = useState(initialSrc);
     const placeholderSrc = '/images/clan-badge-placeholder.png';
 
-    // Reset src if initialSrc changes
     useEffect(() => {
         setCurrentSrc(initialSrc || placeholderSrc);
     }, [initialSrc, placeholderSrc]);
 
     const handleError = () => {
-        // Prevent infinite loop if placeholder also fails (unlikely but safe)
         if (currentSrc !== placeholderSrc) {
             console.warn(`[ClanBadgeImage] Failed to load image: ${initialSrc}. Falling back to placeholder.`);
             setCurrentSrc(placeholderSrc);
@@ -306,7 +285,7 @@ const ClanBadgeImage: React.FC<ClanBadgeImageProps> = ({ src: initialSrc, alt, w
             width={width}
             height={height}
             className={className}
-            onError={handleError} // Event handler is now in a Client Component
+            onError={handleError} 
         />
     );
 };
@@ -314,26 +293,24 @@ const ClanBadgeImage: React.FC<ClanBadgeImageProps> = ({ src: initialSrc, alt, w
 // =========================================================================
 // HELPER COMPONENTS (Tidak Berubah)
 // =========================================================================
-const StatCard = ({ icon: Icon, title, value, color }: { icon: React.FC<React.SVGProps<SVGSVGElement>>, title: string, value: string | undefined, color: string }) => ( // Value can be undefined
+const StatCard = ({ icon: Icon, title, value, color }: { icon: React.FC<React.SVGProps<SVGSVGElement>>, title: string, value: string | undefined, color: string }) => ( 
     <div className="card-stone p-4 flex items-center space-x-3 bg-coc-stone/50 rounded-lg">
         <Icon className={`h-8 w-8 ${color} flex-shrink-0`} />
         <div>
             <p className="text-sm text-gray-400 font-sans">{title}</p>
-            {/* Handle potentially undefined value */}
             <p className="text-xl font-clash text-white">{value ?? 'N/A'}</p>
         </div>
     </div>
 );
 
 
-const DetailItem = ({ icon: Icon, label, value }: { icon: React.FC<React.SVGProps<SVGSVGElement>>, label: string, value: string | undefined }) => ( // Value can be undefined
+const DetailItem = ({ icon: Icon, label, value }: { icon: React.FC<React.SVGProps<SVGSVGElement>>, label: string, value: string | undefined }) => ( 
     <div className="flex items-center space-x-3">
         <Icon className="h-5 w-5 text-coc-gold flex-shrink-0" />
         <p>
-            <span className="font-bold text-white">{label}:</span> {value ?? 'N/A'} {/* Handle potentially undefined value */}
+            <span className="font-bold text-white">{label}:</span> {value ?? 'N/A'} 
         </p>
     </div>
 );
 
-
-export default ClanPublicProfilePage; // Export the main component
+export default ClanPublicProfilePage;

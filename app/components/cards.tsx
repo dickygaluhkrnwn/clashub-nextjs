@@ -2,12 +2,11 @@ import { StarIcon } from '@/app/components/icons';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/app/components/ui/Button';
-// [BARU FASE 8.3] Impor tipe Tournament
 import { Tournament } from '@/lib/clashub.types';
 
 // -- Tipe Data untuk Props --
 export type TeamCardProps = {
-  id: string; // ID diperlukan untuk membuat link
+  id: string;
   name: string;
   tag: string;
   rating: number;
@@ -26,16 +25,15 @@ export type PostCardProps = {
 };
 
 export type TournamentCardProps = {
-  id: string; // ID diperlukan untuk membuat link
+  id: string;
   title: string;
-  // [PERBAIKAN FASE 8.3] Gunakan tipe status mentah dari types.ts
   status: Tournament['status'];
   thRequirement: string;
   prizePool: string;
 };
 
 export type PlayerCardProps = {
-  id: string; // ID diperlukan untuk membuat link
+  id: string;
   name: string;
   tag: string;
   thLevel: number;
@@ -44,8 +42,7 @@ export type PlayerCardProps = {
   avatarUrl?: string;
 };
 
-// [BARU FASE 8.3] Helper untuk status dan styling turnamen
-// Memindahkan logika dari TournamentClient ke sini
+// Helper untuk status dan styling turnamen
 const getTournamentStatusUI = (status: Tournament['status']) => {
   switch (status) {
     case 'scheduled':
@@ -113,14 +110,13 @@ export const TeamCard = ({
           <Image
             src={logoUrl}
             alt={`${name} logo`}
-            width={64} // Ukuran diperbesar sedikit untuk estetika
-            height={64} // Ukuran diperbesar sedikit untuk estetika
+            width={64}
+            height={64}
             sizes="64px"
             quality={75}
             className="rounded-full border-3 border-coc-gold object-cover flex-shrink-0 w-16 h-16 shadow-lg"
           />
           <div className="flex-grow min-w-0">
-            {/* Menambahkan font-clash */}
             <h4 className="font-clash text-xl text-white leading-tight truncate">
               {name}
             </h4>
@@ -152,11 +148,10 @@ export const TeamCard = ({
           </div>
         </div>
       </div>
-      {/* PERBAIKAN: Mengubah link dari /team/[id] ke /clan/internal/[clanId] */}
       <Link href={`/clan/internal/${id}`} className="mt-5">
-        <Button variant="secondary" className="w-full">
-          {/* [PERBAIKAN] Mengganti "Lihat Profil Tim" menjadi "Lihat Profil Clan" */}
-          Lihat Profil Clan
+        {/* [MODIFIKASI] Ubah teks jadi "Lihat Clan" dan rata tengah */}
+        <Button variant="secondary" className="w-full justify-center">
+          Lihat Clan
         </Button>
       </Link>
     </div>
@@ -184,7 +179,6 @@ export const PostCard = ({
               {tag}
             </span>
           </div>
-          {/* Menambahkan font-clash */}
           <h4 className="font-clash text-lg text-white group-hover:text-coc-gold transition-colors mb-3">
             {title}
           </h4>
@@ -208,28 +202,14 @@ export const TournamentCard = ({
   thRequirement,
   prizePool,
 }: TournamentCardProps) => {
-  // [PERBAIKAN FASE 8.3] Hapus objek styling lama
-  // const statusStyles: ...
-  // const statusBadgeStyles: ...
-
-  // [PERBAIKAN FASE 8.3] Panggil helper baru
   const { text: statusText, badge: badgeClass, border: borderClass } =
     getTournamentStatusUI(status);
 
   return (
     <div
-      className={`card-stone flex flex-col sm:flex-row justify-between items-center p-6 gap-4 border-l-4 ${
-        // [PERBAIKAN FASE 8.3] Gunakan borderClass dari helper
-        borderClass
-      } transition-shadow hover:shadow-xl rounded-lg`}
+      className={`card-stone flex flex-col sm:flex-row justify-between items-center p-6 gap-4 border-l-4 ${borderClass} transition-shadow hover:shadow-xl rounded-lg`}
     >
-      {/* [PERBAIKAN LAYOUT FASE 8.3] 
-        - Mengganti 'sm:w-auto' menjadi 'sm:min-w-0'
-        - Ini mengizinkan container untuk menyusut dan membungkus teks jika judul terlalu panjang.
-      */}
       <div className="flex-grow w-full sm:min-w-0">
-        {/* Menambahkan font-clash */}
-        {/* [PERBAIKAN LAYOUT FASE 8.3] Tambahkan 'break-words' untuk menangani judul panjang */}
         <h4 className="font-clash text-xl text-white leading-snug break-words">
           {title}
         </h4>
@@ -242,18 +222,10 @@ export const TournamentCard = ({
           </p>
         </div>
       </div>
-      {/* [PERBAIKAN LAYOUT FASE 8.3] 
-        - Menambahkan 'sm:flex-shrink-0'
-        - Ini mencegah bagian tombol/badge menyusut saat judul panjang.
-      */}
       <div className="flex flex-col items-stretch sm:items-end gap-3 w-full sm:w-auto mt-4 sm:mt-0 sm:flex-shrink-0">
         <span
-          className={`px-3 py-1 text-xs font-bold rounded-full text-center font-sans ${
-            // [PERBAIKAN FASE 8.3] Gunakan badgeClass dari helper
-            badgeClass
-          }`}
+          className={`px-3 py-1 text-xs font-bold rounded-full text-center font-sans ${badgeClass}`}
         >
-          {/* [PERBAIKAN FASE 8.3] Gunakan statusText dari helper */}
           {statusText}
         </span>
         <Button href={`/tournament/${id}`} variant="secondary" className="w-full sm:w-auto">
@@ -289,14 +261,13 @@ export const PlayerCard = ({
           <Image
             src={avatarUrl}
             alt={`${name} avatar`}
-            width={64} // Ukuran diperbesar sedikit untuk estetika
-            height={64} // Ukuran diperbesar sedikit untuk estetika
+            width={64}
+            height={64}
             sizes="64px"
             quality={75}
             className="rounded-full border-3 border-coc-gold object-cover flex-shrink-0 w-16 h-16 shadow-lg"
           />
           <div className="flex-grow min-w-0">
-            {/* Menambahkan font-clash */}
             <h4 className="font-clash text-xl text-white leading-tight truncate">
               {name}
             </h4>
@@ -329,14 +300,17 @@ export const PlayerCard = ({
           </div>
         </div>
       </div>
-      <div className="mt-5 flex gap-3">
-        <Button href={`/player/${id}`} variant="secondary" className="w-full">
-          Lihat CV
+      {/* [PERBAIKAN TAMPILAN] 
+          Menyamakan struktur dengan TeamCard:
+          - Bungkus Button dengan Link (bukan div)
+          - Hapus href dari Button (agar render sebagai button biasa)
+          - Tambahkan class 'block' pada Link untuk memastikan lebar penuh
+      */}
+      <Link href={`/player/${id}`} className="mt-5 block">
+        <Button variant="secondary" className="w-full justify-center">
+          Lihat Player
         </Button>
-        <Button variant="primary" className="w-full">
-          Invite
-        </Button>
-      </div>
+      </Link>
     </div>
   );
 };

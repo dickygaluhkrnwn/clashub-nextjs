@@ -62,9 +62,10 @@ export const PublicClanCard = ({ clan }: PublicClanCardProps) => {
         </div>
       </div>
       {/* Tombol ke halaman Clan Publik */}
-      <Link href={cocProfileUrl} className="mt-5">
-        <Button variant="primary" className="w-full">
-          Lihat Profil CoC
+      {/* [PERBAIKAN] Sinkronisasi style dengan TeamCard/PlayerCard */}
+      <Link href={cocProfileUrl} className="mt-5 block">
+        <Button variant="secondary" className="w-full justify-center">
+          Lihat Clan
         </Button>
       </Link>
     </div>

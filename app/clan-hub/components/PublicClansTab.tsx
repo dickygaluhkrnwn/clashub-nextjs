@@ -31,6 +31,7 @@ interface PublicClansTabProps {
 /**
  * Komponen untuk me-render konten tab "Pencarian Klan Publik".
  * Diekstrak dari TeamHubClient.tsx (fungsi renderPublicClansContent).
+ * [PERBAIKAN] Menghapus wrapper card-stone agar tidak double background.
  */
 export const PublicClansTab = ({
   publicClanTag,
@@ -46,9 +47,10 @@ export const PublicClansTab = ({
   visibleCount,
 }: PublicClansTabProps) => {
   return (
-    <section className="space-y-6">
+    <section className="space-y-8">
       {/* Search Form by Tag */}
-      <div className="card-stone p-6 rounded-lg">
+      {/* [MODIFIKASI] Hapus 'card-stone p-6 rounded-lg', ganti dengan border bawah */}
+      <div className="pb-8 border-b border-coc-gold-dark/20">
         <h2 className="text-3xl font-clash text-white mb-4">
           Pencarian Klan Publik CoC
         </h2>
@@ -56,7 +58,7 @@ export const PublicClansTab = ({
           onSubmit={onSearchSubmit}
           className="flex flex-col sm:flex-row gap-4 items-end"
         >
-          <div className="flex-grow">
+          <div className="flex-grow w-full">
             <label
               htmlFor="public-clan-tag-search"
               className="block text-sm font-bold text-gray-300 mb-2 font-sans"
@@ -69,14 +71,14 @@ export const PublicClansTab = ({
               placeholder="Masukkan #CLANTAG (cth: #2G8PU0GLJ)"
               value={publicClanTag}
               onChange={(e) => onPublicClanTagChange(e.target.value)}
-              className="w-full p-3 bg-coc-stone/70 border border-coc-gold-dark/50 rounded-md text-white placeholder-gray-500 font-sans focus:outline-none focus:border-coc-gold"
+              className="w-full p-3 bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md text-white placeholder-gray-500 font-sans focus:outline-none focus:border-coc-gold focus:ring-1 focus:ring-coc-gold transition-all"
             />
           </div>
           <Button
             type="submit"
             variant="primary"
             disabled={isSearching}
-            className={`w-full sm:w-auto flex-shrink-0 ${
+            className={`w-full sm:w-auto flex-shrink-0 h-[50px] ${
               isSearching ? 'animate-pulse' : ''
             }`}
           >
@@ -89,7 +91,8 @@ export const PublicClansTab = ({
       </div>
 
       {/* Area Hasil & Cache */}
-      <div className="card-stone p-6 min-h-[40vh] space-y-4 rounded-lg">
+      {/* [MODIFIKASI] Hapus 'card-stone p-6' */}
+      <div className="min-h-[40vh] space-y-6">
         {isSearching && (
           <div className="text-center py-20">
             <RefreshCwIcon className="h-10 w-10 text-coc-gold animate-spin mx-auto mb-4" />
@@ -108,7 +111,7 @@ export const PublicClansTab = ({
 
         {!isSearching && clansToDisplay.length > 0 && (
           <>
-            <h3 className="text-2xl font-clash text-white pb-2 border-b border-coc-gold-dark/30">
+            <h3 className="text-2xl font-clash text-white pb-2">
               {isSearchResult
                 ? 'Hasil Pencarian Tag'
                 : `Daftar Klan Publik (Cache - ${totalCacheCount} total)`}
@@ -135,14 +138,19 @@ export const PublicClansTab = ({
         )}
 
         {!isSearching && clansToDisplay.length === 0 && !searchError && (
-          <p className="text-gray-400 text-center py-10">
-            {publicClanTag.trim()
-              ? 'Tidak ada klan ditemukan untuk tag tersebut.'
-              : 'Tidak ada klan publik di cache saat ini.'}
-          </p>
+          <div className="text-center py-10">
+            <p className="text-gray-400 text-lg mb-2">
+              {publicClanTag.trim()
+                ? 'Tidak ada klan ditemukan untuk tag tersebut.'
+                : 'Tidak ada klan publik di cache saat ini.'}
+            </p>
+            <p className="text-sm text-gray-500">
+              Coba cari menggunakan Tag Klan yang valid.
+            </p>
+          </div>
         )}
 
-        <div className="text-xs text-gray-500 pt-4 border-t border-coc-stone/50">
+        <div className="text-xs text-gray-500 pt-4 border-t border-coc-stone/50 mt-8">
           <ClockIcon className="h-3 w-3 inline mr-1" /> Data klan publik
           di-cache dan diperbarui secara berkala.
         </div>

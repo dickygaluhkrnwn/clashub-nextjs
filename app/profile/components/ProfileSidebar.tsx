@@ -1,10 +1,7 @@
-// File: app/profile/components/ProfileSidebar.tsx
-
 'use client';
 
 import React from 'react';
 import Image from 'next/image';
-// [PERBAIKAN] Mengimpor 'Link' dari next/link
 import Link from 'next/link';
 import { Button } from '@/app/components/ui/Button';
 import {
@@ -18,10 +15,9 @@ import {
   TrophyIcon,
   StarIcon,
   CogsIcon,
-  ChevronRightIcon, // [BARU] Menambahkan ikon panah
+  ChevronRightIcon,
 } from '@/app/components/icons';
 import { UserProfile } from '@/lib/types';
-// [PERUBAHAN] Impor helper untuk logika tier
 import { getTierForPoints } from '@/lib/popularity-utils';
 
 interface ProfileSidebarProps {
@@ -31,12 +27,13 @@ interface ProfileSidebarProps {
   isCompetitiveVision: boolean;
   isClanManager: boolean;
   reputation: number;
-  playerReviewsCount: number; // [FIX] Ganti nama dari totalReviews
+  playerReviewsCount: number;
 }
 
 /**
  * Komponen Sidebar untuk halaman profil.
  * Menampilkan CV, Bio, Kontak, Poin, Reputasi, dan tombol aksi terkait.
+ * [FASE 4 FIX] Responsif Mobile (Static) & Desktop (Sticky).
  */
 export const ProfileSidebar = ({
   userProfile,
@@ -45,9 +42,8 @@ export const ProfileSidebar = ({
   isCompetitiveVision,
   isClanManager,
   reputation,
-  playerReviewsCount, // [FIX] Ganti nama dari totalReviews
+  playerReviewsCount,
 }: ProfileSidebarProps) => {
-  // [FIX] Pindahkan logika avatarSrc dan displayWebsite ke dalam komponen
   const avatarSrc = userProfile.avatarUrl || '/images/placeholder-avatar.png';
 
   const cleanUrlDisplay = (url: string | null | undefined): string => {
@@ -56,12 +52,15 @@ export const ProfileSidebar = ({
   };
   const displayWebsite = cleanUrlDisplay(userProfile.website);
 
-  // [PERUBAHAN] Hitung poin dan tier saat ini di sini
   const currentPoints = userProfile.popularityPoints || 0;
   const currentTier = getTierForPoints(currentPoints);
 
   return (
-    <aside className="lg:col-span-1 card-stone p-6 h-fit sticky top-28 space-y-6 text-center rounded-lg">
+    // [PERBAIKAN LAYOUT SIDEBAR]
+    // 1. 'sticky top-28' diubah jadi 'static lg:sticky lg:top-28' -> Mobile ngalir biasa, Desktop nempel.
+    // 2. Padding dikurangi di mobile ('p-4') agar tidak boros tempat.
+    // 3. Tambah 'z-10' agar tidak tertutup elemen lain jika terjadi stacking context issue.
+    <aside className="lg:col-span-1 card-stone p-4 lg:p-6 h-fit static lg:sticky lg:top-28 space-y-6 text-center rounded-lg z-10 w-full">
       <Image
         src={avatarSrc}
         alt={`${userProfile.displayName} Avatar`}
@@ -71,10 +70,10 @@ export const ProfileSidebar = ({
         priority
         className="w-24 h-24 rounded-full mx-auto border-4 border-coc-gold object-cover flex-shrink-0"
       />
-      <h1 className="text-3xl md:text-4xl text-white font-clash m-0">
+      <h1 className="text-2xl md:text-3xl lg:text-4xl text-white font-clash m-0 break-words">
         {userProfile.displayName}
       </h1>
-      {/* Menampilkan In-Game Name jika terverifikasi & berbeda */}
+      
       {isVerified &&
         userProfile.inGameName &&
         userProfile.inGameName !== userProfile.displayName && (
@@ -140,15 +139,15 @@ export const ProfileSidebar = ({
         </p>
       </div>
 
-      {/* Kontak Sosial (Mirip Publik) */}
+      {/* Kontak Sosial */}
       <div className="text-left pt-4 border-t border-coc-gold-dark/20 space-y-2">
         <h3 className="text-lg text-coc-gold-dark font-clash flex items-center gap-2">
           Kontak
         </h3>
         {userProfile.discordId ? (
-          <p className="text-sm text-gray-300 flex items-center gap-2">
-            <DiscordIcon className="h-4 w-4 text-coc-gold-dark" />{' '}
-            <span className="font-bold">{userProfile.discordId}</span>
+          <p className="text-sm text-gray-300 flex items-center gap-2 truncate">
+            <DiscordIcon className="h-4 w-4 text-coc-gold-dark flex-shrink-0" />{' '}
+            <span className="font-bold truncate">{userProfile.discordId}</span>
           </p>
         ) : (
           <p className="text-sm text-gray-500 flex items-center gap-2">
@@ -164,10 +163,10 @@ export const ProfileSidebar = ({
             }
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm text-coc-gold hover:underline flex items-center gap-2 break-all"
+            className="text-sm text-coc-gold hover:underline flex items-center gap-2 truncate"
           >
             <LinkIcon className="h-4 w-4 text-coc-gold-dark flex-shrink-0" />{' '}
-            {displayWebsite}
+            <span className="truncate">{displayWebsite}</span>
           </a>
         ) : (
           <p className="text-sm text-gray-500 flex items-center gap-2">
@@ -181,16 +180,12 @@ export const ProfileSidebar = ({
         <h3 className="text-lg text-coc-gold-dark font-clash">
           Poin Popularitas
         </h3>
-        {/* [PERUBAHAN] Terapkan warna dinamis 'currentTier.colorClass' */}
         <p
           className={`text-4xl font-clash ${currentTier.colorClass} my-1`}
         >
           {currentPoints}{' '}
-          {/* [PERUBAHAN] Tambahkan fill='currentColor' agar ikon mewarisi warna */}
           <TrophyIcon className="inline h-7 w-7" fill="currentColor" />
         </p>
-        {/* --- PERUBAHAN DI SINI --- */}
-        {/* Mengganti <p> dengan <Link> ke halaman baru */}
         <Link
           href="/profile/popularity"
           className="text-xs text-coc-gold hover:text-coc-gold-light hover:underline flex items-center justify-center gap-1 transition-colors"
@@ -198,7 +193,6 @@ export const ProfileSidebar = ({
           Lihat Detail Poin & Badges
           <ChevronRightIcon className="h-3 w-3" />
         </Link>
-        {/* --- AKHIR PERUBAHAN --- */}
       </div>
 
       {/* Reputasi */}
@@ -210,18 +204,18 @@ export const ProfileSidebar = ({
           {reputation.toFixed(1)} <StarIcon className="inline h-7 w-7" />
         </p>
         <p className="text-xs text-gray-400">
-          (Berdasarkan {playerReviewsCount} ulasan) {/* [FIX] Ganti nama var */}
+          (Berdasarkan {playerReviewsCount} ulasan)
         </p>
       </div>
 
-      {/* Tombol Manajemen Klan (Jika Leader/CoLeader & Terverifikasi) */}
+      {/* Tombol Manajemen Klan */}
       {isClanManager && isVerified && userProfile.clanTag && (
         <div className="pt-4 border-t border-coc-gold-dark/20">
           <Button
             href="/clan/manage"
             variant="secondary"
-            size="lg"
-            className="w-full bg-coc-gold-dark/20 hover:bg-coc-gold-dark/40 border-coc-gold-dark/30 hover:border-coc-gold-dark"
+            // [Mobile Fix] Hapus 'size=lg' agar tidak terlalu besar di HP, atur via class
+            className="w-full bg-coc-gold-dark/20 hover:bg-coc-gold-dark/40 border-coc-gold-dark/30 hover:border-coc-gold-dark py-3 text-sm md:text-base"
           >
             <CogsIcon className="inline h-5 w-5 mr-2" />
             Kelola Klan Saya

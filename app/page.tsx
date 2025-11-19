@@ -3,13 +3,14 @@ import { Suspense } from 'react';
 export const dynamic = 'force-dynamic';
 
 import HomeHeader from '@/app/components/home/HomeHeader';
-// [BARU] Impor komponen QuickLinks
 import QuickLinks from '@/app/components/home/QuickLinks';
 import RecommendedTeams from '@/app/components/home/RecommendedTeams';
 import LatestStrategies from '@/app/components/home/LatestStrategies';
 import CarouselSection from '@/app/components/layout/CarouselSection';
+import HomeBanner from '@/app/components/home/HomeBanner';
 import { CogsIcon, BookOpenIcon } from '@/app/components/icons';
 import { getRecentPostsAdmin } from '@/lib/firestore-admin/posts';
+import { getActivePromotions } from '@/lib/firestore-admin/clans';
 
 // Impor untuk data fetching header yang BENAR
 import { getSessionUser } from '@/lib/server-auth';
@@ -18,33 +19,29 @@ import {
   getClanApiCacheAdmin,
   getManagedClanDataAdmin,
 } from '@/lib/firestore-admin/clans';
-// [BARU] Impor getClanReviewsAdmin untuk mengambil data Reputasi
 import { getClanReviewsAdmin } from '@/lib/firestore-admin/reviews';
 import {
   FirestoreDocument,
   UserProfile,
   CocCurrentWar,
-  Tournament,
   ManagedClan,
-  ClanReview, // [BARU] Impor tipe ClanReview
 } from '@/lib/types';
 
 /**
  * Halaman utama (Server Component)
- * [PERBAIKAN] Sekarang mengambil data untuk Header dan Body
  */
 export default async function Home() {
   // Data fetching diparalelkan untuk performa
-  const [sessionUser, recentPosts] = await Promise.all([
+  const [sessionUser, recentPosts, activePromotions] = await Promise.all([
     getSessionUser(),
     getRecentPostsAdmin(8), // Ambil 8 postingan terbaru
+    getActivePromotions(),  // Ambil promosi aktif
   ]);
 
   // Variabel untuk data header (default null)
   let userProfile: FirestoreDocument<UserProfile> | null = null;
   let currentWar: CocCurrentWar | null = null;
   let managedClan: FirestoreDocument<ManagedClan> | null = null;
-  // [BARU] Variabel untuk menyimpan Reputasi Klan
   let averageRating: number = 0;
 
   // 1. Ambil data Profil Pengguna (jika login)
@@ -53,21 +50,18 @@ export default async function Home() {
 
     // 2. Ambil data Klan & War (jika user punya klan terkelola)
     if (userProfile?.clanId) {
-      // [PERBAIKAN] Ambil data klan, cache, DAN ulasan (reputasi) secara paralel
       const [clanData, clanCache, clanReviews] = await Promise.all([
         getManagedClanDataAdmin(userProfile.clanId),
         getClanApiCacheAdmin(userProfile.clanId),
-        getClanReviewsAdmin(userProfile.clanId), // [BARU] Ambil ulasan
+        getClanReviewsAdmin(userProfile.clanId),
       ]);
 
-      managedClan = clanData; // Simpan data klan (untuk "The Golden Army")
+      managedClan = clanData;
 
-      // Pastikan currentWar ada dan bukan null/undefined
       if (clanCache && clanCache.currentWar) {
-        currentWar = clanCache.currentWar; // Simpan data war (untuk "Status War")
+        currentWar = clanCache.currentWar;
       }
 
-      // [BARU] Hitung Reputasi (sama seperti di halaman internal)
       const totalReviews = clanReviews.length;
       if (totalReviews > 0) {
         averageRating =
@@ -79,32 +73,33 @@ export default async function Home() {
 
   return (
     <>
-      {/* 1. Komponen Header sekarang menerima data dinamis yang BENAR */}
+      {/* 1. Komponen Header (Dashboard User) */}
       <HomeHeader
         userProfile={userProfile}
         currentWar={currentWar}
         managedClan={managedClan}
-        clanReputation={averageRating} // [BARU] Teruskan reputasi sebagai prop
+        clanReputation={averageRating}
       />
 
       {/* Main Content Area */}
-      {/* [PERBAIKAN SPACING] 
-        Padding atas (pt-4/md:pt-8) dihapus dari <main> 
-        dan diganti dengan margin-top (mt-12) pada section pertama
-        agar jaraknya konsisten (3rem) dengan jarak antar section lain.
-      */}
       <main className="container mx-auto px-4 pb-4 md:px-8 md:pb-8">
-        {/* [PERBAIKAN SPACING] Wrapper div dengan mt-12 (3rem) */}
+        
+        {/* [POSISI 1] QuickLinks (Tautan Cepat COC) - Sekarang Paling Atas */}
         <div className="mt-12">
           <QuickLinks />
         </div>
 
-        {/* 2. Komponen Rekomendasi Tim (Sudah Dinamis) */}
+        {/* [POSISI 2] Banner Promosi - Sekarang di Tengah (Bawah QuickLinks) */}
+        {activePromotions.length > 0 && (
+           <HomeBanner promotions={activePromotions} />
+        )}
+
+        {/* [POSISI 3] Rekomendasi Clan */}
         <Suspense fallback={<RecommendedTeamsLoading />}>
           <RecommendedTeams />
         </Suspense>
 
-        {/* 3. Komponen Strategi Terbaru (Sudah Dinamis) */}
+        {/* [POSISI 4] Strategi Terbaru */}
         <Suspense fallback={<LatestStrategiesLoading />}>
           <LatestStrategies posts={recentPosts} />
         </Suspense>
@@ -119,12 +114,11 @@ export default async function Home() {
 const RecommendedTeamsLoading = () => {
   return (
     <CarouselSection
-      // [PERBAIKAN JUDUL] Diubah sesuai permintaan
       title="Rekomendasi Clan"
-      icon={<CogsIcon className="inline-block h-5 w-5" />}
+      icon={<CogsIcon className="inline-block h-5 w-5 text-coc-gold" />}
     >
       {[...Array(4)].map((_, i) => (
-        <div key={i} className="card-stone p-4 animate-pulse">
+        <div key={i} className="card-stone p-4 animate-pulse min-w-[280px]">
           <div className="flex items-center gap-4 mb-3">
             <div className="w-16 h-16 rounded-lg bg-coc-stone-light/50"></div>
             <div className="flex-1 space-y-2">
@@ -134,10 +128,6 @@ const RecommendedTeamsLoading = () => {
           </div>
           <div className="h-4 w-full rounded bg-coc-stone-light/50 mb-2"></div>
           <div className="h-4 w-5/6 rounded bg-coc-stone-light/50"></div>
-          <div className="flex justify-between items-center mt-4">
-            <div className="h-5 w-1/3 rounded bg-coc-stone-light/50"></div>
-            <div className="h-8 w-1/4 rounded-lg bg-coc-stone-light/50"></div>
-          </div>
         </div>
       ))}
     </CarouselSection>
@@ -150,22 +140,17 @@ const RecommendedTeamsLoading = () => {
 const LatestStrategiesLoading = () => {
   return (
     <CarouselSection
-      // [PERBAIKAN JUDUL] Diubah sesuai permintaan
       title="Strategi & Tips"
-      icon={<BookOpenIcon className="inline-block h-6 w-6" />}
+      icon={<BookOpenIcon className="inline-block h-6 w-6 text-coc-gold" />}
     >
-      {[...Array(8)].map((_, i) => (
-        <div key={i} className="card-stone p-4 animate-pulse">
+      {[...Array(5)].map((_, i) => (
+        <div key={i} className="card-stone p-4 animate-pulse min-w-[280px]">
           <div className="flex justify-between items-center mb-2">
             <div className="h-4 w-1/4 rounded bg-coc-stone-light/50"></div>
             <div className="h-4 w-1/3 rounded bg-coc-stone-light/50"></div>
           </div>
           <div className="h-5 w-full rounded bg-coc-stone-light/50 mb-2"></div>
           <div className="h-5 w-3/4 rounded bg-coc-stone-light/50"></div>
-          <div className="flex justify-between items-center mt-4">
-            <div className="h-4 w-1/2 rounded bg-coc-stone-light/50"></div>
-            <div className="h-4 w-1/3 rounded bg-coc-stone-light/50"></div>
-          </div>
         </div>
       ))}
     </CarouselSection>

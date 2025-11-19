@@ -1,17 +1,13 @@
 // File: app/clan-hub/page.tsx
 import TeamHubClient from './TeamHubClient';
 import { getPlayers, getPublicClansForHub } from '@/lib/firestore';
-import {
-  getManagedClansAdmin,
-  getActivePromotions,
-} from '@/lib/firestore-admin/clans';
+import { getManagedClansAdmin } from '@/lib/firestore-admin/clans'; // Hapus getActivePromotions
 import { getClanReviewsAdmin } from '@/lib/firestore-admin/reviews';
 import {
   Player,
   PublicClanIndex,
   RecommendedTeam,
-  Promotion,
-} from '@/lib/clashub.types';
+} from '@/lib/clashub.types'; // Hapus Promotion
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -24,23 +20,18 @@ const ClanHubPage = async () => {
   let initialClans: RecommendedTeam[] = [];
   let initialPlayers: Player[] = [];
   let initialPublicClans: PublicClanIndex[] = [];
-  let promotions: Promotion[] = [];
+  // let promotions: Promotion[] = []; // [HAPUS]
   let loadError: string | null = null;
 
   try {
-    // Mengambil data secara paralel
-    // getManagedClansAdmin() di dalamnya sudah menggunakan 'docToDataAdmin'
-    // dari utils.ts, sehingga Timestamp sudah dikonversi menjadi Date.
-    // Next.js App Router BISA menerima object Date, jadi ini AMAN.
-    const [clans, players, publicClans, activePromotions] = await Promise.all([
+    // [PERBAIKAN] Menghapus getActivePromotions() dari Promise.all
+    const [clans, players, publicClans] = await Promise.all([
       getManagedClansAdmin(),
       getPlayers(),
       getPublicClansForHub(),
-      getActivePromotions(),
     ]);
 
     // Menghitung rating rata-rata (Server-Side Logic)
-    // Kita tetap mempertahankan logika ini agar rating muncul di UI
     const clansWithRating: RecommendedTeam[] = await Promise.all(
       clans.map(async (clan) => {
         try {
@@ -64,11 +55,9 @@ const ClanHubPage = async () => {
       })
     );
 
-    // Assign data langsung tanpa serialisasi manual
     initialClans = clansWithRating;
     initialPlayers = players;
     initialPublicClans = publicClans;
-    promotions = activePromotions;
 
   } catch (err) {
     console.error('Error fetching data on server:', err);
@@ -100,7 +89,7 @@ const ClanHubPage = async () => {
         initialClans={initialClans}
         initialPlayers={initialPlayers}
         initialPublicClans={initialPublicClans}
-        promotions={promotions}
+        // promotions={promotions} // [HAPUS]
       />
     </main>
   );

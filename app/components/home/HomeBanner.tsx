@@ -1,0 +1,101 @@
+'use client';
+
+import React, { useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { Promotion } from '@/lib/clashub.types';
+import useEmblaCarousel from 'embla-carousel-react';
+import Autoplay from 'embla-carousel-autoplay';
+import { ChevronLeftIcon, ChevronRightIcon } from '@/app/components/icons';
+import { useAuth } from '@/app/context/AuthContext';
+
+interface HomeBannerProps {
+  promotions: Promotion[];
+}
+
+export default function HomeBanner({ promotions }: HomeBannerProps) {
+  const router = useRouter();
+  const { userProfile } = useAuth();
+
+  // Cek apakah ada promosi yang valid
+  const validPromotions =
+    promotions?.filter((p) => p.id && p.clanId && p.imageUrl) || [];
+  const hasPromotions = validPromotions.length > 0;
+
+  // Jika tidak ada promosi, jangan render apa-apa
+  if (!hasPromotions) return null;
+
+  // --- Logika Carousel ---
+  const autoplay = useRef(Autoplay({ delay: 5000, stopOnInteraction: true }));
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true }, [
+    autoplay.current,
+  ]);
+
+  const scrollPrev = useCallback(() => {
+    if (emblaApi) emblaApi.scrollPrev();
+  }, [emblaApi]);
+
+  const scrollNext = useCallback(() => {
+    if (emblaApi) emblaApi.scrollNext();
+  }, [emblaApi]);
+
+  // Handler untuk klik banner
+  const handleBannerClick = (promo: Promotion) => {
+    const thLevel = userProfile?.thLevel || 'unknown';
+
+    // 1. Catat statistik
+    fetch('/api/promotions/click', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clanId: promo.clanId,
+        promotionId: promo.id,
+        thLevel: thLevel,
+      }),
+    }).catch((err) => {
+      console.error('Failed to log promotion click:', err);
+    });
+
+    // 2. Arahkan pengguna
+    router.push(`/clan/internal/${promo.clanId}`);
+  };
+
+  return (
+    // [PERBAIKAN KECIL] Mengganti 'border-b-4' menjadi 'border-y-4'
+    // Ini menambahkan border kuning (coc-gold) di bagian ATAS dan BAWAH banner.
+    <section className="relative h-[300px] md:h-[400px] w-full bg-coc-dark text-white border-y-4 border-coc-gold shadow-lg overflow-hidden mt-8 rounded-xl mb-12">
+      <div className="overflow-hidden h-full" ref={emblaRef}>
+        <div className="flex h-full">
+          {validPromotions.map((promo) => (
+            <div
+              className="relative flex-[0_0_100%] min-w-0 h-full bg-cover bg-center cursor-pointer"
+              key={promo.id}
+              style={{
+                backgroundImage: `url(${promo.imageUrl})`,
+              }}
+              onClick={() => handleBannerClick(promo)}
+            >
+              {/* Gradient Overlay agar teks navigasi terlihat (Opsional) */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Tombol Navigasi Carousel */}
+      <button
+        className="absolute z-20 top-1/2 left-4 -translate-y-1/2 bg-black/30 hover:bg-coc-gold/80 text-white rounded-full p-2 transition-all backdrop-blur-sm"
+        onClick={scrollPrev}
+        aria-label="Previous Slide"
+      >
+        <ChevronLeftIcon className="h-6 w-6" />
+      </button>
+      <button
+        className="absolute z-20 top-1/2 right-4 -translate-y-1/2 bg-black/30 hover:bg-coc-gold/80 text-white rounded-full p-2 transition-all backdrop-blur-sm"
+        onClick={scrollNext}
+        aria-label="Next Slide"
+      >
+        <ChevronRightIcon className="h-6 w-6" />
+      </button>
+    </section>
+  );
+}

@@ -1,12 +1,11 @@
 'use client';
 
-// [PERBAIKAN BUG TH 0] Impor useEffect dan useState
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/app/components/ui/Button';
 import { UserSearchIcon } from '@/app/components/icons';
 import { Player } from '@/lib/types';
 
-// Tipe PlayerFilters (tetap sama, parent component mengharapkan number)
+// Tipe PlayerFilters
 export type PlayerFilters = {
   searchTerm: string;
   role: Player['role'] | 'all';
@@ -31,17 +30,14 @@ type PlayerHubFilterProps = {
 };
 
 const PlayerHubFilter = ({ filters, onFilterChange }: PlayerHubFilterProps) => {
-  // [PERBAIKAN BUG TH 0]
-  // Tambahkan state internal untuk <select> TH agar sinkron
+  // State internal untuk sinkronisasi <select> TH
   const [internalThLevel, setInternalThLevel] = useState(filters.thLevel);
 
   // Efek ini akan menyinkronkan state internal <select> JIKA props dari parent berubah
   useEffect(() => {
     setInternalThLevel(filters.thLevel);
   }, [filters.thLevel]);
-  // --- Akhir Perbaikan ---
 
-  // [PERBAIKAN] Handler ini sekarang mem-parsing value string dari <select> menjadi number jika perlu
   const handleFilterChange = (key: keyof PlayerFilters, value: string) => {
     let processedValue: string | number = value;
 
@@ -49,37 +45,34 @@ const PlayerHubFilter = ({ filters, onFilterChange }: PlayerHubFilterProps) => {
       processedValue = parseFloat(value);
     } else if (key === 'thLevel') {
       processedValue = parseInt(value, 10);
-      // [PERBAIKAN BUG TH 0] Update state internal saat parent berubah
       setInternalThLevel(processedValue);
-      // --- Akhir Perbaikan ---
     }
 
     onFilterChange({ ...filters, [key]: processedValue as any });
   };
 
   const handleReset = () => {
-    // [PERBAIKAN BUG TH 0] Ubah thLevel dari 9 ke 0
     const defaultFilters: PlayerFilters = {
       searchTerm: '',
       role: 'all',
       reputation: 3.0,
-      thLevel: 0, // <-- BUG DIPERBAIKI DI SINI
+      thLevel: 0,
     };
     onFilterChange(defaultFilters);
-
-    // [PERBAIKAN BUG TH 0] Pastikan state internal <select> juga ikut ter-reset
     setInternalThLevel(defaultFilters.thLevel);
-    // --- Akhir Perbaikan ---
   };
 
   return (
-    <aside className="card-stone p-6 h-fit sticky top-28 rounded-lg">
-      <h2 className="text-2xl font-clash text-white border-l-4 border-coc-gold-dark pl-3 mb-6 flex items-center gap-3">
+    // [PERBAIKAN FASE 3: MOBILE RESPONSIVE]
+    // - Ubah 'sticky' jadi 'static lg:sticky' agar tidak menimpa konten di HP
+    // - Ubah padding 'p-6' jadi 'p-4 lg:p-6' agar lebih hemat tempat di HP
+    <aside className="card-stone p-4 lg:p-6 h-fit static lg:sticky lg:top-28 rounded-lg w-full">
+      <h2 className="text-xl lg:text-2xl font-clash text-white border-l-4 border-coc-gold-dark pl-3 mb-6 flex items-center gap-3">
         <UserSearchIcon className="h-6 w-6 text-coc-gold-dark" />
         Filter Pemain
       </h2>
 
-      <div className="space-y-6">
+      <div className="space-y-4 lg:space-y-6">
         {/* Search Input */}
         <div className="filter-group">
           <label
@@ -94,7 +87,7 @@ const PlayerHubFilter = ({ filters, onFilterChange }: PlayerHubFilterProps) => {
             placeholder="Cari berdasarkan nama/tag..."
             value={filters.searchTerm}
             onChange={(e) => handleFilterChange('searchTerm', e.target.value)}
-            className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold font-sans"
+            className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold font-sans text-sm lg:text-base"
           />
         </div>
 
@@ -110,17 +103,17 @@ const PlayerHubFilter = ({ filters, onFilterChange }: PlayerHubFilterProps) => {
             id="role-filter"
             value={filters.role}
             onChange={(e) => handleFilterChange('role', e.target.value)}
-            className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white focus:ring-coc-gold focus:border-coc-gold font-sans"
+            className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white focus:ring-coc-gold focus:border-coc-gold font-sans text-sm lg:text-base"
           >
             {roleOptions.map((role) => (
-              <option key={role} value={role} className="font-sans">
+              <option key={role} value={role} className="font-sans text-coc-stone bg-white">
                 {role === 'all' ? 'Semua Role' : role}
               </option>
             ))}
           </select>
         </div>
 
-        {/* [PERBAIKAN UI] Mengganti Reputation Slider dengan <select> */}
+        {/* Reputation Filter */}
         <div className="filter-group">
           <label
             htmlFor="player-rating-filter"
@@ -132,16 +125,16 @@ const PlayerHubFilter = ({ filters, onFilterChange }: PlayerHubFilterProps) => {
             id="player-rating-filter"
             value={filters.reputation}
             onChange={(e) => handleFilterChange('reputation', e.target.value)}
-            className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white focus:ring-coc-gold focus:border-coc-gold"
+            className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white focus:ring-coc-gold focus:border-coc-gold text-sm lg:text-base"
           >
-            <option value="3.0">Semua Reputasi (3.0+ ★)</option>
-            <option value="4.0">4.0+ ★</option>
-            <option value="4.5">4.5+ ★</option>
-            <option value="5.0">5.0 ★ (Sempurna)</option>
+            <option value="3.0" className="text-coc-stone bg-white">Semua Reputasi (3.0+ ★)</option>
+            <option value="4.0" className="text-coc-stone bg-white">4.0+ ★</option>
+            <option value="4.5" className="text-coc-stone bg-white">4.5+ ★</option>
+            <option value="5.0" className="text-coc-stone bg-white">5.0 ★ (Sempurna)</option>
           </select>
         </div>
 
-        {/* [PERBAIKAN UI] Mengganti TH Level Slider dengan <select> */}
+        {/* TH Level Filter */}
         <div className="filter-group">
           <label
             htmlFor="player-th-filter"
@@ -151,22 +144,20 @@ const PlayerHubFilter = ({ filters, onFilterChange }: PlayerHubFilterProps) => {
           </label>
           <select
             id="player-th-filter"
-            value={internalThLevel} // <-- BUG DIPERBAIKI DI SINI (gunakan state internal)
+            value={internalThLevel}
             onChange={(e) => handleFilterChange('thLevel', e.target.value)}
-            className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white focus:ring-coc-gold focus:border-coc-gold"
+            className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white focus:ring-coc-gold focus:border-coc-gold text-sm lg:text-base"
           >
-            {/* [PERBAIKAN BUG TH 0] Ubah value="9" ke value="0" */}
-            <option value="0">Semua Level TH</option>
-            <option value="9">Minimum TH 9</option>
-            <option value="10">Minimum TH 10</option>
-            <option value="11">Minimum TH 11</option>
-            <option value="12">Minimum TH 12</option>
-            <option value="13">Minimum TH 13</option>
-            <option value="14">Minimum TH 14</option>
-            <option value="15">Minimum TH 15</option>
-            <option value="16">Minimum TH 16</option>
-            <option value="17">Minimum TH 17</option>
-            {/* Opsi lama (15, 13, 10) dihapus karena sekarang kita pakai "Minimum" */}
+            <option value="0" className="text-coc-stone bg-white">Semua Level TH</option>
+            <option value="9" className="text-coc-stone bg-white">Minimum TH 9</option>
+            <option value="10" className="text-coc-stone bg-white">Minimum TH 10</option>
+            <option value="11" className="text-coc-stone bg-white">Minimum TH 11</option>
+            <option value="12" className="text-coc-stone bg-white">Minimum TH 12</option>
+            <option value="13" className="text-coc-stone bg-white">Minimum TH 13</option>
+            <option value="14" className="text-coc-stone bg-white">Minimum TH 14</option>
+            <option value="15" className="text-coc-stone bg-white">Minimum TH 15</option>
+            <option value="16" className="text-coc-stone bg-white">Minimum TH 16</option>
+            <option value="17" className="text-coc-stone bg-white">Minimum TH 17</option>
           </select>
         </div>
 

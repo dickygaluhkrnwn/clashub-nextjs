@@ -1,6 +1,6 @@
 // File: app/player/[playerId]/PlayerProfileClient.tsx
 // Deskripsi: Client Component untuk Halaman Profil Publik.
-// [MODIFIKASI FASE 11.4.2]: Integrasi Layout Summary Baru (Grid Klan & TH + Stats)
+// [MODIFIKASI FASE 4]: Perbaikan Layout Header & Grid Responsif
 
 'use client';
 
@@ -27,7 +27,7 @@ import { PlayerTroopsCard } from '@/app/profile/components/PlayerTroopsCard';
 import { PlayerSpellsCard } from '@/app/profile/components/PlayerSpellsCard';
 import { PlayerAchievementsCard } from '@/app/profile/components/PlayerAchievementsCard';
 
-// --- [BARU FASE 11.4] Impor Card Identitas Baru ---
+// --- Impor Card Identitas Baru ---
 import { PlayerClanCard } from '@/app/profile/components/PlayerClanCard';
 import { PlayerTownHallCard } from '@/app/profile/components/PlayerTownHallCard';
 
@@ -177,26 +177,29 @@ const PlayerProfileClient = ({
 
   // --- 2. Render Komponen ---
   return (
-    <main className="max-w-7xl mx-auto space-y-8 p-4 md:p-8 mt-10">
-      {/* Header Publik */}
-      <header className="flex justify-between items-center flex-wrap gap-4 mb-6 card-stone p-6 rounded-lg">
-        <h2 className="text-2xl font-clash-bold text-white">Profil Pemain</h2>
-        <div className="flex gap-4">
+    <main className="max-w-7xl mx-auto space-y-8 p-4 md:p-8 mt-6 md:mt-10">
+      {/* Header Publik Responsive */}
+      <header className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6 card-stone p-4 md:p-6 rounded-lg">
+        <h2 className="text-xl md:text-2xl font-clash-bold text-white text-center md:text-left">
+            Profil Pemain
+        </h2>
+        
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
           {cocProfileUrl && (
             <Button
               href={cocProfileUrl}
               target="_blank"
               variant="secondary"
               size="md"
-              className="flex-shrink-0"
+              className="w-full sm:w-auto"
             >
-              <ExternalLinkIcon className="h-4 w-4 mr-2" /> Profil CoC In-Game
+              <ExternalLinkIcon className="h-4 w-4 mr-2" /> Profil CoC
             </Button>
           )}
           <Button
             variant="secondary"
             size="md"
-            className="flex-shrink-0"
+            className="w-full sm:w-auto"
             disabled
           >
             Kirim Pesan
@@ -205,14 +208,15 @@ const PlayerProfileClient = ({
             variant="primary"
             size="md"
             disabled={!isFreeAgent}
-            className="flex-shrink-0"
+            className="w-full sm:w-auto"
           >
-            Kirim Undangan Tim
+            Kirim Undangan
           </Button>
         </div>
       </header>
 
-      <section className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <section className="grid grid-cols-1 lg:grid-cols-4 gap-6 md:gap-8">
+        {/* Sidebar sudah diperbaiki menjadi static di mobile dan sticky di desktop */}
         <ProfileSidebar
           userProfile={userProfile}
           isVerified={isVerified}

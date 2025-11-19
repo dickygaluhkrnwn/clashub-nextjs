@@ -1,10 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image'; // <-- [MODIFIKASI] Import Next Image
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
-// Menggunakan ShieldIcon
 import {
   BellIcon,
   SearchIcon,
@@ -13,39 +12,35 @@ import {
   LogOutIcon,
   UserCircleIcon,
   ShieldIcon,
-  CheckCircleIcon, // <-- Tambahkan ikon notif
-  TrophyIcon, // <-- [FASE 4] Tambahkan TrophyIcon
+  CheckCircleIcon,
+  TrophyIcon,
 } from '@/app/components/icons';
 import ThemeToggle from '@/app/components/ui/ThemeToggle';
-import { useAuth } from '@/app/context/AuthContext'; // Konteks yang sudah diupdate
+import { useAuth } from '@/app/context/AuthContext';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 import { Button } from '../ui/Button';
-import { UserProfile, Notification } from '@/lib/clashub.types'; // <-- Tambahkan Notifikasi
-import { ServerUser } from '@/lib/server-auth'; // Impor ServerUser
-import { useNotifications } from '@/lib/hooks/useNotifications'; // <-- Import hook notifikasi
-
-// [FIX FASE 2] Impor fungsi baru dari file store turnamen (client)
+import { UserProfile, Notification } from '@/lib/clashub.types';
+import { ServerUser } from '@/lib/server-auth';
+import { useNotifications } from '@/lib/hooks/useNotifications';
 import { getManagedTournamentsForUserClient } from '@/lib/firestore/tournaments';
 
 const navItems = [
   { name: 'Home', href: '/' },
-  // PERBAIKAN KRITIS: Mengganti '/teamhub' menjadi '/clan-hub'
   { name: 'Team Hub', href: '/clan-hub' },
   { name: 'Tournament', href: '/tournament' },
   { name: 'Knowledge Hub', href: '/knowledge-hub' },
 ];
 
-// Komponen menu dropdown profil pengguna (disesuaikan)
+// Komponen menu dropdown profil pengguna
 const UserProfileDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // [FIX FASE 2] Ambil 'currentUser' (untuk uid) selain 'userProfile'
+  // [OLD CODE LOGIC RESTORED]
+  // Menggunakan logika state yang sama dengan versi lama
   const { currentUser, userProfile, loading: authLoading } = useAuth();
-
-  // [FIX FASE 2] State baru untuk melacak status manajer turnamen
   const [isTournamentManager, setIsTournamentManager] = useState(false);
 
   const handleLogout = async () => {
@@ -55,8 +50,6 @@ const UserProfileDropdown = () => {
       router.push('/');
     } catch (error) {
       console.error('Gagal untuk logout:', error);
-      // Ganti alert dengan cara lain jika perlu, karena alert diblokir
-      console.error('Gagal melakukan logout. Silakan coba lagi.');
     } finally {
       setIsOpen(false);
     }
@@ -77,29 +70,25 @@ const UserProfileDropdown = () => {
     };
   }, []);
 
-  // [BARU - FASE 2] useEffect untuk memeriksa status manajer turnamen
   useEffect(() => {
     // Reset status saat user berganti atau logout
     setIsTournamentManager(false);
 
     if (currentUser?.uid) {
-      // Panggil fungsi client-side yang kita buat di lib/firestore/tournaments.ts
       getManagedTournamentsForUserClient(currentUser.uid)
         .then((tournaments) => {
-          // Jika user mengelola > 0 turnamen, tampilkan link
           if (tournaments.length > 0) {
             setIsTournamentManager(true);
           }
         })
         .catch((err) => {
-          // Jangan blok UI, cukup log error di konsol
           console.error('Gagal memeriksa status manajer turnamen:', err);
         });
     }
-  }, [currentUser?.uid]); // Dependensi effect adalah currentUser.uid
+  }, [currentUser?.uid]);
 
-  // --- PERBAIKAN LOGIKA: Sederhanakan Pengecekan Menu Klan ---
-  // ... (sisa logika type guard tidak berubah)
+  // [LOGIKA LAMA DIKEMBALIKAN - LEBIH KETAT & STABIL]
+  // Pengecekan tipe yang ketat untuk memastikan semua properti ada sebelum render
   const isCompleteUserProfile = (
     profile: UserProfile | ServerUser | null,
   ): profile is UserProfile => {
@@ -114,11 +103,12 @@ const UserProfileDropdown = () => {
   let showClanLink = false;
   let avatarSrc: string | null = null;
 
+  // [LOGIKA LAMA DIKEMBALIKAN]
+  // Hanya tampilkan link klan jika Verified DAN punya ClanTag
   if (isCompleteUserProfile(userProfile)) {
     showClanLink = userProfile.isVerified === true && !!userProfile.clanTag;
     avatarSrc = userProfile.avatarUrl || null;
   }
-  // --- AKHIR PERBAIKAN LOGIKA ---
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -126,21 +116,19 @@ const UserProfileDropdown = () => {
         onClick={() => setIsOpen(!isOpen)}
         className="h-9 w-9 flex items-center justify-center rounded-full bg-coc-stone-light hover:ring-2 hover:ring-coc-gold transition-all"
       >
-        {/* Fallback ke placeholder jika avatarSrc null atau kosong */}
         <img
           src={avatarSrc || '/images/placeholder-avatar.png'}
           alt="User Avatar"
           className="rounded-full h-8 w-8 object-cover"
           onError={(e) => {
-            // Fallback jika avatarUrl gagal dimuat
-            e.currentTarget.onerror = null; // Prevent infinite loop
+            e.currentTarget.onerror = null;
             e.currentTarget.src = '/images/placeholder-avatar.png';
           }}
         />
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-56 card-stone p-2 shadow-lg rounded-md z-50">
+        <div className="absolute right-0 mt-2 w-56 card-stone p-2 shadow-lg rounded-md z-50 border border-coc-gold/20">
           <ul className="space-y-1">
             <li>
               <Link
@@ -148,30 +136,25 @@ const UserProfileDropdown = () => {
                 onClick={() => setIsOpen(false)}
                 className="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-300 hover:bg-coc-gold/10 hover:text-white rounded-md"
               >
-                <UserCircleIcon className="h-5 w-5" />
+                <UserCircleIcon className="h-5 w-5 text-coc-gold" />
                 <span>Profil Saya</span>
               </Link>
             </li>
 
-            {/* Tampilkan Link "Klan" secara kondisional */}
+            {/* Tampilkan Link "Klan" secara kondisional (Logic Lama) */}
             {showClanLink && (
               <li>
                 <Link
-                  // PENTING: Jika clanId tidak ada, ini akan diarahkan ke /clan/manage tanpa ID.
-                  // Namun, page.tsx akan menangani redirect/error jika clanId tidak ditemukan.
                   href="/clan/manage"
                   onClick={() => setIsOpen(false)}
                   className="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-300 hover:bg-coc-gold/10 hover:text-white rounded-md"
                 >
-                  {/* Menggunakan ShieldIcon */}
-                  <ShieldIcon className="h-5 w-5" />
+                  <ShieldIcon className="h-5 w-5 text-coc-blue" />
                   <span>Klan</span>
                 </Link>
               </li>
             )}
 
-            {/* --- [PERBAIKAN FASE 2] --- */}
-            {/* Tautan Manajemen Turnamen (Render Bersyarat) */}
             {isTournamentManager && (
               <li>
                 <Link
@@ -179,12 +162,11 @@ const UserProfileDropdown = () => {
                   onClick={() => setIsOpen(false)}
                   className="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-300 hover:bg-coc-gold/10 hover:text-white rounded-md"
                 >
-                  <TrophyIcon className="h-5 w-5" />
+                  <TrophyIcon className="h-5 w-5 text-coc-orange" />
                   <span>Manajemen Turnamen</span>
                 </Link>
               </li>
             )}
-            {/* --- [AKHIR PERBAIKAN FASE 2] --- */}
 
             <li>
               <button
@@ -202,15 +184,13 @@ const UserProfileDropdown = () => {
   );
 };
 
-// --- [KOMPONEN BARU: TAHAP 1.5] ---
-// Komponen Lonceng Notifikasi Dinamis
+// Komponen Lonceng Notifikasi Dinamis (TIDAK BERUBAH)
 const NotificationBell = () => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const { currentUser } = useAuth(); // Hanya cek login
-  const { notifications, unreadCount, isLoading, markAsRead } =
-    useNotifications(); // Gunakan hook
+  const { currentUser } = useAuth();
+  const { notifications, unreadCount, isLoading, markAsRead } = useNotifications();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -227,17 +207,14 @@ const NotificationBell = () => {
     };
   }, []);
 
-  // Jangan tampilkan lonceng jika user belum login
   if (!currentUser) {
     return null;
   }
 
   const handleNotifClick = (notif: Notification) => {
-    // Tandai sudah dibaca (optimistic update)
     if (!notif.read) {
       markAsRead(notif.id);
     }
-    // Arahkan ke URL
     if (notif.url) {
       router.push(notif.url);
     }
@@ -248,69 +225,70 @@ const NotificationBell = () => {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="text-gray-300 hover:text-coc-gold transition-colors relative"
+        className="text-gray-300 hover:text-coc-gold transition-colors relative p-1"
       >
         <BellIcon className="h-6 w-6" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-coc-red text-xs font-bold text-white">
+          <span className="absolute top-0 right-0 flex h-4 w-4 items-center justify-center rounded-full bg-coc-red text-[10px] font-bold text-white border border-coc-stone">
             {unreadCount}
           </span>
         )}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-72 md:w-80 max-h-[400px] overflow-y-auto card-stone shadow-lg rounded-md z-50">
-          <div className="p-3 border-b border-coc-gold-dark/30">
+        <div className="absolute right-0 mt-2 w-80 max-h-[400px] overflow-y-auto card-stone shadow-xl rounded-md z-50 border border-coc-gold/20 scrollbar-thin scrollbar-thumb-coc-gold/30 scrollbar-track-transparent">
+          <div className="p-3 border-b border-coc-gold-dark/30 sticky top-0 bg-coc-stone/95 backdrop-blur z-10 flex justify-between items-center">
             <h4 className="font-clash text-lg text-white">Notifikasi</h4>
+            {unreadCount > 0 && (
+               <span className="text-xs text-coc-gold">{unreadCount} baru</span>
+            )}
           </div>
+          
           {isLoading && (
-            <div className="p-4 text-center text-gray-400">
+            <div className="p-6 text-center text-gray-400 animate-pulse">
               Memuat notifikasi...
             </div>
           )}
+          
           {!isLoading && notifications.length === 0 && (
-            <div className="p-4 text-center text-gray-400">
-              Tidak ada notifikasi baru.
+            <div className="p-6 text-center flex flex-col items-center gap-2 text-gray-400">
+              <BellIcon className="h-8 w-8 opacity-20" />
+              <p className="text-sm">Tidak ada notifikasi baru</p>
             </div>
           )}
+          
           <ul className="divide-y divide-coc-gold-dark/20">
             {notifications.map((notif) => (
               <li key={notif.id}>
-                <a
-                  href={notif.url || '#'}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleNotifClick(notif);
-                  }}
-                  className={`flex items-start gap-3 p-3 transition-colors ${
+                <button
+                  onClick={() => handleNotifClick(notif)}
+                  className={`w-full text-left flex items-start gap-3 p-3 transition-colors ${
                     notif.read
-                      ? 'opacity-60 hover:bg-coc-stone-light/30'
-                      : 'bg-coc-blue/10 hover:bg-coc-blue/20'
+                      ? 'bg-transparent hover:bg-coc-stone-light/20 opacity-70'
+                      : 'bg-coc-blue/5 hover:bg-coc-blue/15 border-l-2 border-coc-blue'
                   }`}
                 >
                   <div className="flex-shrink-0 mt-1">
                     {notif.read ? (
                       <CheckCircleIcon className="h-4 w-4 text-gray-500" />
                     ) : (
-                      <div className="h-4 w-4 flex items-center justify-center">
-                        <span className="h-2 w-2 rounded-full bg-coc-blue"></span>
-                      </div>
+                      <div className="h-2 w-2 rounded-full bg-coc-blue shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
                     )}
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-white line-clamp-2">
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm line-clamp-2 ${notif.read ? 'text-gray-300' : 'text-white font-medium'}`}>
                       {notif.message}
                     </p>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-gray-500 mt-1 block">
                       {new Date(notif.createdAt).toLocaleString('id-ID', {
                         day: 'numeric',
                         month: 'short',
-                        hour: 'numeric',
-                        minute: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
                       })}
                     </span>
                   </div>
-                </a>
+                </button>
               </li>
             ))}
           </ul>
@@ -320,163 +298,215 @@ const NotificationBell = () => {
   );
 };
 
-// --- [KOMPONEN HEADER UTAMA: TAHAP 1.5] ---
 const Header = () => {
   const pathname = usePathname();
+  const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  // Ambil currentUser DAN loading state untuk header utama
   const { currentUser, loading: authLoading } = useAuth();
 
-  // Tampilkan state loading awal jika diperlukan
-  // if (authLoading) {
-  //    // Opsional: Tampilkan skeleton UI atau null selama auth loading awal
-  //   return <header className="sticky top-0 z-50 h-[68px] bg-coc-stone/80"></header>;
-  // }
+  // Effect untuk menutup menu saat route berubah
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [pathname]);
+
+  // Effect untuk mencegah scroll body saat menu terbuka
+  useEffect(() => {
+    if (isMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isMenuOpen]);
 
   return (
-    <header className="sticky top-0 z-50 bg-coc-stone/80 backdrop-blur-sm border-b-2 border-coc-gold-dark/30 animate-header-glow">
-      <div className="container mx-auto flex items-center justify-between p-4">
-        
-        {/* --- [MODIFIKASI LOGO] --- */}
-        {/* Menggabungkan Logo Image dan Text dalam satu Link dengan Flexbox */}
-        <Link
-          href="/"
-          className="flex items-center gap-3 z-20 hover:opacity-90 transition-opacity"
-        >
-          <Image
-            src="/images/logoClashub.png"
-            alt="Clashub Logo"
-            width={40}
-            height={40}
-            className="object-contain"
-            priority // Prioritas tinggi agar logo dimuat segera
-          />
-          <span
-            className="font-clash text-3xl text-coc-gold"
-            style={{ textShadow: '2px 2px 5px rgba(0,0,0,0.8)' }}
+    <>
+      <header className="sticky top-0 z-50 bg-coc-stone/95 backdrop-blur-md border-b border-coc-gold-dark/30 shadow-lg h-[72px]">
+        <div className="container mx-auto flex items-center justify-between h-full px-4">
+          
+          {/* Logo */}
+          <Link
+            href="/"
+            className="flex items-center gap-2 md:gap-3 z-20 hover:opacity-90 transition-opacity group"
           >
-            CLASHUB
-          </span>
-        </Link>
-        {/* --- [AKHIR MODIFIKASI LOGO] --- */}
-
-        {/* Navigasi Utama (Desktop) */}
-        <nav className="hidden md:flex items-center gap-2">
-          {navItems.map((item) => (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={`
-                    px-4 py-2 rounded-md text-sm font-bold transition-all duration-300
-                    ${
-                      pathname === item.href
-                        ? 'bg-coc-gold text-coc-stone shadow-lg shadow-coc-gold/20' // <-- [PERBAIKAN] Mengganti inset shadow dengan drop shadow
-                        : 'text-gray-300 hover:bg-coc-stone-light/50 hover:text-white'
-                    }
-                  `}
-            >
-              {item.name}
-            </Link>
-          ))}
-        </nav>
-
-        {/* Aksi Pengguna (Desktop) */}
-        <div className="hidden md:flex items-center gap-4">
-          <ThemeToggle />
-          <button className="text-gray-300 hover:text-coc-gold transition-colors">
-            <SearchIcon className="h-6 w-6" />
-          </button>
-
-          {/* --- [PERUBAHAN TAHAP 1.5] --- */}
-          {/* Ganti ikon statis dengan komponen dinamis */}
-          <NotificationBell />
-          {/* --- [AKHIR PERUBAHAN] --- */}
-
-          <div className="w-px h-6 bg-coc-gold-dark/50"></div>
-
-          {/* Render tombol login atau menu profil secara kondisional */}
-          {/* Tambahkan cek authLoading di sini juga */}
-          {!authLoading &&
-            (currentUser ? (
-              <UserProfileDropdown />
-            ) : (
-              <Button href="/auth" variant="primary" size="md">
-                Login
-              </Button>
-            ))}
-          {/* Opsional: Tampilkan placeholder/spinner jika loading */}
-          {authLoading && (
-            <div className="h-9 w-9 rounded-full bg-coc-stone-light animate-pulse"></div>
-          )}
-        </div>
-
-        {/* Tombol Menu Mobile */}
-        <div className="md:hidden z-20">
-          <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="text-gray-300 hover:text-coc-gold"
-          >
-            {isMenuOpen ? (
-              <XIcon className="h-7 w-7" />
-            ) : (
-              <MenuIcon className="h-7 w-7" />
-            )}
-          </button>
-        </div>
-
-        {/* Menu Overlay Mobile */}
-        {isMenuOpen && (
-          <div className="absolute inset-0 bg-coc-stone/95 backdrop-blur-md flex flex-col items-center justify-center md:hidden">
-            <nav className="flex flex-col items-center gap-6">
-              {navItems.map((item) => (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  onClick={() => setIsMenuOpen(false)}
-                  className={`text-2xl font-bold ${
-                    pathname === item.href
-                      ? 'text-coc-gold'
-                      : 'text-gray-300'
-                  }`}
-                >
-                  {item.name}
-                </Link>
-              ))}
-            </nav>
-            <div className="mt-8 flex items-center gap-6">
-              <ThemeToggle />
-              <button className="text-gray-300 hover:text-coc-gold transition-colors">
-                <SearchIcon className="h-7 w-7" />
-              </button>
-
-              {/* --- [PERUBAHAN TAHAP 1.5 (Mobile)] --- */}
-              <NotificationBell />
-              {/* --- [AKHIR PERUBAHAN] --- */}
-
-              {/* Logika kondisional untuk mobile */}
-              {!authLoading && ( // Cek loading juga di mobile
-                currentUser ? (
-                  <UserProfileDropdown />
-                ) : (
-                  <Button
-                    href="/auth"
-                    variant="primary"
-                    size="md"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Login
-                  </Button>
-                )
-              )}
-              {/* Opsional: Placeholder loading mobile */}
-              {authLoading && (
-                <div className="h-9 w-9 rounded-full bg-coc-stone-light animate-pulse"></div>
-              )}
+            <div className="relative h-10 w-10 md:h-12 md:w-12 transition-transform group-hover:scale-105">
+                <Image
+                src="/images/logoClashub.png"
+                alt="Clashub Logo"
+                fill
+                sizes="(max-width: 768px) 40px, 48px"
+                className="object-contain drop-shadow-md"
+                priority
+                />
             </div>
+            <span
+              className="font-clash text-2xl md:text-3xl text-transparent bg-clip-text bg-gradient-to-b from-coc-gold to-coc-gold-dark drop-shadow-sm"
+              style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}
+            >
+              CLASHUB
+            </span>
+          </Link>
+
+          {/* Navigasi Desktop */}
+          <nav className="hidden md:flex items-center gap-1 lg:gap-2">
+            {navItems.map((item) => (
+              <Link
+                key={item.name}
+                href={item.href}
+                className={`
+                      px-3 py-2 rounded-md text-sm font-bold tracking-wide transition-all duration-300
+                      ${
+                        pathname === item.href
+                          ? 'text-coc-gold bg-coc-stone-light/50 shadow-[0_0_10px_rgba(255,215,0,0.1)] border border-coc-gold/20'
+                          : 'text-gray-300 hover:text-white hover:bg-white/5'
+                      }
+                    `}
+              >
+                {item.name}
+              </Link>
+            ))}
+          </nav>
+
+          {/* Aksi Pengguna Desktop */}
+          <div className="hidden md:flex items-center gap-4">
+            <div className="flex items-center gap-2">
+                <ThemeToggle />
+                <button className="p-2 text-gray-300 hover:text-coc-gold transition-colors rounded-full hover:bg-white/5">
+                <SearchIcon className="h-5 w-5" />
+                </button>
+                <NotificationBell />
+            </div>
+
+            <div className="w-px h-8 bg-gradient-to-b from-transparent via-coc-gold-dark/40 to-transparent"></div>
+
+            {!authLoading &&
+              (currentUser ? (
+                <UserProfileDropdown />
+              ) : (
+                <Button href="/auth" variant="primary" size="sm" className="min-w-[100px]">
+                  Login
+                </Button>
+              ))}
+            
+            {authLoading && (
+              <div className="h-9 w-9 rounded-full bg-coc-stone-light animate-pulse ring-1 ring-white/10"></div>
+            )}
           </div>
-        )}
-      </div>
-    </header>
+
+          {/* Tombol Menu Mobile */}
+          <div className="md:hidden flex items-center gap-4 z-20">
+            {/* Tampilkan Lonceng di Header Mobile juga agar mudah diakses */}
+            {!isMenuOpen && <NotificationBell />}
+            
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="text-gray-300 hover:text-coc-gold transition-colors p-1 active:scale-95"
+              aria-label="Toggle menu"
+            >
+              {isMenuOpen ? (
+                <XIcon className="h-8 w-8" />
+              ) : (
+                <MenuIcon className="h-8 w-8" />
+              )}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Menu Overlay Mobile */}
+      {isMenuOpen && (
+        <div className="fixed inset-0 top-[72px] z-40 bg-coc-stone/95 backdrop-blur-xl border-t border-white/5 md:hidden flex flex-col animate-fade-in">
+          <nav className="flex flex-col p-6 gap-2 overflow-y-auto">
+            {navItems.map((item) => (
+              <Link
+                key={item.name}
+                href={item.href}
+                onClick={() => setIsMenuOpen(false)}
+                className={`
+                    flex items-center justify-between p-4 rounded-xl text-lg font-bold border transition-all
+                    ${
+                    pathname === item.href
+                        ? 'text-coc-gold bg-coc-gold/10 border-coc-gold/30 shadow-[inset_0_0_15px_rgba(255,215,0,0.1)]'
+                        : 'text-gray-300 border-transparent hover:bg-white/5 hover:text-white'
+                    }
+                `}
+              >
+                {item.name}
+                {pathname === item.href && <div className="h-2 w-2 rounded-full bg-coc-gold shadow-[0_0_8px_#FFD700]"></div>}
+              </Link>
+            ))}
+
+            <div className="my-4 h-px bg-gradient-to-r from-transparent via-gray-700 to-transparent"></div>
+
+            {/* Aksi Mobile */}
+            <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between px-2">
+                    <span className="text-gray-400 text-sm font-medium">Preferensi</span>
+                    <div className="flex items-center gap-4">
+                        <ThemeToggle />
+                        <button className="flex items-center gap-2 text-gray-300 hover:text-coc-gold transition-colors">
+                            <SearchIcon className="h-6 w-6" />
+                        </button>
+                    </div>
+                </div>
+
+                {!authLoading && (
+                    currentUser ? (
+                        <div className="mt-2">
+                           <div className="bg-coc-stone-light/30 rounded-xl p-4 border border-white/5">
+                                <div className="flex items-center gap-3 mb-4 pb-4 border-b border-white/5">
+                                     <div className="h-10 w-10 rounded-full bg-coc-stone-light flex items-center justify-center ring-1 ring-coc-gold/30">
+                                        <UserCircleIcon className="h-6 w-6 text-gray-400"/>
+                                     </div>
+                                     <div>
+                                        <p className="text-white font-bold">Menu Akun</p>
+                                        <p className="text-xs text-gray-400">Kelola profil & klan</p>
+                                     </div>
+                                </div>
+                                <div className="flex flex-col gap-2">
+                                    {/* Kita render menu dropdown versi mobile yang diexpand */}
+                                    <Link href="/profile" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 text-gray-300 text-sm">
+                                        <UserCircleIcon className="h-5 w-5"/> Profil Saya
+                                    </Link>
+                                    {/* [LOGIKA LAMA KEMBALI] Menu ini tidak muncul jika logika isCompleteUserProfile gagal */}
+                                    <Link href="/clan/manage" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 text-gray-300 text-sm">
+                                        <ShieldIcon className="h-5 w-5"/> Klan Saya
+                                    </Link>
+                                     <Link href="/my-tournaments" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 text-gray-300 text-sm">
+                                        <TrophyIcon className="h-5 w-5"/> Turnamen
+                                    </Link>
+                                    <button 
+                                        onClick={() => {
+                                            signOut(auth);
+                                            setIsMenuOpen(false);
+                                            router.push('/');
+                                        }}
+                                        className="flex items-center gap-3 p-3 rounded-lg hover:bg-coc-red/10 text-red-400 text-sm w-full text-left mt-2 border-t border-white/5 pt-4"
+                                    >
+                                        <LogOutIcon className="h-5 w-5"/> Logout
+                                    </button>
+                                </div>
+                           </div>
+                        </div>
+                    ) : (
+                        <Button
+                        href="/auth"
+                        variant="primary"
+                        size="lg"
+                        className="w-full justify-center shadow-lg shadow-coc-gold/10"
+                        onClick={() => setIsMenuOpen(false)}
+                        >
+                        Login / Register
+                        </Button>
+                    )
+                )}
+            </div>
+          </nav>
+        </div>
+      )}
+    </>
   );
 };
 

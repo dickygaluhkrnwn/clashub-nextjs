@@ -1,31 +1,22 @@
 'use client';
 
-// Impor React (diperlukan untuk useState)
 import React, { useState, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import { Button } from '@/app/components/ui/Button';
-// PERBAIKAN: Impor KnowledgeHubItem dan Video (Post masih diperlukan untuk casting)
-import { Post, KnowledgeHubItem, Video } from '@/lib/types';
-// Impor ikon untuk loading (opsional)
-import { BookOpenIcon, EditIcon, StarIcon, SortAscIcon, FilterIcon, CogsIcon } from '@/app/components/icons';
-// PERBAIKAN: Ganti sortPosts -> sortItems, dan impor tipe KNOWLEDGE_HUB_CATEGORIES
+import { Post, KnowledgeHubItem } from '@/lib/types';
+import { SortAscIcon, FilterIcon, CogsIcon, EditIcon } from '@/app/components/icons';
 import { ALL_CATEGORIES, sortItems, SortOption, KnowledgeHubCategory, getCategoryDisplayName, isVideo } from '@/lib/knowledge-hub-utils';
-// --- BARU: Impor komponen FullPostDisplay ---
 import FullPostDisplay from './components/FullPostDisplay';
 
 interface KnowledgeHubClientProps {
-  // PERBAIKAN: Ubah Post[] -> KnowledgeHubItem[]
   initialPosts: KnowledgeHubItem[];
-  // PERBAIKAN: Gunakan tipe yang lebih spesifik
   initialCategory: KnowledgeHubCategory;
   initialSortBy: SortOption;
   error: string | null;
 }
 
 // --- Konstanta Pagination ---
-// Mengurangi jumlah item per load karena postingan penuh lebih besar
-const ITEMS_PER_LOAD_POSTS = 3; // Tampilkan 3 postingan per load
+const ITEMS_PER_LOAD_POSTS = 3;
 
 const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, error }: KnowledgeHubClientProps) => {
   const router = useRouter();
@@ -33,23 +24,19 @@ const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, erro
 
   // State untuk loading filter
   const [isFiltering, setIsFiltering] = useState(false);
+  // State untuk toggle filter di mobile
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
-  // PERBAIKAN: Gunakan tipe KnowledgeHubCategory
   const [activeCategory, setActiveCategory] = useState<KnowledgeHubCategory>(initialCategory);
   const [activeSort, setActiveSort] = useState<SortOption>(initialSortBy);
-  // PERBAIKAN: Ubah allPosts -> allItems, Post[] -> KnowledgeHubItem[]
   const [allItems] = useState<KnowledgeHubItem[]>(initialPosts);
 
   // --- State Pagination ---
-  // PERBAIKAN: Ubah nama state
   const [visibleItemsCount, setVisibleItemsCount] = useState(ITEMS_PER_LOAD_POSTS);
-  // --- End State Pagination ---
 
-  // PERBAIKAN: Gunakan tipe KnowledgeHubCategory
   const updateUrl = (newCategory: KnowledgeHubCategory, newSortBy: SortOption) => {
     const params = new URLSearchParams(searchParams.toString());
 
-    // PERBAIKAN: Gunakan 'Semua Konten' sebagai default
     if (newCategory && newCategory !== 'Semua Konten') {
       params.set('kategori', newCategory);
     } else {
@@ -62,194 +49,190 @@ const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, erro
       params.delete('sortir');
     }
 
-    // Pindah route tanpa scroll ke atas
     router.push(`/knowledge-hub?${params.toString()}`, { scroll: false });
   };
 
-  // Logika filter dan sort (BERUBAH)
   const filteredAndSortedItems = useMemo(() => {
     const filtered = allItems.filter(item => {
-        // PERBAIKAN GUARD CLAUSE: Pastikan 'item' tidak null atau undefined
         if (!item) return false;
 
-        if (activeCategory === 'Semua Konten') return true; // Tampilkan semua
+        if (activeCategory === 'Semua Konten') return true;
         
-        // Logika untuk 'Semua Diskusi' (hanya Post)
-        if (activeCategory === 'Semua Diskusi') return !isVideo(item); // Hanya Post
+        if (activeCategory === 'Semua Diskusi') return !isVideo(item);
         
-        // Logika untuk 'Berita Komunitas' (Post 'Berita Komunitas' + Video)
         if (activeCategory === 'Berita Komunitas') {
-            if (isVideo(item)) return true; // Semua video YouTube otomatis masuk
-            // Jika post, pastikan kategorinya 'Berita Komunitas'
+            if (isVideo(item)) return true;
             return !isVideo(item) && item.category === 'Berita Komunitas';
         }
 
-        // Logika untuk kategori spesifik (hanya Post)
         if (isVideo(item)) return false; 
         
-        // Jika item adalah Post, cek kategorinya
-        // FIX: Pastikan item.category ada sebelum membandingkan
         return item.category === activeCategory;
     });
     
-    // Urutkan hasil filter berdasarkan sort AKTIF
     return sortItems(filtered, activeSort);
   }, [allItems, activeCategory, activeSort]); 
 
-
-  // Handler filter diperbarui untuk mereset pagination
-  const handleCategoryChange = (category: KnowledgeHubCategory) => { // Gunakan tipe KnowledgeHubCategory
+  const handleCategoryChange = (category: KnowledgeHubCategory) => {
     setIsFiltering(true);
-    setVisibleItemsCount(ITEMS_PER_LOAD_POSTS); // Reset pagination
+    setVisibleItemsCount(ITEMS_PER_LOAD_POSTS);
+    setIsFilterOpen(false); 
     setTimeout(() => {
         setActiveCategory(category);
         updateUrl(category, activeSort);
         setIsFiltering(false);
-    }, 50); // Delay singkat untuk UX
+    }, 50);
   };
 
   const handleSortChange = (sortBy: SortOption) => {
     setIsFiltering(true);
-    setVisibleItemsCount(ITEMS_PER_LOAD_POSTS); // Reset pagination
+    setVisibleItemsCount(ITEMS_PER_LOAD_POSTS);
+    setIsFilterOpen(false);
     setTimeout(() => {
         setActiveSort(sortBy);
         updateUrl(activeCategory, sortBy);
         setIsFiltering(false);
-    }, 50); // Delay singkat untuk UX
+    }, 50);
   };
 
-  // --- Fungsi Load More Posts ---
-  const handleLoadMoreItems = () => { // Ubah nama fungsi
+  const handleLoadMoreItems = () => {
         setVisibleItemsCount(prevCount => prevCount + ITEMS_PER_LOAD_POSTS);
   };
-  // --- End Fungsi Load More ---
 
-  // --- Logika Slice & Show Button Posts ---
   const itemsToShow = useMemo(() => filteredAndSortedItems.slice(0, visibleItemsCount), [filteredAndSortedItems, visibleItemsCount]);
   const showLoadMoreItems = visibleItemsCount < filteredAndSortedItems.length;
-  // --- End Logika ---
-
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-      {/* Kolom Kiri: Navigasi Topik (Filter) */}
-      <aside className="lg:col-span-1 card-stone p-6 h-fit sticky top-28">
-         {/* Judul akan otomatis font-clash */}
-        <h2 className="text-xl border-l-4 border-coc-gold-dark pl-3 mb-6 flex items-center gap-2">
-            <FilterIcon className="h-5 w-5"/> Kategori Forum
-        </h2>
-
-        {/* Filter Kategori */}
-        <div className="space-y-1 border-b border-coc-gold-dark/20 pb-4">
-          {/* PERBAIKAN: Gunakan ALL_CATEGORIES dari utils */}
-          {ALL_CATEGORIES.map(category => (
-            <button
-              key={category}
-              onClick={() => handleCategoryChange(category)} // Panggil handler baru
-              // Font tombol standar (font-sans)
-              className={`w-full text-left px-3 py-2 text-sm font-bold rounded-md transition-colors flex justify-between items-center ${
-                activeCategory === category
-                  ? 'bg-coc-gold text-coc-stone shadow-sm'
-                  : 'text-gray-300 hover:bg-coc-stone-light/50'
-              }`}
-            >
-              {/* PERBAIKAN: Gunakan getCategoryDisplayName */}
-              {getCategoryDisplayName(category)}
-            </button>
-          ))}
-        </div>
-
-        {/* Filter Sortir */}
-        <div className="mt-6">
-           {/* Judul akan otomatis font-clash */}
-          <h3 className="text-sm font-clash text-coc-gold-dark mb-3 flex items-center gap-1">
-            <SortAscIcon className="h-4 w-4"/> Urutkan
-          </h3>
-          <div className="space-y-1">
-            <button
-              onClick={() => handleSortChange('terbaru')} // Panggil handler baru
-              // Font tombol standar (font-sans)
-              className={`w-full text-left px-3 py-2 text-sm font-bold rounded-md transition-colors ${
-                activeSort === 'terbaru'
-                  ? 'bg-coc-red text-white' // Gaya aktif berbeda untuk sort
-                  : 'text-gray-300 hover:bg-coc-stone-light/50'
-              }`}
-            >
-              Terbaru
-            </button>
-            <button
-              onClick={() => handleSortChange('trending')} // Panggil handler baru
-               // Font tombol standar (font-sans)
-              className={`w-full text-left px-3 py-2 text-sm font-bold rounded-md transition-colors ${
-                activeSort === 'trending'
-                  ? 'bg-coc-red text-white' // Gaya aktif berbeda untuk sort
-                  : 'text-gray-300 hover:bg-coc-stone-light/50'
-              }`}
-            >
-              Paling Trending
-            </button>
+    <div className="relative">
+      {/* [PERBAIKAN JARAK] 
+          Menghapus 'container mx-auto p-4 md:p-8 mt-6 md:mt-10' 
+          karena parent (page.tsx) sudah memiliki container sendiri.
+          Cukup gunakan grid layout saja.
+      */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8">
+        
+        {/* Kolom Kiri: Navigasi Topik (Filter) */}
+        <aside className="lg:col-span-1 card-stone p-4 lg:p-6 h-fit static lg:sticky lg:top-28 rounded-lg z-10">
+          
+          {/* Header Filter dengan Toggle Mobile */}
+          <div 
+            className="flex items-center justify-between lg:mb-6 cursor-pointer lg:cursor-default"
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
+          >
+              <h2 className="text-xl border-l-4 border-coc-gold-dark pl-3 flex items-center gap-2 font-clash text-coc-gold">
+                  <FilterIcon className="h-5 w-5 text-coc-gold-dark"/> 
+                  Kategori Forum
+              </h2>
+              
+              {/* Icon Chevron (Hanya Mobile) */}
+              <div className={`lg:hidden text-coc-gold transition-transform duration-200 ${isFilterOpen ? 'rotate-180' : ''}`}>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                  </svg>
+              </div>
           </div>
-        </div>
-      </aside>
 
-      {/* Kolom Tengah: Feed Postingan */}
-      <section className="lg:col-span-3">
-        <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
-           {/* Judul akan otomatis font-clash */}
-          <h1 className="text-3xl">Knowledge Hub</h1>
-          <Button href="/knowledge-hub/create" variant="primary">
-            <EditIcon className="h-5 w-5 mr-2"/>
-            Buat Postingan
-          </Button>
-        </div>
+          {/* Container Filter (Collapsible di Mobile) */}
+          <div className={`${isFilterOpen ? 'block mt-6 animate-fade-in' : 'hidden'} lg:block space-y-6`}>
+              {/* Filter Kategori */}
+              <div className="space-y-1 border-b border-coc-gold-dark/20 pb-4">
+                {ALL_CATEGORIES.map(category => (
+                  <button
+                    key={category}
+                    onClick={() => handleCategoryChange(category)}
+                    className={`w-full text-left px-3 py-2 text-sm font-bold rounded-md transition-colors flex justify-between items-center ${
+                      activeCategory === category
+                        ? 'bg-coc-gold text-coc-stone shadow-sm'
+                        : 'text-gray-300 hover:bg-coc-stone-light/50'
+                    }`}
+                  >
+                    {getCategoryDisplayName(category)}
+                  </button>
+                ))}
+              </div>
 
-        {/* Tampilkan loading state saat memfilter */}
-        {isFiltering ? (
-            <div className="text-center py-20 card-stone rounded-lg">
-               <CogsIcon className="h-10 w-10 text-coc-gold animate-spin mx-auto mb-4" />
-                {/* Menggunakan font-clash untuk teks loading */}
-               <h2 className="text-xl font-clash text-coc-gold">Memfilter...</h2>
-           </div>
-        ) : error ? (
-            <div className="text-center py-20 card-stone p-6 rounded-lg">
-                 {/* Menggunakan font-clash untuk judul error */}
-                <h2 className="text-2xl font-clash text-coc-red">{error}</h2>
-                <p className="text-gray-400 mt-2">Gagal memuat data dari server.</p>
+              {/* Filter Sortir */}
+              <div>
+                <h3 className="text-sm font-clash text-coc-gold-dark mb-3 flex items-center gap-1">
+                  <SortAscIcon className="h-4 w-4"/> Urutkan
+                </h3>
+                <div className="space-y-1">
+                  <button
+                    onClick={() => handleSortChange('terbaru')}
+                    className={`w-full text-left px-3 py-2 text-sm font-bold rounded-md transition-colors ${
+                      activeSort === 'terbaru'
+                        ? 'bg-coc-red text-white'
+                        : 'text-gray-300 hover:bg-coc-stone-light/50'
+                    }`}
+                  >
+                    Terbaru
+                  </button>
+                  <button
+                    onClick={() => handleSortChange('trending')}
+                    className={`w-full text-left px-3 py-2 text-sm font-bold rounded-md transition-colors ${
+                      activeSort === 'trending'
+                        ? 'bg-coc-red text-white'
+                        : 'text-gray-300 hover:bg-coc-stone-light/50'
+                    }`}
+                  >
+                    Paling Trending
+                  </button>
+                </div>
+              </div>
+          </div>
+        </aside>
+
+        {/* Kolom Tengah: Feed Postingan */}
+        <section className="lg:col-span-3">
+          {/* [MODIFIKASI] Menghapus Header Halaman agar tampilan lebih fokus ke konten kartu */}
+
+          {/* Tampilkan loading state saat memfilter */}
+          {isFiltering ? (
+              <div className="text-center py-20 card-stone rounded-lg">
+                <CogsIcon className="h-10 w-10 text-coc-gold animate-spin mx-auto mb-4" />
+                <h2 className="text-xl font-clash text-coc-gold">Memfilter...</h2>
             </div>
-        // PERBAIKAN: Cek itemsToShow
-        ) : itemsToShow.length === 0 ? ( 
-          <div className="text-center py-20 card-stone p-6 rounded-lg">
-             {/* Menggunakan font-clash untuk judul */}
-            <h2 className="text-2xl font-clash text-gray-400">Tidak ada konten di kategori ini.</h2>
-            <p className="text-gray-500 mt-2">Coba ubah kriteria filter Anda.</p>
-          </div>
-        ) : (
-          // --- PERUBAHAN: Render FullPostDisplay, bukan PostCard ---
-          <div className="space-y-6"> {/* Beri jarak antar postingan penuh */}
-            {/* PERBAIKAN KRITIS: 
-              1. Hapus logika pengecekan isVideo(item).
-              2. Hapus placeholder Video.
-              3. Ganti <FullPostDisplay post={item as Post} /> menjadi <FullPostDisplay item={item} />
-            */}
-            {itemsToShow.map(item => (
-                // Pastikan item tidak null sebelum merender
-                item ? (
-                     <FullPostDisplay key={item.id} item={item} />
-                ) : null
-            ))}
-          </div>
-        )}
+          ) : error ? (
+              <div className="text-center py-20 card-stone p-6 rounded-lg">
+                  <h2 className="text-2xl font-clash text-coc-red">{error}</h2>
+                  <p className="text-gray-400 mt-2">Gagal memuat data dari server.</p>
+              </div>
+          ) : itemsToShow.length === 0 ? ( 
+            <div className="text-center py-20 card-stone p-6 rounded-lg">
+              <h2 className="text-2xl font-clash text-gray-400">Tidak ada konten di kategori ini.</h2>
+              <p className="text-gray-500 mt-2">Coba ubah kriteria filter Anda.</p>
+            </div>
+          ) : (
+            <div className="space-y-6"> 
+              {itemsToShow.map(item => (
+                  item ? (
+                      <FullPostDisplay key={item.id} item={item} />
+                  ) : null
+              ))}
+            </div>
+          )}
 
-         {/* Tombol Load More Posts */}
-         {/* PERBAIKAN: Ganti ke variabel baru */}
-         {showLoadMoreItems && (
+          {showLoadMoreItems && (
             <div className="text-center mt-8">
                 <Button variant="secondary" size="lg" onClick={handleLoadMoreItems} disabled={isFiltering}>
                     Muat Lebih Banyak Konten
                 </Button>
             </div>
-         )}
-      </section>
+          )}
+        </section>
+      </div>
+
+      {/* [MODIFIKASI FAB] Floating Action Button Bulat (Hanya Ikon) */}
+      <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-4 fade-in duration-500">
+        <Button
+          href="/knowledge-hub/create"
+          variant="primary"
+          className="rounded-full w-14 h-14 p-0 flex items-center justify-center shadow-[0_0_20px_rgba(255,215,0,0.3)] hover:shadow-[0_0_30px_rgba(255,215,0,0.5)] hover:scale-110 transition-all duration-300 border-2 border-coc-gold bg-coc-stone"
+          title="Buat Postingan Baru"
+        >
+          <EditIcon className="h-7 w-7 text-coc-gold" />
+        </Button>
+      </div>
     </div>
   );
 };
