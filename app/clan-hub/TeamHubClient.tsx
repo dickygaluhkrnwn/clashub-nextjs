@@ -9,18 +9,18 @@ import {
   RecommendedTeam,
 } from '@/lib/types';
 
-import { TeamHubHeader } from './components/TeamHubHeader';
-import { TeamHubTabNavigation } from './components/TeamHubTabNavigation';
+// [PERBAIKAN] Hapus TeamHubHeader dan TeamHubTabNavigation
 import { TeamHubFilterBar } from './components/TeamHubFilterBar';
 import { ClashubTeamsTab } from './components/ClashubTeamsTab';
 import { PublicClansTab } from './components/PublicClansTab';
 import { PlayersTab } from './components/PlayersTab';
 
+// [PERBAIKAN] Impor ikon yang dibutuhkan untuk Header Halaman
 import { ShieldIcon, UserIcon, GlobeIcon } from '@/app/components/icons';
 
 // Definisikan tipe filter
 export type ManagedClanFilters = {
-  searchTerm: string; // [FIX] Mengubah 'search' menjadi 'searchTerm' agar sesuai dengan TeamHubFilter
+  search: string;
   thLevel: string;
   minMembers: number;
   vision: 'all' | 'Kompetitif' | 'Kasual';
@@ -56,7 +56,7 @@ const TeamHubClient = ({
 
   // State Filter
   const [clanFilters, setClanFilters] = useState<ManagedClanFilters>({
-    searchTerm: '', // [FIX] Menggunakan searchTerm
+    search: '',
     thLevel: 'all',
     minMembers: 0,
     vision: 'all',
@@ -97,7 +97,7 @@ const TeamHubClient = ({
     setActiveTab(tab);
     // Reset filter saat ganti tab
     setClanFilters({
-        searchTerm: '', // [FIX] Reset searchTerm
+        search: '',
         thLevel: 'all',
         minMembers: 0,
         vision: 'all',
@@ -129,9 +129,9 @@ const TeamHubClient = ({
     return initialClans.filter((clan) => {
       // 1. Search
       if (
-        clanFilters.searchTerm && // [FIX] Menggunakan searchTerm
-        !clan.name.toLowerCase().includes(clanFilters.searchTerm.toLowerCase()) &&
-        !clan.tag.toLowerCase().includes(clanFilters.searchTerm.toLowerCase())
+        clanFilters.search &&
+        !clan.name.toLowerCase().includes(clanFilters.search.toLowerCase()) &&
+        !clan.tag.toLowerCase().includes(clanFilters.search.toLowerCase())
       ) {
         return false;
       }
@@ -279,80 +279,108 @@ const TeamHubClient = ({
   }, [publicClanResult, publicClanTag, publicSearchError, publicClansToShow]);
 
   return (
-    <div className="min-h-screen bg-coc-dark pb-20">
-      <TeamHubHeader />
+    // [LAYOUT BARU] Menggunakan struktur container biasa, tanpa banner
+    <div className="relative">
+      <div className="container mx-auto p-4 md:p-8 mt-10">
+        
+        {/* [TAB NAVIGATION] Sinkron dengan TournamentClient style */}
+        <div className="mb-8 border-b-2 border-coc-gold-dark/20 flex overflow-x-auto custom-scrollbar">
+          <button
+            onClick={() => handleTabChange('clashubTeams')}
+            className={`px-6 py-3 font-clash text-lg whitespace-nowrap transition-colors flex items-center gap-2 ${
+              activeTab === 'clashubTeams'
+                ? 'text-coc-gold border-b-2 border-coc-gold'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <ShieldIcon className="w-5 h-5" />
+            Tim Clashub
+          </button>
+          <button
+            onClick={() => handleTabChange('publicClans')}
+            className={`px-6 py-3 font-clash text-lg whitespace-nowrap transition-colors flex items-center gap-2 ${
+              activeTab === 'publicClans'
+                ? 'text-coc-gold border-b-2 border-coc-gold'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <GlobeIcon className="w-5 h-5" />
+            Cari Klan Publik
+          </button>
+          <button
+            onClick={() => handleTabChange('players')}
+            className={`px-6 py-3 font-clash text-lg whitespace-nowrap transition-colors flex items-center gap-2 ${
+              activeTab === 'players'
+                ? 'text-coc-gold border-b-2 border-coc-gold'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <UserIcon className="w-5 h-5" />
+            Cari Pemain
+          </button>
+        </div>
 
-      <div className="container mx-auto p-4 md:p-8 -mt-8 relative z-10">
-        <div className="card-stone p-6 md:p-8 rounded-xl shadow-2xl border border-coc-gold-dark/30">
-          
-          {/* Tab Navigation */}
-          <TeamHubTabNavigation
-            activeTab={activeTab}
-            onTabChange={handleTabChange}
-          />
+        <div className="mt-8">
+          {/* Konten Tab */}
+          {activeTab === 'publicClans' ? (
+              <PublicClansTab
+                  publicClanTag={publicClanTag}
+                  onPublicClanTagChange={setPublicClanTag}
+                  onSearchSubmit={handlePublicClanSearch}
+                  isSearching={isSearchingPublicClan}
+                  searchError={publicSearchError}
+                  clansToDisplay={clansToDisplayPublic}
+                  isSearchResult={!!publicClanResult}
+                  totalCacheCount={publicClansDataSource.length}
+                  showLoadMore={
+                      !publicClanResult &&
+                      !publicClanTag.trim() &&
+                      visiblePublicClansCount < publicClansDataSource.length
+                  }
+                  onLoadMore={() => setVisiblePublicClansCount((prev) => prev + 6)}
+                  visibleCount={visiblePublicClansCount}
+              />
+          ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 lg:items-start">
+                  {/* Filter Sidebar */}
+                  <TeamHubFilterBar
+                      activeTab={activeTab}
+                      clanFilters={clanFilters}
+                      onClanFilterChange={handleClanFilterChange}
+                      playerFilters={playerFilters}
+                      onPlayerFilterChange={handlePlayerFilterChange}
+                  />
 
-          <div className="mt-8">
-            {/* Konten Tab */}
-            {activeTab === 'publicClans' ? (
-                <PublicClansTab
-                    publicClanTag={publicClanTag}
-                    onPublicClanTagChange={setPublicClanTag}
-                    onSearchSubmit={handlePublicClanSearch}
-                    isSearching={isSearchingPublicClan}
-                    searchError={publicSearchError}
-                    clansToDisplay={clansToDisplayPublic}
-                    isSearchResult={!!publicClanResult}
-                    totalCacheCount={publicClansDataSource.length}
-                    showLoadMore={
-                        !publicClanResult &&
-                        !publicClanTag.trim() &&
-                        visiblePublicClansCount < publicClansDataSource.length
-                    }
-                    onLoadMore={() => setVisiblePublicClansCount((prev) => prev + 6)}
-                    visibleCount={visiblePublicClansCount}
-                />
-            ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 lg:items-start">
-                    {/* Filter Sidebar */}
-                    <TeamHubFilterBar
-                        activeTab={activeTab}
-                        clanFilters={clanFilters}
-                        onClanFilterChange={handleClanFilterChange}
-                        playerFilters={playerFilters}
-                        onPlayerFilterChange={handlePlayerFilterChange}
-                    />
+                  {/* Konten Utama */}
+                  <div className="lg:col-span-3">
+                      {activeTab === 'clashubTeams' && (
+                          <ClashubTeamsTab
+                              isFiltering={isFiltering}
+                              filteredClans={filteredClans}
+                              clansToShow={clansToShow}
+                              showLoadMoreClans={visibleClansCount < filteredClans.length}
+                              onLoadMoreClans={() =>
+                                  setVisibleClansCount((prev) => prev + 6)
+                              }
+                          />
+                      )}
 
-                    {/* Konten Utama */}
-                    <div className="lg:col-span-3">
-                        {activeTab === 'clashubTeams' && (
-                            <ClashubTeamsTab
-                                isFiltering={isFiltering}
-                                filteredClans={filteredClans}
-                                clansToShow={clansToShow}
-                                showLoadMoreClans={visibleClansCount < filteredClans.length}
-                                onLoadMoreClans={() =>
-                                    setVisibleClansCount((prev) => prev + 6)
-                                }
-                            />
-                        )}
-
-                        {activeTab === 'players' && (
-                            <PlayersTab
-                                isFiltering={isFiltering}
-                                filteredPlayers={filteredPlayers}
-                                playersToShow={playersToShow}
-                                showLoadMorePlayers={
-                                    visiblePlayersCount < filteredPlayers.length
-                                }
-                                onLoadMorePlayers={() =>
-                                    setVisiblePlayersCount((prev) => prev + 6)
-                                }
-                            />
-                        )}
-                    </div>
-                </div>
-            )}
-          </div>
+                      {activeTab === 'players' && (
+                          <PlayersTab
+                              isFiltering={isFiltering}
+                              filteredPlayers={filteredPlayers}
+                              playersToShow={playersToShow}
+                              showLoadMorePlayers={
+                                  visiblePlayersCount < filteredPlayers.length
+                              }
+                              onLoadMorePlayers={() =>
+                                  setVisiblePlayersCount((prev) => prev + 6)
+                              }
+                          />
+                      )}
+                  </div>
+              </div>
+          )}
         </div>
       </div>
     </div>
