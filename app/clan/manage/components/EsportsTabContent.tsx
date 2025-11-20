@@ -7,7 +7,6 @@ import { COLLECTIONS } from '@/lib/firestore-collections';
 import {
   ManagedClan,
   EsportsTeam,
-  UserProfile,
   FirestoreDocument,
 } from '@/lib/clashub.types';
 import { useAuth } from '@/app/context/AuthContext';
@@ -19,17 +18,13 @@ import {
   Loader2Icon,
   UsersIcon,
   AlertTriangleIcon,
-} from '@/app/components/icons'; // <-- Impor yang tidak perlu sudah dihapus
-import Notification, {
-  NotificationProps,
-} from '@/app/components/ui/Notification';
-import CreateTeamModal from './EsportsCreateModal'; // <-- Impor Modal
-import TeamCard from './EsportsTeamCard'; // <-- Impor Kartu
-import EditTeamModal from './EsportsEditModal'; // <-- [EDIT] Impor Modal Edit
+} from '@/app/components/icons';
+import { NotificationProps } from '@/app/components/ui/Notification';
+import CreateTeamModal from './EsportsCreateModal';
+import TeamCard from './EsportsTeamCard';
+import EditTeamModal from './EsportsEditModal';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook
 
-// =========================================================================
-// KOMPONEN UTAMA: EsportsTabContent
-// =========================================================================
 interface EsportsTabContentProps {
   clan: ManagedClan;
   onAction: (message: string, type: NotificationProps['type']) => void;
@@ -39,33 +34,24 @@ const EsportsTabContent: React.FC<EsportsTabContentProps> = ({
   clan,
   onAction,
 }) => {
-  const { userProfile, currentUser } = useAuth(); // <-- currentUser sudah ada di sini
+  const { t } = useLanguage(); // [BARU]
+  const { userProfile, currentUser } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false); // <-- [EDIT] State untuk modal edit
-  const [
-    teamToEdit,
-    setTeamToEdit,
-  ] = useState<FirestoreDocument<EsportsTeam> | null>(null); // <-- [EDIT] State untuk tim yang akan diedit
-  const [esportsTeams, setEsportsTeams] = useState<
-    FirestoreDocument<EsportsTeam>[]
-  >([]);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [teamToEdit, setTeamToEdit] = useState<FirestoreDocument<EsportsTeam> | null>(null);
+  const [esportsTeams, setEsportsTeams] = useState<FirestoreDocument<EsportsTeam>[]>([]);
   const [isLoadingTeams, setIsLoadingTeams] = useState(true);
 
-  // Cek apakah user adalah manager (Leader/Co-Leader)
-  const isManager =
-    userProfile?.role === 'Leader' || userProfile?.role === 'Co-Leader';
+  const isManager = userProfile?.role === 'Leader' || userProfile?.role === 'Co-Leader';
 
-  // Ambil data anggota (UserProfiles) klan ini
   const {
     membersData: clanMembers,
     isLoading: isLoadingMembers,
     isError: isMembersError,
   } = useManagedClanMembers(clan.id);
 
-  // ... (useEffect for fetching data tim E-Sports) ...
   useEffect(() => {
     setIsLoadingTeams(true);
-    // Path: /managedClans/{clanId}/esportsTeams
     const teamsCollectionRef = collection(
       db,
       COLLECTIONS.MANAGED_CLANS,
@@ -80,8 +66,8 @@ const EsportsTabContent: React.FC<EsportsTabContentProps> = ({
         const teams: FirestoreDocument<EsportsTeam>[] = [];
         querySnapshot.forEach((doc) => {
           teams.push({
-            ...(doc.data() as EsportsTeam), // Spread data dulu
-            id: doc.id, // Timpa ID dengan ID dokumen yang benar (setelah spread)
+            ...(doc.data() as EsportsTeam),
+            id: doc.id,
           });
         });
         setEsportsTeams(teams);
@@ -89,40 +75,34 @@ const EsportsTabContent: React.FC<EsportsTabContentProps> = ({
       },
       (error) => {
         console.error('Gagal mengambil data E-Sports:', error);
-        onAction('Gagal mengambil daftar tim E-Sports.', 'error');
+        onAction(t.clanEsports.toastFetchError, 'error'); // [i18n]
         setIsLoadingTeams(false);
       }
     );
 
-    // Cleanup listener saat komponen unmount
     return () => unsubscribe();
-  }, [clan.id, onAction]);
+  }, [clan.id, onAction, t]);
 
-  // ... (handleCreateTeam function) ...
   const handleCreateTeam = async (
     teamName: string,
     teamLeaderUid: string,
     memberUids: string[]
   ): Promise<void> => {
-    // [PERBAIKAN] Cek currentUser untuk mendapatkan token
     if (!currentUser) {
-      throw new Error('Gagal mendapatkan token, silakan login ulang.');
+      throw new Error('Authentication required.');
     }
 
-    // Validasi sederhana (sebenarnya sudah divalidasi di modal)
     if (!teamName || memberUids.length !== 5) {
-      throw new Error('Nama tim atau jumlah anggota tidak valid.');
+      throw new Error(t.clanEsports.valNameEmpty); // [i18n] reuse or simple check
     }
 
-    // [PERBAIKAN] Ambil token
     const token = await currentUser.getIdToken();
 
-    // TAHAP 3.3: Panggil API Route untuk membuat tim baru
     const response = await fetch(`/api/clan/manage/${clan.id}/esports`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`, // <-- [PERBAIKAN] Tambahkan header otentikasi
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         teamName,
@@ -133,42 +113,37 @@ const EsportsTabContent: React.FC<EsportsTabContentProps> = ({
 
     const result = await response.json();
     if (!response.ok) {
-      throw new Error(result.message || 'Gagal membuat tim.');
+      throw new Error(result.message || t.common.error);
     }
-    // Jika sukses, onSnapshot akan otomatis memperbarui UI.
   };
 
-  // [EDIT] Handler untuk membuka modal edit
   const handleOpenEditModal = (team: FirestoreDocument<EsportsTeam>) => {
     setTeamToEdit(team);
     setIsEditModalOpen(true);
   };
 
-  // Filter anggota yang terverifikasi (sesuai roadmap)
   const availableMembers = useMemo(() => {
     return (clanMembers || []).filter((member) => member.isVerified);
   }, [clanMembers]);
 
-  // ... (Tampilan Loading) ...
   if (isLoadingTeams || isLoadingMembers) {
     return (
       <div className="flex justify-center items-center h-60">
         <Loader2Icon className="h-10 w-10 text-coc-gold animate-spin" />
         <p className="ml-3 text-lg font-clash text-gray-300">
-          Memuat data tim & anggota...
+          {t.clanEsports.loadingTeams} {/* [i18n] */}
         </p>
       </div>
     );
   }
 
-  // Tampilan Error
   if (isMembersError) {
     return (
       <div className="p-8 text-center bg-coc-red/10 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
         <AlertTriangleIcon className="h-12 w-12 text-coc-red mb-3" />
-        <p className="text-xl font-clash text-coc-red">Gagal Memuat Anggota</p>
+        <p className="text-xl font-clash text-coc-red">{t.clanEsports.errorMembersTitle}</p> {/* [i18n] */}
         <p className="text-sm text-gray-400 font-sans mt-1">
-          Tidak dapat mengambil daftar anggota klan. Silakan coba lagi nanti.
+          {t.clanEsports.errorMembersDesc} {/* [i18n] */}
         </p>
       </div>
     );
@@ -180,7 +155,7 @@ const EsportsTabContent: React.FC<EsportsTabContentProps> = ({
         <div className="flex items-center space-x-3">
           <TrophyIcon className="h-8 w-8 text-coc-gold" />
           <h2 className="text-2xl font-clash text-white">
-            Manajemen Tim E-Sports
+            {t.clanEsports.tabTitle} {/* [i18n] */}
           </h2>
         </div>
         {isManager && (
@@ -190,14 +165,13 @@ const EsportsTabContent: React.FC<EsportsTabContentProps> = ({
             onClick={() => setIsModalOpen(true)}
           >
             <PlusIcon className="h-4 w-4 mr-2" />
-            Buat Tim
+            {t.clanEsports.createTeam} {/* [i18n] */}
           </Button>
         )}
       </div>
 
       <p className="text-gray-300 font-sans text-sm">
-        Kelola tim internal klan (5v5) untuk turnamen dan acara E-Sports. Hanya
-        anggota terverifikasi yang dapat ditambahkan ke tim.
+        {t.clanEsports.tabDesc} {/* [i18n] */}
       </p>
 
       {/* Daftar Tim yang Ada */}
@@ -205,11 +179,11 @@ const EsportsTabContent: React.FC<EsportsTabContentProps> = ({
         {esportsTeams.length === 0 ? (
           <div className="p-8 text-center bg-coc-stone/30 rounded-lg min-h-[200px] flex flex-col justify-center items-center">
             <UsersIcon className="h-12 w-12 text-coc-gold/50 mb-3" />
-            <p className="text-lg font-clash text-white">Belum Ada Tim</p>
+            <p className="text-lg font-clash text-white">{t.clanEsports.noTeamsTitle}</p> {/* [i18n] */}
             <p className="text-sm text-gray-400 font-sans mt-1">
               {isManager
-                ? 'Gunakan tombol "Buat Tim" untuk mendaftarkan tim pertama Anda.'
-                : 'Belum ada tim E-Sports yang terdaftar di klan ini.'}
+                ? t.clanEsports.noTeamsDescManager // [i18n]
+                : t.clanEsports.noTeamsDescMember} // [i18n]
             </p>
           </div>
         ) : (
@@ -217,13 +191,13 @@ const EsportsTabContent: React.FC<EsportsTabContentProps> = ({
             {esportsTeams.map((team) => (
               <TeamCard
                 key={team.id}
-                clanId={clan.id} // <-- [EDIT] Kirim clanId
-                currentUser={currentUser} // <-- [EDIT] Kirim currentUser untuk token
+                clanId={clan.id}
+                currentUser={currentUser}
                 team={team}
                 allMembers={availableMembers}
                 isManager={isManager}
                 onAction={onAction}
-                onEdit={handleOpenEditModal} // <-- [EDIT] Kirim handler edit ke kartu
+                onEdit={handleOpenEditModal}
               />
             ))}
           </div>
@@ -239,11 +213,11 @@ const EsportsTabContent: React.FC<EsportsTabContentProps> = ({
           availableMembers={availableMembers}
           onAction={onAction}
           onCreateTeam={handleCreateTeam}
-          allTeams={esportsTeams} // Kirim daftar tim untuk validasi
+          allTeams={esportsTeams}
         />
       )}
 
-      {/* [EDIT] Render Modal Edit Tim */}
+      {/* Render Modal Edit Tim */}
       {isEditModalOpen && teamToEdit && currentUser && (
         <EditTeamModal
           isOpen={isEditModalOpen}
@@ -259,9 +233,5 @@ const EsportsTabContent: React.FC<EsportsTabContentProps> = ({
     </div>
   );
 };
-
-// =========================================================================
-// KODE TEAMCARD (70 baris) SUDAH DIHAPUS DARI SINI
-// =========================================================================
 
 export default EsportsTabContent;

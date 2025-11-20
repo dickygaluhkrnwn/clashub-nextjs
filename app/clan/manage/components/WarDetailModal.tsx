@@ -1,47 +1,44 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+'use client';
+
+import React, { useState, useMemo } from 'react';
 import {
   XIcon,
   StarIcon,
-  AlertTriangleIcon,
-  TrophyIcon,
   ShieldIcon,
   ArrowLeftIcon,
   ArrowRightIcon,
   ArrowUpIcon,
   ArrowDownIcon,
+  TrophyIcon,
 } from '@/app/components/icons';
-// --- [MODIFIKASI] Impor ManagedClan, Hapus tipe/fungsi Firestore client-side ---
 import {
   WarArchive,
   CocWarMember,
   CocWarAttack,
   ManagedClan,
 } from '@/lib/types';
-// Hapus: doc, getDoc, Timestamp, firestore, COLLECTIONS
-// --- [AKHIR MODIFIKASI] ---
 import Image from 'next/image';
 import { getThImage } from '@/lib/th-utils';
 import { Button } from '@/app/components/ui/Button';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook i18n
 
-// --- [MODIFIKASI] Interface Props diubah ---
 interface WarDetailModalProps {
-  clan: ManagedClan; // Menerima objek ManagedClan lengkap (untuk konsistensi)
-  warData: WarArchive | null; // Menerima data arsip lengkap, bukan ID
+  clan: ManagedClan;
+  warData: WarArchive | null;
   onClose: () => void;
 }
-// --- [AKHIR MODIFIKASI] ---
 
 // =========================================================================
 // HELPER: Tampilan Detail Serangan (Nested Row)
-// (Tidak ada perubahan, komponen ini sudah siap)
 // =========================================================================
 
 interface AttackRowProps {
   attack: CocWarAttack;
   defenderDetails: { thLevel: number; mapPosition: number; name: string } | null;
+  t: any; // [BARU] Props translation
 }
 
-const AttackRow: React.FC<AttackRowProps> = ({ attack, defenderDetails }) => {
+const AttackRow: React.FC<AttackRowProps> = ({ attack, defenderDetails, t }) => {
   const starColor =
     attack.stars === 3
       ? 'text-coc-green'
@@ -51,7 +48,7 @@ const AttackRow: React.FC<AttackRowProps> = ({ attack, defenderDetails }) => {
 
   const thLevel = defenderDetails?.thLevel || 1;
   const mapPosition = defenderDetails?.mapPosition || 'N/A';
-  const defenderName = defenderDetails?.name || 'Target Tidak Dikenal';
+  const defenderName = defenderDetails?.name || t.common.noData; // [i18n]
   const duration = attack.duration || 0;
 
   return (
@@ -65,8 +62,7 @@ const AttackRow: React.FC<AttackRowProps> = ({ attack, defenderDetails }) => {
           height={20}
           className="rounded-full flex-shrink-0"
         />
-        <span className="hidden sm:inline">Map {mapPosition}</span> ({defenderName}
-        )
+        <span className="hidden sm:inline">{t.clanWar.modalMapPosition.split(' ')[0]} {mapPosition}</span> ({defenderName})
       </div>
 
       {/* Hasil Serangan */}
@@ -102,19 +98,20 @@ const AttackRow: React.FC<AttackRowProps> = ({ attack, defenderDetails }) => {
 
 // =========================================================================
 // HELPER: Tampilan Baris Pemain War
-// (Tidak ada perubahan, komponen ini sudah siap)
 // =========================================================================
 
 interface MemberRowProps {
   member: CocWarMember;
   isClanMember: boolean;
   opponentMembersMap: Map<string, CocWarMember>;
+  t: any; // [BARU] Props translation
 }
 
 const MemberRow: React.FC<MemberRowProps> = ({
   member,
   isClanMember,
   opponentMembersMap,
+  t,
 }) => {
   const totalStars =
     member.attacks?.reduce((sum, attack) => sum + (attack.stars || 0), 0) || 0;
@@ -144,6 +141,7 @@ const MemberRow: React.FC<MemberRowProps> = ({
           key={index}
           attack={attack}
           defenderDetails={defenderDetails}
+          t={t}
         />
       );
     });
@@ -188,7 +186,7 @@ const MemberRow: React.FC<MemberRowProps> = ({
 
         {/* Total Serangan */}
         <div className="w-2/12 text-center text-sm text-gray-300">
-          {totalAttacks} {totalAttacks === 1 ? 'Serangan' : 'Serangan'}
+          {totalAttacks} {totalAttacks === 1 ? t.clanWar.colAttacks : t.clanWar.colAttacks} {/* [i18n] */}
         </div>
 
         {/* Tanda Detail (Panah) */}
@@ -215,28 +213,20 @@ const MemberRow: React.FC<MemberRowProps> = ({
 };
 
 // =========================================================================
-// KOMPONEN UTAMA: WarDetailModal (MODIFIED)
+// KOMPONEN UTAMA: WarDetailModal
 // =========================================================================
 
 const WarDetailModal: React.FC<WarDetailModalProps> = ({
-  clan, // [MODIFIKASI] Menerima prop 'clan' (ManagedClan)
-  warData, // [MODIFIKASI] Menerima prop 'warData' (WarArchive)
+  clan,
+  warData,
   onClose,
 }) => {
-  // --- [MODIFIKASI] Hapus semua state fetching (isLoading, error, setWarData) ---
-  // const [warData, setWarData] = useState<WarArchive | null>(null);
-  // const [isLoading, setIsLoading] = useState(true);
-  // const [error, setError] = useState<string | null>(null);
+  const { t, language } = useLanguage(); // [BARU] Init Hook
+  const locale = language === 'id' ? 'id-ID' : 'en-US';
 
-  // --- [MODIFIKASI] 'isOpen' sekarang dikontrol oleh 'warData' dari props ---
+  // 'isOpen' dikontrol oleh 'warData'
   const isOpen = !!warData;
 
-  // --- [MODIFIKASI] Hapus seluruh 'useEffect' untuk fetching data ---
-  // useEffect(() => { ... fetchWarDetail ... }, [clanId, warId]);
-  // (Seluruh blok useEffect dihapus)
-
-  // [PERBAIKAN] Buat Map untuk lookup defender details yang cepat
-  // [MODIFIKASI] Logika ini tetap, tetapi sekarang menggunakan 'warData' dari PROPS
   const opponentMembersMap = useMemo(() => {
     const map = new Map<string, CocWarMember>();
     if (warData?.opponent.members) {
@@ -249,43 +239,48 @@ const WarDetailModal: React.FC<WarDetailModalProps> = ({
         });
     }
     return map;
-  }, [warData]); // Dependensi diubah ke warData (prop)
+  }, [warData]);
 
-  // [MODIFIKASI] Logika ini tetap, tetapi sekarang menggunakan 'warData' dari PROPS
   const ourMembers = useMemo(
     () =>
       warData?.clan.members?.sort(
         (a: CocWarMember, b: CocWarMember) => a.mapPosition - b.mapPosition
       ) || [],
-    [warData] // Dependensi diubah ke warData (prop)
+    [warData]
   );
   const opponentMembers = useMemo(
     () =>
       warData?.opponent.members?.sort(
         (a: CocWarMember, b: CocWarMember) => a.mapPosition - b.mapPosition
       ) || [],
-    [warData] // Dependensi diubah ke warData (prop)
+    [warData]
   );
 
-  if (!isOpen) return null;
+  if (!isOpen || !warData) return null;
 
-  // Pastikan warEndTime adalah objek Date (seharusnya sudah dikonversi oleh archives.ts)
   const warEndTimeDate =
     warData.warEndTime instanceof Date
       ? warData.warEndTime
       : new Date(warData.warEndTime);
 
+  // Helper untuk menerjemahkan hasil
+  const resultLabel = 
+    warData.result === 'win' ? t.clanWar.resultWin.toUpperCase()
+    : warData.result === 'lose' ? t.clanWar.resultLose.toUpperCase()
+    : t.clanWar.resultDraw.toUpperCase();
+
+  // Helper nama klan
+  const ourClanName = warData.clan.name;
+  const oppClanName = warData.opponent.name;
+
   return (
-    // Modal Container (fixed position)
     <div
       className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm transition-opacity duration-300"
       onKeyDown={(e) => e.key === 'Escape' && onClose()}
       tabIndex={-1}
       onClick={onClose}
     >
-      {/* Konten Modal (Centered) */}
       <div className="flex min-h-full items-center justify-center p-4 text-center">
-        {/* Panel Modal */}
         <div
           className="w-full max-w-6xl transform overflow-hidden rounded-2xl bg-coc-stone p-6 text-left align-middle shadow-xl transition-all duration-300 border border-coc-gold-dark/50"
           onClick={(e) => e.stopPropagation()}
@@ -293,8 +288,8 @@ const WarDetailModal: React.FC<WarDetailModalProps> = ({
           <div className="space-y-6">
             {/* Header Modal */}
             <h3 className="text-2xl font-clash font-bold leading-6 text-white border-b border-coc-gold-dark/30 pb-3 mb-4 flex justify-between items-center">
-              Rincian War Classic: {warData?.clan.name || '...'} vs{' '}
-              {warData?.opponent.name || '...'}
+              {t.clanWar.modalTitle}: {ourClanName} vs{' '}
+              {oppClanName}
               <Button
                 size="sm"
                 variant="tertiary"
@@ -305,127 +300,119 @@ const WarDetailModal: React.FC<WarDetailModalProps> = ({
               </Button>
             </h3>
 
-            {/* --- [MODIFIKASI] Hapus Blok isLoading dan error --- */}
-            {/* {isLoading && ( ... )} */}
-            {/* {error && ( ... )} */}
+            <div className="space-y-6">
+              {/* War Summary Card */}
+              <div className="bg-coc-stone-dark/50 p-4 rounded-lg border border-coc-gold-dark/30">
+                <div className="flex justify-between items-center text-sm mb-3">
+                  <p className="text-gray-400 font-clash uppercase">
+                    {t.clanWar.colTeamSize}: {warData.teamSize}v{warData.teamSize}
+                  </p>
+                  <p className="text-gray-400 font-clash uppercase">
+                    {t.clanWar.colResult}:{' '}
+                    <span
+                      className={`font-bold ${
+                        warData.result === 'win'
+                          ? 'text-coc-green'
+                          : warData.result === 'lose'
+                          ? 'text-coc-red'
+                          : 'text-coc-blue'
+                      }`}
+                    >
+                      {resultLabel}
+                    </span>
+                  </p>
+                </div>
 
-            {/* --- [MODIFIKASI] Tampilkan konten jika 'warData' ada (sudah dicek oleh 'isOpen') --- */}
-            {warData && (
-              <div className="space-y-6">
-                {/* War Summary Card */}
-                <div className="bg-coc-stone-dark/50 p-4 rounded-lg border border-coc-gold-dark/30">
-                  <div className="flex justify-between items-center text-sm mb-3">
-                    <p className="text-gray-400 font-clash">
-                      UKURAN: {warData.teamSize}v{warData.teamSize}
+                {/* Scoreboard */}
+                <div className="flex text-center border border-coc-gold-dark/50 rounded-lg divide-x divide-coc-gold-dark/50 overflow-hidden">
+                  {/* Klan Kita */}
+                  <div className="w-1/2 p-4 bg-coc-stone-light">
+                    <TrophyIcon className="h-6 w-6 text-coc-gold mx-auto mb-2" />
+                    <p className="text-white font-bold text-lg mb-1">
+                      {ourClanName}
                     </p>
-                    <p className="text-gray-400 font-clash">
-                      HASIL:{' '}
-                      <span
-                        className={`font-bold ${
-                          warData.result === 'win'
-                            ? 'text-coc-green'
-                            : warData.result === 'lose'
-                            ? 'text-coc-red'
-                            : 'text-coc-blue'
-                        }`}
-                      >
-                        {warData.result?.toUpperCase() || 'N/A'}
+                    <p className="text-xs text-gray-400">
+                      {t.clanWar.colStars}:{' '}
+                      <span className="text-coc-gold">
+                        {warData.clan.stars}
+                      </span>{' '}
+                      | {t.clanWar.colDestruction}:{' '}
+                      <span className="text-white font-mono">
+                        {warData.clan.destructionPercentage.toFixed(2)}%
                       </span>
                     </p>
                   </div>
 
-                  {/* Scoreboard */}
-                  <div className="flex text-center border border-coc-gold-dark/50 rounded-lg divide-x divide-coc-gold-dark/50 overflow-hidden">
-                    {/* Klan Kita */}
-                    <div className="w-1/2 p-4 bg-coc-stone-light">
-                      <TrophyIcon className="h-6 w-6 text-coc-gold mx-auto mb-2" />
-                      <p className="text-white font-bold text-lg mb-1">
-                        {warData.clan.name}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        Stars:{' '}
-                        <span className="text-coc-gold">
-                          {warData.clan.stars}
-                        </span>{' '}
-                        | Destruction:{' '}
-                        <span className="text-white font-mono">
-                          {warData.clan.destructionPercentage.toFixed(2)}%
-                        </span>
-                      </p>
-                    </div>
-
-                    {/* Klan Lawan */}
-                    <div className="w-1/2 p-4 bg-coc-stone-dark">
-                      <ShieldIcon className="h-6 w-6 text-gray-500 mx-auto mb-2" />
-                      <p className="text-white font-bold text-lg mb-1">
-                        {warData.opponent.name}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        Stars:{' '}
-                        <span className="text-coc-red">
-                          {warData.opponent.stars}
-                        </span>{' '}
-                        | Destruction:{' '}
-                        <span className="text-white font-mono">
-                          {warData.opponent.destructionPercentage.toFixed(2)}%
-                        </span>
-                      </p>
-                    </div>
+                  {/* Klan Lawan */}
+                  <div className="w-1/2 p-4 bg-coc-stone-dark">
+                    <ShieldIcon className="h-6 w-6 text-gray-500 mx-auto mb-2" />
+                    <p className="text-white font-bold text-lg mb-1">
+                      {oppClanName}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {t.clanWar.colStars}:{' '}
+                      <span className="text-coc-red">
+                        {warData.opponent.stars}
+                      </span>{' '}
+                      | {t.clanWar.colDestruction}:{' '}
+                      <span className="text-white font-mono">
+                        {warData.opponent.destructionPercentage.toFixed(2)}%
+                      </span>
+                    </p>
                   </div>
-
-                  <p className="mt-4 text-xs text-center text-gray-500">
-                    Selesai:{' '}
-                    {/* [MODIFIKASI] Gunakan warEndTimeDate yang sudah pasti Date */}
-                    {warEndTimeDate.toLocaleDateString('id-ID', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </p>
                 </div>
 
-                {/* Player Detail Comparison */}
-                <div className="flex flex-col lg:flex-row gap-6">
-                  {/* Tim Kita */}
-                  <div className="lg:w-1/2 w-full border border-coc-gold/20 rounded-lg overflow-hidden bg-coc-stone-dark shadow-xl">
-                    <h4 className="font-clash text-lg text-white p-3 bg-coc-gold/10 flex items-center justify-center gap-2">
-                      <ArrowLeftIcon className="h-4 w-4" /> Tim{' '}
-                      {warData.clan.name}
-                    </h4>
-                    <div className="divide-y divide-coc-gold-dark/10 max-h-[60vh] overflow-y-auto">
-                      {ourMembers.map((member: CocWarMember) => (
-                        <MemberRow
-                          key={member.tag}
-                          member={member}
-                          isClanMember={true}
-                          opponentMembersMap={opponentMembersMap}
-                        />
-                      ))}
-                    </div>
-                  </div>
+                <p className="mt-4 text-xs text-center text-gray-500">
+                  {t.clanWar.statusEnded}:{' '}
+                  {warEndTimeDate.toLocaleDateString(locale, {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </p>
+              </div>
 
-                  {/* Tim Lawan */}
-                  <div className="lg:w-1/2 w-full border border-coc-red/20 rounded-lg overflow-hidden bg-coc-stone-dark shadow-xl">
-                    <h4 className="font-clash text-lg text-white p-3 bg-coc-red/10 flex items-center justify-center gap-2">
-                      Tim {warData.opponent.name}{' '}
-                      <ArrowRightIcon className="h-4 w-4" />
-                    </h4>
-                    <div className="divide-y divide-coc-gold-dark/10 max-h-[60vh] overflow-y-auto">
-                      {opponentMembers.map((member: CocWarMember) => (
-                        <MemberRow
-                          key={member.tag}
-                          member={member}
-                          isClanMember={false}
-                          opponentMembersMap={opponentMembersMap}
-                        />
-                      ))}
-                    </div>
+              {/* Player Detail Comparison */}
+              <div className="flex flex-col lg:flex-row gap-6">
+                {/* Tim Kita */}
+                <div className="lg:w-1/2 w-full border border-coc-gold/20 rounded-lg overflow-hidden bg-coc-stone-dark shadow-xl">
+                  <h4 className="font-clash text-lg text-white p-3 bg-coc-gold/10 flex items-center justify-center gap-2">
+                    <ArrowLeftIcon className="h-4 w-4" /> {ourClanName}
+                  </h4>
+                  <div className="divide-y divide-coc-gold-dark/10 max-h-[60vh] overflow-y-auto">
+                    {ourMembers.map((member: CocWarMember) => (
+                      <MemberRow
+                        key={member.tag}
+                        member={member}
+                        isClanMember={true}
+                        opponentMembersMap={opponentMembersMap}
+                        t={t}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Tim Lawan */}
+                <div className="lg:w-1/2 w-full border border-coc-red/20 rounded-lg overflow-hidden bg-coc-stone-dark shadow-xl">
+                  <h4 className="font-clash text-lg text-white p-3 bg-coc-red/10 flex items-center justify-center gap-2">
+                    {oppClanName} <ArrowRightIcon className="h-4 w-4" />
+                  </h4>
+                  <div className="divide-y divide-coc-gold-dark/10 max-h-[60vh] overflow-y-auto">
+                    {opponentMembers.map((member: CocWarMember) => (
+                      <MemberRow
+                        key={member.tag}
+                        member={member}
+                        isClanMember={false}
+                        opponentMembersMap={opponentMembersMap}
+                        t={t}
+                      />
+                    ))}
                   </div>
                 </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>

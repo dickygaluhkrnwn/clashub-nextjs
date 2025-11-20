@@ -1,15 +1,11 @@
-// File: app/clan/manage/components/CwlWarRow.tsx
-// Komponen ini menampilkan SATU BARIS ronde perang di tabel Riwayat CWL.
-// Komponen ini bisa di-expand untuk menampilkan rincian pemain.
-
 'use client';
 
 import React, { useState, Fragment } from 'react';
 import Image from 'next/image';
-import { CocWarLog, CocWarClanInfo, CocWarMember } from '@/lib/types';
-import { getThImage } from '@/lib/th-utils';
+import { CocWarLog, CocWarClanInfo } from '@/lib/types';
 import { StarIcon, ChevronDownIcon, ChevronUpIcon } from '@/app/components/icons';
-import CwlWarPlayerRow from './CwlWarPlayerRow'; // Impor dari file di Canvas
+import CwlWarPlayerRow from './CwlWarPlayerRow';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook i18n
 
 interface CwlWarRowProps {
   round: CocWarLog;
@@ -22,14 +18,12 @@ const CwlWarRow: React.FC<CwlWarRowProps> = ({
   ourClanTag,
   roundNumber,
 }) => {
-  // State untuk mengontrol expand/collapse rincian
+  const { t } = useLanguage(); // [BARU] Init Language
   const [isRowOpen, setIsRowOpen] = useState(false);
 
-  // Tentukan siapa kita dan siapa lawan
   let ourClanInfo: CocWarClanInfo | undefined;
   let opponentClanInfo: CocWarClanInfo | undefined;
 
-  // Cek null safety (jika data ronde korup/tidak lengkap)
   if (!round.clan || !round.opponent) {
     return (
       <tr className="bg-coc-stone/10">
@@ -37,14 +31,12 @@ const CwlWarRow: React.FC<CwlWarRowProps> = ({
           {roundNumber}
         </td>
         <td colSpan={4} className="px-3 py-3 text-left text-sm text-gray-500 italic">
-          Data ronde tidak lengkap (missing clan/opponent info).
+          {t.common.error} (Missing data)
         </td>
       </tr>
     );
   }
 
-  // Logika untuk menentukan siapa 'kita' dan siapa 'lawan'
-  // Ini aman karena skrip sync (di Canvas) sudah memfilter perang yang tidak relevan
   if (round.clan.tag === ourClanTag) {
     ourClanInfo = round.clan;
     opponentClanInfo = round.opponent;
@@ -53,27 +45,26 @@ const CwlWarRow: React.FC<CwlWarRowProps> = ({
     opponentClanInfo = round.clan;
   }
 
-  // Tentukan hasil perang
-  let resultText = 'Seri';
+  // [i18n] Tentukan hasil perang dengan teks terjemahan
+  let resultText = t.clanWar.resultDraw;
   let resultColor = 'text-coc-gold';
 
   if (round.result) {
     if (round.result === 'win') {
-      resultText = 'Menang';
+      resultText = t.clanWar.resultWin;
       resultColor = 'text-coc-green';
     } else if (round.result === 'lose') {
-      resultText = 'Kalah';
+      resultText = t.clanWar.resultLose;
       resultColor = 'text-coc-red';
     }
   } else if (ourClanInfo.stars > opponentClanInfo.stars) {
-    resultText = 'Menang';
+    resultText = t.clanWar.resultWin;
     resultColor = 'text-coc-green';
   } else if (ourClanInfo.stars < opponentClanInfo.stars) {
-    resultText = 'Kalah';
+    resultText = t.clanWar.resultLose;
     resultColor = 'text-coc-red';
   }
 
-  // Urutkan anggota di kedua klan berdasarkan posisi peta
   const ourMembers = [...(ourClanInfo.members || [])].sort(
     (a, b) => a.mapPosition - b.mapPosition
   );
@@ -83,7 +74,7 @@ const CwlWarRow: React.FC<CwlWarRowProps> = ({
 
   return (
     <Fragment>
-      {/* Baris Ringkasan (Summary Row) yang bisa diklik */}
+      {/* Baris Ringkasan */}
       <tr
         className="hover:bg-coc-stone/20 transition-colors cursor-pointer"
         onClick={() => setIsRowOpen(!isRowOpen)}
@@ -130,7 +121,7 @@ const CwlWarRow: React.FC<CwlWarRowProps> = ({
         </td>
       </tr>
 
-      {/* Baris Rincian (Detail Row) yang bisa dibuka */}
+      {/* Baris Rincian */}
       {isRowOpen && (
         <tr className="bg-coc-dark/30">
           <td colSpan={5} className="p-0">
@@ -144,17 +135,15 @@ const CwlWarRow: React.FC<CwlWarRowProps> = ({
                   <table className="min-w-full text-xs">
                     <thead className="bg-coc-stone/50">
                       <tr>
-                        <th className="px-2 py-1 text-center font-clash text-coc-gold uppercase">
-                          #
-                        </th>
+                        <th className="px-2 py-1 text-center font-clash text-coc-gold uppercase">#</th>
                         <th className="px-2 py-1 text-left font-clash text-coc-gold uppercase">
-                          Pemain
+                          {t.clanMembers.colPlayer}
                         </th>
                         <th className="px-2 py-1 text-center font-clash text-coc-gold uppercase">
-                          Serangan
+                          {t.clanWar.colAttacks}
                         </th>
                         <th className="px-2 py-1 text-center font-clash text-coc-gold uppercase">
-                          Defend
+                          Defense
                         </th>
                       </tr>
                     </thead>
@@ -179,17 +168,15 @@ const CwlWarRow: React.FC<CwlWarRowProps> = ({
                   <table className="min-w-full text-xs">
                     <thead className="bg-coc-stone/50">
                       <tr>
-                        <th className="px-2 py-1 text-center font-clash text-coc-gold uppercase">
-                          #
-                        </th>
+                        <th className="px-2 py-1 text-center font-clash text-coc-gold uppercase">#</th>
                         <th className="px-2 py-1 text-left font-clash text-coc-gold uppercase">
-                          Pemain
+                          {t.clanMembers.colPlayer}
                         </th>
                         <th className="px-2 py-1 text-center font-clash text-coc-gold uppercase">
-                          Serangan
+                          {t.clanWar.colAttacks}
                         </th>
                         <th className="px-2 py-1 text-center font-clash text-coc-gold uppercase">
-                          Defend
+                          Defense
                         </th>
                       </tr>
                     </thead>

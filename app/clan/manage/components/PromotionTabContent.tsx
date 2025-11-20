@@ -15,18 +15,18 @@ import {
   AlertTriangleIcon,
   ThumbsUpIcon,
   UploadIcon,
-  PlusIcon, // [BARU V4] Ikon untuk tombol tambah
-  XIcon, // [BARU V4] Ikon untuk tombol batal
+  PlusIcon, 
+  XIcon, 
 } from '@/app/components/icons';
 import { NotificationProps } from '@/app/components/ui/Notification';
-import PromotionAnalytics from './PromotionAnalytics'; // [BARU V4] Impor Komponen Analitik
+import PromotionAnalytics from './PromotionAnalytics';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
 
 interface PromotionTabContentProps {
   clan: ManagedClan;
   onAction: (message: string, type: NotificationProps['type']) => void;
 }
 
-// [EDIT V3] Sesuaikan Tipe Omit dengan interface Promotion yang baru
 type NewPromotionData = Omit<
   Promotion,
   'id' | 'clanId' | 'totalClicks' | 'clicksByTH'
@@ -36,7 +36,8 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
   clan,
   onAction,
 }) => {
-  // --- [ROMBAK V2] State Management ---
+  const { t } = useLanguage(); // [BARU]
+  
   const [promotions, setPromotions] = useState<FirestoreDocument<Promotion>[]>(
     [],
   );
@@ -49,16 +50,14 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
 
-  // --- [BARU V4] State untuk menampilkan/menyembunyikan form ---
   const [showAddForm, setShowAddForm] = useState(false);
 
-  // [ROMBAK V2] Fungsi untuk mengambil daftar promosi
   const fetchPromotions = async () => {
     setIsLoadingList(true);
     try {
       const response = await fetch(`/api/clan/manage/${clan.id}/promotions`);
       if (!response.ok) {
-        throw new Error('Gagal memuat daftar promosi.');
+        throw new Error(t.clanBanners.loadingList + ' (Failed)'); // [i18n] Fallback
       }
       const data = (await response.json()) as FirestoreDocument<Promotion>[];
       setPromotions(data);
@@ -69,11 +68,10 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
     }
   };
 
-  // [ROMBAK V2] Mengambil daftar saat komponen dimuat
   useEffect(() => {
     fetchPromotions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Hanya dijalankan sekali saat mount
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -82,43 +80,39 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // [ROMBAK V2] Handler untuk membuat promosi baru (POST)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.imageUrl || !formData.title || !formData.description) {
-      onAction('Harap isi semua field (Link Gambar, Judul, Deskripsi).', 'error');
+      onAction(t.clanBanners.valAllFields, 'error'); // [i18n]
       return;
     }
     if (!formData.imageUrl.startsWith('https://i.imgur.com/')) {
-      onAction(
-        'Link Gambar tidak valid. Harap gunakan link Imgur (https://i.imgur.com/...).',
-        'error',
-      );
+      onAction(t.clanBanners.valImgUrl, 'error'); // [i18n]
       return;
     }
 
     setIsSubmitting(true);
-    onAction('Menambahkan promosi...', 'info');
+    onAction(t.clanBanners.btnSubmitting, 'info'); // [i18n]
 
     try {
       const response = await fetch(
-        `/api/clan/manage/${clan.id}/promotions`, // Endpoint plural
+        `/api/clan/manage/${clan.id}/promotions`,
         {
-          method: 'POST', // Method POST
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData), // Kirim data form baru
+          body: JSON.stringify(formData),
         },
       );
 
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.message || 'Gagal menambahkan promosi.');
+        throw new Error(result.message || t.common.error);
       }
 
-      onAction('Promosi berhasil ditambahkan!', 'success');
-      setFormData({ imageUrl: '', title: '', description: '' }); // Reset form
-      await fetchPromotions(); // Muat ulang daftar promosi
-      setShowAddForm(false); // [BARU V4] Tutup form setelah berhasil
+      onAction(t.clanBanners.toastAdded, 'success'); // [i18n]
+      setFormData({ imageUrl: '', title: '', description: '' });
+      await fetchPromotions();
+      setShowAddForm(false);
     } catch (err) {
       onAction((err as Error).message, 'error');
     } finally {
@@ -126,16 +120,15 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
     }
   };
 
-  // [ROMBAK V2] Handler untuk menghapus promosi spesifik (DELETE by ID)
   const handleDelete = async (promotionId: string) => {
-    if (isDeletingId) return; // Mencegah klik ganda
+    if (isDeletingId) return;
 
-    setIsDeletingId(promotionId); // Set ID yang sedang dihapus
-    onAction('Menghapus promosi...', 'info');
+    setIsDeletingId(promotionId);
+    onAction(t.common.delete + '...', 'info'); // [i18n]
 
     try {
       const response = await fetch(
-        `/api/clan/manage/${clan.id}/promotions/${promotionId}`, // Endpoint dengan ID
+        `/api/clan/manage/${clan.id}/promotions/${promotionId}`,
         {
           method: 'DELETE',
         },
@@ -143,44 +136,40 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
 
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.message || 'Gagal menghapus promosi.');
+        throw new Error(result.message || t.common.error);
       }
 
-      onAction('Promosi berhasil dihapus.', 'success');
-      // Update state secara optimis (hapus dari daftar)
+      onAction(t.clanBanners.toastDeleted, 'success'); // [i18n]
       setPromotions((prev) => prev.filter((p) => p.id !== promotionId));
     } catch (err) {
       onAction((err as Error).message, 'error');
     } finally {
-      setIsDeletingId(null); // Selesai menghapus
+      setIsDeletingId(null);
     }
   };
 
   return (
     <div className="mx-auto">
-      {/* --- [BARU V4] BAGIAN ANALITIK --- */}
-      {/* Komponen ini akan menampilkan "memuat" atau "belum ada data" jika array 'promotions' kosong */}
+      {/* --- BAGIAN ANALITIK --- */}
       <PromotionAnalytics promotions={promotions} />
 
-      {/* --- [ROMBAK V4] BAGIAN FORM (SEKARANG KONDISIONAL) --- */}
+      {/* --- BAGIAN FORM --- */}
       <div className="mt-8 max-w-2xl">
         {!showAddForm ? (
-          // Tombol untuk menampilkan form
           <Button
             variant="primary"
             onClick={() => setShowAddForm(true)}
             className="w-full sm:w-auto"
-            disabled={isLoadingList} // Jangan izinkan tambah jika daftar masih loading
+            disabled={isLoadingList}
           >
             <PlusIcon className="h-5 w-5 mr-2" />
-            Buat Promosi Baru
+            {t.clanBanners.btnAdd} {/* [i18n] */}
           </Button>
         ) : (
-          // Form (dibungkus dalam kartu agar rapi)
           <div className="card-stone p-6 relative">
             <div className="flex justify-between items-start mb-2">
               <h2 className="text-2xl font-clash text-coc-gold">
-                Tambah Banner Promosi
+                {t.clanBanners.formTitle} {/* [i18n] */}
               </h2>
               <Button
                 variant="ghost"
@@ -193,8 +182,7 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
               </Button>
             </div>
             <p className="text-gray-400 font-sans mb-6">
-              Banner yang Anda tambahkan akan muncul di carousel halaman Clan Hub
-              dan mengarahkan pengguna ke profil klan Anda.
+              {t.clanBanners.formDesc} {/* [i18n] */}
             </p>
 
             {/* Peringatan Imgur */}
@@ -202,16 +190,10 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
               <AlertTriangleIcon className="h-6 w-6 text-coc-yellow flex-shrink-0 mt-0.5" />
               <div className="font-sans">
                 <h4 className="font-bold text-coc-yellow">
-                  Perhatian: Link Gambar
+                  {t.clanBanners.alertImgTitle} {/* [i18n] */}
                 </h4>
                 <p className="text-sm text-gray-300">
-                  Gunakan link gambar langsung dari{' '}
-                  <strong className="text-white">Imgur</strong> (harus diawali
-                  dengan{' '}
-                  <code className="text-xs bg-black/50 px-1 py-0.5 rounded">
-                    https://i.imgur.com/...
-                  </code>
-                  ).
+                  {t.clanBanners.alertImgDesc} {/* [i18n] */}
                 </p>
               </div>
             </div>
@@ -222,7 +204,7 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
                   htmlFor="imageUrl"
                   className="block text-sm font-medium text-gray-300 mb-1 font-sans"
                 >
-                  Link Gambar (Imgur)
+                  {t.clanBanners.labelImgUrl} {/* [i18n] */}
                 </label>
                 <Input
                   id="imageUrl"
@@ -242,7 +224,7 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
                   htmlFor="title"
                   className="block text-sm font-medium text-gray-300 mb-1 font-sans"
                 >
-                  Judul (Hanya untuk referensi Anda)
+                  {t.clanBanners.labelTitle} {/* [i18n] */}
                 </label>
                 <Input
                   id="title"
@@ -263,7 +245,7 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
                   htmlFor="description"
                   className="block text-sm font-medium text-gray-300 mb-1 font-sans"
                 >
-                  Deskripsi Singkat (Hanya untuk referensi Anda)
+                  {t.clanBanners.labelDesc} {/* [i18n] */}
                 </label>
                 <Input
                   id="description"
@@ -291,15 +273,15 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
                   ) : (
                     <UploadIcon className="h-4 w-4 mr-2" />
                   )}
-                  {isSubmitting ? 'Menambahkan...' : 'Tambah Promosi'}
+                  {isSubmitting ? t.clanBanners.btnSubmitting : t.clanBanners.btnSubmit} {/* [i18n] */}
                 </Button>
                 <Button
-                  type="button" // Pastikan tipe "button" agar tidak submit form
+                  type="button"
                   variant="secondary"
                   onClick={() => setShowAddForm(false)}
                   disabled={isSubmitting}
                 >
-                  Batal
+                  {t.clanBanners.btnCancel} {/* [i18n] */}
                 </Button>
               </div>
             </form>
@@ -310,16 +292,16 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
       {/* --- BAGIAN DAFTAR PROMOSI --- */}
       <div className="mt-12 pt-6 border-t border-coc-gold-dark/30">
         <h3 className="text-xl font-clash text-coc-gold mb-4">
-          Daftar Promosi Aktif
+          {t.clanBanners.listTitle} {/* [i18n] */}
         </h3>
         {isLoadingList ? (
           <div className="flex justify-center items-center py-10">
             <RefreshCwIcon className="h-6 w-6 text-coc-gold animate-spin" />
-            <p className="ml-3 text-gray-400">Memuat daftar promosi...</p>
+            <p className="ml-3 text-gray-400">{t.clanBanners.loadingList}</p> {/* [i18n] */}
           </div>
         ) : promotions.length === 0 ? (
           <p className="text-gray-500 font-sans text-center py-10">
-            Anda belum memiliki promosi aktif.
+            {t.clanBanners.noBanners} {/* [i18n] */}
           </p>
         ) : (
           <div className="space-y-4">
@@ -331,10 +313,10 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
                 <Image
                   src={promo.imageUrl}
                   alt={promo.title}
-                  width={128} // 16:9 aspect ratio (128 / 72)
+                  width={128}
                   height={72}
                   className="rounded-md object-cover w-full sm:w-32 h-auto sm:h-[72px] flex-shrink-0 border-2 border-coc-gold-dark/50"
-                  unoptimized // Karena ini link eksternal (Imgur)
+                  unoptimized
                 />
                 <div className="flex-grow text-center sm:text-left">
                   <h4 className="text-lg font-clash text-white">
@@ -346,17 +328,15 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
                   <div className="flex items-center justify-center sm:justify-start gap-2 text-coc-gold mt-2">
                     <ThumbsUpIcon className="h-4 w-4" />
                     <span className="text-sm font-sans font-bold">
-                      {/* [EDIT V3 - TUGAS 5.1] Menggunakan totalClicks */}
-                      {promo.totalClicks} Total Klik
+                      {promo.totalClicks} {t.clanBanners.clicks} {/* [i18n] */}
                     </span>
                   </div>
-                  {/* [BARU V3] Tampilkan rincian klik per TH */}
+                  {/* Tampilkan rincian klik per TH */}
                   {promo.clicksByTH &&
                     Object.keys(promo.clicksByTH).length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-2 justify-center sm:justify-start">
                         {Object.entries(promo.clicksByTH)
                           .sort((a, b) => {
-                            // Sortir descending berdasarkan TH numerik, 'unknown' di akhir
                             const thA =
                               a[0] === 'unknown' ? 0 : parseInt(a[0]);
                             const thB =
@@ -387,7 +367,7 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
                   ) : (
                     <TrashIcon className="h-4 w-4" />
                   )}
-                  <span className="ml-2 sm:hidden lg:inline-block">Hapus</span>
+                  <span className="ml-2 sm:hidden lg:inline-block">{t.common.delete}</span> {/* [i18n] */}
                 </Button>
               </div>
             ))}

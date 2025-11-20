@@ -1,21 +1,17 @@
-// File: app/clan/manage/components/CwlSeasonAccordion.tsx
-// Komponen ini menampilkan satu musim CWL (misal "November 2025") sebagai accordion.
-// Saat dibuka, ia me-render tabel CwlWarRow.
-
 'use client';
 
 import React, { useState } from 'react';
 import { format } from 'date-fns';
-import { id } from 'date-fns/locale';
+import { id, enUS } from 'date-fns/locale'; // [BARU] Import locale enUS
 import { FirestoreDocument, CwlArchive } from '@/lib/types';
 import { ChevronDownIcon, ChevronUpIcon } from '@/app/components/icons';
-import CwlWarRow from './CwlWarRow'; // Impor dari file di Canvas
+import CwlWarRow from './CwlWarRow';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook i18n
 
 interface CwlSeasonAccordionProps {
   archive: FirestoreDocument<CwlArchive>;
   ourClanTag: string;
-  // Buka accordion pertama secara default
-  isDefaultOpen: boolean; 
+  isDefaultOpen: boolean;
 }
 
 const CwlSeasonAccordion: React.FC<CwlSeasonAccordionProps> = ({
@@ -23,18 +19,22 @@ const CwlSeasonAccordion: React.FC<CwlSeasonAccordionProps> = ({
   ourClanTag,
   isDefaultOpen,
 }) => {
+  const { t, language } = useLanguage(); // [BARU] Init Language
   const [isOpen, setIsOpen] = useState(isDefaultOpen);
+
+  // [i18n] Pilih locale date-fns berdasarkan bahasa aplikasi
+  const dateLocale = language === 'id' ? id : enUS;
 
   // Format Musim (Contoh: "2025-11" -> "November 2025")
   const formattedSeason = archive.season
-    ? format(new Date(archive.season + '-02'), 'MMMM yyyy', { locale: id })
-    : 'Musim Tidak Diketahui';
+    ? format(new Date(archive.season + '-02'), 'MMMM yyyy', { locale: dateLocale })
+    : t.common.noData;
 
   const rounds = archive.rounds || [];
 
   return (
     <div className="card-stone border border-coc-gold-dark/30 rounded-lg overflow-hidden">
-      {/* Header Accordion (Bisa diklik) */}
+      {/* Header Accordion */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between p-4 bg-coc-stone/30 hover:bg-coc-stone/50 transition-colors"
@@ -54,19 +54,19 @@ const CwlSeasonAccordion: React.FC<CwlSeasonAccordionProps> = ({
             <thead className="bg-coc-stone/70 sticky top-0">
               <tr>
                 <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider w-10">
-                  Ronde
+                  {t.clanCwl.colRound}
                 </th>
                 <th className="px-3 py-2 text-left font-clash text-coc-gold uppercase tracking-wider">
-                  Lawan
+                  {t.clanCwl.colEnemy}
                 </th>
                 <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">
-                  Hasil
+                  {t.clanWar.colResult}
                 </th>
                 <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">
-                  Skor
+                  {t.clanWar.colScore}
                 </th>
                 <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">
-                  Kehancuran
+                  {t.clanWar.colDestruction}
                 </th>
               </tr>
             </thead>

@@ -429,7 +429,7 @@ export interface Translation {
     settingsTitle: string;
     settingsDesc: string;
     
-    // [BARU - Header & Summary]
+    // Header & Summary
     dashboardTitle: string;
     manageLabel: string;
     roleLabel: string;
@@ -494,5 +494,228 @@ export interface Translation {
     msgOwnerUpdated: string;
     msgSyncSuccess: string;
     msgSyncError: string;
+  };
+
+  // [BATCH A: Members & Requests]
+  clanMembers: {
+    tabTitle: string;
+    searchPlaceholder: string;
+    filterRole: string;
+    roleAll: string;
+    colRank: string;
+    colPlayer: string;
+    colDonations: string;
+    colLastActive: string;
+    colActions: string;
+    actionPromote: string;
+    actionDemote: string;
+    actionKick: string;
+    modalKickTitle: string;
+    modalKickConfirm: string;
+    modalRoleTitle: string;
+    modalRoleConfirm: string;
+    toastSuccess: string;
+    toastError: string;
+    roles: {
+      leader: string;
+      coLeader: string;
+      admin: string;
+      member: string;
+    };
+  };
+  clanRequests: {
+    tabTitle: string;
+    noRequests: string;
+    colPlayer: string;
+    colMessage: string;
+    colActions: string;
+    actionAccept: string;
+    actionReject: string;
+    modalAcceptTitle: string;
+    modalRejectTitle: string;
+    confirmAccept: string;
+    confirmReject: string;
+    toastAccepted: string;
+    toastRejected: string;
+  };
+
+  // [BATCH B: War & CWL]
+  clanWar: {
+    tabTitleActive: string;
+    tabTitleHistory: string;
+    noActiveWar: string;
+    noWarHistory: string;
+    colEnemy: string;
+    colResult: string;
+    colScore: string;
+    colStars: string;
+    colDestruction: string;
+    colDate: string;
+    colTeamSize: string;
+    colAttacks: string;
+    statusPrep: string;
+    statusBattle: string;
+    statusEnded: string;
+    resultWin: string;
+    resultLose: string;
+    resultDraw: string;
+    viewDetails: string;
+    updateLog: string;
+    syncSuccess: string;
+    privateLog: string;
+    // Untuk WarDetailModal
+    modalTitle: string;
+    modalMapPosition: string;
+    modalAttacks: string;
+    modalDefense: string;
+    modalBestDefense: string;
+    modalClose: string;
+  };
+  clanCwl: {
+    tabTitle: string;
+    noCwlHistory: string;
+    seasonHeader: string;
+    leagueLabel: string;
+    rankLabel: string;
+    colRound: string;
+    colEnemy: string;
+    colStars: string;
+    colDestruction: string;
+    statusActive: string;
+    statusEnded: string;
+  };
+
+  // [BATCH C: Esports]
+  clanEsports: {
+    tabTitle: string;
+    tabDesc: string;
+    createTeam: string;
+    noTeamsTitle: string;
+    noTeamsDescManager: string;
+    noTeamsDescMember: string;
+    loadingTeams: string;
+    errorMembersTitle: string;
+    errorMembersDesc: string;
+    
+    // Modal Create/Edit
+    createModalTitle: string;
+    editModalTitle: string;
+    labelTeamName: string;
+    placeholderTeamName: string;
+    labelSelectMembers: string;
+    helperSelectMembers: string;
+    noVerifiedMembers: string;
+    alreadyInTeam: string;
+    labelSelectLeader: string;
+    placeholderSelectLeader: string;
+    optionSelect5First: string;
+    btnSave: string;
+    btnSaving: string;
+
+    // Alerts & Toasts
+    toastFetchError: string;
+    toastCreateSuccess: string;
+    toastDeleteSuccess: string;
+    toastUpdateSuccess: string;
+    alertCreateTitle: string;
+    alertCreateMessage: string;
+    
+    // Validations
+    valNameEmpty: string;
+    valCountError: string;
+    valMaxCount: string;
+    valLeaderEmpty: string;
+
+    // Card
+    leaderLabel: string;
+    incompleteTeam: string;
+    deleteConfirm: string;
+  };
+
+  // [BATCH D: Raid & Promotions]
+  clanRaid: {
+    tabTitle: string;
+    currentRaidTitle: string;
+    historyTitle: string;
+    noData: string;
+    noDataDesc: string;
+    noHistory: string;
+    statusOngoing: string;
+    statusEnded: string;
+    labelStart: string;
+    labelEnd: string;
+    labelTotalLoot: string;
+    labelTotalAttacks: string;
+    labelEnemyDistricts: string;
+    labelMedals: string;
+    labelParticipants: string;
+    colRank: string;
+    colPlayer: string;
+    colAttacks: string;
+    colLoot: string;
+    btnRefresh: string;
+    raidFinishedAt: string;
+  };
+  clanPromotions: {
+    tabTitle: string;
+    tabDesc: string;
+    candidatesTitle: string;
+    risksTitle: string;
+    noCandidates: string;
+    noRisks: string;
+    colMember: string;
+    colReason: string;
+    colAction: string;
+    btnPromote: string;
+    btnDemote: string;
+    btnDismiss: string;
+    // Untuk Analytics
+    analyticsTitle: string;
+    totalPromotions: string;
+    totalDemotions: string;
+    activityTrends: string;
+    basedOn30Days: string;
+  };
+  clanBanners: {
+    btnAdd: string;
+    formTitle: string;
+    formDesc: string;
+    alertImgTitle: string;
+    alertImgDesc: string;
+    labelImgUrl: string;
+    labelTitle: string;
+    labelDesc: string;
+    btnSubmit: string;
+    btnSubmitting: string;
+    btnCancel: string;
+    listTitle: string;
+    loadingList: string;
+    noBanners: string;
+    clicks: string;
+    clicksByTh: string;
+    toastAdded: string;
+    toastDeleted: string;
+    valAllFields: string;
+    valImgUrl: string;
+    // Analytics keys
+    analyticsTitle: string;
+    analyticsNoData: string;
+    statTotalClicks: string;
+    statTotalClicksDesc: string;
+    statTotalClicksNote: string;
+    chartPerformance: string;
+    chartDemographics: string;
+    chartNoData: string;
+  };
+
+  // [BATCH E: AI Assistant]
+  clanAI: {
+    title: string;
+    welcomeMessage: string;
+    inputPlaceholder: string;
+    thinking: string;
+    errorFetch: string;
+    errorGeneric: string;
+    errorPrefix: string;
   };
 }

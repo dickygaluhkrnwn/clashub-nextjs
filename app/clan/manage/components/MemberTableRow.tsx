@@ -5,9 +5,6 @@ import Image from 'next/image';
 import {
   ClanApiCache,
   UserProfile,
-  ClanRole,
-  ManagerRole,
-  StandardMemberRole,
 } from '@/lib/types';
 import { Button } from '@/app/components/ui/Button';
 import {
@@ -16,21 +13,20 @@ import {
   ChevronUpIcon,
 } from '@/app/components/icons';
 import { getThImage, formatNumber } from '@/lib/th-utils';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
 
-// Tipe RosterMember didefinisikan di sini agar komponen ini mandiri.
-// Ini adalah salinan dari tipe yang ada di MemberTabContent
+// Tipe RosterMember (Salinan dari MemberTabContent)
 export type RosterMember = ClanApiCache['members'][number] & {
   uid?: string;
-  clashubRole: ManagerRole | StandardMemberRole;
+  clashubRole: UserProfile['role'];
   isVerified: boolean;
 };
 
 interface MemberTableRowProps {
   member: RosterMember;
-  userProfile: UserProfile; // Profil user yang sedang login
+  userProfile: UserProfile;
   isManager: boolean;
   isLeader: boolean;
-  // Handler diteruskan dari parent (MemberTabContent)
   onRoleChange: (
     memberUid: string,
     newClashubRole: UserProfile['role']
@@ -41,6 +37,7 @@ interface MemberTableRowProps {
 
 /**
  * Helper function visual untuk status partisipasi
+ * (Warna tetap hardcoded berdasarkan value string dari backend)
  */
 const getParticipationStatusClass = (
   status: ClanApiCache['members'][number]['participationStatus']
@@ -61,7 +58,6 @@ const getParticipationStatusClass = (
 /**
  * @component MemberTableRow
  * Komponen ini me-render satu baris (<tr>) untuk tabel anggota.
- * Logika state untuk dropdown role di-handle secara lokal.
  */
 export const MemberTableRow: React.FC<MemberTableRowProps> = ({
   member,
@@ -72,13 +68,13 @@ export const MemberTableRow: React.FC<MemberTableRowProps> = ({
   onKick,
   availableClashubRoles,
 }) => {
-  // State untuk dropdown role sekarang lokal di setiap baris
+  const { t } = useLanguage(); // [BARU] Hook i18n
   const [openRoleDropdown, setOpenRoleDropdown] = useState<string | null>(null);
 
-  // --- Logika Otorisasi (Sama seperti di file asli) ---
+  // --- Logika Otorisasi ---
   const canModify =
     member.clashubRole !== 'Leader' && member.uid !== userProfile.uid;
-  // Co-Leader tidak bisa mengubah Co-Leader lain
+  
   const isCoLeaderModifyingCoLeader =
     userProfile.role === 'Co-Leader' && member.clashubRole === 'Co-Leader';
 
@@ -109,7 +105,7 @@ export const MemberTableRow: React.FC<MemberTableRowProps> = ({
               {member.tag}
             </p>
             <p className="text-gray-400 block text-xs font-sans capitalize">
-              {member.role} CoC
+              {member.role} CoC {/* Role CoC (in-game) tetap string asli */}
             </p>
           </div>
         </div>
@@ -171,13 +167,8 @@ export const MemberTableRow: React.FC<MemberTableRowProps> = ({
               ? 'text-coc-green block mb-1 font-mono'
               : 'text-coc-red block mb-1 font-mono'
           }
-          title={
-            member.isVerified
-              ? 'Akun Clashub Terverifikasi'
-              : 'Akun Clashub Belum Terverifikasi'
-          }
         >
-          {member.isVerified ? 'VERIFIED' : 'UNVERIFIED'}
+          {member.isVerified ? t.profileSidebar.verified.toUpperCase() : t.profileSidebar.unverified.toUpperCase()}
         </span>
 
         {member.uid ? (
@@ -216,14 +207,13 @@ export const MemberTableRow: React.FC<MemberTableRowProps> = ({
                             onClick={(e) => {
                               e.preventDefault();
                               onRoleChange(member.uid!, role);
-                              setOpenRoleDropdown(null); // Tutup setelah klik
+                              setOpenRoleDropdown(null);
                             }}
                             className={`block px-4 py-2 text-xs text-white hover:bg-coc-gold-dark/30 ${
                               member.clashubRole === role
                                 ? 'bg-coc-gold-dark/50 font-bold'
                                 : ''
                             }`}
-                            title={`Ubah role menjadi ${role}`}
                           >
                             {role}
                           </a>
@@ -238,12 +228,11 @@ export const MemberTableRow: React.FC<MemberTableRowProps> = ({
                   type="button"
                   size="sm"
                   variant="secondary"
-                  // Gunakan handler prop 'onKick'
                   onClick={() => onKick(member.uid!)}
                   disabled={isActionDisabled}
                   className="w-full justify-center bg-coc-red/20 text-coc-red hover:bg-coc-red/30 border border-coc-red/30"
                 >
-                  <TrashIcon className="h-3 w-3 mr-1" /> Kick
+                  <TrashIcon className="h-3 w-3 mr-1" /> {t.clanMembers.actionKick}
                 </Button>
               </>
             ) : (
@@ -255,7 +244,7 @@ export const MemberTableRow: React.FC<MemberTableRowProps> = ({
           </div>
         ) : (
           <span className="text-gray-600 italic text-xs">
-            No Clashub Account
+             No Account
           </span>
         )}
       </td>

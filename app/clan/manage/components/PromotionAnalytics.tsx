@@ -9,7 +9,6 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  Legend,
   PieChart,
   Pie,
   Cell,
@@ -19,6 +18,7 @@ import {
   PieChartIcon,
   ThumbsUpIcon,
 } from '@/app/components/icons';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook i18n
 
 interface PromotionAnalyticsProps {
   promotions: FirestoreDocument<Promotion>[];
@@ -49,6 +49,8 @@ const sortTHData = (
 export const PromotionAnalytics: React.FC<PromotionAnalyticsProps> = ({
   promotions,
 }) => {
+  const { t } = useLanguage(); // [BARU] Init Hook
+
   // --- Agregasi Data ---
   const {
     totalKlikSeluruhPromosi,
@@ -94,10 +96,10 @@ export const PromotionAnalytics: React.FC<PromotionAnalyticsProps> = ({
     return (
       <div className="card-stone p-6 text-center">
         <h3 className="text-xl font-clash text-coc-gold mb-2">
-          Laporan Analitik
+          {t.clanBanners.analyticsTitle}
         </h3>
         <p className="text-gray-400 font-sans">
-          Belum ada data analitik. Buat promosi baru untuk mulai melacak performa.
+          {t.clanBanners.analyticsNoData}
         </p>
       </div>
     );
@@ -107,7 +109,7 @@ export const PromotionAnalytics: React.FC<PromotionAnalyticsProps> = ({
   return (
     <div className="mb-8">
       <h2 className="text-2xl font-clash text-coc-gold mb-4">
-        Laporan Analitik
+        {t.clanBanners.analyticsTitle}
       </h2>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Kartu 1: Total Klik */}
@@ -116,18 +118,18 @@ export const PromotionAnalytics: React.FC<PromotionAnalyticsProps> = ({
             <div className="flex items-center gap-3 mb-2">
               <ThumbsUpIcon className="h-5 w-5 text-coc-gold" />
               <h3 className="text-lg font-clash text-coc-gold-light">
-                Total Klik (Semua Banner)
+                {t.clanBanners.statTotalClicks}
               </h3>
             </div>
             <p className="text-5xl font-clash text-white">
               {totalKlikSeluruhPromosi}
             </p>
             <p className="font-sans text-gray-400">
-              Total klik yang tercatat dari semua banner promosi Anda.
+              {t.clanBanners.statTotalClicksDesc}
             </p>
           </div>
           <div className="font-sans text-sm text-gray-500 mt-4">
-            Statistik ini membantu mengukur jangkauan total promosi Anda.
+            {t.clanBanners.statTotalClicksNote}
           </div>
         </div>
 
@@ -136,7 +138,7 @@ export const PromotionAnalytics: React.FC<PromotionAnalyticsProps> = ({
           <div className="flex items-center gap-3 mb-4">
             <BarChart2Icon className="h-5 w-5 text-coc-gold" />
             <h3 className="text-lg font-clash text-coc-gold-light">
-              Performa per Banner
+              {t.clanBanners.chartPerformance}
             </h3>
           </div>
           {dataPerformaBanner.length > 0 ? (
@@ -164,7 +166,9 @@ export const PromotionAnalytics: React.FC<PromotionAnalyticsProps> = ({
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <p className="text-gray-500 text-center pt-10">Tidak ada data.</p>
+            <p className="text-gray-500 text-center pt-10">
+              {t.clanBanners.chartNoData}
+            </p>
           )}
         </div>
 
@@ -173,7 +177,7 @@ export const PromotionAnalytics: React.FC<PromotionAnalyticsProps> = ({
           <div className="flex items-center gap-3 mb-4">
             <PieChartIcon className="h-5 w-5 text-coc-gold" />
             <h3 className="text-lg font-clash text-coc-gold-light">
-              Demografi TH
+              {t.clanBanners.chartDemographics}
             </h3>
           </div>
           {dataDemografiTH.length > 0 ? (
@@ -187,7 +191,6 @@ export const PromotionAnalytics: React.FC<PromotionAnalyticsProps> = ({
                   cy="50%"
                   outerRadius={80}
                   fill="#8884d8"
-                  // [FIX V4] Mengganti entry.klik menjadi entry.value
                   label={(entry) => `${entry.name} (${entry.value})`}
                   labelLine={false}
                   fontSize={12}
@@ -206,12 +209,11 @@ export const PromotionAnalytics: React.FC<PromotionAnalyticsProps> = ({
                     borderRadius: '8px',
                   }}
                 />
-                {/* <Legend /> */}
               </PieChart>
             </ResponsiveContainer>
           ) : (
             <p className="text-gray-500 text-center pt-10">
-              Belum ada klik tercatat.
+              {t.clanBanners.chartNoData}
             </p>
           )}
         </div>

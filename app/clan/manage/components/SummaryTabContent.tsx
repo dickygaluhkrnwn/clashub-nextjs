@@ -1,4 +1,4 @@
-'use client'; // [PASTIKAN INI ADA KARENA PAKAI HOOKS]
+'use client';
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation'; 
@@ -7,7 +7,6 @@ import { Button } from '@/app/components/ui/Button';
 import {
   RefreshCwIcon,
   ClockIcon,
-  InfoIcon,
   SwordsIcon,
   ArrowUpIcon,
   ArrowDownIcon,
@@ -16,7 +15,6 @@ import {
   HomeIcon,
   StarIcon,
   ShieldIcon,
-  UserIcon,
   ArrowRightIcon,
 } from '@/app/components/icons';
 import TopPerformersCard from './TopPerformersCard';
@@ -28,7 +26,7 @@ import {
   useManagedClanWarLog,
   useManagedClanCWL,
 } from '@/lib/hooks/useManagedClan';
-import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook i18n
 
 interface SummaryTabContentProps {
   clan: ManagedClan;
@@ -84,9 +82,15 @@ const WarStatusDisplay: React.FC<WarStatusProps> = ({ war, clanTag, t }) => {
         else if (ourClan.stars < enemyClan.stars) result = 'lose';
         else result = 'tie';
       }
-      // [TERJEMAHAN]
-      const resultText = result === 'win' ? t.clanManage.warEnded + ' (WIN)' : result === 'lose' ? t.clanManage.warEnded + ' (LOSE)' : t.clanManage.warEnded + ' (TIE)';
-      stateText = resultText;
+      
+      // [i18n] Terjemahkan hasil perang
+      let resultLabel = '';
+      if (result === 'win') resultLabel = t.clanWar.resultWin.toUpperCase();
+      else if (result === 'lose') resultLabel = t.clanWar.resultLose.toUpperCase();
+      else resultLabel = t.clanWar.resultDraw.toUpperCase();
+
+      stateText = `${t.clanManage.warEnded} (${resultLabel})`;
+      
       stateClass =
         result === 'win'
           ? 'text-coc-green'
@@ -154,15 +158,16 @@ const WarStatusDisplay: React.FC<WarStatusProps> = ({ war, clanTag, t }) => {
 interface RaidSummaryProps {
   raid: CocRaidLog;
   t: any; // [BARU] Pass 't' helper
+  locale: string; // [BARU] Locale
 }
 
-const RaidSummaryDisplay: React.FC<RaidSummaryProps> = ({ raid, t }) => {
-  // Format tanggal
-  const startDate = new Date(raid.startTime).toLocaleDateString('id-ID', {
+const RaidSummaryDisplay: React.FC<RaidSummaryProps> = ({ raid, t, locale }) => {
+  // [i18n] Format tanggal dinamis
+  const startDate = new Date(raid.startTime).toLocaleDateString(locale, {
     day: 'numeric',
     month: 'short',
   });
-  const endDate = new Date(raid.endTime).toLocaleDateString('id-ID', {
+  const endDate = new Date(raid.endTime).toLocaleDateString(locale, {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -227,7 +232,8 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
   isManager,
   onAction,
 }) => {
-  const { t } = useLanguage(); // [BARU] Init Hook
+  const { t, language } = useLanguage(); // [BARU] Init Hook
+  const locale = language === 'id' ? 'id-ID' : 'en-US'; // [i18n] Tentukan locale format
   const router = useRouter(); 
 
   const {
@@ -242,7 +248,6 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
   } = useManagedClanWar(clan.id);
   const {
     currentRaid,
-    raidArchives, 
     isLoading: isLoadingRaid,
     mutateRaid: mutateRaid, 
   } = useManagedClanRaid(clan.id);
@@ -321,14 +326,15 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
     );
   }
 
+  // [i18n] Format tanggal update terakhir
   const lastSyncedDate = clanCache?.lastUpdated
     ? new Date(clanCache.lastUpdated)
     : new Date(0);
   const isCacheStale =
     !clanCache || lastSyncedDate.getTime() < Date.now() - 3600000;
   const lastSyncTime = clanCache?.lastUpdated
-    ? new Date(clanCache.lastUpdated).toLocaleString('id-ID')
-    : 'N/A';
+    ? new Date(clanCache.lastUpdated).toLocaleString(locale)
+    : t.clanManage.never;
 
   const topPerformers = clanCache?.topPerformers;
   const currentWar = warData; 
@@ -408,7 +414,6 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
           <h3 className="text-xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2">
             <SwordsIcon className="h-5 w-5 text-coc-red" /> {t.clanManage.activeWarTitle}
           </h3>
-          {/* REFAKTOR: Gunakan 'currentWar' dari SWR */}
           {isWarActive && currentWar ? (
             <WarStatusDisplay war={currentWar} clanTag={clan.tag} t={t} />
           ) : (
@@ -423,9 +428,8 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
         </div>
 
         {/* Kolom 3: Raid Terbaru */}
-        {/* REFAKTOR: Gunakan 'currentRaid' dari SWR */}
         {isRaidDataAvailable && currentRaid ? (
-          <RaidSummaryDisplay raid={currentRaid} t={t} />
+          <RaidSummaryDisplay raid={currentRaid} t={t} locale={locale} />
         ) : (
           <div className="card-stone p-6 space-y-4 border border-coc-gold/30 flex flex-col justify-center items-center">
             <HomeIcon className="h-8 w-8 text-coc-blue/50" />
@@ -447,7 +451,6 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
         <TrophyIcon className="h-6 w-6 text-coc-gold" /> {t.clanManage.performanceTitle}
       </h2>
 
-      {/* REFAKTOR: Tampilkan loading atau data untuk Top Performers */}
       {isLoadingBasic ? (
         <p className="text-sm text-gray-400">{t.clanManage.loadingPerformance}</p>
       ) : topPerformers ? (

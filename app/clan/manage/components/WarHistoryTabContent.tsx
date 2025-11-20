@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useMemo, useCallback } from 'react';
-// --- [MODIFIKASI] Impor tipe ManagedClan, WarSummary, WarResult, FirestoreDocument, dan WarArchive ---
 import {
   ManagedClan,
   WarSummary,
@@ -9,16 +8,11 @@ import {
   FirestoreDocument,
   WarArchive,
 } from '@/lib/types';
-
-// --- [MODIFIKASI] Impor hook SWR dan fetcher util ---
-// [PERBAIKAN BUG 3] Impor KeyedMutator agar kita bisa memanggil mutate dari SWR
-import useSWR, { KeyedMutator } from 'swr';
+import useSWR from 'swr';
 import { useManagedClanWarLog } from '@/lib/hooks/useManagedClan';
 import {
   BookOpenIcon,
-  ClockIcon,
   StarIcon,
-  SwordsIcon,
   AlertTriangleIcon,
   RefreshCwIcon,
   ArrowUpIcon,
@@ -27,12 +21,12 @@ import {
 } from '@/app/components/icons';
 import { Button } from '@/app/components/ui/Button';
 import WarDetailModal from './WarDetailModal';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook i18n
 
 // Helper fetcher sederhana untuk SWR
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface WarHistoryTabContentProps {
-  // Props sekarang hanya menerima objek clan lengkap
   clan: ManagedClan;
 }
 
@@ -40,14 +34,29 @@ interface WarHistoryTabContentProps {
 type SortKey = keyof WarSummary | 'none';
 type SortDirection = 'asc' | 'desc';
 
-// =TAHAP 5: SUB-KOMPONEN WarHistoryRow (TIDAK BERUBAH) =====================
-// Komponen ini sudah siap menerima prop 'hasDetails'
+// ======================================================================================================
+// SUB-KOMPONEN: WarHistoryRow
+// ======================================================================================================
 interface WarHistoryRowProps {
-  war: FirestoreDocument<WarSummary>; // Menerima WarSummary (yang sudah digabung)
+  war: FirestoreDocument<WarSummary>;
   onViewDetails: (warId: string) => void;
+  t: any; // [BARU] Props translation
+  locale: string; // [BARU] Locale string
 }
 
-const WarHistoryRow: React.FC<WarHistoryRowProps> = ({ war, onViewDetails }) => {
+const WarHistoryRow: React.FC<WarHistoryRowProps> = ({ war, onViewDetails, t, locale }) => {
+  // [i18n] Mapping hasil perang ke teks terjemahan
+  const getResultLabel = (result: string) => {
+    switch (result) {
+      case 'win': return t.clanWar.resultWin;
+      case 'lose': return t.clanWar.resultLose;
+      case 'tie': return t.clanWar.resultDraw;
+      default: return result.toUpperCase();
+    }
+  };
+
+  const resultLabel = getResultLabel(war.result);
+
   const resultClass =
     war.result === 'win'
       ? 'bg-coc-green text-black'
@@ -57,20 +66,19 @@ const WarHistoryRow: React.FC<WarHistoryRowProps> = ({ war, onViewDetails }) => 
       ? 'bg-coc-blue text-white'
       : 'bg-gray-600 text-white';
 
-  // Data dari SWR/API mungkin string, jadi kita pastikan itu objek Date
   const endTimeDate =
     war.endTime instanceof Date ? war.endTime : new Date(war.endTime);
 
+  // [i18n] Format tanggal dinamis
   const formattedDate =
     endTimeDate.getTime() === 0 || isNaN(endTimeDate.getTime())
       ? 'Invalid Date'
-      : endTimeDate.toLocaleDateString('id-ID', {
+      : endTimeDate.toLocaleDateString(locale, {
           day: '2-digit',
           month: 'short',
           year: 'numeric',
         });
 
-  // Logika kunci ada di sini
   const hasDetails = war.hasDetails === true;
 
   return (
@@ -80,13 +88,13 @@ const WarHistoryRow: React.FC<WarHistoryRowProps> = ({ war, onViewDetails }) => 
         <span
           className={`inline-block font-bold text-xs px-3 py-1 rounded-full ${resultClass}`}
         >
-          {war.result.toUpperCase()}
+          {resultLabel.toUpperCase()}
         </span>
       </td>
 
       {/* Kolom Lawan */}
       <td className="px-3 py-3 whitespace-nowrap text-sm font-semibold text-white">
-        {war.opponentName || 'Klan Lawan Tidak Diketahui'}
+        {war.opponentName || t.clanWar.privateLog || 'Unknown'}
       </td>
 
       {/* Kolom Ukuran Tim */}
@@ -117,7 +125,7 @@ const WarHistoryRow: React.FC<WarHistoryRowProps> = ({ war, onViewDetails }) => 
         {formattedDate}
       </td>
 
-      {/* Kolom Aksi (Logika dinamis berdasarkan hasDetails) */}
+      {/* Kolom Aksi */}
       <td className="px-3 py-3 whitespace-nowrap text-center w-[120px]">
         <Button
           size="sm"
@@ -125,8 +133,8 @@ const WarHistoryRow: React.FC<WarHistoryRowProps> = ({ war, onViewDetails }) => 
           disabled={!hasDetails}
           title={
             hasDetails
-              ? 'Lihat detail serangan dan pemain.'
-              : 'Hanya ringkasan log tersedia (Data arsip tidak ditemukan).'
+              ? t.clanWar.viewDetails
+              : t.clanWar.noWarHistory // Fallback tooltip
           }
           className={`text-xs ${
             !hasDetails
@@ -135,39 +143,41 @@ const WarHistoryRow: React.FC<WarHistoryRowProps> = ({ war, onViewDetails }) => 
           }`}
           onClick={hasDetails ? () => onViewDetails(war.id) : undefined}
         >
-          {hasDetails ? 'Lihat Detail' : 'Ringkasan Saja'}
+          {/* [i18n] Summary = Ringkasan (mengambil dari profile tabSummary) */}
+          {hasDetails ? t.clanWar.viewDetails : t.profile.tabSummary}
         </Button>
       </td>
     </tr>
   );
 };
-// ======================================================================================================
 
 // ======================================================================================================
-// Main Component: WarHistoryTabContent (MODIFIED)
+// Main Component: WarHistoryTabContent
 // ======================================================================================================
 
 const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({
   clan,
 }) => {
-  // --- [MODIFIKASI] Fetch 2 Sumber Data ---
-  // SUMBER 1: Data Ringkasan (Log Perang) - Cepat & Selalu ada
+  const { t } = useLanguage(); // [BARU] Init Language Hook
+  
+  // Deteksi locale sederhana
+  const currentLocale = t.common.loading === 'Loading...' ? 'en-US' : 'id-ID';
+
+  // --- Fetch Data ---
   const {
-    warLogData: historySummaries, // Ganti nama ke 'historySummaries'
+    warLogData: historySummaries,
     isLoading: isLoadingWarLog,
     isError: isErrorWarLog,
-    mutateWarLog: refreshHistory, // Tetap gunakan fungsi mutate ini
+    mutateWarLog: refreshHistory,
   } = useManagedClanWarLog(clan.id);
 
-  // SUMBER 2: Data Arsip Detail (Firestore) - Data lengkap hasil arsip
   const {
-    data: warArchives, // Ini adalah Array<FirestoreDocument<WarArchive>>
+    data: warArchives,
     error: isErrorArchives,
     isLoading: isLoadingArchives,
-    // [PERBAIKAN BUG 3] Ambil fungsi 'mutate' dari hook SWR kedua
     mutate: mutateWarArchives,
   } = useSWR<FirestoreDocument<WarArchive>[]>(
-    `/api/clan/manage/${clan.id}/war-archive`, // API route baru (Langkah 4)
+    `/api/clan/manage/${clan.id}/war-archive`,
     fetcher,
     {
       revalidateOnFocus: false,
@@ -176,44 +186,29 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({
       },
     }
   );
-  // --- [AKHIR MODIFIKASI FETCH] ---
 
-  // State Modal diubah untuk menyimpan objek data lengkap
-  const [selectedWarData, setSelectedWarData] = useState<WarArchive | null>(
-    null
-  );
-
+  // State
+  const [selectedWarData, setSelectedWarData] = useState<WarArchive | null>(null);
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({
     key: 'endTime',
     direction: 'desc',
   });
 
-  // Buat Map dari arsip detail untuk lookup cepat
-  // Map ini HANYA digunakan untuk MENGAMBIL data saat di-klik, BUKAN untuk logika merge
   const archiveMap = useMemo(() => {
     const map = new Map<string, FirestoreDocument<WarArchive>>();
     if (warArchives) {
       for (const archive of warArchives) {
-        // ID Dokumen adalah 'endTime' ISO string
         map.set(archive.id, archive);
       }
     }
     return map;
   }, [warArchives]);
 
-  // --- [PERBAIKAN BUG 2] Gabungkan data Ringkasan + Arsip, lalu urutkan ---
+  // Merge & Sort Logic
   const mergedAndSortedHistory = useMemo(() => {
-    // Gunakan historySummaries sebagai sumber kebenaran utama
     if (!historySummaries) return [];
 
-    // [PERBAIKAN BUG 2]
-    // Kita tidak perlu "merge" secara manual. Data 'historySummaries'
-    // dari hook 'useManagedClanWarLog' sudah berisi flag 'hasDetails'
-    // yang benar dari API 'warlog/route.ts' (baris 82).
-    // Kita langsung gunakan 'historySummaries'.
     const mergedData = [...historySummaries];
-
-    // 2. LOGIKA SORTIR (Sama seperti sebelumnya, tapi menggunakan mergedData)
     const resultOrder: Record<WarResult, number> = {
       win: 4,
       tie: 3,
@@ -227,7 +222,6 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({
 
       let valueA: any = a[sortKey];
       let valueB: any = b[sortKey];
-
       let comparison = 0;
 
       if (sortKey === 'result') {
@@ -251,49 +245,33 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({
     });
 
     return mergedData;
-  }, [historySummaries, sort]); // [PERBAIKAN BUG 2] 'archiveMap' dihapus dari dependensi
-  // --- [AKHIR PERBAIKAN BUG 2] ---
+  }, [historySummaries, sort]);
 
-  // Handler Modal diubah untuk menggunakan data lengkap dari 'archiveMap'
   const handleViewDetails = useCallback(
     (warId: string) => {
-      // Ambil data lengkap dari Map arsip
       const fullArchiveData = archiveMap.get(warId);
       if (fullArchiveData) {
         setSelectedWarData(fullArchiveData);
       } else {
-        console.error(
-          'Gagal membuka detail: Data arsip tidak ditemukan di map. ID:',
-          warId
-        );
-        // Fallback jika SWR 'warArchives' belum termuat (jarang terjadi)
-        alert(
-          'Data detail sedang dimuat. Silakan coba lagi dalam beberapa detik.'
-        );
+        // [i18n] Fallback alert
+        alert(t.common.loading); 
       }
     },
-    [archiveMap]
+    [archiveMap, t]
   );
 
   const handleCloseModal = useCallback(() => {
     setSelectedWarData(null);
   }, []);
 
-  // --- [PERBAIKAN BUG 3] Tombol Refresh sekarang me-refresh KEDUA hook SWR ---
   const handleFullRefresh = useCallback(() => {
-    console.log('[WarHistoryTab] Refreshing data...');
-    // 1. Refresh data ringkasan (dari warlog/route.ts)
     refreshHistory();
-    // 2. Refresh data arsip detail (dari war-archive/route.ts)
-    // Kita panggil mutate SWR kedua
     if (mutateWarArchives) {
-      // 'mutateWarArchives' adalah fungsi mutate() dari useSWR
       mutateWarArchives();
     }
-  }, [refreshHistory, mutateWarArchives]); // Tambahkan mutateWarArchives ke dependensi
-  // --- [AKHIR PERBAIKAN BUG 3] ---
+  }, [refreshHistory, mutateWarArchives]);
 
-  // Fungsi sortir (tidak berubah)
+  // Helper Sortir
   const handleSort = useCallback((key: SortKey) => {
     setSort((prev) => ({
       key,
@@ -301,7 +279,6 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({
     }));
   }, []);
 
-  // Helper sortir (tidak berubah)
   const getSortIcon = useCallback(
     (key: SortKey) => {
       if (sort.key !== key) return null;
@@ -322,65 +299,62 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({
     [sort]
   );
 
-  // Tampilan Loading & Error digabung
   const isLoading = isLoadingWarLog || isLoadingArchives;
-  const error = isErrorWarLog || isErrorArchives;
+  const isError = isErrorWarLog || isErrorArchives;
 
+  // --- Render States ---
   if (isLoading) {
     return (
       <div className="p-8 text-center bg-coc-stone/40 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
         <Loader2Icon className="h-8 w-8 text-coc-gold animate-spin mb-3" />
-        <p className="text-lg font-clash text-white">Memuat Riwayat War...</p>
+        <p className="text-lg font-clash text-white">{t.common.loading}</p>
         <p className="text-sm text-gray-400 font-sans mt-1">
-          Mengambil data arsip War Classic terbaru.
+          {t.clanManage.msgReloading}
         </p>
       </div>
     );
   }
 
-  if (error) {
-    const errorMessage = (isErrorWarLog || isErrorArchives).message;
+  if (isError) {
+    const errorMessage = (isErrorWarLog || isErrorArchives)?.message;
     return (
       <div className="p-8 text-center bg-coc-red/20 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
         <AlertTriangleIcon className="h-12 w-12 text-coc-red mb-3" />
-        <p className="text-lg font-clash text-white">Error Memuat Data</p>
+        <p className="text-lg font-clash text-white">{t.common.error}</p>
         <p className="text-sm text-gray-400 font-sans mt-1 max-w-md mx-auto">
-          {errorMessage}
+          {errorMessage || t.common.error}
         </p>
         <Button onClick={handleFullRefresh} variant="secondary" size="sm" className="mt-4">
-          <RefreshCwIcon className="h-4 w-4 mr-2" /> Coba Muat Ulang
+          <RefreshCwIcon className="h-4 w-4 mr-2" /> {t.clanManage.reloadCache}
         </Button>
       </div>
     );
   }
-  // --- [AKHIR MODIFIKASI] ---
 
-  // Tampilan Empty State (menggunakan data gabungan)
   if (!mergedAndSortedHistory || mergedAndSortedHistory.length === 0) {
     return (
       <div className="p-8 text-center bg-coc-stone/40 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
         <BookOpenIcon className="h-12 w-12 text-coc-gold/50 mb-3" />
-        <p className="text-lg font-clash text-white">Riwayat War Kosong</p>
+        <p className="text-lg font-clash text-white">{t.clanWar.noWarHistory}</p>
         <p className="text-sm text-gray-400 font-sans mt-1">
-          Belum ada arsip War Classic yang tersimpan di database.
+           {/* Empty description fallback */}
+           War history will appear here once data is synced.
         </p>
         <Button onClick={handleFullRefresh} variant="secondary" size="sm" className="mt-4">
-          <RefreshCwIcon className="h-4 w-4 mr-2" /> Sinkronisasi Ulang Klan
+          <RefreshCwIcon className="h-4 w-4 mr-2" /> {t.clanManage.reloadCache}
         </Button>
       </div>
     );
   }
 
-  // Tampilan Tabel Utama (RENDER)
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center border-b border-coc-gold-dark/50 pb-3">
         <h2 className="text-2xl font-clash text-white flex items-center gap-2">
-          <BookOpenIcon className="h-6 w-6 text-coc-gold" /> Riwayat War Klasik
+          <BookOpenIcon className="h-6 w-6 text-coc-gold" /> {t.clanWar.tabTitleHistory}
         </h2>
-        {/* [PERBAIKAN BUG 3] Tombol ini sekarang memanggil handleFullRefresh yang sudah diperbarui */}
         <Button onClick={handleFullRefresh} variant="secondary" size="sm">
-          <RefreshCwIcon className="h-4 w-4 mr-2" /> Muat Ulang & Sinkronisasi
+          <RefreshCwIcon className="h-4 w-4 mr-2" /> {t.clanWar.updateLog}
         </Button>
       </div>
 
@@ -388,79 +362,73 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({
         <table className="min-w-full divide-y divide-coc-gold-dark/20 text-xs">
           <thead className="bg-coc-stone/70 sticky top-0">
             <tr>
-              {/* Kolom Hasil (Sortable) */}
               <th
                 className={getHeaderClasses('result') + ' w-20'}
                 onClick={() => handleSort('result')}
               >
                 <div className="flex items-center justify-center">
-                  Hasil {getSortIcon('result')}
+                  {t.clanWar.colResult} {getSortIcon('result')}
                 </div>
               </th>
 
-              {/* Kolom Lawan (Sortable) */}
               <th
                 className={getHeaderClasses('opponentName') + ' text-left'}
                 onClick={() => handleSort('opponentName')}
               >
                 <div className="flex items-center justify-start">
-                  Lawan {getSortIcon('opponentName')}
+                  {t.clanWar.colEnemy} {getSortIcon('opponentName')}
                 </div>
               </th>
 
-              {/* Kolom Ukuran Tim (Sortable) */}
               <th
                 className={getHeaderClasses('teamSize') + ' w-20'}
                 onClick={() => handleSort('teamSize')}
               >
                 <div className="flex items-center justify-center">
-                  Ukuran {getSortIcon('teamSize')}
+                  {t.clanWar.colTeamSize} {getSortIcon('teamSize')}
                 </div>
               </th>
 
-              {/* Kolom Bintang (Sortable - Stars) */}
               <th
                 className={getHeaderClasses('ourStars')}
                 onClick={() => handleSort('ourStars')}
               >
                 <div className="flex items-center justify-center">
-                  Bintang / Persen {getSortIcon('ourStars')}
+                  {t.clanWar.colStars} {getSortIcon('ourStars')}
                 </div>
               </th>
 
-              {/* Kolom Tanggal Selesai (Sortable - Default) */}
               <th
                 className={getHeaderClasses('endTime') + ' w-32'}
                 onClick={() => handleSort('endTime')}
               >
                 <div className="flex items-center justify-center">
-                  Selesai {getSortIcon('endTime')}
+                  {t.clanWar.colDate} {getSortIcon('endTime')}
                 </div>
               </th>
 
-              {/* Kolom Aksi (Non-Sortable) */}
               <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider w-24">
-                Aksi
+                {t.clanMembers.colActions}
               </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-coc-gold-dark/10">
-            {/* [PERBAIKAN BUG 2] Gunakan 'mergedAndSortedHistory' */}
             {mergedAndSortedHistory.map((war) => (
               <WarHistoryRow
                 key={war.id}
                 war={war}
                 onViewDetails={handleViewDetails}
+                t={t}
+                locale={currentLocale}
               />
             ))}
           </tbody>
         </table>
       </div>
 
-      {/* Kirim data lengkap ke Modal */}
       <WarDetailModal
-        warData={selectedWarData} // Kirim objek WarArchive lengkap
-        clan={clan} // Kirim objek ManagedClan lengkap
+        warData={selectedWarData}
+        clan={clan}
         onClose={handleCloseModal}
       />
     </div>

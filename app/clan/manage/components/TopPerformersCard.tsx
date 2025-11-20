@@ -1,8 +1,9 @@
+'use client';
+
 import React from 'react';
-// Hapus import Image yang tidak digunakan
 import { TopPerformerPlayer } from '@/lib/types';
-import { ArrowUpIcon, ArrowDownIcon, TrophyIcon, SwordsIcon, CoinsIcon } from '@/app/components/icons';
-// Hapus StarIcon yang tidak digunakan
+import { ArrowUpIcon, ArrowDownIcon } from '@/app/components/icons';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook
 
 interface TopPerformersCardProps {
     title: string;
@@ -11,7 +12,7 @@ interface TopPerformersCardProps {
     description: string;
     className: string;
     players?: TopPerformerPlayer[];
-    isPlayerList?: boolean; // Menunjukkan apakah kontennya adalah daftar pemain (seperti Promosi/Demosi)
+    isPlayerList?: boolean;
 }
 
 /**
@@ -20,11 +21,13 @@ interface TopPerformersCardProps {
 const TopPerformersCard: React.FC<TopPerformersCardProps> = ({ 
     title, icon, value, description, className, players, isPlayerList = false 
 }) => {
-    
+    const { t, language } = useLanguage(); // [BARU] Init Hook
+    const locale = language === 'id' ? 'id-ID' : 'en-US';
+
     // Helper untuk memformat nilai
     const formatValue = (val: number | string) => {
         if (typeof val === 'number') {
-            return val.toLocaleString('id-ID');
+            return val.toLocaleString(locale);
         }
         return val;
     };
@@ -42,16 +45,19 @@ const TopPerformersCard: React.FC<TopPerformersCardProps> = ({
                     <div className="mt-3 space-y-2">
                         {players.slice(0, 3).map((player, index) => (
                             <div key={player.tag} className="flex items-center text-sm font-semibold">
-                                {/* Gunakan index + 1 sebagai peringkat jika perlu */}
                                 <span className="mr-2 text-xs text-white/70">{index + 1}.</span>
                                 <span className="truncate">{player.name}</span>
-                                {/* FIX: Hapus prop 'title' yang menyebabkan error TypeScript */}
                                 {title.includes('Promosi') && <ArrowUpIcon className="h-4 w-4 ml-1 text-coc-green flex-shrink-0" />}
+                                {title.includes('Promotion') && <ArrowUpIcon className="h-4 w-4 ml-1 text-coc-green flex-shrink-0" />}
+                                
                                 {title.includes('Demosi') && <ArrowDownIcon className="h-4 w-4 ml-1 text-coc-red flex-shrink-0" />}
+                                {title.includes('Demotion') && <ArrowDownIcon className="h-4 w-4 ml-1 text-coc-red flex-shrink-0" />}
                             </div>
                         ))}
                         {players.length > 3 && (
-                            <p className="text-xs text-white/50 mt-1">+{players.length - 3} lainnya...</p>
+                            <p className="text-xs text-white/50 mt-1">
+                                +{players.length - 3} {t.common.remaining.toLowerCase()}...
+                            </p>
                         )}
                     </div>
                 ) : (

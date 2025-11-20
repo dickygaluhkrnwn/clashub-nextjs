@@ -2,41 +2,35 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-// TUGAS: Hapus useSWR, impor hook kustom
-// import useSWR from 'swr'; // <-- DIHAPUS
-import { useManagedClanWar } from '@/lib/hooks/useManagedClan'; // <-- TUGAS: DIGUNAKAN
+import { useManagedClanWar } from '@/lib/hooks/useManagedClan';
 import {
     ManagedClan, 
     CocWarLog, 
     CocWarMember, 
-    CocWarAttack,
-    CocCurrentWar // <-- [PERBAIKAN] Impor tipe CocCurrentWar
+    CocCurrentWar 
 } from '@/lib/types';
 import {
-    SwordsIcon, AlertTriangleIcon, TrophyIcon, ShieldIcon, StarIcon, ClockIcon,
-    ArrowRightIcon, RefreshCwIcon, BookOpenIcon, Loader2Icon 
+    SwordsIcon, AlertTriangleIcon, TrophyIcon, ShieldIcon, StarIcon,
+    RefreshCwIcon, Loader2Icon 
 } from '@/app/components/icons';
 import { getThImage } from '@/lib/th-utils';
 import { Button } from '@/app/components/ui/Button';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook i18n
 
-// TUGAS: Fetcher tidak diperlukan di sini lagi
-// const fetcher = (url: string) => fetch(url).then((res) => res.json()); // <-- DIHAPUS
-
-// Helper untuk format sisa waktu (Telah Diperbaiki)
-// [PERBAIKAN] Mengubah tipe parameter 'war' menjadi 'CocWarLog | CocCurrentWar'
-const formatWarTime = (war: CocWarLog | CocCurrentWar): { text: string; isEnded: boolean } => {
-    // ... (Logika formatWarTime tetap sama)
+// Helper untuk format sisa waktu
+// [MODIFIKASI] Menambahkan parameter 't' untuk terjemahan
+const formatWarTime = (war: CocWarLog | CocCurrentWar, t: any): { text: string; isEnded: boolean } => {
     const endTimeStr = war.endTime;
     const endTime = endTimeStr ? (typeof endTimeStr === 'string' ? new Date(endTimeStr.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2}).*/, '$1-$2-$3T$4:$5:$6Z')) : new Date(endTimeStr)) : null;
     
     if (!endTime || isNaN(endTime.getTime())) {
-        return { text: 'Waktu Tidak Tersedia', isEnded: false };
+        return { text: 'N/A', isEnded: false };
     }
     
     const timeRemainingMs = endTime.getTime() - Date.now();
     
     if (timeRemainingMs <= 0) {
-        return { text: 'War Selesai', isEnded: true }; 
+        return { text: t.clanWar.statusEnded, isEnded: true }; // [i18n]
     }
     
     const totalSeconds = Math.floor(timeRemainingMs / 1000);
@@ -44,18 +38,17 @@ const formatWarTime = (war: CocWarLog | CocCurrentWar): { text: string; isEnded:
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
     
-    return { text: `Sisa Waktu: ${hours}j ${minutes}m ${seconds}d`, isEnded: false };
+    // [i18n] Format: "Sisa Waktu: ... " atau "War Ends In: ..."
+    return { text: `${t.dashboard.warEnds} ${hours}h ${minutes}m ${seconds}s`, isEnded: false };
 };
 
 
 interface ActiveWarTabContentProps {
     clan: ManagedClan;
-    // Props currentWar dan onRefresh sudah dihapus (Benar)
 }
 
 // ======================================================================================================
 // Helper: War Member Row
-// (Tidak ada perubahan di sini, biarkan sama persis)
 // ======================================================================================================
 
 interface WarMemberRowProps {
@@ -63,14 +56,14 @@ interface WarMemberRowProps {
     isOurClan: boolean;
     clanTag: string;
     isCwl: boolean;
+    t: any; // [BARU] Props translation
 }
 
-const WarMemberRow: React.FC<WarMemberRowProps> = ({ member, isOurClan, clanTag, isCwl }) => {
-    // ... (Kode WarMemberRow tetap sama)
+const WarMemberRow: React.FC<WarMemberRowProps> = ({ member, isOurClan, clanTag, isCwl, t }) => {
     const bestAttackReceived = member.bestOpponentAttack;
     const attacksDone = member.attacks?.length || 0;
     const maxAttacks = isCwl ? 1 : 2;
-    let defenseStatus = 'Belum Diserang';
+    let defenseStatus = t.clanWar.colResult; // Placeholder text default
     let defenseStars = 0;
     let defenseDestruction = 0;
 
@@ -78,17 +71,18 @@ const WarMemberRow: React.FC<WarMemberRowProps> = ({ member, isOurClan, clanTag,
         defenseStars = bestAttackReceived.stars;
         defenseDestruction = bestAttackReceived.destructionPercentage;
         if (defenseStars === 3) {
-            defenseStatus = 'Hancur (3 Bintang)';
+            defenseStatus = '3 Stars'; // Bisa di-i18n jika perlu detail
         } else {
-            defenseStatus = `${defenseStars} Bintang Diterima`;
+            defenseStatus = `${defenseStars} Stars`;
         }
     }
 
     let attackSummary = '-';
     if (isOurClan && attacksDone > 0) {
-        attackSummary = `${attacksDone} / ${maxAttacks} Serangan`;
+        // [i18n] Gunakan format ringkas agar tabel tidak terlalu lebar
+        attackSummary = `${attacksDone} / ${maxAttacks}`; 
     } else if (!isOurClan && bestAttackReceived) {
-        attackSummary = `Diserang: ${bestAttackReceived.stars}⭐ (${bestAttackReceived.destructionPercentage.toFixed(2)}%)`;
+        attackSummary = `${bestAttackReceived.stars}⭐ (${bestAttackReceived.destructionPercentage.toFixed(0)}%)`;
     }
 
     const starColorClass = defenseStars === 3 ? 'text-coc-red' : defenseStars > 0 ? 'text-coc-gold' : 'text-gray-500';
@@ -101,13 +95,15 @@ const WarMemberRow: React.FC<WarMemberRowProps> = ({ member, isOurClan, clanTag,
             {/* Pemain */}
             <td className="px-3 py-2 whitespace-nowrap text-sm font-semibold text-white">
                 <div className="flex items-center space-x-3">
-                    <Image
-                        src={getThImage(member.townhallLevel)}
-                        alt={`TH ${member.townhallLevel}`}
-                        width={28}
-                        height={28}
-                        className="rounded-full"
-                    />
+                    <div className="relative w-8 h-8 flex-shrink-0">
+                        <Image
+                            src={getThImage(member.townhallLevel)}
+                            alt={`TH ${member.townhallLevel}`}
+                            width={28}
+                            height={28}
+                            className="rounded-full"
+                        />
+                    </div>
                     <div>
                         <p className="font-clash text-base truncate max-w-[150px]">{member.name}</p>
                         <p className="text-gray-500 text-xs font-mono">{member.tag}</p>
@@ -137,7 +133,8 @@ const WarMemberRow: React.FC<WarMemberRowProps> = ({ member, isOurClan, clanTag,
             <td className="px-3 py-2 text-center w-[120px]">
                 {isOurClan && member.attacks && member.attacks.length > 0 ? (
                     <Button size="sm" variant="secondary" className="text-xs">
-                        Lihat {member.attacks.length} Serangan
+                         {/* [i18n] View Details */}
+                        {t.clanWar.viewDetails}
                     </Button>
                 ) : (
                     <span className="text-gray-600">-</span>
@@ -154,14 +151,14 @@ const WarMemberRow: React.FC<WarMemberRowProps> = ({ member, isOurClan, clanTag,
 const ActiveWarTabContent: React.FC<ActiveWarTabContentProps> = ({
     clan 
 }) => {
-    
-    // TUGAS: Ganti SWR manual dengan hook kustom
+    const { t } = useLanguage(); // [BARU] Init Language
+
     const {
-        warData: currentWar, // Ganti 'data' menjadi 'warData' dan alias ke 'currentWar'
-        isError: error,      // Ganti 'error' menjadi 'isError' dan alias ke 'error'
+        warData: currentWar,
+        isError: error,
         isLoading,
-        mutateWar: refreshWar // Ganti 'mutate' menjadi 'mutateWar' dan alias ke 'refreshWar'
-    } = useManagedClanWar(clan.id); // <-- PANGGIL HOOK YANG BENAR
+        mutateWar: refreshWar
+    } = useManagedClanWar(clan.id);
 
     const [timeInfo, setTimeInfo] = useState({ text: 'N/A', isEnded: true });
     const isCwl = !!currentWar?.warTag;
@@ -172,15 +169,15 @@ const ActiveWarTabContent: React.FC<ActiveWarTabContentProps> = ({
             setTimeInfo({ text: 'N/A', isEnded: true });
             return;
         }
-        setTimeInfo(formatWarTime(currentWar));
+        // [PERBAIKAN] Pass 't' ke helper function
+        setTimeInfo(formatWarTime(currentWar, t));
         const timer = setInterval(() => {
-            // [PERBAIKAN] Cek null di dalam interval jika war berakhir saat timer berjalan
             if (currentWar) {
-                setTimeInfo(formatWarTime(currentWar));
+                setTimeInfo(formatWarTime(currentWar, t));
             }
         }, 1000);
         return () => clearInterval(timer);
-    }, [currentWar]);
+    }, [currentWar, t]);
     
 
     // --- TAMPILAN LOADING ---
@@ -188,8 +185,7 @@ const ActiveWarTabContent: React.FC<ActiveWarTabContentProps> = ({
         return (
             <div className="p-8 text-center bg-coc-stone/40 rounded-lg min-h-[300px] flex flex-col justify-center items-center space-y-4">
                 <Loader2Icon className="h-12 w-12 text-coc-green/50 mb-3 animate-spin" />
-                <p className="text-lg font-clash text-white">Memuat Data Perang Aktif...</p>
-                <p className="text-sm text-gray-400 font-sans">Menyinkronkan dengan server Clash of Clans...</p>
+                <p className="text-lg font-clash text-white">{t.common.loading}</p>
             </div>
         );
     }
@@ -199,13 +195,12 @@ const ActiveWarTabContent: React.FC<ActiveWarTabContentProps> = ({
         return (
             <div className="p-8 text-center bg-coc-stone/40 rounded-lg min-h-[300px] flex flex-col justify-center items-center space-y-4">
                 <AlertTriangleIcon className="h-12 w-12 text-coc-red mb-3" />
-                <p className="text-lg font-clash text-white">Gagal Memuat Data Perang</p>
+                <p className="text-lg font-clash text-white">{t.common.error}</p>
                 <p className="text-sm text-gray-400 font-sans max-w-md mx-auto">
-                    Terjadi kesalahan: {(error as Error).message || 'Unknown error'}
+                    {(error as Error).message || 'Unknown error'}
                 </p>
-                {/* TUGAS: Pastikan memanggil refreshWar() */}
                 <Button onClick={() => refreshWar()} variant="secondary" size="sm">
-                    <RefreshCwIcon className='h-4 w-4 mr-2'/> Coba Lagi
+                    <RefreshCwIcon className='h-4 w-4 mr-2'/> {t.clanManage.reloadCache}
                 </Button>
             </div>
         );
@@ -216,14 +211,12 @@ const ActiveWarTabContent: React.FC<ActiveWarTabContentProps> = ({
         return (
             <div className="p-8 text-center bg-coc-stone/40 rounded-lg min-h-[300px] flex flex-col justify-center items-center space-y-4">
                 <AlertTriangleIcon className="h-12 w-12 text-coc-green/50 mb-3" />
-                <p className="text-lg font-clash text-white">Tidak Ada War Klasik atau CWL Aktif</p>
+                <p className="text-lg font-clash text-white">{t.clanWar.noActiveWar}</p>
                 <p className="text-sm text-gray-400 font-sans max-w-md mx-auto">
-                    Data perang aktif ('preparation' atau 'inWar') tidak ditemukan.
-                    Jika perang baru saja dimulai, data akan muncul otomatis di sini.
+                   {t.clanManage.clanSafeDesc}
                 </p>
-                {/* TUGAS: Pastikan memanggil refreshWar() */}
                 <Button onClick={() => refreshWar()} variant="secondary" size="sm">
-                    <RefreshCwIcon className='h-4 w-4 mr-2'/> Muat Ulang Data
+                    <RefreshCwIcon className='h-4 w-4 mr-2'/> {t.clanManage.reloadCache}
                 </Button>
             </div>
         );
@@ -238,22 +231,24 @@ const ActiveWarTabContent: React.FC<ActiveWarTabContentProps> = ({
     let borderClass = 'border-coc-red/50 bg-coc-red/10';
 
     if (currentWar.state === 'preparation') {
-        statusText = 'Masa Persiapan';
+        statusText = t.clanWar.statusPrep; // [i18n]
         headerClass = 'text-coc-blue';
         borderClass = 'border-coc-blue/50 bg-coc-blue/10';
     } else if (currentWar.state === 'inWar') {
-        statusText = 'Sedang Berperang';
+        statusText = t.clanWar.statusBattle; // [i18n]
         headerClass = 'text-coc-red';
         borderClass = 'border-coc-red/50 bg-coc-red/10';
+    } else if (currentWar.state === 'warEnded') {
+        statusText = t.clanWar.statusEnded; // [i18n]
     }
-
 
     return (
         <div className="space-y-6">
 
             {/* War Header Info */}
             <div className={`card-stone p-6 border-4 ${borderClass} rounded-lg`}>
-                <div className="flex justify-between items-start flex-wrap gap-4">
+                {/* [PERBAIKAN UTAMA] Tambahkan 'md:flex-nowrap' untuk mencegah wrapping layout di desktop */}
+                <div className="flex justify-between items-start flex-wrap md:flex-nowrap gap-4">
                     <div>
                         <h2 className={`text-3xl font-clash ${headerClass} flex items-center gap-3`}>
                             <SwordsIcon className="h-8 w-8" />
@@ -265,13 +260,12 @@ const ActiveWarTabContent: React.FC<ActiveWarTabContentProps> = ({
                         </p>
                     </div>
                         
-                    <div className="text-right flex flex-col gap-2">
+                    <div className="text-right flex flex-col gap-2 shrink-0">
                         <p className={`text-lg font-clash ${timeInfo.isEnded ? headerClass : 'text-white'}`}>
                             {timeInfo.text}
                         </p>
-                        {/* TUGAS: Pastikan memanggil refreshWar() */}
                         <Button onClick={() => refreshWar()} variant="secondary" size="sm">
-                            <RefreshCwIcon className='h-3 w-3 mr-1'/> Refresh Data
+                            <RefreshCwIcon className='h-3 w-3 mr-1'/> {t.clanManage.reloadCache}
                         </Button>
                     </div>
                 </div>
@@ -280,7 +274,7 @@ const ActiveWarTabContent: React.FC<ActiveWarTabContentProps> = ({
                 <div className="mt-4 grid grid-cols-2 gap-4 text-center border-t border-coc-gold/30 pt-4">
                     {/* Skor Kita */}
                     <div className="p-3 rounded-lg bg-coc-stone/20 border border-coc-gold/30">
-                        <p className="text-xs text-gray-400 font-clash uppercase">Total Bintang Kita / Persentase Hancur</p>
+                        <p className="text-xs text-gray-400 font-clash uppercase">{t.dashboard.myStars} / {t.dashboard.destruction}</p>
                         <p className="text-3xl font-bold text-coc-gold flex items-center justify-center gap-1 mt-1">
                             <StarIcon className="h-7 w-7 text-coc-gold" /> {ourClan.stars}
                             <span className="text-lg text-gray-300 ml-2">({ourClan.destructionPercentage.toFixed(2)}%)</span>
@@ -288,7 +282,7 @@ const ActiveWarTabContent: React.FC<ActiveWarTabContentProps> = ({
                     </div>
                     {/* Skor Lawan */}
                     <div className="p-3 rounded-lg bg-coc-stone/20 border border-coc-red/30">
-                        <p className="text-xs text-gray-400 font-clash uppercase">Total Bintang Lawan / Persentase Hancur</p>
+                        <p className="text-xs text-gray-400 font-clash uppercase">{t.dashboard.enemyStars} / {t.dashboard.destruction}</p>
                         <p className="text-3xl font-bold text-coc-red flex items-center justify-center gap-1 mt-1">
                             <StarIcon className="h-7 w-7 text-coc-red" /> {opponentClan.stars}
                             <span className="text-lg text-gray-300 ml-2">({opponentClan.destructionPercentage.toFixed(2)}%)</span>
@@ -298,30 +292,27 @@ const ActiveWarTabContent: React.FC<ActiveWarTabContentProps> = ({
             </div>
 
             {/* Detail Anggota War */}
-            {/* INI ADALAH PERBAIKANNYA: lg:grid-cols-2 diubah menjadi md:grid-cols-2 */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
                 {/* Kolom Klan Kita */}
                 <div className="space-y-4">
                     <h3 className="text-xl font-clash text-white border-b border-coc-gold-dark/50 pb-2 flex items-center gap-2">
-                        <ShieldIcon className="h-6 w-6 text-coc-gold" /> Daftar {ourClan.name}
+                        <ShieldIcon className="h-6 w-6 text-coc-gold" /> {t.clanWar.colTeamSize} {ourClan.name}
                     </h3>
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-coc-gold-dark/20 text-xs">
                             <thead className="bg-coc-stone/70 sticky top-0">
                                 <tr>
                                     <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider w-10">#</th>
-                                    <th className="px-3 py-2 text-left font-clash text-coc-gold uppercase tracking-wider">Pemain</th>
-                                    <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">Serangan</th>
-                                    <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider" colSpan={2}>Pertahanan Terbaik</th>
-                                    {/* PERBAIKAN PRESIOLOGI: Tambahkan w-[120px] di sini */}
-                                    <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider w-[120px]">Aksi</th>
+                                    <th className="px-3 py-2 text-left font-clash text-coc-gold uppercase tracking-wider">{t.clanMembers.colPlayer}</th>
+                                    <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">{t.clanWar.colAttacks}</th>
+                                    <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider" colSpan={2}>{t.clanWar.colStars}</th>
+                                    <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider w-[120px]">{t.clanMembers.colActions}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-coc-gold-dark/10">
-                                {/* [PERBAIKAN] Menambahkan tipe 'CocWarMember' ke parameter 'member' */}
                                 {ourClan.members.map((member: CocWarMember) => (
-                                    <WarMemberRow key={member.tag} member={member} isOurClan={true} clanTag={clan.tag} isCwl={isCwl}/>
+                                    <WarMemberRow key={member.tag} member={member} isOurClan={true} clanTag={clan.tag} isCwl={isCwl} t={t}/>
                                 ))}
                             </tbody>
                         </table>
@@ -331,35 +322,30 @@ const ActiveWarTabContent: React.FC<ActiveWarTabContentProps> = ({
                 {/* Kolom Klan Lawan */}
                 <div className="space-y-4">
                     <h3 className="text-xl font-clash text-white border-b border-coc-red/50 pb-2 flex items-center gap-2">
-                        <TrophyIcon className="h-6 w-6 text-coc-red" /> Daftar {opponentClan.name}
+                        <TrophyIcon className="h-6 w-6 text-coc-red" /> {t.clanWar.colTeamSize} {opponentClan.name}
                     </h3>
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-coc-red/20 text-xs">
                             <thead className="bg-coc-stone/70 sticky top-0">
                                 <tr>
                                     <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider w-10">#</th>
-                                    <th className="px-3 py-2 text-left font-clash text-coc-gold uppercase tracking-wider">Pemain</th>
-                                    <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">Diserang</th>
-                                    <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider" colSpan={2}>Bintang Terbaik</th>
-                                    {/* PERBAIKAN PRESISI: Tambahkan w-[120px] di sini */}
-                                    <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider w-[120px]">Aksi</th>
+                                    <th className="px-3 py-2 text-left font-clash text-coc-gold uppercase tracking-wider">{t.clanMembers.colPlayer}</th>
+                                    <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">{t.clanWar.colAttacks}</th>
+                                    <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider" colSpan={2}>{t.clanWar.colStars}</th>
+                                    <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider w-[120px]">{t.clanMembers.colActions}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-coc-red/10">
-                                {/* [PERBAIKAN] Menambahkan tipe 'CocWarMember' ke parameter 'member' */}
                                 {opponentClan.members.map((member: CocWarMember) => (
-                                    <WarMemberRow key={member.tag} member={member} isOurClan={false} clanTag={clan.tag} isCwl={isCwl}/>
+                                    <WarMemberRow key={member.tag} member={member} isOurClan={false} clanTag={clan.tag} isCwl={isCwl} t={t}/>
                                 ))}
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
-            {/* Akhir Detail Anggota War */}
-
         </div>
     );
 };
 
 export default ActiveWarTabContent;
-

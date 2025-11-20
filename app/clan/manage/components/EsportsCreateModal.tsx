@@ -14,11 +14,9 @@ import {
   CrownIcon,
 } from '@/app/components/icons';
 import { NotificationProps } from '@/app/components/ui/Notification';
-import AlertDialog from '@/app/components/ui/AlertDialog'; // [PERBAIKAN] Impor AlertDialog
+import AlertDialog from '@/app/components/ui/AlertDialog';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook
 
-// =========================================================================
-// KOMPONPONEN MODAL: CreateTeamModal (Internal)
-// =========================================================================
 interface CreateTeamModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -42,29 +40,26 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
   onCreateTeam,
   allTeams,
 }) => {
+  const { t } = useLanguage(); // [BARU]
   const [teamName, setTeamName] = useState('');
   const [selectedUids, setSelectedUids] = useState<string[]>([]);
   const [selectedLeaderUid, setSelectedLeaderUid] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // [PERBAIKAN] State untuk modal peringatan
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [alertInfo, setAlertInfo] = useState({ title: '', message: '' });
 
-  // Reset state saat modal ditutup
   useEffect(() => {
     if (!isOpen) {
       setTeamName('');
       setSelectedUids([]);
       setSelectedLeaderUid('');
       setIsSubmitting(false);
-      // [PERBAIKAN] Reset state alert
       setIsAlertOpen(false);
       setAlertInfo({ title: '', message: '' });
     }
   }, [isOpen]);
 
-  // Buat Set (HashSet) untuk mengecek UID anggota yang sudah ada di tim lain
   const membersInOtherTeams = useMemo(() => {
     const uids = new Set<string>();
     allTeams.forEach((team) => {
@@ -73,26 +68,21 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
     return uids;
   }, [allTeams]);
 
-  // [BARU] Dapatkan profil lengkap dari anggota yang dipilih (untuk dropdown leader)
   const selectedMembers = useMemo(() => {
     return availableMembers.filter((m) => selectedUids.includes(m.uid));
   }, [selectedUids, availableMembers]);
 
-  // Handler untuk memilih/membatalkan anggota
   const handleMemberToggle = (uid: string) => {
     let newSelectedUids = [...selectedUids];
 
     if (newSelectedUids.includes(uid)) {
-      // Batalkan pilihan
       newSelectedUids = newSelectedUids.filter((id) => id !== uid);
-      // Jika leader yang dibatalkan, reset pilihan leader
       if (uid === selectedLeaderUid) {
         setSelectedLeaderUid('');
       }
     } else {
-      // Tambah pilihan
       if (newSelectedUids.length >= 5) {
-        onAction('Anda hanya dapat memilih 5 anggota.', 'error');
+        onAction(t.clanEsports.valMaxCount, 'error'); // [i18n]
         return;
       }
       newSelectedUids.push(uid);
@@ -100,26 +90,23 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
     setSelectedUids(newSelectedUids);
   };
 
-  // Handler untuk submit form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (teamName.trim() === '') {
-      onAction('Nama tim tidak boleh kosong.', 'error');
+      onAction(t.clanEsports.valNameEmpty, 'error'); // [i18n]
       return;
     }
     if (selectedUids.length !== 5) {
-      onAction('Anda harus memilih tepat 5 anggota.', 'error');
+      onAction(t.clanEsports.valCountError, 'error'); // [i18n]
       return;
     }
-    // [BARU] Validasi leader tim
     if (selectedLeaderUid === '') {
-      onAction('Anda harus memilih seorang Leader Tim.', 'error');
+      onAction(t.clanEsports.valLeaderEmpty, 'error'); // [i18n]
       return;
     }
 
     setIsSubmitting(true);
     try {
-      // Ubah array 5 string menjadi tuple [string, string, string, string, string]
       const memberUidsTuple: [string, string, string, string, string] = [
         selectedUids[0],
         selectedUids[1],
@@ -130,15 +117,11 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
 
       await onCreateTeam(teamName, selectedLeaderUid, memberUidsTuple);
 
-      // [PERBAIKAN] Tampilkan modal peringatan (AlertDialog) alih-alih onAction
       setAlertInfo({
-        title: 'Tim Berhasil Dibuat!',
-        message:
-          'Tim E-Sports berhasil dibuat! Leader tim akan dipromosikan.\n\nPERHATIAN: Harap promosikan juga leader tim menjadi Co-Leader di dalam game.',
+        title: t.clanEsports.alertCreateTitle, // [i18n]
+        message: t.clanEsports.alertCreateMessage, // [i18n]
       });
       setIsAlertOpen(true);
-      // Kita tidak memanggil onClose() di sini lagi.
-      // onClose() akan dipanggil oleh AlertDialog.
     } catch (error) {
       console.error('Error creating team:', error);
       onAction((error as Error).message, 'error');
@@ -150,13 +133,12 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    // [PERBAIKAN] Bungkus dengan React.Fragment agar bisa merender 2 modal
     <>
       <AlertDialog
         isOpen={isAlertOpen}
         onClose={() => {
           setIsAlertOpen(false);
-          onClose(); // [PERBAIKAN] Tutup modal UTAMA setelah AlertDialog ditutup
+          onClose();
         }}
         title={alertInfo.title}
         message={alertInfo.message}
@@ -169,7 +151,7 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
             <div className="flex justify-between items-center p-4 border-b border-coc-gold-dark/30">
               <h3 className="text-xl font-clash text-coc-gold flex items-center">
                 <UserPlusIcon className="h-6 w-6 mr-3" />
-                Buat Tim E-Sports Baru
+                {t.clanEsports.createModalTitle} {/* [i18n] */}
               </h3>
               <Button
                 type="button"
@@ -191,15 +173,15 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
                   htmlFor="teamName"
                   className="block text-sm font-medium text-gray-300 font-sans mb-1"
                 >
-                  Nama Tim
+                  {t.clanEsports.labelTeamName} {/* [i18n] */}
                 </label>
                 <input
                   type="text"
                   id="teamName"
                   value={teamName}
                   onChange={(e) => setTeamName(e.target.value)}
-                  placeholder="Misal: Tim Elit War"
-                  className="input-base" // Kelas dari globals.css
+                  placeholder={t.clanEsports.placeholderTeamName} // [i18n]
+                  className="input-base"
                   disabled={isSubmitting}
                 />
               </div>
@@ -207,16 +189,15 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
               {/* Pemilih Anggota */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 font-sans mb-1">
-                  Pilih Anggota ({selectedUids.length}/5)
+                  {t.clanEsports.labelSelectMembers.replace('{count}', selectedUids.length.toString())} {/* [i18n] */}
                 </label>
                 <p className="text-xs text-gray-400 font-sans mb-2">
-                  Pilih 5 anggota terverifikasi. Anggota yang sudah ada di tim
-                  lain akan dinonaktifkan.
+                  {t.clanEsports.helperSelectMembers} {/* [i18n] */}
                 </p>
                 <div className="space-y-2 max-h-60 overflow-y-auto pr-2 rounded-lg bg-coc-stone-dark/30 p-3">
                   {availableMembers.length === 0 ? (
                     <p className="text-sm text-gray-400 text-center py-4">
-                      Tidak ada anggota terverifikasi yang tersedia.
+                      {t.clanEsports.noVerifiedMembers} {/* [i18n] */}
                     </p>
                   ) : (
                     availableMembers.map((member) => {
@@ -278,7 +259,7 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
                             </p>
                             {isInOtherTeam && (
                               <p className="text-xs text-coc-yellow/80">
-                                (Sudah di tim lain)
+                                {t.clanEsports.alreadyInTeam} {/* [i18n] */}
                               </p>
                             )}
                           </div>
@@ -289,14 +270,14 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
                 </div>
               </div>
 
-              {/* [BARU] Pemilih Leader Tim */}
+              {/* Pemilih Leader Tim */}
               <div>
                 <label
                   htmlFor="teamLeader"
                   className="block text-sm font-medium text-gray-300 font-sans mb-1"
                 >
                   <CrownIcon className="h-4 w-4 mr-1.5 inline-block" />
-                  Pilih Leader Tim
+                  {t.clanEsports.labelSelectLeader} {/* [i18n] */}
                 </label>
                 <select
                   id="teamLeader"
@@ -307,8 +288,8 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
                 >
                   <option value="" disabled>
                     {selectedUids.length !== 5
-                      ? 'Pilih 5 anggota dulu'
-                      : 'Pilih seorang leader...'}
+                      ? t.clanEsports.optionSelect5First // [i18n]
+                      : t.clanEsports.placeholderSelectLeader} // [i18n]
                   </option>
                   {selectedMembers.map((member) => (
                     <option key={member.uid} value={member.uid}>
@@ -327,7 +308,7 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
                 onClick={onClose}
                 disabled={isSubmitting}
               >
-                Batal
+                {t.common.cancel} {/* [i18n] */}
               </Button>
               <Button
                 type="submit"
@@ -336,7 +317,7 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
                   isSubmitting ||
                   teamName.trim() === '' ||
                   selectedUids.length !== 5 ||
-                  selectedLeaderUid === '' // <-- [BARU] Validasi tombol
+                  selectedLeaderUid === ''
                 }
               >
                 {isSubmitting ? (
@@ -344,7 +325,7 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
                 ) : (
                   <PlusIcon className="h-5 w-5 mr-2" />
                 )}
-                {isSubmitting ? 'Menyimpan...' : 'Simpan Tim'}
+                {isSubmitting ? t.clanEsports.btnSaving : t.clanEsports.btnSave} {/* [i18n] */}
               </Button>
             </div>
           </form>

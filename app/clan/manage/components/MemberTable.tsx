@@ -1,15 +1,13 @@
 'use client';
 
 import React from 'react';
-// Impor tipe UserProfile (dibutuhkan untuk props)
 import { UserProfile } from '@/lib/types';
-// Impor komponen Baris dan tipe datanya dari file yang baru kita buat
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
 import { MemberTableRow, RosterMember } from './MemberTableRow';
 
 /**
  * @interface MemberTableProps
  * Props yang dibutuhkan oleh komponen MemberTable.
- * Sebagian besar props ini akan diteruskan (passed down) ke MemberTableRow.
  */
 interface MemberTableProps {
   combinedRoster: RosterMember[];
@@ -35,6 +33,8 @@ export const MemberTable: React.FC<MemberTableProps> = ({
   onKick,
   availableClashubRoles,
 }) => {
+  const { t } = useLanguage(); // [BARU] Hook i18n
+
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full divide-y divide-coc-gold-dark/20 text-xs">
@@ -42,32 +42,36 @@ export const MemberTable: React.FC<MemberTableProps> = ({
         <thead className="bg-coc-stone/70 sticky top-0">
           <tr>
             <th className="px-3 py-2 text-left font-clash text-coc-gold uppercase tracking-wider">
-              Pemain (TH / Role CoC)
+              {/* Pemain */}
+              {t.clanMembers.colPlayer}
             </th>
             <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">
-              XP / D+ / D-
+              {/* XP / Donasi */}
+              {t.clanMembers.colDonations}
             </th>
             <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">
-              Trophies
+              {/* Trophies - Menggunakan key dari module lain yang relevan */}
+              {t.clanPublicProfile.table.trophies}
             </th>
             <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">
-              Partisipasi CW
+              {/* Hardcoded sementara karena spesifik, atau gunakan kombinasi */}
+              CW {t.clanHub.filterVisionLabel.split(' ')[0] || 'Stats'}
             </th>
             <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">
-              Partisipasi CWL
+              CWL {t.clanHub.filterVisionLabel.split(' ')[0] || 'Stats'}
             </th>
             <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">
-              Status Partisipasi
+              Status
             </th>
             {/* Kolom Aksi hanya terlihat oleh Manager */}
             {isManager && (
               <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider w-[150px]">
-                Role Clashub / Aksi
+                {t.clanMembers.colActions}
               </th>
             )}
             {!isManager && (
               <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider w-[120px]">
-                Role Clashub
+                {t.clanHub.role}
               </th>
             )}
           </tr>

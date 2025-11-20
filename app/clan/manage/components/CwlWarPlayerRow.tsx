@@ -1,7 +1,3 @@
-// File: app/clan/manage/components/CwlWarPlayerRow.tsx
-// Komponen ini menampilkan rincian satu pemain di dalam tabel
-// riwayat perang CWL yang bisa di-expand.
-
 'use client';
 
 import React from 'react';
@@ -17,8 +13,7 @@ interface CwlWarPlayerRowProps {
 
 const CwlWarPlayerRow: React.FC<CwlWarPlayerRowProps> = ({ member, isCwl }) => {
   const bestAttackReceived = member.bestOpponentAttack;
-  const attacksDone = member.attacks?.length || 0;
-  const maxAttacks = isCwl ? 1 : 2; // CWL selalu 1
+  // const maxAttacks = isCwl ? 1 : 2; // CWL selalu 1
   let defenseStars = 0;
   let defenseDestruction = 0;
 
@@ -56,13 +51,15 @@ const CwlWarPlayerRow: React.FC<CwlWarPlayerRowProps> = ({ member, isCwl }) => {
       {/* Pemain */}
       <td className="px-2 py-2 whitespace-nowrap text-xs">
         <div className="flex items-center space-x-2">
-          <Image
-            src={getThImage(member.townhallLevel)}
-            alt={`TH ${member.townhallLevel}`}
-            width={24}
-            height={24}
-            className="rounded-full"
-          />
+          <div className="relative w-6 h-6 flex-shrink-0">
+            <Image
+              src={getThImage(member.townhallLevel)}
+              alt={`TH ${member.townhallLevel}`}
+              width={24}
+              height={24}
+              className="rounded-full"
+            />
+          </div>
           <div>
             <p className="font-clash text-sm truncate max-w-[120px] text-white">
               {member.name}
