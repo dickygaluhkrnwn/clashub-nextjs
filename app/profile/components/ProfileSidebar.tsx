@@ -19,6 +19,7 @@ import {
 } from '@/app/components/icons';
 import { UserProfile } from '@/lib/types';
 import { getTierForPoints } from '@/lib/popularity-utils';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
 
 interface ProfileSidebarProps {
   userProfile: UserProfile;
@@ -44,6 +45,7 @@ export const ProfileSidebar = ({
   reputation,
   playerReviewsCount,
 }: ProfileSidebarProps) => {
+  const { t } = useLanguage(); // [BARU]
   const avatarSrc = userProfile.avatarUrl || '/images/placeholder-avatar.png';
 
   const cleanUrlDisplay = (url: string | null | undefined): string => {
@@ -57,9 +59,6 @@ export const ProfileSidebar = ({
 
   return (
     // [PERBAIKAN LAYOUT SIDEBAR]
-    // 1. 'sticky top-28' diubah jadi 'static lg:sticky lg:top-28' -> Mobile ngalir biasa, Desktop nempel.
-    // 2. Padding dikurangi di mobile ('p-4') agar tidak boros tempat.
-    // 3. Tambah 'z-10' agar tidak tertutup elemen lain jika terjadi stacking context issue.
     <aside className="lg:col-span-1 card-stone p-4 lg:p-6 h-fit static lg:sticky lg:top-28 space-y-6 text-center rounded-lg z-10 w-full">
       <Image
         src={avatarSrc}
@@ -82,13 +81,13 @@ export const ProfileSidebar = ({
           </p>
         )}
       <p className="text-sm text-gray-400 font-bold mb-1 font-mono">
-        {userProfile.playerTag || 'TAG BELUM DIATUR'}
+        {userProfile.playerTag || t.profileSidebar.tagNotSet}
       </p>
 
       {/* Status Free Agent */}
       {isFreeAgent && (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-full bg-blue-600 text-white">
-          <BriefcaseIcon className="h-3.5 w-3.5" /> Free Agent
+          <BriefcaseIcon className="h-3.5 w-3.5" /> {t.profileSidebar.freeAgent}
         </span>
       )}
 
@@ -101,15 +100,15 @@ export const ProfileSidebar = ({
               : 'bg-coc-green text-coc-stone'
           }`}
         >
-          {isCompetitiveVision ? 'Kompetitif' : 'Kasual'}
+          {isCompetitiveVision ? t.profileSidebar.competitive : t.profileSidebar.casual}
         </span>
         {isVerified ? (
           <span className="px-3 py-1 text-xs font-bold rounded-full bg-coc-blue text-white flex items-center gap-1">
-            <CheckIcon className="h-3 w-3" /> CoC Terverifikasi
+            <CheckIcon className="h-3 w-3" /> {t.profileSidebar.verified}
           </span>
         ) : (
           <span className="px-3 py-1 text-xs font-bold rounded-full bg-gray-600 text-gray-300 flex items-center gap-1">
-            <AlertTriangleIcon className="h-3 w-3" /> Belum Terverifikasi
+            <AlertTriangleIcon className="h-3 w-3" /> {t.profileSidebar.unverified}
           </span>
         )}
       </div>
@@ -117,32 +116,32 @@ export const ProfileSidebar = ({
       {/* Bio & Visi */}
       <div className="text-left pt-4 border-t border-coc-gold-dark/20 space-y-4">
         <h3 className="text-lg text-coc-gold-dark font-clash flex items-center gap-2">
-          <InfoIcon className="h-5 w-5" /> Bio & Visi
+          <InfoIcon className="h-5 w-5" /> {t.profileSidebar.bioVision}
         </h3>
         <p className="text-sm text-gray-300">
-          {userProfile.bio || 'Belum ada bio.'}
+          {userProfile.bio || t.profileSidebar.noBio}
         </p>
       </div>
 
       {/* Preferensi */}
       <div className="text-left pt-4 border-t border-coc-gold-dark/20 space-y-4">
         <h3 className="text-lg text-coc-gold-dark font-clash flex items-center gap-2">
-          <UserIcon className="h-5 w-5" /> Preferensi
+          <UserIcon className="h-5 w-5" /> {t.profileSidebar.preferences}
         </h3>
         <p className="text-sm">
-          <span className="font-bold text-gray-300">Role Main:</span>{' '}
-          {userProfile.playStyle || 'Belum Diatur'}
+          <span className="font-bold text-gray-300">{t.profileSidebar.role}</span>{' '}
+          {userProfile.playStyle || t.profileSidebar.notSet}
         </p>
         <p className="text-sm">
-          <span className="font-bold text-gray-300">Jam Aktif:</span>{' '}
-          {userProfile.activeHours || 'Belum Diatur'}
+          <span className="font-bold text-gray-300">{t.profileSidebar.activeHours}</span>{' '}
+          {userProfile.activeHours || t.profileSidebar.notSet}
         </p>
       </div>
 
       {/* Kontak Sosial */}
       <div className="text-left pt-4 border-t border-coc-gold-dark/20 space-y-2">
         <h3 className="text-lg text-coc-gold-dark font-clash flex items-center gap-2">
-          Kontak
+          {t.profileSidebar.contact}
         </h3>
         {userProfile.discordId ? (
           <p className="text-sm text-gray-300 flex items-center gap-2 truncate">
@@ -151,7 +150,7 @@ export const ProfileSidebar = ({
           </p>
         ) : (
           <p className="text-sm text-gray-500 flex items-center gap-2">
-            <DiscordIcon className="h-4 w-4 text-gray-500" /> Belum diatur
+            <DiscordIcon className="h-4 w-4 text-gray-500" /> {t.profileSidebar.notSet}
           </p>
         )}
         {userProfile.website ? (
@@ -170,7 +169,7 @@ export const ProfileSidebar = ({
           </a>
         ) : (
           <p className="text-sm text-gray-500 flex items-center gap-2">
-            <LinkIcon className="h-4 w-4 text-gray-500" /> Website belum diatur
+            <LinkIcon className="h-4 w-4 text-gray-500" /> {t.profileSidebar.websiteNotSet}
           </p>
         )}
       </div>
@@ -178,7 +177,7 @@ export const ProfileSidebar = ({
       {/* Poin Popularitas */}
       <div className="pt-4 border-t border-coc-gold-dark/20 text-center">
         <h3 className="text-lg text-coc-gold-dark font-clash">
-          Poin Popularitas
+          {t.profileSidebar.popularityPoints}
         </h3>
         <p
           className={`text-4xl font-clash ${currentTier.colorClass} my-1`}
@@ -190,7 +189,7 @@ export const ProfileSidebar = ({
           href="/profile/popularity"
           className="text-xs text-coc-gold hover:text-coc-gold-light hover:underline flex items-center justify-center gap-1 transition-colors"
         >
-          Lihat Detail Poin & Badges
+          {t.profileSidebar.viewDetails}
           <ChevronRightIcon className="h-3 w-3" />
         </Link>
       </div>
@@ -198,13 +197,13 @@ export const ProfileSidebar = ({
       {/* Reputasi */}
       <div className="pt-4 border-t border-coc-gold-dark/20 text-center">
         <h3 className="text-lg text-coc-gold-dark font-clash">
-          Reputasi Komitmen
+          {t.profileSidebar.commitmentReputation}
         </h3>
         <p className="text-4xl font-clash text-coc-gold my-1">
           {reputation.toFixed(1)} <StarIcon className="inline h-7 w-7" />
         </p>
         <p className="text-xs text-gray-400">
-          (Berdasarkan {playerReviewsCount} ulasan)
+          {t.profileSidebar.basedOnReviews.replace('{count}', playerReviewsCount.toString())}
         </p>
       </div>
 
@@ -218,7 +217,7 @@ export const ProfileSidebar = ({
             className="w-full bg-coc-gold-dark/20 hover:bg-coc-gold-dark/40 border-coc-gold-dark/30 hover:border-coc-gold-dark py-3 text-sm md:text-base"
           >
             <CogsIcon className="inline h-5 w-5 mr-2" />
-            Kelola Klan Saya
+            {t.profileSidebar.manageMyClan}
           </Button>
         </div>
       )}

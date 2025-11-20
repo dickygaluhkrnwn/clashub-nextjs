@@ -33,7 +33,7 @@ import {
   CoinsIcon,
   MenuIcon,
   LogOutIcon,
-  IconSparkle, // <-- [BARU] Menambahkan IconSparkle
+  IconSparkle, 
 } from '@/app/components/icons';
 // Import Komponen UI
 import Notification, {
@@ -48,16 +48,11 @@ import ActiveWarTabContent from './components/ActiveWarTabContent';
 import WarHistoryTabContent from './components/WarHistoryTabContent';
 import CwlHistoryTabContent from './components/CwlHistoryTabContent';
 import RaidTabContent from './components/RaidTabContent';
-// --- [BARU: TAHAP 3.2] ---
-// --- [PERBAIKAN] Mengimpor komponen E-Sports yang sudah kita buat ---
 import EsportsTabContent from './components/EsportsTabContent';
-// --- [AKHIR BARU] ---
-
-// [BARU FASE 3] Impor komponen tab promosi
 import PromotionTabContent from './components/PromotionTabContent';
-
-// [FASE 2] Ganti nama impor (meski file sama) agar lebih jelas ini adalah Modal
 import GeminiAssistantModal from './components/GeminiAssistantTab';
+// [BARU] Import useLanguage
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 interface ManageClanClientProps {
   clan: ManagedClan | null;
@@ -73,62 +68,9 @@ type ActiveTab =
   | 'war-history'
   | 'cwl-history'
   | 'raid'
-  | 'esports' // <-- [BARU: TAHAP 3.2] Ditambahkan
-  | 'promotion' // <-- [BARU FASE 3] Ditambahkan
-  // | 'ai-assistant' // <-- [FASE 2] Dihapus dari tipe tab
+  | 'esports' 
+  | 'promotion' 
   | 'settings';
-
-// --- DAFTAR TAB ---
-
-// Tab yang tersedia untuk SEMUA anggota terverifikasi
-const MEMBER_TABS: { tabName: ActiveTab; icon: React.ReactNode; label: string }[] =
-  [
-    { tabName: 'summary', icon: <InfoIcon />, label: 'Ringkasan & Sinkronisasi' },
-    { tabName: 'members', icon: <UserIcon />, label: 'Anggota' },
-    {
-      tabName: 'active-war',
-      icon: <SwordsIcon className="text-coc-red" />,
-      label: 'Perang Aktif',
-    },
-    {
-      tabName: 'war-history',
-      icon: <BookOpenIcon />,
-      label: 'Riwayat War Klasik',
-    },
-    {
-      tabName: 'cwl-history',
-      icon: <CalendarCheck2Icon className="text-blue-400" />,
-      label: 'Riwayat CWL',
-    },
-    {
-      tabName: 'raid',
-      icon: <CoinsIcon className="text-yellow-400" />,
-      label: 'Ibu Kota Klan',
-    },
-    // --- [BARU: TAHAP 3.2] ---
-    {
-      tabName: 'esports',
-      icon: <TrophyIcon />, // Menggunakan TrophyIcon yang sudah diimpor
-      label: 'E-Sports',
-    },
-    // --- [AKHIR BARU] ---
-  ];
-
-// Tab yang hanya untuk MANAGER (Leader/Co-Leader)
-const MANAGER_TABS: { tabName: ActiveTab; icon: React.ReactNode; label: string }[] =
-  [
-    { tabName: 'requests', icon: <MailOpenIcon />, label: 'Permintaan Gabung' },
-    // [BARU FASE 3] Tab promosi ditambahkan
-    { tabName: 'promotion', icon: <GlobeIcon />, label: 'Promosi' },
-    // [FASE 2] Tab Asisten AI dihapus dari navigasi
-    // {
-    //   tabName: 'ai-assistant',
-    //   icon: <IconSparkle />,
-    //   label: 'Asisten AI',
-    // },
-    { tabName: 'settings', icon: <SettingsIcon />, label: 'Pengaturan Klan' },
-  ];
-// --- AKHIR DAFTAR TAB ---
 
 // --- FUNGSI UTAMA CLIENT ---
 const ManageClanClient = ({
@@ -136,6 +78,7 @@ const ManageClanClient = ({
   serverError,
   profile,
 }: ManageClanClientProps) => {
+  const { t } = useLanguage(); // [BARU] Init Hook
   const router = useRouter();
 
   // State
@@ -143,17 +86,51 @@ const ManageClanClient = ({
   const [notification, setNotification] =
     useState<NotificationProps | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-
-  // --- [BARU: TAHAP 2.3] State untuk Modal Leave ---
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
-  const [isLeaving, setIsLeaving] = useState(false); // Loading state untuk API leave
-  // --- [AKHIR BARU] ---
-
-  // [FASE 2] State untuk Modal Asisten AI
+  const [isLeaving, setIsLeaving] = useState(false); 
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
 
   // Cek Peran Pengguna
   const isManager = profile?.role === 'Leader' || profile?.role === 'Co-Leader';
+
+  // [BARU] DAFTAR TAB DINAMIS (Di dalam komponen agar akses 't')
+  const MEMBER_TABS: { tabName: ActiveTab; icon: React.ReactNode; label: string }[] =
+    [
+      { tabName: 'summary', icon: <InfoIcon />, label: t.clanManage.tabSummary },
+      { tabName: 'members', icon: <UserIcon />, label: t.clanManage.tabMembers },
+      {
+        tabName: 'active-war',
+        icon: <SwordsIcon className="text-coc-red" />,
+        label: t.clanManage.tabActiveWar,
+      },
+      {
+        tabName: 'war-history',
+        icon: <BookOpenIcon />,
+        label: t.clanManage.tabWarHistory,
+      },
+      {
+        tabName: 'cwl-history',
+        icon: <CalendarCheck2Icon className="text-blue-400" />,
+        label: t.clanManage.tabCwlHistory,
+      },
+      {
+        tabName: 'raid',
+        icon: <CoinsIcon className="text-yellow-400" />,
+        label: t.clanManage.tabRaid,
+      },
+      {
+        tabName: 'esports',
+        icon: <TrophyIcon />,
+        label: t.clanManage.tabEsports,
+      },
+    ];
+
+  const MANAGER_TABS: { tabName: ActiveTab; icon: React.ReactNode; label: string }[] =
+    [
+      { tabName: 'requests', icon: <MailOpenIcon />, label: t.clanManage.tabRequests },
+      { tabName: 'promotion', icon: <GlobeIcon />, label: t.clanManage.tabPromotion },
+      { tabName: 'settings', icon: <SettingsIcon />, label: t.clanManage.tabSettings },
+    ];
 
   const showNotification = (
     message: string,
@@ -162,18 +139,18 @@ const ManageClanClient = ({
     setNotification({ message, type, onClose: () => setNotification(null) });
   };
 
-  // --- [BARU: TAHAP 2.3] Handler untuk Keluar Klan ---
+  // Handler untuk Keluar Klan
   const handleConfirmLeave = async () => {
     if (!clan || !profile || profile.role === 'Leader') {
       showNotification(
-        'Aksi tidak diizinkan. Leader harus transfer kepemilikan.',
+        t.clanManage.leaderLeaveError, // [TERJEMAHAN]
         'error',
       );
       return;
     }
 
     setIsLeaving(true);
-    showNotification('Memproses keluar klan...', 'info');
+    showNotification(t.clanManage.processing, 'info'); // [TERJEMAHAN]
 
     try {
       const response = await fetch(`/api/clan/manage/leave`, {
@@ -184,12 +161,11 @@ const ManageClanClient = ({
 
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.message || 'Gagal keluar klan.');
+        throw new Error(result.message || t.clanManage.leaveError);
       }
 
-      showNotification(result.message, 'success');
+      showNotification(t.clanManage.leaveSuccess, 'success'); // [TERJEMAHAN]
       setIsLeaveModalOpen(false);
-      // Redirect ke profil karena user bukan lagi anggota klan ini
       router.push('/profile');
     } catch (err) {
       showNotification((err as Error).message, 'error');
@@ -197,7 +173,6 @@ const ManageClanClient = ({
       setIsLeaving(false);
     }
   };
-  // --- [AKHIR BARU] ---
 
   // --- TAMPILAN ERROR / AKSES DITOLAK ---
   if (serverError) {
@@ -208,11 +183,15 @@ const ManageClanClient = ({
           <div className="card-stone p-8 max-w-lg text-center rounded-lg border-2 border-coc-red/50 bg-coc-red/10">
             <AlertTriangleIcon className="h-12 w-12 text-coc-red mx-auto mb-4" />
             <h2 className="text-2xl text-coc-red font-clash mb-4">
-              Akses Ditolak
+              {t.clanManage.accessDenied} {/* [TERJEMAHAN] */}
             </h2>
-            <p className="text-gray-300 mb-6 font-sans">{serverError}</p>
+            <p className="text-gray-300 mb-6 font-sans">
+               {/* Jika error dari server spesifik, tampilkan, jika tidak gunakan generic */}
+               {/* Kita bisa combine: t.clanManage.accessDeniedDesc + " (" + serverError + ")" */}
+               {serverError} 
+            </p>
             <Button href="/profile" variant="primary">
-              Kembali ke Profil
+              {t.clanManage.backToProfile} {/* [TERJEMAHAN] */}
             </Button>
           </div>
         </div>
@@ -226,15 +205,14 @@ const ManageClanClient = ({
       <main className="container mx-auto p-4 md:p-8 mt-10 min-h-[60vh]">
         <div className="flex justify-center items-center h-full flex-col">
           <RefreshCwIcon className="h-12 w-12 text-coc-gold animate-spin mb-3" />
-          <p className="text-lg font-clash text-white">Memuat Data Pengguna...</p>
+          <p className="text-lg font-clash text-white">{t.clanManage.loadingUserData}</p> {/* [TERJEMAHAN] */}
           <p className="text-sm text-gray-400 font-sans mt-1">
-            Jika Anda terlempar, silakan login kembali.
+            {t.clanManage.reloginNote} {/* [TERJEMAHAN] */}
           </p>
         </div>
       </main>
     );
   }
-  // --- AKHIR PERBAIKAN RUNTIME ERROR ---
 
   // Utility: Tombol Menu Sidebar
   const MenuButton: React.FC<{
@@ -242,19 +220,15 @@ const ManageClanClient = ({
     icon: React.ReactNode;
     label: string;
   }> = ({ tabName, icon, label }) => {
-    // Logika untuk anggota biasa yang mencoba mengakses tab Manager
-    // [FASE 2] Menghapus 'ai-assistant' dari daftar tab manager
     const isManagerTab = [
       'requests',
       'settings',
       'promotion',
-      // 'ai-assistant', // <-- [FASE 2] Dihapus
     ].includes(tabName);
     if (!isManager && isManagerTab) {
-      return null; // Jangan render tombol jika bukan manager
+      return null;
     }
 
-    // Menangani penentuan tab aktif.
     if (!isManager && isManagerTab && activeTab === tabName) {
       setActiveTab('summary');
     }
@@ -282,28 +256,25 @@ const ManageClanClient = ({
 
   // Render Konten Tab Sesuai Pilihan
   const renderContent = () => {
-    // Filter akses tab manager
-    // [FASE 2] Menghapus 'ai-assistant' dari daftar tab terlarang
     const forbiddenTabs: ActiveTab[] = [
       'requests',
       'settings',
       'promotion',
-      // 'ai-assistant', // <-- [FASE 2] Dihapus
     ];
     if (!isManager && forbiddenTabs.includes(activeTab)) {
       return (
         <div className="p-8 text-center bg-coc-red/10 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
           <AlertTriangleIcon className="h-12 w-12 text-coc-red mb-3" />
-          <p className="text-xl font-clash text-coc-red">Akses Ditolak</p>
+          <p className="text-xl font-clash text-coc-red">{t.clanManage.tabAccessDenied}</p>
           <p className="text-sm text-gray-400 font-sans mt-1">
-            Hanya Leader atau Co-Leader yang dapat mengakses tab ini.
+            {t.clanManage.tabAccessDeniedDesc}
           </p>
           <Button
             onClick={() => setActiveTab('summary')}
             variant="secondary"
             className="mt-4"
           >
-            Kembali ke Ringkasan
+            {t.clanManage.backToSummary}
           </Button>
         </div>
       );
@@ -323,7 +294,7 @@ const ManageClanClient = ({
         return (
           <MemberTabContent
             clan={clan}
-            userProfile={profile} // Pass profile langsung
+            userProfile={profile} 
             onAction={showNotification}
             isManager={isManager}
           />
@@ -332,7 +303,7 @@ const ManageClanClient = ({
         return (
           <RequestTabContent
             clan={clan}
-            userProfile={profile} // Pass profile langsung
+            userProfile={profile}
             onAction={showNotification}
           />
         );
@@ -344,29 +315,17 @@ const ManageClanClient = ({
         return <CwlHistoryTabContent clan={clan} />;
       case 'raid':
         return <RaidTabContent clan={clan} />;
-      // --- [BARU: TAHAP 3.2] ---
       case 'esports':
-        // --- [PERBAIKAN] Tampilkan komponen yang sebenarnya ---
         return <EsportsTabContent clan={clan} onAction={showNotification} />;
-      // --- [AKHIR BARU] ---
-
-      // [BARU FASE 3] Render komponen promosi
       case 'promotion':
         return <PromotionTabContent clan={clan} onAction={showNotification} />;
-
-      // [FASE 2] Hapus case 'ai-assistant'
-      // case 'ai-assistant':
-      //   return <GeminiAssistantTab clanId={clan.id} />;
-
       case 'settings':
-        // (Placeholder)
         return (
           <div className="p-8 text-center bg-coc-stone/40 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
             <SettingsIcon className="h-12 w-12 text-coc-gold/50 mb-3" />
-            <p className="text-lg font-clash text-white">Pengaturan Klan</p>
+            <p className="text-lg font-clash text-white">{t.clanManage.settingsTitle}</p>
             <p className="text-sm text-gray-400 font-sans mt-1">
-              Implementasi pengaturan rekrutmen dan transfer kepemilikan akan
-              hadir di Fase 4.
+              {t.clanManage.settingsDesc}
             </p>
           </div>
         );
@@ -387,6 +346,7 @@ const ManageClanClient = ({
 
       <div className="space-y-8">
         {/* Header Klan (Tetap di Atas) */}
+        {/* NOTE: ClanManagementHeader juga harus diupdate nanti */}
         <ClanManagementHeader clan={clan} profile={profile} />
 
         {/* Tombol Toggle Sidebar (untuk mobile/tablet) */}
@@ -402,7 +362,7 @@ const ManageClanClient = ({
             ) : (
               <MenuIcon className="h-5 w-5 mr-2" />
             )}
-            {isSidebarOpen ? 'Tutup Menu' : 'Buka Menu'}
+            {isSidebarOpen ? t.clanManage.closeMenu : t.clanManage.openMenu}
           </Button>
         </div>
 
@@ -423,36 +383,32 @@ const ManageClanClient = ({
                 />
               ))}
 
-              {/* --- [BARU: FASE 2.1] Tombol Link ke Profil Klan --- */}
-              {/* Ini adalah LINK, bukan tab state, sesuai idemu */}
+              {/* Link Profil Klan */}
               <div className="pt-2 my-2 border-t border-coc-gold-dark/30"></div>
               <Button
                 href={`/clan/internal/${clan.id}`}
-                variant="ghost" // Gunakan variant ghost dan style manual
+                variant="ghost" 
                 className="w-full flex items-center justify-start px-4 py-3 text-sm font-medium rounded-md transition-colors duration-150 group text-gray-300 hover:bg-coc-dark/60 hover:text-white"
               >
                 <UserCircleIcon className="h-5 w-5 mr-3 flex-shrink-0 text-gray-400 group-hover:text-gray-300" />
-                <span>Profil Klan</span>
+                <span>{t.clanManage.viewClanProfile}</span>
               </Button>
-              {/* --- [AKHIR BARU] --- */}
 
-              {/* --- [BARU: TAHAP 2.3] Tombol Keluar Klan --- */}
-              {/* Tampilkan jika user BUKAN Leader */}
+              {/* Tombol Keluar Klan */}
               {profile.role !== 'Leader' && (
                 <>
                   <div className="pt-2 my-2 border-t border-coc-gold-dark/30"></div>
                   <Button
                     variant="danger"
                     size="sm"
-                    onClick={() => setIsLeaveModalOpen(true)} // Buka modal
+                    onClick={() => setIsLeaveModalOpen(true)} 
                     className="w-full flex items-center justify-start px-4 text-sm font-medium"
                   >
                     <LogOutIcon className="h-5 w-5 mr-3 flex-shrink-0" />
-                    <span>Keluar Klan</span>
+                    <span>{t.clanManage.leaveClan}</span>
                   </Button>
                 </>
               )}
-              {/* --- [AKHIR BARU] --- */}
             </div>
           </nav>
 
@@ -463,7 +419,7 @@ const ManageClanClient = ({
         </div>
       </div>
 
-      {/* --- [BARU: TAHAP 2.3] JSX untuk Leave Confirmation Modal --- */}
+      {/* Modal Konfirmasi Keluar */}
       {isLeaveModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
           <div className="relative w-full max-w-md rounded-xl card-stone shadow-xl border-2 border-coc-red/50">
@@ -486,25 +442,20 @@ const ManageClanClient = ({
                 />
               </div>
               <div className="mt-4 text-center">
-                <h3 className="text-2xl font-clash text-white">Keluar Klan</h3>
+                <h3 className="text-2xl font-clash text-white">{t.clanManage.leaveTitle}</h3>
                 <div className="mt-2">
                   <p className="text-sm text-gray-300">
-                    Anda yakin ingin keluar dari{' '}
+                    {t.clanManage.leaveConfirm}{' '}
                     <strong className="font-bold text-white">
                       {clan.name}
                     </strong>{' '}
-                    di Clashub?
+                    ?
                   </p>
                   <p className="mt-3 text-base font-bold text-coc-yellow/80">
-                    PENTING:
+                    {t.clanManage.leaveImportant}
                   </p>
                   <p className="text-sm text-gray-300 bg-coc-stone-dark/30 p-3 rounded-md">
-                    Ini HANYA mengeluarkan Anda dari website Clashub. Anda harus
-                    keluar{' '}
-                    <strong className="text-white">
-                      MANUAL DARI DALAM GAME CoC
-                    </strong>{' '}
-                    juga.
+                    {t.clanManage.leaveNote}
                   </p>
                 </div>
               </div>
@@ -518,7 +469,7 @@ const ManageClanClient = ({
                 onClick={() => setIsLeaveModalOpen(false)}
                 disabled={isLeaving}
               >
-                Batal
+                {t.clanManage.cancel}
               </Button>
               <Button
                 type="button"
@@ -532,21 +483,19 @@ const ManageClanClient = ({
                 ) : (
                   <LogOutIcon className="h-4 w-4 mr-2" />
                 )}
-                {isLeaving ? 'Memproses...' : 'Ya, Keluar Klan'}
+                {isLeaving ? t.clanManage.processing : t.clanManage.confirmLeave}
               </Button>
             </div>
           </div>
         </div>
       )}
-      {/* --- [AKHIR BARU] --- */}
 
-      {/* --- [FASE 2] Tombol Floating & Modal AI --- */}
-      {/* Hanya tampilkan tombol jika user adalah Manager */}
+      {/* Tombol Floating & Modal AI */}
       {isManager && (
         <Button
           variant="primary"
-          size="lg" // Dibuat lebih besar
-          className="fixed z-40 bottom-6 right-6 rounded-full shadow-lg p-4 h-16 w-16" // Styling FAB
+          size="lg" 
+          className="fixed z-40 bottom-6 right-6 rounded-full shadow-lg p-4 h-16 w-16" 
           onClick={() => setIsAiModalOpen(true)}
           aria-label="Buka Asisten AI"
         >
@@ -554,15 +503,11 @@ const ManageClanClient = ({
         </Button>
       )}
 
-      {/* Render Modal AI di sini. 
-        Modal ini akan menangani visibilitasnya sendiri berdasarkan prop 'isOpen' 
-      */}
       <GeminiAssistantModal
         clanId={clan.id}
         isOpen={isAiModalOpen}
         onClose={() => setIsAiModalOpen(false)}
       />
-      {/* --- [AKHIR FASE 2] --- */}
     </main>
   );
 };

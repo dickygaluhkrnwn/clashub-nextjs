@@ -1,8 +1,11 @@
+'use client';
+
 import React from 'react';
 import { Player } from '@/lib/types';
 import { PlayerCard } from '@/app/components/cards';
 import { Button } from '@/app/components/ui/Button';
 import { RefreshCwIcon } from '@/app/components/icons';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
 
 interface PlayersTabProps {
   isFiltering: boolean;
@@ -23,11 +26,13 @@ export const PlayersTab = ({
   showLoadMorePlayers,
   onLoadMorePlayers,
 }: PlayersTabProps) => {
+  const { t } = useLanguage(); // [BARU]
+
   if (isFiltering) {
     return (
       <div className="text-center py-20">
         <RefreshCwIcon className="h-10 w-10 text-coc-gold animate-spin mx-auto mb-4" />
-        <h2 className="text-xl font-clash text-coc-gold">Memfilter...</h2>
+        <h2 className="text-xl font-clash text-coc-gold">{t.common.filtering}</h2>
       </div>
     );
   }
@@ -35,11 +40,11 @@ export const PlayersTab = ({
   return (
     <div className="space-y-6">
       <h2 className="text-3xl font-clash text-white">
-        {filteredPlayers.length} Pemain Ditemukan
+        {t.clanHub.playersFound.replace('{count}', filteredPlayers.length.toString())}
       </h2>
       {playersToShow.length === 0 ? (
         <p className="text-gray-400 text-center py-10">
-          Tidak ada Pemain yang cocok dengan filter Anda.
+          {t.clanHub.noPlayersMatch}
         </p>
       ) : (
         <>
@@ -64,8 +69,8 @@ export const PlayersTab = ({
                 size="lg"
                 onClick={onLoadMorePlayers}
               >
-                Muat Lebih Banyak (
-                {filteredPlayers.length - playersToShow.length} Tersisa)
+                {t.common.loadMore} (
+                {filteredPlayers.length - playersToShow.length} {t.common.remaining})
               </Button>
             </div>
           )}

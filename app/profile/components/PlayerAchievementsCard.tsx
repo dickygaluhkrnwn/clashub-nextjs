@@ -1,7 +1,3 @@
-// File: app/profile/components/PlayerAchievementsCard.tsx
-// Deskripsi: [MODIFIKASI FASE 6.5] Memperbarui card untuk
-// membaca dari cache 'userProfile.cachedAchievements'.
-
 'use client';
 
 import React from 'react';
@@ -9,6 +5,7 @@ import React from 'react';
 import { CocPlayer, UserProfile } from '@/lib/types';
 import { TrophyIcon } from '@/app/components/icons'; // Menggunakan ikon Trofi
 import { formatNumber } from '@/lib/th-utils'; // Util format angka
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
 
 interface PlayerAchievementsCardProps {
   // [MODIFIKASI 6.5] Tambahkan userProfile
@@ -44,6 +41,7 @@ export const PlayerAchievementsCard = ({
   isLoading,
   error,
 }: PlayerAchievementsCardProps) => {
+  const { t } = useLanguage(); // [BARU]
   // --- [MODIFIKASI FASE 6.5] ---
   // Logika Penggabungan Data:
   // 1. Coba 'fullPlayerData.achievements' (live)
@@ -69,20 +67,23 @@ export const PlayerAchievementsCard = ({
   return (
     <div className="card-stone p-6 rounded-lg">
       <h2 className="mb-6 flex items-center gap-2 font-clash text-2xl text-white">
-        <TrophyIcon className="h-6 w-6 text-coc-gold" /> Pencapaian
+        {/* [TERJEMAHAN] */}
+        <TrophyIcon className="h-6 w-6 text-coc-gold" /> {t.profileAchievements.title}
       </h2>
 
       {/* --- Handle Loading [MODIFIKASI 6.5] --- */}
       {showLoading && (
         <p className="text-sm text-gray-400 font-sans text-center">
-          Memuat data pencapaian...
+          {/* [TERJEMAHAN] */}
+          {t.profileAchievements.loading}
         </p>
       )}
 
       {/* --- Handle Error --- */}
       {error && !isLoading && (
         <p className="text-sm text-red-400 font-sans text-center">
-          Gagal memuat pencapaian: {error}
+          {/* [TERJEMAHAN] */}
+          {t.profileAchievements.error.replace('{error}', error)}
         </p>
       )}
 
@@ -109,7 +110,8 @@ export const PlayerAchievementsCard = ({
           ) : (
             // Tampilkan jika fetch selesai tapi tidak ada data
             <p className="text-sm text-gray-400 font-sans text-center">
-              Data pencapaian tidak ditemukan.
+              {/* [TERJEMAHAN] */}
+              {t.profileAchievements.empty}
             </p>
           )}
         </div>

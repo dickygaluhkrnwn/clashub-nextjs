@@ -1,7 +1,8 @@
+'use client'; // [PASTIKAN INI ADA KARENA PAKAI HOOKS]
+
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation'; // <-- [PERBAIKAN] Import useRouter
-// REFAKTOR: Impor tipe yang relevan
-import { ManagedClan, CocWarLog, CocRaidLog, CocCurrentWar } from '@/lib/types';
+import { useRouter } from 'next/navigation'; 
+import { ManagedClan, CocCurrentWar, CocRaidLog } from '@/lib/types';
 import { Button } from '@/app/components/ui/Button';
 import {
   RefreshCwIcon,
@@ -20,7 +21,6 @@ import {
 } from '@/app/components/icons';
 import TopPerformersCard from './TopPerformersCard';
 import { formatNumber } from '@/lib/th-utils';
-// REFAKTOR: Impor SWR hooks
 import {
   useManagedClanCache,
   useManagedClanWar,
@@ -28,71 +28,65 @@ import {
   useManagedClanWarLog,
   useManagedClanCWL,
 } from '@/lib/hooks/useManagedClan';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
 
-// REFAKTOR: Perbarui Props
 interface SummaryTabContentProps {
   clan: ManagedClan;
   isManager: boolean;
-  // PERBAIKAN: Tambahkan 'onAction' yang kemarin saya hapus
   onAction: (
     message: string,
     type: 'success' | 'error' | 'warning' | 'info'
   ) => void;
-  // HAPUS: cache, isSyncing, onSync, onRefresh
 }
 
 // ======================================================================================================
 // Helper Component: War Status Display
 // ======================================================================================================
 
-// [PERBAIKAN TIPE]
-// Tipe 'war' diubah dari CocWarLog menjadi CocCurrentWar agar cocok dengan hook
 interface WarStatusProps {
-  war: CocCurrentWar; // Menggunakan tipe dari hook
+  war: CocCurrentWar; 
   clanTag: string;
+  t: any; // [BARU] Pass 't' helper
 }
 
-const WarStatusDisplay: React.FC<WarStatusProps> = ({ war, clanTag }) => {
-  // Menentukan klan kita dan lawan
+const WarStatusDisplay: React.FC<WarStatusProps> = ({ war, clanTag, t }) => {
   const ourClan = war.clan.tag === clanTag ? war.clan : war.opponent;
   const enemyClan = war.opponent.tag !== clanTag ? war.opponent : war.clan;
 
   if (!ourClan || !enemyClan || war.state === 'notInWar') {
     return (
       <p className="text-gray-400 mt-3">
-        Saat ini klan tidak sedang dalam War Aktif.
+        {t.clanManage.warNotInActive}
       </p>
     );
   }
 
   const attacksUsed = ourClan.attacks || 0;
-  // Gunakan teamSize, fallback ke jumlah members
   const totalMembers = war.teamSize || ourClan.members?.length || 0;
-  // Gunakan attacksPerMember jika ada (untuk CWL), fallback ke 2 (Classic War)
   const totalAttacks = totalMembers * (war.attacksPerMember || 2);
 
-  // War status text and class
   let stateText = '';
   let stateClass = '';
 
   switch (war.state) {
     case 'inWar':
-      stateText = 'SEDANG BERJALAN';
+      stateText = t.clanManage.warInProgress;
       stateClass = 'text-coc-red';
       break;
     case 'preparation':
-      stateText = 'PERSIAPAN';
+      stateText = t.clanManage.warPreparation;
       stateClass = 'text-coc-blue';
       break;
     case 'warEnded':
-      // Tentukan result berdasarkan bintang jika 'result' tidak ada (fallback)
       let result = war.result;
       if (!result) {
         if (ourClan.stars > enemyClan.stars) result = 'win';
         else if (ourClan.stars < enemyClan.stars) result = 'lose';
         else result = 'tie';
       }
-      stateText = `SELESAI (${result?.toUpperCase() || 'N/A'})`;
+      // [TERJEMAHAN]
+      const resultText = result === 'win' ? t.clanManage.warEnded + ' (WIN)' : result === 'lose' ? t.clanManage.warEnded + ' (LOSE)' : t.clanManage.warEnded + ' (TIE)';
+      stateText = resultText;
       stateClass =
         result === 'win'
           ? 'text-coc-green'
@@ -125,7 +119,7 @@ const WarStatusDisplay: React.FC<WarStatusProps> = ({ war, clanTag }) => {
           </p>
           <p className="text-xs text-gray-400 mt-1">
             {ourClan.destructionPercentage.toFixed(2)}% | {attacksUsed}/
-            {totalAttacks} Serangan
+            {totalAttacks} {t.clanManage.attacks}
           </p>
         </div>
 
@@ -141,30 +135,28 @@ const WarStatusDisplay: React.FC<WarStatusProps> = ({ war, clanTag }) => {
         </div>
       </div>
 
-      {/* Navigasi ini seharusnya diubah untuk memanggil setActiveTab,
-          tapi untuk saat ini kita biarkan link hardcode.
-       */}
       <Button
         href="/clan/manage?tab=active-war"
         variant="secondary"
         size="sm"
         className="w-full mt-2"
       >
-        Lihat Detail Perang <ArrowRightIcon className="w-4 h-4 ml-2" />
+        {t.clanManage.viewWarDetails} <ArrowRightIcon className="w-4 h-4 ml-2" />
       </Button>
     </div>
   );
 };
 
 // ======================================================================================================
-// Helper Component: Raid Summary Display (Tidak Berubah)
+// Helper Component: Raid Summary Display
 // ======================================================================================================
 
 interface RaidSummaryProps {
   raid: CocRaidLog;
+  t: any; // [BARU] Pass 't' helper
 }
 
-const RaidSummaryDisplay: React.FC<RaidSummaryProps> = ({ raid }) => {
+const RaidSummaryDisplay: React.FC<RaidSummaryProps> = ({ raid, t }) => {
   // Format tanggal
   const startDate = new Date(raid.startTime).toLocaleDateString('id-ID', {
     day: 'numeric',
@@ -179,22 +171,22 @@ const RaidSummaryDisplay: React.FC<RaidSummaryProps> = ({ raid }) => {
   return (
     <div className="card-stone p-6 space-y-4 border border-coc-gold/30">
       <h3 className="text-xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2">
-        <HomeIcon className="h-5 w-5 text-coc-blue" /> Ringkasan Raid Terbaru
+        <HomeIcon className="h-5 w-5 text-coc-blue" /> {t.clanManage.raidSummaryTitle}
       </h3>
 
       <p className="text-sm text-gray-300 font-sans">
-        Periode: <span className="font-semibold">{startDate} - {endDate}</span>
+        {t.clanManage.raidPeriod}: <span className="font-semibold">{startDate} - {endDate}</span>
       </p>
 
       <div className="grid grid-cols-2 gap-4 text-center">
         <div className="bg-coc-stone/20 p-3 rounded-lg">
-          <p className="text-xs text-gray-400">Total Loot Capital</p>
+          <p className="text-xs text-gray-400">{t.clanManage.raidTotalLoot}</p>
           <p className="text-xl font-bold text-coc-gold mt-1">
             {formatNumber(raid.capitalTotalLoot)}
           </p>
         </div>
         <div className="bg-coc-stone/20 p-3 rounded-lg">
-          <p className="text-xs text-gray-400">Medali Raid</p>
+          <p className="text-xs text-gray-400">{t.clanManage.raidMedals}</p>
           <p className="text-xl font-bold text-coc-gold mt-1">
             {formatNumber(raid.offensiveReward || 0)}
           </p>
@@ -203,11 +195,11 @@ const RaidSummaryDisplay: React.FC<RaidSummaryProps> = ({ raid }) => {
 
       <div className="grid grid-cols-2 gap-4 text-center">
         <div className="bg-coc-stone/20 p-3 rounded-lg">
-          <p className="text-xs text-gray-400">Serangan Total</p>
+          <p className="text-xs text-gray-400">{t.clanManage.raidAttacks}</p>
           <p className="text-xl font-bold text-white mt-1">{raid.totalAttacks}</p>
         </div>
         <div className="bg-coc-stone/20 p-3 rounded-lg">
-          <p className="text-xs text-gray-400">Distrik Hancur</p>
+          <p className="text-xs text-gray-400">{t.clanManage.raidDestroyed}</p>
           <p className="text-xl font-bold text-white mt-1">
             {raid.enemyDistrictsDestroyed || 0}
           </p>
@@ -220,7 +212,7 @@ const RaidSummaryDisplay: React.FC<RaidSummaryProps> = ({ raid }) => {
         size="sm"
         className="w-full mt-2"
       >
-        Lihat Riwayat Raid <ArrowRightIcon className="w-4 h-4 ml-2" />
+        {t.clanManage.viewRaidHistory} <ArrowRightIcon className="w-4 h-4 ml-2" />
       </Button>
     </div>
   );
@@ -235,74 +227,65 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
   isManager,
   onAction,
 }) => {
-  const router = useRouter(); // <-- [PERBAIKAN] Inisialisasi router
+  const { t } = useLanguage(); // [BARU] Init Hook
+  const router = useRouter(); 
 
-  // REFAKTOR: Panggil SWR hooks
-  // [PERBAIKAN ERROR TS2339]
-  // Ambil nama 'mutate' yang benar (misal: 'mutateCache') dan rename ke nama lokal
   const {
-    clanCache, // Tipe ClanApiCache
+    clanCache, 
     isLoading: isLoadingBasic,
-    mutateCache: mutateBasic, // <-- [FIX] Ambil 'mutateCache', rename ke 'mutateBasic'
-  } = useManagedClanCache(clan.id); // <-- [FIX] Hook sudah benar 'useManagedClanCache'
+    mutateCache: mutateBasic, 
+  } = useManagedClanCache(clan.id);
   const {
-    warData, // Tipe CocCurrentWar
+    warData, 
     isLoading: isLoadingWar,
-    mutateWar: mutateWar, // <-- [FIX] Ambil 'mutateWar', rename ke 'mutateWar'
+    mutateWar: mutateWar, 
   } = useManagedClanWar(clan.id);
   const {
-    currentRaid, // <-- [FIX] Ambil 'currentRaid'
-    raidArchives, // <-- [FIX] Ambil 'raidArchives'
+    currentRaid,
+    raidArchives, 
     isLoading: isLoadingRaid,
-    mutateRaid: mutateRaid, // <-- [FIX] Ambil 'mutateRaid', rename ke 'mutateRaid'
+    mutateRaid: mutateRaid, 
   } = useManagedClanRaid(clan.id);
 
-  // Ambil 'mutate' dengan nama uniknya
-  const { mutateWarLog } = useManagedClanWarLog(clan.id); // <-- [FIX] Ambil 'mutateWarLog'
-  const { mutateCWL } = useManagedClanCWL(clan.id); // <-- [FIX] Ambil 'mutateCWL'
+  const { mutateWarLog } = useManagedClanWarLog(clan.id);
+  const { mutateCWL } = useManagedClanCWL(clan.id);
 
-  // REFAKTOR: State sinkronisasi sekarang lokal
   const [isSyncing, setIsSyncing] = useState(false);
 
   // REFAKTOR: Fungsi Refresh UI (untuk Anggota)
   const handleRefreshUI = () => {
-    onAction('Memuat ulang data cache...', 'info');
-    // Mutate semua data yang relevan di tab ini
+    onAction(t.clanManage.msgReloading, 'info');
     mutateBasic();
     mutateWar();
     mutateRaid();
-    // Kita juga refresh data lain jika-jika diperlukan di tab lain
     mutateWarLog();
     mutateCWL();
-    router.refresh(); // [OPSIONAL] Refresh server component juga untuk memastikan konsistensi
+    router.refresh(); 
   };
 
   // REFAKTOR: Fungsi Sync Manual (untuk Manager)
   const handleSyncManual = async () => {
     if (!isManager) {
       onAction(
-        'Hanya Leader/Co-Leader yang dapat melakukan sinkronisasi.',
+        t.clanManage.msgOnlyManager,
         'warning'
       );
       return;
     }
     setIsSyncing(true);
-    onAction(`Memulai sinkronisasi granular untuk ${clan.name}...`, 'info');
+    onAction(t.clanManage.msgStartSync.replace('{name}', clan.name), 'info');
 
     try {
-      // 1. Trigger API sinkronisasi basic TERLEBIH DAHULU untuk cek owner
       const basicRes = await fetch(`/api/clan/manage/${clan.id}/sync/basic`, { method: 'POST' });
-      const basicData = await basicRes.json(); // [PENTING] Ambil response body
+      const basicData = await basicRes.json(); 
 
-      // Trigger API sync lainnya
       await fetch(`/api/clan/manage/${clan.id}/sync/war`, { method: 'POST' });
       await fetch(`/api/clan/manage/${clan.id}/sync/raid`, { method: 'POST' });
       await fetch(`/api/clan/manage/${clan.id}/sync/warlog`, { method: 'POST' });
       await fetch(`/api/clan/manage/${clan.id}/sync/cwl`, { method: 'POST' });
 
-      // 2. Setelah backend sync, panggil mutate SWR untuk mengambil data baru
       onAction(
-        'Sinkronisasi backend selesai. Memuat data baru ke UI...',
+        t.clanManage.msgBackendDone,
         'info'
       );
       await Promise.all([
@@ -313,24 +296,22 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
         mutateCWL(),
       ]);
 
-      // 3. Cek apakah Owner berubah berdasarkan respon backend
       if (basicData.data?.ownerUpdated) {
-        onAction('Sinkronisasi Berhasil! Kepemilikan klan telah diperbarui otomatis.', 'success');
-        router.refresh(); // [KRUSIAL] Refresh halaman agar prop 'clan' (server data) terupdate
+        onAction(t.clanManage.msgOwnerUpdated, 'success');
+        router.refresh(); 
       } else {
-        onAction('Data berhasil disinkronisasi!', 'success');
+        onAction(t.clanManage.msgSyncSuccess, 'success');
       }
 
     } catch (err) {
       const errorMessage =
-        (err as Error).message || 'Terjadi kesalahan saat sinkronisasi.';
+        (err as Error).message || t.clanManage.msgSyncError;
       onAction(errorMessage, 'error');
     } finally {
       setIsSyncing(false);
     }
   };
 
-  // REFAKTOR: Tampilkan loading state
   const isLoading = isLoadingBasic || isLoadingWar || isLoadingRaid;
   if (isLoading && !isSyncing) {
     return (
@@ -340,8 +321,6 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
     );
   }
 
-  // REFAKTOR: Ambil data dari SWR hooks
-  // PERBAIKAN: Ganti 'clanData' menjadi 'clanCache'
   const lastSyncedDate = clanCache?.lastUpdated
     ? new Date(clanCache.lastUpdated)
     : new Date(0);
@@ -352,18 +331,15 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
     : 'N/A';
 
   const topPerformers = clanCache?.topPerformers;
-  const currentWar = warData; // Langsung dari useManagedClanWar
-  // const currentRaid = raidLogData?.[0]; // <-- [PERBAIKAN 2] HAPUS BARIS INI
+  const currentWar = warData; 
 
   const isWarActive =
     currentWar &&
     currentWar.state !== 'notInWar' &&
     currentWar.state !== 'warEnded';
 
-  // [PERBAIKAN 2] Gunakan 'currentRaid' yang di-destructure dari hook 'useManagedClanRaid'
   const isRaidDataAvailable = !!currentRaid && currentRaid.state === 'ended';
 
-  // Konstanta
   const PROMOTION_LIMIT = 3;
   const DEMOTION_LIMIT = 3;
   const promotions = topPerformers?.promotions || [];
@@ -380,15 +356,14 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
         {/* Kolom 1: Sinkronisasi & Info Internal */}
         <div className="card-stone p-6 space-y-4 border border-coc-gold/30">
           <h3 className="text-xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2">
-            <ClockIcon className="h-5 w-5" /> Kontrol Sinkronisasi
+            <ClockIcon className="h-5 w-5" /> {t.clanManage.syncControlTitle}
           </h3>
           <p className="text-sm text-gray-300 font-sans">
-            Sinkronisasi menarik data Anggota, War Log, CWL Archive, dan Raid
-            Log terbaru. Data terakhir diperbarui: {lastSyncTime}.
+            {t.clanManage.syncControlDesc} {t.clanPublicProfile.lastUpdated} {lastSyncTime}.
           </p>
           {isManager ? ( // Tombol untuk Manager
             <Button
-              onClick={handleSyncManual} // REFAKTOR: Panggil fungsi lokal
+              onClick={handleSyncManual} 
               variant={isCacheStale ? 'primary' : 'secondary'}
               disabled={isSyncing}
               className={`w-full ${isSyncing ? 'animate-pulse' : ''}`}
@@ -399,15 +374,15 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
                 }`}
               />
               {isSyncing
-                ? 'Sedang Sinkronisasi...'
+                ? t.clanManage.syncing
                 : isCacheStale
-                ? 'Sinkronisasi Manual (Data Basi)'
-                : 'Sinkronisasi Manual Sekarang'}
+                ? t.clanManage.syncManualStale
+                : t.clanManage.syncManualNow}
             </Button>
           ) : (
             // Tombol untuk Anggota
             <Button
-              onClick={handleRefreshUI} // REFAKTOR: Panggil fungsi lokal
+              onClick={handleRefreshUI} 
               variant="tertiary"
               disabled={isSyncing}
               className={`w-full ${isSyncing ? 'animate-pulse' : ''}`}
@@ -417,31 +392,31 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
                   isSyncing ? 'animate-spin' : ''
                 }`}
               />
-              Muat Ulang Data
+              {t.clanManage.reloadCache}
             </Button>
           )}
           <p className="text-sm text-gray-400 pt-2">
-            <span className="font-bold">ID Internal:</span> {clan.id}
+            <span className="font-bold">{t.clanManage.internalId}:</span> {clan.id}
           </p>
           <p className="text-sm text-gray-400">
-            <span className="font-bold">UID Owner:</span> {clan.ownerUid}
+            <span className="font-bold">{t.clanManage.ownerUid}:</span> {clan.ownerUid}
           </p>
         </div>
 
         {/* Kolom 2: War Aktif */}
         <div className="card-stone p-6 space-y-4 border border-coc-gold/30">
           <h3 className="text-xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2">
-            <SwordsIcon className="h-5 w-5 text-coc-red" /> War Aktif
+            <SwordsIcon className="h-5 w-5 text-coc-red" /> {t.clanManage.activeWarTitle}
           </h3>
           {/* REFAKTOR: Gunakan 'currentWar' dari SWR */}
           {isWarActive && currentWar ? (
-            <WarStatusDisplay war={currentWar} clanTag={clan.tag} />
+            <WarStatusDisplay war={currentWar} clanTag={clan.tag} t={t} />
           ) : (
             <div className="text-center p-4 bg-coc-stone/20 rounded-lg">
               <ShieldIcon className="h-8 w-8 text-coc-green/50 mx-auto" />
-              <p className="text-white font-clash mt-2">Klan Sedang Aman</p>
+              <p className="text-white font-clash mt-2">{t.clanManage.clanSafe}</p>
               <p className="text-xs text-gray-400">
-                Tidak ada War Klasik atau CWL aktif.
+                {t.clanManage.clanSafeDesc}
               </p>
             </div>
           )}
@@ -450,18 +425,18 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
         {/* Kolom 3: Raid Terbaru */}
         {/* REFAKTOR: Gunakan 'currentRaid' dari SWR */}
         {isRaidDataAvailable && currentRaid ? (
-          <RaidSummaryDisplay raid={currentRaid} />
+          <RaidSummaryDisplay raid={currentRaid} t={t} />
         ) : (
           <div className="card-stone p-6 space-y-4 border border-coc-gold/30 flex flex-col justify-center items-center">
             <HomeIcon className="h-8 w-8 text-coc-blue/50" />
             <h3 className="text-xl font-clash text-coc-gold-dark">
-              Raid Capital
+              {t.clanManage.raidTitle}
             </h3>
             <p className="text-sm text-gray-400 text-center">
-              Data Raid Capital terbaru belum tersedia, atau sedang berlangsung.
+              {t.clanManage.raidNoData}
             </p>
             <Button href="/clan/manage?tab=raid" variant="tertiary" size="sm">
-              Lihat Arsip Raid
+              {t.clanManage.viewRaidArchive}
             </Button>
           </div>
         )}
@@ -469,61 +444,60 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
 
       {/* Bagian 2: Top Performers (Berupa kartu) */}
       <h2 className="text-2xl font-clash text-white border-b border-coc-gold-dark/50 pb-2 flex items-center gap-3">
-        <TrophyIcon className="h-6 w-6 text-coc-gold" /> Performa Terbaik (Dari
-        Agregator)
+        <TrophyIcon className="h-6 w-6 text-coc-gold" /> {t.clanManage.performanceTitle}
       </h2>
 
       {/* REFAKTOR: Tampilkan loading atau data untuk Top Performers */}
       {isLoadingBasic ? (
-        <p className="text-sm text-gray-400">Memuat data performa...</p>
+        <p className="text-sm text-gray-400">{t.clanManage.loadingPerformance}</p>
       ) : topPerformers ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Kartu 1: Promosi */}
           <TopPerformersCard
-            title="Kandidat Promosi"
+            title={t.clanManage.promotionsTitle}
             icon={<ArrowUpIcon className="h-6 w-6 text-coc-green" />}
             className="bg-coc-green/10 border border-coc-green/30 text-coc-green"
             value={promotions.length}
-            description={`Member yang siap dipromosikan (Min ${PROMOTION_LIMIT} Sukses)`}
+            description={t.clanManage.promotionsDesc.replace('{count}', PROMOTION_LIMIT.toString())}
             isPlayerList={true}
             players={promotions}
           />
 
           {/* Kartu 2: Demosi */}
           <TopPerformersCard
-            title="Risiko Demosi"
+            title={t.clanManage.demotionsTitle}
             icon={<ArrowDownIcon className="h-6 w-6 text-coc-red" />}
             className="bg-coc-red/10 border border-coc-red/30 text-coc-red"
             value={demotions.length}
-            description={`Elder yang berisiko didemosi (Min ${DEMOTION_LIMIT} Penalti)`}
+            description={t.clanManage.demotionsDesc.replace('{count}', DEMOTION_LIMIT.toString())}
             isPlayerList={true}
             players={demotions}
           />
 
           {/* Kartu 3: Top Donator */}
           <TopPerformersCard
-            title="Top Donator"
+            title={t.clanManage.topDonator}
             icon={<CoinsIcon className="h-6 w-6 text-coc-gold" />}
             className="bg-coc-gold/10 border border-coc-gold/30 text-coc-gold"
             value={topDonatorData?.name || 'N/A'}
-            description={`Total Donasi: ${formatNumber(donatorValue)}`}
+            description={`${t.clanManage.totalDonations}: ${formatNumber(donatorValue)}`}
             isPlayerList={false}
             players={topDonatorData ? [topDonatorData] : []}
           />
 
           {/* Kartu 4: Top Raid Looter */}
           <TopPerformersCard
-            title="Top Raid Looter"
+            title={t.clanManage.topLooter}
             icon={<HomeIcon className="h-6 w-6 text-coc-blue" />}
             className="bg-coc-blue/10 border border-coc-blue/30 text-coc-blue"
             value={topRaidLooterData?.name || 'N/A'}
-            description={`Total Loot Raid: ${formatNumber(looterValue)}`}
+            description={`${t.clanManage.totalLoot}: ${formatNumber(looterValue)}`}
             isPlayerList={false}
             players={topRaidLooterData ? [topRaidLooterData] : []}
           />
         </div>
       ) : (
-        <p className="text-sm text-gray-400">Data performa tidak tersedia.</p>
+        <p className="text-sm text-gray-400">{t.clanManage.noPerformanceData}</p>
       )}
     </div>
   );

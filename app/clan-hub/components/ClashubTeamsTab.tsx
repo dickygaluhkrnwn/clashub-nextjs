@@ -1,9 +1,12 @@
+'use client';
+
 import React from 'react';
 // [PERBAIKAN] Ganti impor ManagedClan ke RecommendedTeam
 import { RecommendedTeam } from '@/lib/types';
 import { TeamCard } from '@/app/components/cards';
 import { Button } from '@/app/components/ui/Button';
 import { RefreshCwIcon } from '@/app/components/icons';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
 
 interface ClashubTeamsTabProps {
   isFiltering: boolean;
@@ -25,11 +28,13 @@ export const ClashubTeamsTab = ({
   showLoadMoreClans,
   onLoadMoreClans,
 }: ClashubTeamsTabProps) => {
+  const { t } = useLanguage(); // [BARU]
+
   if (isFiltering) {
     return (
       <div className="text-center py-20">
         <RefreshCwIcon className="h-10 w-10 text-coc-gold animate-spin mx-auto mb-4" />
-        <h2 className="text-xl font-clash text-coc-gold">Memfilter...</h2>
+        <h2 className="text-xl font-clash text-coc-gold">{t.common.filtering}</h2>
       </div>
     );
   }
@@ -37,13 +42,13 @@ export const ClashubTeamsTab = ({
   return (
     <div className="space-y-6">
       <h2 className="text-3xl font-clash text-white">
-        {/* [PERBAIKAN 1] Mengganti "Tim Internal" menjadi "Clan Internal" */}
-        {filteredClans.length} Clan Internal Ditemukan
+        {/* [PERBAIKAN 1] Menggunakan string replace untuk count */}
+        {t.clanHub.teamsFound.replace('{count}', filteredClans.length.toString())}
       </h2>
       {clansToShow.length === 0 ? (
         <p className="text-gray-400 text-center py-10">
-          {/* [PERBAIKAN 2] Mengganti "Tim Clashub" menjadi "Clan Internal" */}
-          Tidak ada Clan Internal yang cocok dengan filter Anda.
+          {/* [PERBAIKAN 2] Menggunakan variabel bahasa */}
+          {t.clanHub.noTeamsMatch}
         </p>
       ) : (
         <>
@@ -70,8 +75,9 @@ export const ClashubTeamsTab = ({
                 size="lg"
                 onClick={onLoadMoreClans}
               >
-                Muat Lebih Banyak ({filteredClans.length - clansToShow.length}{' '}
-                Tersisa)
+                {/* [TERJEMAHAN] Muat Lebih Banyak (X Tersisa) */}
+                {t.common.loadMore} ({filteredClans.length - clansToShow.length}{' '}
+                {t.common.remaining})
               </Button>
             </div>
           )}

@@ -1,10 +1,7 @@
-// File: app/profile/components/ProfileTabs.tsx
-// Deskripsi: Komponen navigasi tab horizontal untuk halaman profil.
-// Membagi konten menjadi Summary, Reputasi, Army, Achievements, History, dan Postingan.
-
 'use client';
 
 import React from 'react';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
 
 // Tipe data untuk Tab ID agar type-safe
 export type ProfileTab = 'summary' | 'reputation' | 'army' | 'achievements' | 'history' | 'posts';
@@ -15,13 +12,15 @@ interface ProfileTabsProps {
 }
 
 export const ProfileTabs = ({ activeTab, onTabChange }: ProfileTabsProps) => {
+  const { t } = useLanguage(); // [BARU]
+
   const tabs: { id: ProfileTab; label: string }[] = [
-    { id: 'summary', label: 'SUMMARY' },
-    { id: 'reputation', label: 'REPUTASI' },
-    { id: 'army', label: 'ARMY' },
-    { id: 'achievements', label: 'ACHIEVEMENTS' },
-    { id: 'history', label: 'HISTORY' }, // Tab Baru
-    { id: 'posts', label: 'POSTINGAN' }, // Tab Baru
+    { id: 'summary', label: t.profile.tabSummary.toUpperCase() },
+    { id: 'reputation', label: t.profile.tabReputation.toUpperCase() },
+    { id: 'army', label: t.profile.tabArmy.toUpperCase() },
+    { id: 'achievements', label: t.profile.tabAchievements.toUpperCase() },
+    { id: 'history', label: t.profile.tabHistory.toUpperCase() },
+    { id: 'posts', label: t.profile.tabPosts.toUpperCase() },
   ];
 
   return (

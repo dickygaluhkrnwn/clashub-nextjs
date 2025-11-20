@@ -1,5 +1,3 @@
-// File: app/profile/components/ProfileHeader.tsx
-
 'use client';
 
 import React from 'react';
@@ -9,6 +7,7 @@ import {
   ShieldIcon,
   ExternalLinkIcon,
 } from '@/app/components/icons';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
 
 interface ProfileHeaderProps {
   isVerified: boolean;
@@ -27,6 +26,8 @@ export const ProfileHeader = ({
   inGameName,
   cocProfileUrl,
 }: ProfileHeaderProps) => {
+  const { t } = useLanguage(); // [BARU]
+
   return (
     <header className="flex justify-between items-center flex-wrap gap-4 mb-6 card-stone p-6 rounded-lg">
       {/* Status Verifikasi */}
@@ -43,17 +44,16 @@ export const ProfileHeader = ({
         <p className="text-sm font-sans font-semibold text-white">
           {isVerified ? (
             <>
-              {/* [FIX] Ganti **...** dengan span font-bold */}
-              Akun CoC <span className="font-bold">Terverifikasi</span>
-              {/* Tampilkan InGameName jika berbeda */}
+              {/* [TERJEMAHAN] */}
+              <span className="font-bold">{t.profileHeader.verified}</span>
               {inGameName && inGameName !== displayName
                 ? ` (${inGameName})`
                 : ''}
             </>
           ) : (
             <>
-              {/* [FIX] Ganti **...** dengan span font-bold */}
-              Akun CoC <span className="font-bold">Belum Terverifikasi</span>.
+              {/* [TERJEMAHAN] */}
+              <span className="font-bold">{t.profileHeader.unverified}</span>.
             </>
           )}
         </p>
@@ -70,7 +70,7 @@ export const ProfileHeader = ({
             size="sm"
             className="flex-shrink-0"
           >
-            <ExternalLinkIcon className="h-4 w-4 mr-2" /> Profil CoC
+            <ExternalLinkIcon className="h-4 w-4 mr-2" /> {t.profileHeader.viewCocProfile}
           </Button>
         )}
         <Button
@@ -80,8 +80,8 @@ export const ProfileHeader = ({
           className="flex-shrink-0"
         >
           {isVerified
-            ? 'Edit Profil & Verifikasi'
-            : 'Edit Profil & Mulai Verifikasi'}
+            ? t.profileHeader.editVerify
+            : t.profileHeader.editStartVerify}
         </Button>
       </div>
     </header>

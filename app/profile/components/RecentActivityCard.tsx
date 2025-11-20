@@ -1,11 +1,10 @@
-// File: app/profile/components/RecentActivityCard.tsx
-
 'use client';
 
 import React from 'react';
 import Link from 'next/link';
 import { PostCard } from '@/app/components/cards';
 import { UserProfile, Post, FirestoreDocument } from '@/lib/types';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
 
 interface RecentActivityCardProps {
   recentPosts: FirestoreDocument<Post>[];
@@ -19,10 +18,13 @@ export const RecentActivityCard = ({
   recentPosts,
   userProfile,
 }: RecentActivityCardProps) => {
+  const { t } = useLanguage(); // [BARU]
+
   return (
     <div className="card-stone p-6 rounded-lg">
       <h2 className="mb-4 font-clash text-2xl text-white border-b border-coc-gold-dark/30 pb-2">
-        Aktivitas Terbaru
+        {/* [TERJEMAHAN] */}
+        {t.recentActivity.title}
       </h2>
       <div className="space-y-4">
         {recentPosts.length > 0 ? (
@@ -33,12 +35,10 @@ export const RecentActivityCard = ({
                 title={post.title}
                 category={post.category}
                 tag={post.tags[0] || 'Diskusi'}
-                // [PERBAIKAN BUG]
-                // Mengubah post.likes (array) menjadi post.likes.length (angka)
-                // Kita juga tambahkan pengecekan 'Array.isArray' untuk keamanan
-                stats={`${post.replies} Balasan | ${
+                // [PERBAIKAN BUG & TERJEMAHAN]
+                stats={`${post.replies} ${t.recentActivity.replies} | ${
                   Array.isArray(post.likes) ? post.likes.length : 0
-                } Likes`}
+                } ${t.recentActivity.likes}`}
                 href={`/knowledge-hub/${post.id}`}
                 author={userProfile.displayName}
               />
@@ -48,20 +48,23 @@ export const RecentActivityCard = ({
                 href="/knowledge-hub" // Nanti ini bisa difilter ke postingan user
                 className="text-sm text-coc-gold hover:underline"
               >
-                Lihat Semua Postingan Saya &rarr;
+                {/* [TERJEMAHAN] */}
+                {t.recentActivity.viewAllPosts} &rarr;
               </Link>
             </div>
           </>
         ) : (
           <div className="text-center py-4">
             <p className="text-gray-400">
-              Anda belum memposting di Knowledge Hub.
+              {/* [TERJEMAHAN] */}
+              {t.recentActivity.noPosts}
             </p>
             <Link
               href="/knowledge-hub/create"
               className="text-sm text-coc-gold hover:underline mt-2 inline-block"
             >
-              Buat Postingan Pertama Anda &rarr;
+              {/* [TERJEMAHAN] */}
+              {t.recentActivity.createFirstPost} &rarr;
             </Link>
           </div>
         )}

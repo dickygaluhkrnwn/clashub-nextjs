@@ -1,5 +1,3 @@
-// File: app/profile/components/TeamHistoryCard.tsx
-
 'use client';
 
 import React from 'react';
@@ -7,6 +5,7 @@ import { ShieldIcon } from '@/app/components/icons';
 import { FirestoreDocument } from '@/lib/types';
 // [EDIT TAHAP 4.2] Impor DocumentData untuk tipe clanHistory
 import { DocumentData } from 'firebase/firestore';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
 
 interface TeamHistoryCardProps {
   clanHistory: FirestoreDocument<DocumentData>[];
@@ -16,15 +15,19 @@ interface TeamHistoryCardProps {
  * Komponen Card untuk menampilkan "Riwayat Tim Clashub" di halaman profil.
  */
 export const TeamHistoryCard = ({ clanHistory }: TeamHistoryCardProps) => {
+  const { t } = useLanguage(); // [BARU]
+
   return (
     <div className="card-stone p-6 rounded-lg">
       <h2 className="mb-4 flex items-center gap-2 font-clash text-2xl text-white">
-        <ShieldIcon className="h-6 w-6 text-coc-gold" /> Riwayat Tim Clashub
+        {/* [TERJEMAHAN] */}
+        <ShieldIcon className="h-6 w-6 text-coc-gold" /> {t.profileHistory.title}
       </h2>
       <div className="space-y-4">
         {clanHistory.length === 0 ? (
           <p className="text-gray-400 text-sm">
-            Anda belum memiliki riwayat tim di Clashub.
+            {/* [TERJEMAHAN] */}
+            {t.profileHistory.empty}
           </p>
         ) : (
           <ul className="space-y-3">
@@ -40,14 +43,16 @@ export const TeamHistoryCard = ({ clanHistory }: TeamHistoryCardProps) => {
                       : 'text-coc-red'
                   }`}
                 >
+                  {/* [TERJEMAHAN] Logika Action */}
                   {entry.action === 'join'
-                    ? 'Bergabung'
+                    ? t.profileHistory.joined
                     : entry.action === 'leave'
-                    ? 'Keluar'
-                    : 'Dikeluarkan'}
+                    ? t.profileHistory.left
+                    : t.profileHistory.kicked}
                 </span>
                 <span className="text-white font-semibold">
-                  {entry.clanName || 'Klan Tidak Dikenal'}
+                  {/* [TERJEMAHAN] */}
+                  {entry.clanName || t.profileHistory.unknownClan}
                 </span>
                 <span className="text-xs text-gray-400 ml-auto">
                   {entry.timestamp
@@ -59,7 +64,7 @@ export const TeamHistoryCard = ({ clanHistory }: TeamHistoryCardProps) => {
                         month: 'short',
                         year: 'numeric',
                       })
-                    : 'Tanggal tidak diketahui'}
+                    : t.profileHistory.unknownDate}
                 </span>
               </li>
             ))}

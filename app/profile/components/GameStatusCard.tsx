@@ -1,8 +1,3 @@
-// File: app/profile/components/GameStatusCard.tsx
-// [MODIFIKASI FASE 11.3]: Refactor menjadi "Stats Grid".
-// Menghapus bagian Klan dan Town Hall (karena sudah ada card sendiri).
-// Fokus menampilkan statistik: Liga, Trofi, Bintang War, Serangan, Pertahanan.
-
 'use client';
 
 import React from 'react';
@@ -17,6 +12,7 @@ import {
 } from '@/app/components/icons';
 import { UserProfile, CocPlayer } from '@/lib/types';
 import { formatNumber } from '@/lib/th-utils';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
 
 interface GameStatusCardProps {
   userProfile: UserProfile; // Data cache
@@ -40,6 +36,7 @@ export const GameStatusCard = ({
   isLoading,
   error,
 }: GameStatusCardProps) => {
+  const { t } = useLanguage(); // [BARU]
   // --- 1. Logika Penggabungan Data (Live vs Cache) ---
 
   // Tentukan Trofi
@@ -76,13 +73,15 @@ export const GameStatusCard = ({
   return (
     <div className="card-stone p-6 rounded-lg">
       <h2 className="mb-6 flex items-center gap-2 font-clash text-xl text-white">
-        <BarChart2Icon className="h-5 w-5 text-coc-gold" /> Statistik Musim
+        {/* [TERJEMAHAN] */}
+        <BarChart2Icon className="h-5 w-5 text-coc-gold" /> {t.profileCards.seasonStats}
       </h2>
 
       {/* Tampilkan pesan Error jika fetch gagal */}
       {error && (
         <div className="mb-4 p-4 text-center bg-red-900/50 border border-red-500 text-red-300 rounded-lg">
-          <p className="font-bold">Gagal mengambil data live CoC:</p>
+          {/* [TERJEMAHAN] */}
+          <p className="font-bold">{t.profileCards.fetchErrorTitle}</p>
           <p className="text-sm font-sans">{error}</p>
         </div>
       )}
@@ -106,7 +105,8 @@ export const GameStatusCard = ({
             <h4 className="text-lg text-coc-gold font-clash">N/A</h4>
           )}
           <p className="text-xs uppercase text-gray-400 font-sans truncate mt-2">
-            {showLeagueLoading ? 'Memuat...' : league?.name || 'Unranked'}
+            {/* [TERJEMAHAN] */}
+            {showLeagueLoading ? t.profileCards.loading : league?.name || t.profileCards.unranked}
           </p>
         </div>
 
@@ -117,7 +117,8 @@ export const GameStatusCard = ({
             {showTrophiesLoading ? '...' : formatNumber(trophies)}
           </h4>
           <p className="text-xs uppercase text-gray-400 font-sans mt-1">
-            Trofi Home
+            {/* [TERJEMAHAN] */}
+            {t.profileCards.homeTrophies}
           </p>
         </div>
 
@@ -128,7 +129,8 @@ export const GameStatusCard = ({
             {showStatsLoading ? '...' : formatNumber(bbTrophies)}
           </h4>
           <p className="text-xs uppercase text-gray-400 font-sans mt-1">
-            Trofi Builder
+            {/* [TERJEMAHAN] */}
+            {t.profileCards.builderTrophies}
           </p>
         </div>
 
@@ -139,7 +141,8 @@ export const GameStatusCard = ({
             {showStatsLoading ? '...' : formatNumber(attackWins)}
           </h4>
           <p className="text-xs uppercase text-gray-400 font-sans mt-1">
-            Menang Serangan
+            {/* [TERJEMAHAN] */}
+            {t.profileCards.attackWins}
           </p>
         </div>
 
@@ -150,7 +153,8 @@ export const GameStatusCard = ({
             {showStatsLoading ? '...' : formatNumber(defenseWins)}
           </h4>
           <p className="text-xs uppercase text-gray-400 font-sans mt-1">
-            Menang Bertahan
+            {/* [TERJEMAHAN] */}
+            {t.profileCards.defenseWins}
           </p>
         </div>
 
@@ -161,7 +165,8 @@ export const GameStatusCard = ({
             {showWarStarsLoading ? '...' : formatNumber(warStars)}
           </h4>
           <p className="text-xs uppercase text-gray-400 font-sans mt-1">
-            Bintang War
+            {/* [TERJEMAHAN] */}
+            {t.profileCards.warStars}
           </p>
         </div>
 

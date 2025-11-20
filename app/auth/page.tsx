@@ -11,45 +11,14 @@ import {
 } from 'firebase/auth';
 import { createUserProfile } from '@/lib/firestore';
 import ThemeToggle from '@/app/components/ui/ThemeToggle'; // Import ThemeToggle
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Import Hook Bahasa
+import { Translation } from '@/lib/i18n/types';
 
 // [PERBAIKAN] Impor konstanta TH 1-17 dari file utilitas
 import { AVAILABLE_TH_LEVELS_DESC } from '@/lib/th-utils';
 
 // Tipe untuk menentukan form mana yang aktif
 type FormType = 'login' | 'register';
-
-// --- Validation Utilities ---
-const validateEmail = (email: string): string | null => {
-  if (!email) return 'Email wajib diisi.';
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) return 'Format email tidak valid.';
-  return null;
-};
-
-const validatePassword = (password: string): string | null => {
-  if (!password) return 'Password wajib diisi.';
-  if (password.length < 6) return 'Password minimal 6 karakter.';
-  return null;
-};
-
-const validateConfirmPassword = (
-  password: string,
-  confirm: string,
-): string | null => {
-  if (!confirm) return 'Konfirmasi password wajib diisi.';
-  if (password !== confirm) return 'Password tidak cocok.';
-  return null;
-};
-
-const validatePlayerTag = (tag: string): string | null => {
-  if (!tag) return 'Player Tag wajib diisi.';
-  // Player Tag COC hanya terdiri dari huruf C, G, J, L, P, Q, R, U, V, Y, dan 0, 2, 8, 9
-  const tagRegex = /^#[0289PYLQGRJCUV]{4,}$/; // # + min 4 karakter (total min 5)
-  if (!tagRegex.test(tag))
-    return 'Format Player Tag tidak valid (Contoh: #P9Y8Q2V).';
-  return null;
-};
-// --- End Validation Utilities ---
 
 // --- Inline Component: FormGroup (untuk tampilan error yang konsisten) ---
 const FormGroup: React.FC<{ children: ReactNode; error?: string | null }> = ({
@@ -66,6 +35,7 @@ const FormGroup: React.FC<{ children: ReactNode; error?: string | null }> = ({
 // --- End Inline Component ---
 
 const AuthPage = () => {
+  const { t } = useLanguage(); // [BARU] Gunakan hook bahasa
   const [activeForm, setActiveForm] = useState<FormType>('login');
   const router = useRouter();
 
@@ -93,17 +63,50 @@ const AuthPage = () => {
   // State untuk loading
   const [isLoading, setIsLoading] = useState(false);
 
+  // --- Logic Validasi dipindah ke dalam komponen agar bisa akses 't' ---
+  const checkEmail = (email: string): string | null => {
+    if (!email) return t.auth.emailRequired;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) return t.auth.emailInvalid;
+    return null;
+  };
+
+  const checkPassword = (password: string): string | null => {
+    if (!password) return t.auth.passwordRequired;
+    if (password.length < 6) return t.auth.passwordMin;
+    return null;
+  };
+
+  const checkConfirmPassword = (
+    password: string,
+    confirm: string,
+  ): string | null => {
+    if (!confirm) return t.auth.confirmRequired;
+    if (password !== confirm) return t.auth.confirmMismatch;
+    return null;
+  };
+
+  const checkPlayerTag = (tag: string): string | null => {
+    if (!tag) return t.auth.tagRequired;
+    // Player Tag COC hanya terdiri dari huruf C, G, J, L, P, Q, R, U, V, Y, dan 0, 2, 8, 9
+    const tagRegex = /^#[0289PYLQGRJCUV]{4,}$/; // # + min 4 karakter (total min 5)
+    if (!tagRegex.test(tag))
+      return t.auth.tagInvalid;
+    return null;
+  };
+  // --- End Validation Logic ---
+
   // --- Real-time Validation Effect for Registration Form ---
   useEffect(() => {
     if (activeForm === 'register') {
-      const emailError = validateEmail(email);
-      const passwordError = validatePassword(password);
-      const confirmPasswordError = validateConfirmPassword(
+      const emailError = checkEmail(email);
+      const passwordError = checkPassword(password);
+      const confirmPasswordError = checkConfirmPassword(
         password,
         confirmPassword,
       );
-      const playerTagError = validatePlayerTag(playerTag);
-      const thLevelError = !thLevel ? 'Town Hall wajib dipilih.' : null;
+      const playerTagError = checkPlayerTag(playerTag);
+      const thLevelError = !thLevel ? t.auth.thRequired : null;
 
       // Catat error ke state
       setFormErrors({
@@ -135,7 +138,7 @@ const AuthPage = () => {
       });
       setIsRegisterFormValid(false);
     }
-  }, [email, password, confirmPassword, playerTag, thLevel, activeForm]);
+  }, [email, password, confirmPassword, playerTag, thLevel, activeForm, t]); // Add 't' to dependency array
   // --- End Real-time Validation Effect ---
 
   const handleCookieSync = async (uid: string) => {
@@ -174,15 +177,15 @@ const AuthPage = () => {
     if (!isRegisterFormValid) {
       setFormErrors((currentErrors) => ({
         ...currentErrors,
-        general: 'Harap perbaiki error pada form.',
+        general: t.auth.fixFormErrors,
       }));
-      // Re-check validation state explicitly (good practice)
+      // Re-check validation state explicitly
       setFormErrors((currentErrors) => ({
-        email: validateEmail(email),
-        password: validatePassword(password),
-        confirmPassword: validateConfirmPassword(password, confirmPassword),
-        playerTag: validatePlayerTag(playerTag),
-        thLevel: !thLevel ? 'Town Hall wajib dipilih.' : null,
+        email: checkEmail(email),
+        password: checkPassword(password),
+        confirmPassword: checkConfirmPassword(password, confirmPassword),
+        playerTag: checkPlayerTag(playerTag),
+        thLevel: !thLevel ? t.auth.thRequired : null,
         general: currentErrors.general,
       }));
       return;
@@ -211,12 +214,11 @@ const AuthPage = () => {
     } catch (error: any) {
       console.error('Registrasi Gagal:', error.message);
       // Pengecekan error spesifik Firebase yang umum
-      let displayError = 'Registrasi gagal. Cek kembali data Anda.';
+      let displayError = t.auth.registrationFailed;
       if (error.code === 'auth/email-already-in-use') {
-        displayError =
-          'Email sudah terdaftar. Silakan login atau gunakan email lain.';
+        displayError = t.auth.emailInUse;
       } else if (error.code === 'auth/invalid-email') {
-        displayError = 'Format email tidak valid.';
+        displayError = t.auth.emailInvalid;
       }
 
       setFormErrors((currentErrors) => ({
@@ -232,15 +234,15 @@ const AuthPage = () => {
     e.preventDefault();
 
     // Jalankan validasi dasar sebelum memanggil Firebase (hanya untuk email/password)
-    const emailError = validateEmail(email);
-    const passwordError = validatePassword(password);
+    const emailError = checkEmail(email);
+    const passwordError = checkPassword(password);
 
     if (emailError || passwordError) {
       setFormErrors((currentErrors) => ({
         ...currentErrors,
         email: emailError,
         password: passwordError,
-        general: 'Email atau password tidak valid.',
+        general: t.auth.emailOrPasswordInvalid,
       }));
       return;
     }
@@ -261,7 +263,7 @@ const AuthPage = () => {
     } catch (error: any) {
       setFormErrors((currentErrors) => ({
         ...currentErrors,
-        general: 'Email atau password salah.',
+        general: t.auth.emailOrPasswordInvalid,
       }));
     } finally {
       setIsLoading(false);
@@ -274,9 +276,6 @@ const AuthPage = () => {
         ? 'border-coc-red focus:border-coc-red' // Gaya error: border merah
         : 'border-coc-gold-dark/50' // Gaya default: border emas gelap
     }`;
-
-  // [DIHAPUS] Opsi TH Level yang di-hardcode dihapus
-  // const thLevelOptions = [16, 15, 14, 13, 12, 11, 10, 9];
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-stone-pattern bg-cover p-4">
@@ -306,7 +305,7 @@ const AuthPage = () => {
                 : 'text-gray-400 hover:text-white'
             }`}
           >
-            LOGIN
+            {t.auth.tabLogin}
           </button>
           <button
             onClick={() => switchForm('register')}
@@ -316,7 +315,7 @@ const AuthPage = () => {
                 : 'text-gray-400 hover:text-white'
             }`}
           >
-            DAFTAR AKUN
+            {t.auth.tabRegister}
           </button>
         </div>
 
@@ -335,7 +334,7 @@ const AuthPage = () => {
           <FormGroup error={formErrors.email}>
             <input
               type="email"
-              placeholder="Email"
+              placeholder={t.auth.emailPlaceholder}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -346,7 +345,7 @@ const AuthPage = () => {
           <FormGroup error={formErrors.password}>
             <input
               type="password"
-              placeholder="Password"
+              placeholder={t.auth.passwordPlaceholder}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -358,7 +357,7 @@ const AuthPage = () => {
             href="#"
             className="block text-right text-sm text-gray-400 hover:text-coc-gold font-sans -mt-2"
           >
-            Lupa Password?
+            {t.auth.forgotPassword}
           </Link>
 
           <Button
@@ -368,7 +367,7 @@ const AuthPage = () => {
             size="lg"
             disabled={isLoading}
           >
-            {isLoading ? 'Memproses...' : 'Login'}
+            {isLoading ? t.auth.processing : t.auth.loginButton}
           </Button>
         </form>
 
@@ -380,7 +379,7 @@ const AuthPage = () => {
           <FormGroup error={formErrors.email}>
             <input
               type="email"
-              placeholder="Email"
+              placeholder={t.auth.emailPlaceholder}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -391,7 +390,7 @@ const AuthPage = () => {
           <FormGroup error={formErrors.password}>
             <input
               type="password"
-              placeholder="Password (minimal 6 karakter)"
+              placeholder={t.auth.passwordMinPlaceholder}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -402,7 +401,7 @@ const AuthPage = () => {
           <FormGroup error={formErrors.confirmPassword}>
             <input
               type="password"
-              placeholder="Konfirmasi Password"
+              placeholder={t.auth.confirmPasswordPlaceholder}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
@@ -412,13 +411,13 @@ const AuthPage = () => {
 
           {/* Integrasi COC - Menggunakan font-clash */}
           <h3 className="text-coc-gold-dark text-center font-clash pt-4 text-xl border-t border-coc-gold-dark/20">
-            Integrasi Clash of Clans
+            {t.auth.cocIntegrationTitle}
           </h3>
 
           <FormGroup error={formErrors.playerTag}>
             <input
               type="text"
-              placeholder="Player Tag ID (Contoh: #P9Y8Q2V)"
+              placeholder={t.auth.playerTagPlaceholder}
               value={playerTag}
               // Memastikan Player Tag di-filter dan di-uppercase
               onChange={(e) =>
@@ -446,7 +445,7 @@ const AuthPage = () => {
               }`}
             >
               <option value="" disabled>
-                -- Pilih Level Town Hall Anda --
+                {t.auth.thSelectDefault}
               </option>
               {/* [PERBAIKAN] Ganti thLevelOptions dengan AVAILABLE_TH_LEVELS_DESC */}
               {AVAILABLE_TH_LEVELS_DESC.map((th) => (
@@ -464,7 +463,7 @@ const AuthPage = () => {
             size="lg"
             disabled={isLoading || !isRegisterFormValid}
           >
-            {isLoading ? 'Memproses...' : 'Daftar Sekarang'}
+            {isLoading ? t.auth.processing : t.auth.registerButton}
           </Button>
         </form>
       </div>

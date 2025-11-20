@@ -1,7 +1,3 @@
-// File: app/profile/components/PlayerClanCard.tsx
-// Deskripsi: [UPDATE FASE 11.1] Komponen Card khusus untuk menampilkan
-// informasi identitas Klan (Badge, Nama, Role). Menggunakan cache badge URL.
-
 'use client';
 
 import React from 'react';
@@ -9,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ShieldIcon } from '@/app/components/icons';
 import { UserProfile, CocPlayer } from '@/lib/types';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
 
 interface PlayerClanCardProps {
   userProfile: UserProfile;
@@ -21,6 +18,7 @@ export const PlayerClanCard = ({
   fullPlayerData,
   isLoading,
 }: PlayerClanCardProps) => {
+  const { t } = useLanguage(); // [BARU]
   // --- 1. Logika Penggabungan Data (Live vs Cache) ---
   const clanName = fullPlayerData?.clan?.name ?? userProfile.clanName;
   const clanTag = fullPlayerData?.clan?.tag ?? userProfile.clanTag;
@@ -46,7 +44,8 @@ export const PlayerClanCard = ({
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-coc-gold to-transparent opacity-50" />
 
       <h2 className="mb-6 flex items-center gap-2 font-clash text-xl text-white self-start">
-        <ShieldIcon className="h-5 w-5 text-coc-gold" /> Identitas Klan
+        {/* [TERJEMAHAN] */}
+        <ShieldIcon className="h-5 w-5 text-coc-gold" /> {t.profileCards.clanIdentity}
       </h2>
 
       {showLoading ? (
@@ -101,7 +100,8 @@ export const PlayerClanCard = ({
         // State: Tidak punya klan
         <div className="flex flex-col items-center justify-center flex-grow text-gray-400 gap-2 py-4">
           <ShieldIcon className="h-12 w-12 opacity-20" />
-          <p className="font-sans text-sm">Pemain ini tidak terikat klan.</p>
+          {/* [TERJEMAHAN] */}
+          <p className="font-sans text-sm">{t.profileCards.notInClan}</p>
         </div>
       )}
     </div>

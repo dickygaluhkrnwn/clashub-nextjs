@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/app/components/ui/Button';
 import { UsersCogIcon } from '@/app/components/icons';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
 
 // [PERBAIKAN LANGKAH 1] Menambahkan 'minMembers' agar sinkron dengan TeamHubClient
 export type ManagedClanFilters = {
@@ -20,6 +21,7 @@ type TeamHubFilterProps = {
 };
 
 const TeamHubFilter = ({ filters, onFilterChange }: TeamHubFilterProps) => {
+  const { t } = useLanguage(); // [BARU]
   // State internal untuk slider agar responsif (instant UI feedback)
   const [internalThLevel, setInternalThLevel] = useState(filters.thLevel);
   const [internalMinMembers, setInternalMinMembers] = useState(filters.minMembers);
@@ -60,7 +62,7 @@ const TeamHubFilter = ({ filters, onFilterChange }: TeamHubFilterProps) => {
     <aside className="card-stone p-6 h-fit sticky top-28 rounded-lg">
       <h2 className="text-2xl font-clash text-white border-l-4 border-coc-gold-dark pl-3 mb-6 flex items-center gap-3">
         <UsersCogIcon className="h-6 w-6 text-coc-gold-dark" />
-        Filter Clan
+        {t.clanHub.filterTitle}
       </h2>
 
       <div className="space-y-6">
@@ -70,12 +72,12 @@ const TeamHubFilter = ({ filters, onFilterChange }: TeamHubFilterProps) => {
             htmlFor="search-input"
             className="block text-sm font-bold text-gray-300 mb-2 font-sans"
           >
-            Nama Clan / Tag
+            {t.clanHub.filterSearchLabel}
           </label>
           <input
             type="text"
             id="search-input"
-            placeholder="Cari berdasarkan nama/tag..."
+            placeholder={t.clanHub.filterSearchPlaceholder}
             value={filters.searchTerm}
             onChange={(e) => handleFilterChange('searchTerm', e.target.value)}
             className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold font-sans"
@@ -88,7 +90,7 @@ const TeamHubFilter = ({ filters, onFilterChange }: TeamHubFilterProps) => {
             htmlFor="vision-filter"
             className="block text-sm font-bold text-gray-300 mb-2"
           >
-            Visi Clan
+            {t.clanHub.filterVisionLabel}
           </label>
           <select
             id="vision-filter"
@@ -101,9 +103,9 @@ const TeamHubFilter = ({ filters, onFilterChange }: TeamHubFilterProps) => {
             }
             className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white focus:ring-coc-gold focus:border-coc-gold"
           >
-            <option value="all">Semua Visi</option>
-            <option value="Kompetitif">Kompetitif</option>
-            <option value="Kasual">Kasual</option>
+            <option value="all">{t.clanHub.visionAll}</option>
+            <option value="Kompetitif">{t.clanHub.visionCompetitive}</option>
+            <option value="Kasual">{t.clanHub.visionCasual}</option>
           </select>
         </div>
 
@@ -113,7 +115,7 @@ const TeamHubFilter = ({ filters, onFilterChange }: TeamHubFilterProps) => {
             htmlFor="rating-input"
             className="flex justify-between text-sm font-bold text-gray-300 mb-1 font-sans"
           >
-            <span>Minimum Reputasi</span>
+            <span>{t.clanHub.filterReputationLabel}</span>
             <span className="font-bold text-coc-gold">
               {filters.reputation.toFixed(1)} ★
             </span>
@@ -138,9 +140,9 @@ const TeamHubFilter = ({ filters, onFilterChange }: TeamHubFilterProps) => {
             htmlFor="th-level-input"
             className="flex justify-between text-sm font-bold text-gray-300 mb-1 font-sans"
           >
-            <span>Level Town Hall Minimum</span>
+            <span>{t.clanHub.filterThLabel}</span>
             <span className="font-bold text-coc-gold">
-              {internalThLevel === 0 ? 'Semua TH' : `TH ${internalThLevel}`}
+              {internalThLevel === 0 ? t.clanHub.filterAllTh : `TH ${internalThLevel}`}
             </span>
           </label>
           <input
@@ -165,9 +167,9 @@ const TeamHubFilter = ({ filters, onFilterChange }: TeamHubFilterProps) => {
             htmlFor="min-members-input"
             className="flex justify-between text-sm font-bold text-gray-300 mb-1 font-sans"
           >
-            <span>Minimum Anggota</span>
+            <span>{t.clanHub.filterMinMembersLabel}</span>
             <span className="font-bold text-coc-gold">
-              {internalMinMembers} Orang
+              {internalMinMembers} {t.clanHub.membersUnit}
             </span>
           </label>
           <input
@@ -189,7 +191,7 @@ const TeamHubFilter = ({ filters, onFilterChange }: TeamHubFilterProps) => {
         {/* Action Buttons */}
         <div className="filter-group pt-4 border-t border-coc-gold-dark/20 space-y-3">
           <Button variant="secondary" className="w-full" onClick={handleReset}>
-            Reset Filter
+            {t.clanHub.resetFilter}
           </Button>
         </div>
       </div>

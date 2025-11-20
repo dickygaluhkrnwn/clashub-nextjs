@@ -1,10 +1,9 @@
-// File: app/profile/components/ReceivedReviewsCard.tsx
-
 'use client';
 
 import React from 'react';
 import { StarIcon } from '@/app/components/icons';
 import { PlayerReview, FirestoreDocument } from '@/lib/types';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
 
 interface ReceivedReviewsCardProps {
   playerReviews: FirestoreDocument<PlayerReview>[];
@@ -16,15 +15,19 @@ interface ReceivedReviewsCardProps {
 export const ReceivedReviewsCard = ({
   playerReviews,
 }: ReceivedReviewsCardProps) => {
+  const { t } = useLanguage(); // [BARU]
+
   return (
     <div className="card-stone p-6 rounded-lg">
       <h2 className="mb-4 flex items-center gap-2 font-clash text-2xl text-white">
-        <StarIcon className="h-6 w-6 text-coc-gold" /> Ulasan Diterima
+        {/* [TERJEMAHAN] */}
+        <StarIcon className="h-6 w-6 text-coc-gold" /> {t.profileReviews.title}
       </h2>
       <div className="space-y-4">
         {playerReviews.length === 0 ? (
           <p className="text-gray-400 text-sm">
-            Anda belum menerima ulasan dari pemain lain.
+            {/* [TERJEMAHAN] */}
+            {t.profileReviews.empty}
           </p>
         ) : (
           <ul className="space-y-4">
@@ -46,7 +49,8 @@ export const ReceivedReviewsCard = ({
                   "{review.comment}"
                 </p>
                 <p className="text-xs text-gray-500 mt-2">
-                  Konteks: {review.reviewContext} |{' '}
+                  {/* [TERJEMAHAN] */}
+                  {t.profileReviews.context}: {review.reviewContext} |{' '}
                   {new Date(
                     (review.createdAt as any)._seconds * 1000 || // Handle Timestamp
                       review.createdAt, // Handle ISO String

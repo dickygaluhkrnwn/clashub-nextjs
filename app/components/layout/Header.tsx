@@ -16,6 +16,7 @@ import {
   TrophyIcon,
 } from '@/app/components/icons';
 import ThemeToggle from '@/app/components/ui/ThemeToggle';
+import LanguageSwitcher from '@/app/components/ui/LanguageSwitcher'; // Import Component
 import { useAuth } from '@/app/context/AuthContext';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
@@ -372,6 +373,8 @@ const Header = () => {
           {/* Aksi Pengguna Desktop */}
           <div className="hidden md:flex items-center gap-4">
             <div className="flex items-center gap-2">
+                {/* Tambahkan LanguageSwitcher Di Sini */}
+                <LanguageSwitcher />
                 <ThemeToggle />
                 <button className="p-2 text-gray-300 hover:text-coc-gold transition-colors rounded-full hover:bg-white/5">
                 <SearchIcon className="h-5 w-5" />
@@ -445,6 +448,8 @@ const Header = () => {
                 <div className="flex items-center justify-between px-2">
                     <span className="text-gray-400 text-sm font-medium">Preferensi</span>
                     <div className="flex items-center gap-4">
+                        {/* Tambahkan LanguageSwitcher Mobile Di Sini */}
+                        <LanguageSwitcher />
                         <ThemeToggle />
                         <button className="flex items-center gap-2 text-gray-300 hover:text-coc-gold transition-colors">
                             <SearchIcon className="h-6 w-6" />
@@ -476,7 +481,7 @@ const Header = () => {
                                     </Link>
                                      <Link href="/my-tournaments" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 text-gray-300 text-sm">
                                         <TrophyIcon className="h-5 w-5"/> Turnamen
-                                    </Link>
+                                     </Link>
                                     <button 
                                         onClick={() => {
                                             signOut(auth);

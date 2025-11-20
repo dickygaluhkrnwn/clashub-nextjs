@@ -12,6 +12,8 @@ import {
   CocPlayer,
 } from '@/lib/types';
 import { DocumentData } from 'firebase/firestore';
+// [BARU] Import Hook Bahasa
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 // Impor komponen UI
 import { ProfileLoading } from './components/ProfileLoading';
@@ -51,6 +53,7 @@ const ProfileClient = ({
   clanHistory,
   playerReviews,
 }: ProfileClientProps) => {
+  const { t } = useLanguage(); // [BARU] Init Hook
   const { currentUser, loading: authLoading } = useAuth();
   const router = useRouter();
 
@@ -97,7 +100,8 @@ const ProfileClient = ({
     if (!tagToFetch) {
       setIsLoadingApi(false);
       if (userProfile?.isVerified) {
-        setApiError('Profil ini terverifikasi namun player tag tidak ditemukan.');
+        // [TERJEMAHAN] Menggunakan key dari kamus
+        setApiError(t.profile.errorVerifiedNoTag);
       }
       return;
     }
@@ -159,16 +163,14 @@ const ProfileClient = ({
             err.message.includes('Unexpected token') ||
             err.message.includes('not valid JSON')
           ) {
-            setApiError(
-              `Gagal parse JSON. Kemungkinan API route 404 (salah URL) atau server down.`,
-            );
+            // [TERJEMAHAN]
+            setApiError(t.profile.errorJson);
           } else {
             setApiError(err.message);
           }
         } else {
-          setApiError(
-            'Terjadi kesalahan yang tidak diketahui saat mengambil data CoC.',
-          );
+          // [TERJEMAHAN]
+          setApiError(t.profile.errorUnknown);
         }
       } finally {
         setIsLoadingApi(false);
@@ -176,7 +178,7 @@ const ProfileClient = ({
     }
 
     fetchFullPlayerData(encodedTagForApi);
-  }, [userProfile?.playerTag, userProfile?.lastCacheTimestamp]);
+  }, [userProfile?.playerTag, userProfile?.lastCacheTimestamp, t]); // Add 't' dependency
 
   // --- 4. Render Halaman ---
   if (currentUser && userProfile) {
@@ -301,7 +303,8 @@ const ProfileClient = ({
                 ) : (
                   <div className="card-stone p-8 text-center">
                     <p className="text-gray-400">
-                      Hubungkan tag Clash of Clans Anda untuk melihat data pasukan.
+                      {/* [TERJEMAHAN] */}
+                      {t.profile.connectTagDesc}
                     </p>
                   </div>
                 )}
@@ -321,7 +324,8 @@ const ProfileClient = ({
                 ) : (
                   <div className="card-stone p-8 text-center">
                     <p className="text-gray-400">
-                      Hubungkan tag Clash of Clans Anda untuk melihat pencapaian.
+                      {/* [TERJEMAHAN] */}
+                      {t.profile.connectTagAchievements}
                     </p>
                   </div>
                 )}

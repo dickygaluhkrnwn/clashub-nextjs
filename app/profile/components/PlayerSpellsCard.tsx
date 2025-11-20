@@ -1,13 +1,10 @@
-// File: app/profile/components/PlayerSpellsCard.tsx
-// Deskripsi: [MODIFIKASI FASE 6.4] Memperbarui card untuk
-// membaca dari cache 'userProfile.cachedSpells'.
-
 'use client';
 
 import React from 'react';
 // [MODIFIKASI 6.4] Impor UserProfile
 import { CocPlayer, UserProfile } from '@/lib/types';
 import { BookOpenIcon } from '@/app/components/icons'; // Menggunakan ikon "Buku" untuk Spells
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
 
 interface PlayerSpellsCardProps {
   // [MODIFIKASI 6.4] Tambahkan userProfile
@@ -27,6 +24,7 @@ export const PlayerSpellsCard = ({
   isLoading,
   error,
 }: PlayerSpellsCardProps) => {
+  const { t } = useLanguage(); // [BARU]
   // --- [MODIFIKASI FASE 6.4] ---
   // Logika Penggabungan Data:
   // 1. Coba 'fullPlayerData.spells' (live)
@@ -51,20 +49,23 @@ export const PlayerSpellsCard = ({
   return (
     <div className="card-stone p-6 rounded-lg">
       <h2 className="mb-6 flex items-center gap-2 font-clash text-2xl text-white">
-        <BookOpenIcon className="h-6 w-6 text-coc-gold" /> Spell (Home Village)
+        {/* [TERJEMAHAN] */}
+        <BookOpenIcon className="h-6 w-6 text-coc-gold" /> {t.profileArmy.spellsTitle}
       </h2>
 
       {/* --- Handle Loading [MODIFIKASI 6.4] --- */}
       {showLoading && (
         <p className="text-sm text-gray-400 font-sans text-center">
-          Memuat data spell...
+          {/* [TERJEMAHAN] */}
+          {t.profileArmy.spellsLoading}
         </p>
       )}
 
       {/* --- Handle Error --- */}
       {error && !isLoading && (
         <p className="text-sm text-red-400 font-sans text-center">
-          Gagal memuat spell: {error}
+          {/* [TERJEMAHAN] */}
+          {t.profileArmy.spellsError.replace('{error}', error)}
         </p>
       )}
 
@@ -90,7 +91,8 @@ export const PlayerSpellsCard = ({
           ) : (
             // Tampilkan jika fetch selesai tapi tidak ada spell
             <p className="text-sm text-gray-400 font-sans text-center">
-              Data spell tidak ditemukan atau player belum membuka spell.
+              {/* [TERJEMAHAN] */}
+              {t.profileArmy.spellsEmpty}
             </p>
           )}
         </div>

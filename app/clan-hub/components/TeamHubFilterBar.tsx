@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import TeamHubFilter, { ManagedClanFilters } from '@/app/components/filters/TeamHubFilter'; // [PERBAIKAN] Import tipe dari sumber aslinya
 import PlayerHubFilter from '@/app/components/filters/PlayerHubFilter';
 import { Button } from '@/app/components/ui/Button';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
 
 // Impor tipe PlayerFilters dari TeamHubClient (karena masih didefinisikan di sana)
 import { PlayerFilters } from '../TeamHubClient';
@@ -31,6 +32,7 @@ export const TeamHubFilterBar = ({
   playerFilters,
   onPlayerFilterChange,
 }: TeamHubFilterBarProps) => {
+  const { t } = useLanguage(); // [BARU]
   // State untuk mengontrol visibilitas filter di mobile
   const [isOpen, setIsOpen] = useState(false);
 
@@ -53,7 +55,8 @@ export const TeamHubFilterBar = ({
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
             </svg>
-            {isOpen ? 'Sembunyikan Filter' : 'Tampilkan Filter'}
+            {/* [TERJEMAHAN] */}
+            {isOpen ? t.clanHub.hideFilter : t.clanHub.showFilter}
           </span>
           {/* Icon Chevron Inline */}
           <svg

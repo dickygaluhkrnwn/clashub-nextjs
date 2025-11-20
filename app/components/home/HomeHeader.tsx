@@ -1,4 +1,4 @@
-// [BARU] "use client" diperlukan untuk logic countdown (useEffect, useState)
+// [BARU] "use client" diperlukan untuk logic countdown (useEffect, useState) dan useLanguage
 'use client';
 
 import { Button } from '@/app/components/ui/Button';
@@ -19,6 +19,7 @@ import {
   CocCurrentWar,
   ManagedClan,
 } from '@/lib/types';
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 // [PERBAIKAN] Mendefinisikan props, MENAMBAHKAN clanReputation
 interface HomeHeaderProps {
@@ -68,6 +69,7 @@ const WarCountdown: React.FC<{
 }> = ({ targetTime, state }) => {
   const targetDate = parseISOString(targetTime);
   const [timeLeft, setTimeLeft] = useState(formatWarTime(targetDate));
+  const { t } = useLanguage();
 
   useEffect(() => {
     // Update timer setiap detik
@@ -80,7 +82,7 @@ const WarCountdown: React.FC<{
   }, [targetTime]); // Hanya re-run jika targetTime berubah
 
   const textLabel =
-    state === 'preparationDay' ? 'War Berikutnya Dimulai:' : 'War Berakhir Dalam:';
+    state === 'preparationDay' ? t.dashboard.nextWar : t.dashboard.warEnds;
 
   return (
     <>
@@ -101,6 +103,8 @@ export default function HomeHeader({
   managedClan,
   clanReputation, // [BARU] Terima prop reputasi
 }: HomeHeaderProps) {
+  const { t } = useLanguage();
+
   return (
     <>
       {/* Hero Banner Section (Tidak Berubah) */}
@@ -108,14 +112,13 @@ export default function HomeHeader({
         <div className="absolute inset-0 bg-black/60" />
         <div className="relative z-10 p-4">
           <h1 className="text-4xl md:text-5xl mb-4">
-            Pusat Strategi & Komunitas E-sports CLASH OF CLANS
+            {t.home.heroTitle}
           </h1>
           <p className="text-lg text-gray-300 mb-8 max-w-2xl mx-auto">
-            Pimpin Klan Anda menuju Kemenangan! Temukan tim, strategi, dan
-            analisis turnamen terbaik.
+            {t.home.heroSubtitle}
           </p>
           <Button href="/clan-hub" variant="primary" size="lg">
-            TEMUKAN TIM SEKARANG!
+            {t.home.ctaButton.toUpperCase()}
           </Button>
         </div>
       </section>
@@ -128,7 +131,7 @@ export default function HomeHeader({
           {/* Card ini tidak diubah */}
           <div className="card-stone p-6 flex flex-col justify-between">
             <h3 className="text-xl mb-4 text-center border-b-2 border-coc-gold-dark/30 pb-2 flex items-center justify-center">
-              <ShieldIcon className="h-5 w-5 mr-2" /> STATUS WAR CLAN
+              <ShieldIcon className="h-5 w-5 mr-2" /> {t.dashboard.warStatus}
             </h3>
             {currentWar && currentWar.state !== 'notInWar' ? (
               <>
@@ -139,7 +142,7 @@ export default function HomeHeader({
                       {currentWar.clan.stars || 0}
                     </span>
                     <p className="text-xs text-gray-400 uppercase font-sans">
-                      Bintang Kita
+                      {t.dashboard.myStars}
                     </p>
                   </div>
                   <div className="bg-coc-stone/50 p-2 rounded-lg border border-coc-gold-dark/20">
@@ -148,7 +151,7 @@ export default function HomeHeader({
                       {currentWar.opponent.stars || 0}
                     </span>
                     <p className="text-xs text-gray-400 uppercase font-sans">
-                      Bintang Musuh
+                      {t.dashboard.enemyStars}
                     </p>
                   </div>
                   <div className="bg-coc-stone/50 p-2 rounded-lg border border-coc-gold-dark/20">
@@ -157,7 +160,7 @@ export default function HomeHeader({
                       {(currentWar.clan.destructionPercentage || 0).toFixed(2)}%
                     </span>
                     <p className="text-xs text-gray-400 uppercase font-sans">
-                      Destruction
+                      {t.dashboard.destruction}
                     </p>
                   </div>
                 </div>
@@ -174,22 +177,22 @@ export default function HomeHeader({
                   variant="secondary"
                   className="w-full mt-4"
                 >
-                  Lihat Detail War
+                  {t.dashboard.viewWarDetails}
                 </Button>
               </>
             ) : (
               <div className="flex-grow flex flex-col items-center justify-center text-center my-4">
                 <p className="text-gray-400 font-sans mb-4">
                   {userProfile
-                    ? 'Klan Anda sedang tidak dalam war.'
-                    : 'Login dan kelola klan Anda untuk melihat status war.'}
+                    ? t.dashboard.noWar
+                    : t.dashboard.loginToViewWar}
                 </p>
                 <Button
                   href={userProfile ? '/clan/manage' : '/auth'}
                   variant="secondary"
                   className="w-full mt-4"
                 >
-                  {userProfile ? 'Lihat Halaman Klan' : 'Login Sekarang'}
+                  {userProfile ? t.dashboard.viewClanPage : t.dashboard.loginNow}
                 </Button>
               </div>
             )}
@@ -220,19 +223,12 @@ export default function HomeHeader({
                   </div>
                 </div>
 
-                {/* ============================================================
-                  [ROMBAK UI] Mengganti Grid 2x2 menjadi Daftar Vertikal 1x4
-                  - Menggunakan `space-y-4` untuk jarak
-                  - Menggunakan `flex justify-between` untuk layout per baris
-                  - Font angka diperbesar ke `text-2xl`
-                  - Menambah `justify-center` agar daftar terpusat secara vertikal
-                  ============================================================
-                */}
+                {/* Daftar Vertikal */}
                 <div className="flex flex-col space-y-4 flex-grow justify-center py-2">
                   {/* [BARU] Item Reputasi */}
                   <div className="flex justify-between items-baseline bg-coc-stone/50 p-3 rounded-lg border border-coc-gold-dark/20">
                     <p className="text-sm uppercase text-gray-400 font-sans">
-                      Reputasi Clan
+                      {t.dashboard.reputation}
                     </p>
                     <span className="font-bold text-2xl text-coc-gold font-clash">
                       {(clanReputation || 0).toFixed(1)} ★
@@ -242,7 +238,7 @@ export default function HomeHeader({
                   {/* [BARU] Item Rata-rata TH */}
                   <div className="flex justify-between items-baseline bg-coc-stone/50 p-3 rounded-lg border border-coc-gold-dark/20">
                     <p className="text-sm uppercase text-gray-400 font-sans">
-                      Rata-rata TH
+                      {t.dashboard.avgTh}
                     </p>
                     <span className="font-bold text-2xl text-coc-gold font-clash">
                       TH {(managedClan.avgTh || 0).toFixed(1)}
@@ -252,7 +248,7 @@ export default function HomeHeader({
                   {/* [BARU] Item Anggota */}
                   <div className="flex justify-between items-baseline bg-coc-stone/50 p-3 rounded-lg border border-coc-gold-dark/20">
                     <p className="text-sm uppercase text-gray-400 font-sans">
-                      Anggota
+                      {t.dashboard.members}
                     </p>
                     <span className="font-bold text-2xl text-coc-gold font-clash">
                       {managedClan.memberCount || 0}/50
@@ -262,17 +258,13 @@ export default function HomeHeader({
                   {/* [BARU] Item War Wins */}
                   <div className="flex justify-between items-baseline bg-coc-stone/50 p-3 rounded-lg border border-coc-gold-dark/20">
                     <p className="text-sm uppercase text-gray-400 font-sans">
-                      War Wins
+                      {t.dashboard.warWins}
                     </p>
                     <span className="font-bold text-2xl text-gray-500 font-clash">
                       N/A
                     </span>
                   </div>
                 </div>
-                {/* ============================================================
-                  [AKHIR ROMBAK UI]
-                  ============================================================
-                */}
 
                 <Button
                   // [DINAMIS] Link ke halaman klan internal
@@ -280,23 +272,22 @@ export default function HomeHeader({
                   variant="secondary"
                   className="w-full mt-4"
                 >
-                  Lihat Halaman Klan
+                  {t.dashboard.viewClanPage}
                 </Button>
               </>
             ) : (
               // Tampilan jika pengguna belum mengelola klan
               <div className="flex-grow flex flex-col items-center justify-center text-center my-4">
-                <h3 className="text-xl mb-4">KELOLA KLAN ANDA</h3>
+                <h3 className="text-xl mb-4">{t.dashboard.manageClanTitle}</h3>
                 <p className="text-gray-400 font-sans mb-4">
-                  Tautkan dan kelola klan Anda untuk membuka fitur analisis
-                  perang, manajemen anggota, dan lainnya.
+                  {t.dashboard.manageClanDesc}
                 </p>
                 <Button
                   href={userProfile ? '/clan/manage' : '/auth'}
                   variant="primary"
                   className="w-full mt-4"
                 >
-                  {userProfile ? 'Mulai Kelola Klan' : 'Login untuk Mulai'}
+                  {userProfile ? t.dashboard.startManaging : t.dashboard.loginToStart}
                 </Button>
               </div>
             )}
@@ -308,7 +299,7 @@ export default function HomeHeader({
           {/* ========== [BLOK 3: RINGKASAN PROFIL (DINAMIS)] ========== */}
           <div className="card-stone p-6 text-center">
             {/* [PERBAIKAN JUDUL] Diubah sesuai permintaan */}
-            <h3 className="text-xl mb-4">RINGKASAN PROFIL </h3>
+            <h3 className="text-xl mb-4">{t.dashboard.profileSummary}</h3>
             {/* Cek jika pengguna sudah login */}
             {userProfile ? (
               <>
@@ -324,14 +315,14 @@ export default function HomeHeader({
                 />
                 <div className="flex justify-around mt-4 font-clash">
                   <div>
-                    <p className="text-xs text-gray-400 font-sans">TH LEVEL</p>
+                    <p className="text-xs text-gray-400 font-sans">{t.dashboard.thLevel}</p>
                     {/* [DINAMIS] TH Level */}
                     <span className="text-2xl font-bold text-white">
                       {userProfile.thLevel || 'N/A'}
                     </span>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-400 font-sans">REPUTASI</p>
+                    <p className="text-xs text-gray-400 font-sans">{t.dashboard.reputation}</p>
                     {/* [DINAMIS] Reputasi */}
                     <span className="text-2xl font-bold text-coc-gold">
                       {/* [PERBAIKAN] Tambahkan fallback 0 sebelum .toFixed() */}
@@ -343,17 +334,17 @@ export default function HomeHeader({
                   href="/profile"
                   className="block mt-4 text-sm text-coc-gold hover:underline font-sans"
                 >
-                  Lihat Profil Lengkap &rarr;
+                  {t.dashboard.viewFullProfile} &rarr;
                 </a>
               </>
             ) : (
               // Tampilan jika pengguna belum login
               <div className="flex-grow flex flex-col items-center justify-center py-4">
                 <p className="text-gray-400 font-sans mb-4">
-                  Login untuk melihat ringkasan profil dan E-Sports CV Anda.
+                  {t.dashboard.loginToViewProfile}
                 </p>
                 <Button href="/auth" variant="primary" className="w-full">
-                  Login atau Daftar
+                  {t.dashboard.loginOrRegister}
                 </Button>
               </div>
             )}
@@ -362,7 +353,7 @@ export default function HomeHeader({
           {/* ========== [BLOK 4: PENGUMUMAN (STATIS - Sesuai Peta)] ========== */}
           <div className="card-stone p-6">
             <h3 className="text-lg mb-4 border-b border-coc-gold-dark/30 pb-2">
-              PENGUMUMAN PENTING
+              {t.dashboard.importantAnnouncements}
             </h3>
             <div className="space-y-4 font-sans">
               <a

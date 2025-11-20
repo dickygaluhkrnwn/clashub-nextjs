@@ -1,13 +1,10 @@
-// File: app/profile/components/PlayerTroopsCard.tsx
-// Deskripsi: [MODIFIKASI FASE 6.3] Memperbarui card untuk
-// membaca dari cache 'userProfile.cachedTroops'.
-
 'use client';
 
 import React from 'react';
 // [MODIFIKASI 6.3] Impor UserProfile
 import { CocPlayer, UserProfile } from '@/lib/types';
 import { SwordsIcon } from '@/app/components/icons'; // Menggunakan ikon yang relevan
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
 
 interface PlayerTroopsCardProps {
   // [MODIFIKASI 6.3] Tambahkan userProfile
@@ -27,6 +24,7 @@ export const PlayerTroopsCard = ({
   isLoading,
   error,
 }: PlayerTroopsCardProps) => {
+  const { t } = useLanguage(); // [BARU]
   // --- [MODIFIKASI FASE 6.3] ---
   // Logika Penggabungan Data:
   // 1. Coba 'fullPlayerData.troops' (live)
@@ -54,20 +52,23 @@ export const PlayerTroopsCard = ({
   return (
     <div className="card-stone p-6 rounded-lg">
       <h2 className="mb-6 flex items-center gap-2 font-clash text-2xl text-white">
-        <SwordsIcon className="h-6 w-6 text-coc-gold" /> Pasukan (Home Village)
+        {/* [TERJEMAHAN] */}
+        <SwordsIcon className="h-6 w-6 text-coc-gold" /> {t.profileArmy.troopsTitle}
       </h2>
 
       {/* --- Handle Loading [MODIFIKASI 6.3] --- */}
       {showLoading && (
         <p className="text-sm text-gray-400 font-sans text-center">
-          Memuat data pasukan...
+          {/* [TERJEMAHAN] */}
+          {t.profileArmy.troopsLoading}
         </p>
       )}
 
       {/* --- Handle Error --- */}
       {error && !isLoading && (
         <p className="text-sm text-red-400 font-sans text-center">
-          Gagal memuat pasukan: {error}
+          {/* [TERJEMAHAN] */}
+          {t.profileArmy.troopsError.replace('{error}', error)}
         </p>
       )}
 
@@ -78,7 +79,8 @@ export const PlayerTroopsCard = ({
           {activeSuperTroops.length > 0 && (
             <div>
               <h3 className="mb-3 font-clash text-lg text-coc-gold">
-                Super Troops Aktif
+                {/* [TERJEMAHAN] */}
+                {t.profileArmy.superTroops}
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                 {activeSuperTroops.map((troop) => (
@@ -102,7 +104,8 @@ export const PlayerTroopsCard = ({
           {regularTroops.length > 0 && (
             <div>
               <h3 className="mb-3 font-clash text-lg text-white">
-                Pasukan Elixir & Dark Elixir
+                {/* [TERJEMAHAN] */}
+                {t.profileArmy.regularTroops}
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                 {regularTroops.map((troop) => (
@@ -126,7 +129,8 @@ export const PlayerTroopsCard = ({
           {/* [MODIFIKASI 6.3] Cek 'homeTroops' (data gabungan) */}
           {homeTroops.length === 0 && (
             <p className="text-sm text-gray-400 font-sans text-center">
-              Data pasukan tidak ditemukan.
+              {/* [TERJEMAHAN] */}
+              {t.profileArmy.troopsEmpty}
             </p>
           )}
         </div>

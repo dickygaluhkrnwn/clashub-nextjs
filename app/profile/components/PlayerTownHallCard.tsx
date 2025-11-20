@@ -1,7 +1,3 @@
-// File: app/profile/components/PlayerTownHallCard.tsx
-// Deskripsi: [BARU FASE 11.2] Komponen Card khusus untuk menampilkan
-// visual Town Hall dan Level XP pemain.
-
 'use client';
 
 import React from 'react';
@@ -9,6 +5,7 @@ import Image from 'next/image';
 import { HomeIcon, StarIcon } from '@/app/components/icons'; // Menggunakan HomeIcon untuk TH
 import { UserProfile, CocPlayer } from '@/lib/types';
 import { getThImage, formatNumber } from '@/lib/th-utils';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
 
 interface PlayerTownHallCardProps {
   userProfile: UserProfile;
@@ -21,6 +18,7 @@ export const PlayerTownHallCard = ({
   fullPlayerData,
   isLoading,
 }: PlayerTownHallCardProps) => {
+  const { t } = useLanguage(); // [BARU]
   // --- 1. Logika Penggabungan Data (Live vs Cache) ---
   
   // Ambil TH Level
@@ -45,7 +43,8 @@ export const PlayerTownHallCard = ({
       <div className="absolute top-0 right-0 w-32 h-32 bg-coc-gold/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
 
       <h2 className="mb-6 flex items-center gap-2 font-clash text-xl text-white self-start z-10">
-        <HomeIcon className="h-5 w-5 text-coc-gold" /> Town Hall
+        {/* [TERJEMAHAN] */}
+        <HomeIcon className="h-5 w-5 text-coc-gold" /> {t.profileCards.townHall}
       </h2>
 
       {showLoading ? (
@@ -72,7 +71,8 @@ export const PlayerTownHallCard = ({
             {/* Level TH */}
             <div className="bg-coc-stone/50 p-3 rounded-lg border border-coc-gold-dark/30 flex flex-col items-center justify-center">
               <span className="text-[10px] uppercase text-gray-400 font-sans mb-1 tracking-wider">
-                Level TH
+                {/* [TERJEMAHAN] */}
+                {t.profileCards.thLevel}
               </span>
               <span className="text-3xl font-clash text-white leading-none">
                 {thLevel}
@@ -82,7 +82,8 @@ export const PlayerTownHallCard = ({
             {/* XP Level */}
             <div className="bg-coc-stone/50 p-3 rounded-lg border border-coc-gold-dark/30 flex flex-col items-center justify-center">
               <span className="text-[10px] uppercase text-gray-400 font-sans mb-1 tracking-wider flex items-center gap-1">
-                <StarIcon className="h-3 w-3 text-coc-blue-light" /> Level XP
+                {/* [TERJEMAHAN] */}
+                <StarIcon className="h-3 w-3 text-coc-blue-light" /> {t.profileCards.xpLevel}
               </span>
               <span className="text-3xl font-clash text-coc-blue-light leading-none">
                 {formatNumber(expLevel)}

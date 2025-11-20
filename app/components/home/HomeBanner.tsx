@@ -7,6 +7,7 @@ import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import { ChevronLeftIcon, ChevronRightIcon } from '@/app/components/icons';
 import { useAuth } from '@/app/context/AuthContext';
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 interface HomeBannerProps {
   promotions: Promotion[];
@@ -15,6 +16,7 @@ interface HomeBannerProps {
 export default function HomeBanner({ promotions }: HomeBannerProps) {
   const router = useRouter();
   const { userProfile } = useAuth();
+  const { t } = useLanguage();
 
   // Cek apakah ada promosi yang valid
   const validPromotions =
@@ -85,14 +87,14 @@ export default function HomeBanner({ promotions }: HomeBannerProps) {
       <button
         className="absolute z-20 top-1/2 left-4 -translate-y-1/2 bg-black/30 hover:bg-coc-gold/80 text-white rounded-full p-2 transition-all backdrop-blur-sm"
         onClick={scrollPrev}
-        aria-label="Previous Slide"
+        aria-label={t.banner.prevSlide} // Terjemahkan Label
       >
         <ChevronLeftIcon className="h-6 w-6" />
       </button>
       <button
         className="absolute z-20 top-1/2 right-4 -translate-y-1/2 bg-black/30 hover:bg-coc-gold/80 text-white rounded-full p-2 transition-all backdrop-blur-sm"
         onClick={scrollNext}
-        aria-label="Next Slide"
+        aria-label={t.banner.nextSlide} // Terjemahkan Label
       >
         <ChevronRightIcon className="h-6 w-6" />
       </button>

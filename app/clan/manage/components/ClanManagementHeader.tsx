@@ -1,12 +1,12 @@
+'use client';
+
 import React from 'react';
-// REFAKTOR: Hapus impor 'ClanApiCache'
 import { ManagedClan, UserProfile } from '@/lib/types';
 import { CogsIcon, ClockIcon } from '@/app/components/icons';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
 
 interface ClanManagementHeaderProps {
   clan: ManagedClan;
-  // REFAKTOR: Hapus 'cache' dari props
-  // cache: ClanApiCache | null;
   profile: UserProfile;
 }
 
@@ -14,11 +14,11 @@ interface ClanManagementHeaderProps {
  * Komponen untuk menampilkan header utama halaman Manajemen Klan.
  * Berisi informasi klan dasar dan status sinkronisasi.
  */
-// REFAKTOR: Hapus 'cache' dari props function
 const ClanManagementHeader: React.FC<ClanManagementHeaderProps> = ({
   clan,
   profile,
 }) => {
+  const { t } = useLanguage(); // [BARU]
   // REFAKTOR: Logika status sinkronisasi sekarang menggunakan 'clan.lastSynced'
   // (diasumsikan 'clan.lastSynced' selalu ada)
   const lastSyncedDate =
@@ -30,7 +30,9 @@ const ClanManagementHeader: React.FC<ClanManagementHeaderProps> = ({
   const isCacheStale =
     !clan.lastSynced || lastSyncedDate.getTime() < Date.now() - 3600000;
   const syncStatusClass = isCacheStale ? 'text-coc-red' : 'text-coc-green';
-  const syncMessage = isCacheStale ? 'Perlu Sinkronisasi' : 'Data Fresh';
+  
+  // [TERJEMAHAN]
+  const syncMessage = isCacheStale ? t.clanManage.syncNeeded : t.clanManage.dataFresh;
 
   // REFAKTOR: Gunakan 'clan.lastSynced'
   const lastSyncTime = clan.lastSynced
@@ -40,7 +42,7 @@ const ClanManagementHeader: React.FC<ClanManagementHeaderProps> = ({
         day: '2-digit',
         month: 'short',
       })
-    : 'Belum Pernah';
+    : t.clanManage.never; // [TERJEMAHAN]
 
   return (
     <div className="card-stone p-6 flex flex-col md:flex-row justify-between items-start md:items-center">
@@ -48,10 +50,10 @@ const ClanManagementHeader: React.FC<ClanManagementHeaderProps> = ({
         <CogsIcon className="h-10 w-10 text-coc-gold flex-shrink-0" />
         <div>
           <h1 className="text-3xl font-clash text-white">
-            Dashboard Manajemen
+            {t.clanManage.dashboardTitle} {/* [TERJEMAHAN] */}
           </h1>
           <p className="text-sm text-gray-400 font-sans">
-            Kelola **{clan.name}** ({clan.tag}) | Role Clashub Anda:{' '}
+            {t.clanManage.manageLabel} **{clan.name}** ({clan.tag}) | {t.clanManage.roleLabel}:{' '}
             **{profile.role}**
           </p>
         </div>
@@ -65,7 +67,7 @@ const ClanManagementHeader: React.FC<ClanManagementHeaderProps> = ({
           {syncMessage}
         </div>
         <p className="text-xs text-gray-500">
-          Terakhir disinkronisasi: {lastSyncTime}
+          {t.clanManage.lastSynced}: {lastSyncTime} {/* [TERJEMAHAN] */}
         </p>
       </div>
     </div>

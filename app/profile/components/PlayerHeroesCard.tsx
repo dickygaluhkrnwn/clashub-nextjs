@@ -1,13 +1,10 @@
-// File: app/profile/components/PlayerHeroesCard.tsx
-// Deskripsi: [MODIFIKASI FASE 6.2] Memperbarui card untuk
-// membaca dari cache 'userProfile.cachedHeroes'.
-
 'use client';
 
 import React from 'react';
 // [MODIFIKASI 6.2] Impor UserProfile
 import { CocPlayer, UserProfile } from '@/lib/types';
 import { ShieldIcon } from '@/app/components/icons'; // Menggunakan ikon yang relevan
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
 
 interface PlayerHeroesCardProps {
   // [MODIFIKASI 6.2] Tambahkan userProfile
@@ -27,6 +24,7 @@ export const PlayerHeroesCard = ({
   isLoading,
   error,
 }: PlayerHeroesCardProps) => {
+  const { t } = useLanguage(); // [BARU]
   // --- [MODIFIKASI FASE 6.2] ---
   // Logika Penggabungan Data:
   // 1. Coba 'fullPlayerData.heroes' (live)
@@ -69,20 +67,23 @@ export const PlayerHeroesCard = ({
   return (
     <div className="card-stone p-6 rounded-lg">
       <h2 className="mb-6 flex items-center gap-2 font-clash text-2xl text-white">
-        <ShieldIcon className="h-6 w-6 text-coc-gold" /> Hero (Home Village)
+        {/* [TERJEMAHAN] */}
+        <ShieldIcon className="h-6 w-6 text-coc-gold" /> {t.profileArmy.heroTitle}
       </h2>
 
       {/* --- Handle Loading [MODIFIKASI 6.2] --- */}
       {showLoading && (
         <p className="text-sm text-gray-400 font-sans text-center">
-          Memuat data hero...
+          {/* [TERJEMAHAN] */}
+          {t.profileArmy.heroLoading}
         </p>
       )}
 
       {/* --- Handle Error --- */}
       {error && !isLoading && (
         <p className="text-sm text-red-400 font-sans text-center">
-          Gagal memuat hero: {error}
+          {/* [TERJEMAHAN] */}
+          {t.profileArmy.heroError.replace('{error}', error)}
         </p>
       )}
 
@@ -108,7 +109,8 @@ export const PlayerHeroesCard = ({
           ) : (
             // Tampilkan jika fetch selesai (atau cache kosong)
             <p className="text-sm text-gray-400 font-sans text-center">
-              Data hero tidak ditemukan atau player belum memiliki hero.
+              {/* [TERJEMAHAN] */}
+              {t.profileArmy.heroEmpty}
             </p>
           )}
         </div>

@@ -1,8 +1,11 @@
+'use client';
+
 import { StarIcon } from '@/app/components/icons';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/app/components/ui/Button';
 import { Tournament } from '@/lib/clashub.types';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
 
 // -- Tipe Data untuk Props --
 export type TeamCardProps = {
@@ -22,6 +25,7 @@ export type PostCardProps = {
   author: string;
   stats: string;
   href: string;
+  // [NOTE] stats is pre-formatted string, might need refactor later for full i18n
 };
 
 export type TournamentCardProps = {
@@ -42,49 +46,49 @@ export type PlayerCardProps = {
   avatarUrl?: string;
 };
 
-// Helper untuk status dan styling turnamen
-const getTournamentStatusUI = (status: Tournament['status']) => {
+// Helper untuk status dan styling turnamen (Sekarang menerima 't')
+const getTournamentStatusUI = (status: Tournament['status'], t: any) => {
   switch (status) {
     case 'scheduled':
       return {
-        text: 'Terjadwal',
+        text: t.cards.statusScheduled,
         badge: 'bg-cyan-600/20 text-cyan-300',
         border: 'border-cyan-500',
       };
     case 'registration_open':
       return {
-        text: 'Pendaftaran Dibuka',
+        text: t.cards.statusRegOpen,
         badge: 'bg-green-600/20 text-green-300',
         border: 'border-green-500',
       };
     case 'registration_closed':
       return {
-        text: 'Pendaftaran Ditutup',
+        text: t.cards.statusRegClosed,
         badge: 'bg-yellow-600/20 text-yellow-300',
         border: 'border-yellow-500',
       };
     case 'ongoing':
       return {
-        text: 'Live',
+        text: t.cards.statusOngoing,
         badge: 'bg-blue-600/20 text-blue-300 animate-pulse',
         border: 'border-blue-500',
       };
     case 'completed':
       return {
-        text: 'Selesai',
+        text: t.cards.statusCompleted,
         badge: 'bg-purple-600/20 text-purple-300',
         border: 'border-purple-500',
       };
     case 'cancelled':
       return {
-        text: 'Dibatalkan',
+        text: t.cards.statusCancelled,
         badge: 'bg-red-600/20 text-red-300',
         border: 'border-red-500',
       };
     case 'draft':
     default:
       return {
-        text: 'Draft',
+        text: t.cards.statusDraft,
         badge: 'bg-gray-600/20 text-gray-300',
         border: 'border-gray-500',
       };
@@ -101,6 +105,7 @@ export const TeamCard = ({
   avgTh,
   logoUrl = '/images/clan-badge-placeholder.png',
 }: TeamCardProps) => {
+  const { t } = useLanguage(); // [BARU]
   const isCompetitive = vision === 'Kompetitif';
 
   return (
@@ -129,7 +134,8 @@ export const TeamCard = ({
         </div>
         <div className="space-y-3 pt-4">
           <div className="flex justify-between items-center">
-            <span className="text-sm font-bold text-gray-300">Visi:</span>
+            {/* [TERJEMAHAN] */}
+            <span className="text-sm font-bold text-gray-300">{t.cards.vision}</span>
             <span
               className={`px-3 py-1 text-xs font-bold rounded-full ${
                 isCompetitive
@@ -141,7 +147,8 @@ export const TeamCard = ({
             </span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-sm font-bold text-gray-300">Rata-rata TH:</span>
+            {/* [TERJEMAHAN] */}
+            <span className="text-sm font-bold text-gray-300">{t.cards.avgTh}</span>
             <p className="text-base font-clash text-white">
               {avgTh.toFixed(1)}
             </p>
@@ -149,9 +156,9 @@ export const TeamCard = ({
         </div>
       </div>
       <Link href={`/clan/internal/${id}`} className="mt-5">
-        {/* [MODIFIKASI] Ubah teks jadi "Lihat Clan" dan rata tengah */}
         <Button variant="secondary" className="w-full justify-center">
-          Lihat Clan
+          {/* [TERJEMAHAN] */}
+          {t.cards.viewClan}
         </Button>
       </Link>
     </div>
@@ -167,6 +174,8 @@ export const PostCard = ({
   stats,
   href,
 }: PostCardProps) => {
+  const { t } = useLanguage(); // [BARU]
+
   return (
     <Link href={href} className="block group h-full">
       <div className="card-stone h-full flex flex-col p-5 hover:bg-coc-stone-light/90 transition-colors duration-200">
@@ -185,7 +194,8 @@ export const PostCard = ({
         </div>
         <div className="mt-auto pt-3 border-t border-coc-stone-light/30 text-xs text-gray-400 font-sans">
           <p>
-            Oleh: <span className="font-bold text-coc-gold-dark">{author}</span>
+            {/* [TERJEMAHAN] */}
+            {t.cards.by} <span className="font-bold text-coc-gold-dark">{author}</span>
           </p>
           <p>{stats}</p>
         </div>
@@ -202,8 +212,9 @@ export const TournamentCard = ({
   thRequirement,
   prizePool,
 }: TournamentCardProps) => {
+  const { t } = useLanguage(); // [BARU]
   const { text: statusText, badge: badgeClass, border: borderClass } =
-    getTournamentStatusUI(status);
+    getTournamentStatusUI(status, t); // Pass 't' helper
 
   return (
     <div
@@ -215,10 +226,12 @@ export const TournamentCard = ({
         </h4>
         <div className="text-sm text-gray-300 space-y-1 mt-2 font-sans">
           <p>
-            Syarat: <span className="font-bold text-white">{thRequirement}</span>
+            {/* [TERJEMAHAN] */}
+            {t.cards.requirements} <span className="font-bold text-white">{thRequirement}</span>
           </p>
           <p>
-            Hadiah: <span className="font-bold text-coc-gold">{prizePool}</span>
+            {/* [TERJEMAHAN] */}
+            {t.cards.prizePool} <span className="font-bold text-coc-gold">{prizePool}</span>
           </p>
         </div>
       </div>
@@ -229,7 +242,8 @@ export const TournamentCard = ({
           {statusText}
         </span>
         <Button href={`/tournament/${id}`} variant="secondary" className="w-full sm:w-auto">
-          Lihat Detail
+          {/* [TERJEMAHAN] */}
+          {t.cards.viewDetails}
         </Button>
       </div>
     </div>
@@ -246,6 +260,8 @@ export const PlayerCard = ({
   role,
   avatarUrl = '/images/placeholder-avatar.png',
 }: PlayerCardProps) => {
+  const { t } = useLanguage(); // [BARU]
+
   const roleColors: { [key: string]: string } = {
     Leader: 'bg-coc-gold text-coc-stone',
     'Co-Leader': 'bg-gray-400 text-coc-stone',
@@ -276,7 +292,8 @@ export const PlayerCard = ({
         </div>
         <div className="space-y-3 pt-4 font-sans">
           <div className="flex justify-between items-center text-sm">
-            <span className="font-bold text-gray-300">Role Clashub:</span>
+            {/* [TERJEMAHAN] */}
+            <span className="font-bold text-gray-300">{t.cards.role}</span>
             <span
               className={`px-3 py-1 text-xs font-bold rounded-full font-sans ${
                 roleColors[role] || 'bg-gray-600'
@@ -286,13 +303,15 @@ export const PlayerCard = ({
             </span>
           </div>
           <div className="flex justify-between items-center text-sm">
-            <span className="font-bold text-gray-300">Town Hall:</span>
+            {/* [TERJEMAHAN] */}
+            <span className="font-bold text-gray-300">{t.cards.townHall}</span>
             <span className="font-bold text-white font-clash text-lg">
               TH {thLevel}
             </span>
           </div>
           <div className="flex justify-between items-center text-sm">
-            <span className="font-bold text-gray-300">Reputasi:</span>
+            {/* [TERJEMAHAN] */}
+            <span className="font-bold text-gray-300">{t.cards.reputation}</span>
             <div className="flex items-center gap-1 text-coc-gold font-bold font-sans">
               <StarIcon className="h-4 w-4 fill-current" />
               <span>{reputation.toFixed(1)}</span>
@@ -300,15 +319,10 @@ export const PlayerCard = ({
           </div>
         </div>
       </div>
-      {/* [PERBAIKAN TAMPILAN] 
-          Menyamakan struktur dengan TeamCard:
-          - Bungkus Button dengan Link (bukan div)
-          - Hapus href dari Button (agar render sebagai button biasa)
-          - Tambahkan class 'block' pada Link untuk memastikan lebar penuh
-      */}
       <Link href={`/player/${id}`} className="mt-5 block">
         <Button variant="secondary" className="w-full justify-center">
-          Lihat Player
+          {/* [TERJEMAHAN] */}
+          {t.cards.viewPlayer}
         </Button>
       </Link>
     </div>

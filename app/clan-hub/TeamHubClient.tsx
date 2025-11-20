@@ -21,6 +21,7 @@ import { ShieldIcon, UserIcon, GlobeIcon } from '@/app/components/icons';
 // [PERBAIKAN LANGKAH 1] Import tipe yang benar dari komponen filter
 // Ini memastikan tipe data konsisten dengan ekspektasi child component (TeamHubFilter)
 import { ManagedClanFilters } from '@/app/components/filters/TeamHubFilter';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Import Hook Bahasa
 
 export type PlayerFilters = {
   searchTerm: string;
@@ -43,6 +44,7 @@ const TeamHubClient = ({
   initialPlayers,
   initialPublicClans,
 }: TeamHubClientProps) => {
+  const { t } = useLanguage(); // [BARU] Gunakan Hook Bahasa
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -52,11 +54,11 @@ const TeamHubClient = ({
   // State Filter
   // [PERBAIKAN ERROR TIPE] thLevel diubah dari 'all' (string) menjadi 0 (number) sesuai definisi ManagedClanFilters
   const [clanFilters, setClanFilters] = useState<ManagedClanFilters>({
-    searchTerm: '', 
+    searchTerm: '',
     thLevel: 0, // 0 melambangkan 'All'
     minMembers: 0,
     vision: 'all',
-    reputation: 0, 
+    reputation: 0,
   });
 
   const [playerFilters, setPlayerFilters] = useState<PlayerFilters>({
@@ -93,8 +95,8 @@ const TeamHubClient = ({
     setActiveTab(tab);
     // Reset filter saat ganti tab
     setClanFilters({
-        searchTerm: '', 
-        thLevel: 0, 
+        searchTerm: '',
+        thLevel: 0,
         minMembers: 0,
         vision: 'all',
         reputation: 0,
@@ -132,7 +134,7 @@ const TeamHubClient = ({
       ) {
         return false;
       }
-      
+
       // 2. Vision
       if (
         clanFilters.vision !== 'all' &&
@@ -140,13 +142,13 @@ const TeamHubClient = ({
       ) {
         return false;
       }
-      
+
       // 3. Reputation (Average Rating)
       // Menggunakan field averageRating dari RecommendedTeam
       if (clan.averageRating < clanFilters.reputation) {
         return false;
       }
-      
+
       // 4. Minimum Members
       // [IMPLEMENTASI BARU] Menggunakan field 'memberCount' dari ManagedClan
       if (clanFilters.minMembers > 0 && clan.memberCount < clanFilters.minMembers) {
@@ -159,7 +161,7 @@ const TeamHubClient = ({
       if (clanFilters.thLevel > 0 && Math.floor(clan.avgTh) < clanFilters.thLevel) {
         return false;
       }
-      
+
       return true;
     }).sort((a, b) => b.averageRating - a.averageRating);
   }, [initialClans, clanFilters]);
@@ -295,7 +297,7 @@ const TeamHubClient = ({
     // [LAYOUT BARU] Menggunakan struktur container biasa, tanpa banner
     <div className="relative">
       <div className="container mx-auto p-4 md:p-8 mt-10">
-        
+
         {/* [TAB NAVIGATION] Sinkron dengan TournamentClient style */}
         <div className="mb-8 border-b-2 border-coc-gold-dark/20 flex overflow-x-auto custom-scrollbar">
           <button
@@ -307,7 +309,7 @@ const TeamHubClient = ({
             }`}
           >
             <ShieldIcon className="w-5 h-5" />
-            Tim Clashub
+            {t.clanHub.tabTeams}
           </button>
           <button
             onClick={() => handleTabChange('publicClans')}
@@ -318,7 +320,7 @@ const TeamHubClient = ({
             }`}
           >
             <GlobeIcon className="w-5 h-5" />
-            Cari Klan Publik
+            {t.clanHub.tabPublicClans}
           </button>
           <button
             onClick={() => handleTabChange('players')}
@@ -329,7 +331,7 @@ const TeamHubClient = ({
             }`}
           >
             <UserIcon className="w-5 h-5" />
-            Cari Pemain
+            {t.clanHub.tabPlayers}
           </button>
         </div>
 

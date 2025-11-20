@@ -5,6 +5,7 @@ import "./globals.css";
 import Header from "@/app/components/layout/Header";
 import Footer from "@/app/components/layout/Footer";
 import { AuthProvider } from "@/app/context/AuthContext";
+import { LanguageProvider } from "@/app/context/LanguageContext"; // Import LanguageProvider
 import { getSessionUser, ServerUser } from "@/lib/server-auth";
 
 // Konfigurasi font Inter (Tetap)
@@ -45,13 +46,16 @@ export default async function RootLayout({
     <html lang="id" className={`${inter.variable} ${clashFontBold.variable} ${clashFontRegular.variable}`}>
       {/* Pastikan body default menggunakan font-sans (Inter) */}
       <body className={`font-sans flex flex-col min-h-screen`}>
-        <AuthProvider initialServerUser={initialServerUser}>
-          <Header />
-          <main className="flex-grow">
-            {children}
-          </main>
-          <Footer />
-        </AuthProvider>
+        {/* Wrap aplikasi dengan LanguageProvider agar Context Bahasa tersedia global */}
+        <LanguageProvider>
+          <AuthProvider initialServerUser={initialServerUser}>
+            <Header />
+            <main className="flex-grow">
+              {children}
+            </main>
+            <Footer />
+          </AuthProvider>
+        </LanguageProvider>
       </body>
     </html>
   );
