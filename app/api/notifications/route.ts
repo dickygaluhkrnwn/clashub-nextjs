@@ -9,6 +9,11 @@ import { COLLECTIONS } from '@/lib/firestore-collections';
 import { Notification } from '@/lib/clashub.types';
 import { docToDataAdmin } from '@/lib/firestore-admin/utils';
 
+// [PERBAIKAN BUILD ERROR]
+// Memaksa route ini menjadi dinamis karena menggunakan session/cookies.
+// Ini mencegah error "DYNAMIC_SERVER_USAGE" saat build/deploy.
+export const dynamic = 'force-dynamic';
+
 /**
  * @handler GET
  * Mengambil daftar notifikasi untuk pengguna yang sedang login.
