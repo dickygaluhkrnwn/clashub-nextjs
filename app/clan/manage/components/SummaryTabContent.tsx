@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation'; // <-- [PERBAIKAN] Import useRouter
 // REFAKTOR: Impor tipe yang relevan
 import { ManagedClan, CocWarLog, CocRaidLog, CocCurrentWar } from '@/lib/types';
 import { Button } from '@/app/components/ui/Button';
@@ -21,7 +22,7 @@ import TopPerformersCard from './TopPerformersCard';
 import { formatNumber } from '@/lib/th-utils';
 // REFAKTOR: Impor SWR hooks
 import {
-  useManagedClanCache, // <-- [PERBAIKAN 1] Ganti nama hook
+  useManagedClanCache,
   useManagedClanWar,
   useManagedClanRaid,
   useManagedClanWarLog,
@@ -234,6 +235,8 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
   isManager,
   onAction,
 }) => {
+  const router = useRouter(); // <-- [PERBAIKAN] Inisialisasi router
+
   // REFAKTOR: Panggil SWR hooks
   // [PERBAIKAN ERROR TS2339]
   // Ambil nama 'mutate' yang benar (misal: 'mutateCache') dan rename ke nama lokal
@@ -271,6 +274,7 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
     // Kita juga refresh data lain jika-jika diperlukan di tab lain
     mutateWarLog();
     mutateCWL();
+    router.refresh(); // [OPSIONAL] Refresh server component juga untuk memastikan konsistensi
   };
 
   // REFAKTOR: Fungsi Sync Manual (untuk Manager)
@@ -286,9 +290,11 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
     onAction(`Memulai sinkronisasi granular untuk ${clan.name}...`, 'info');
 
     try {
-      // 1. Trigger semua API sinkronisasi granular
-      // [PERBAIKAN] Gunakan method POST untuk sync
-      await fetch(`/api/clan/manage/${clan.id}/sync/basic`, { method: 'POST' });
+      // 1. Trigger API sinkronisasi basic TERLEBIH DAHULU untuk cek owner
+      const basicRes = await fetch(`/api/clan/manage/${clan.id}/sync/basic`, { method: 'POST' });
+      const basicData = await basicRes.json(); // [PENTING] Ambil response body
+
+      // Trigger API sync lainnya
       await fetch(`/api/clan/manage/${clan.id}/sync/war`, { method: 'POST' });
       await fetch(`/api/clan/manage/${clan.id}/sync/raid`, { method: 'POST' });
       await fetch(`/api/clan/manage/${clan.id}/sync/warlog`, { method: 'POST' });
@@ -307,7 +313,14 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
         mutateCWL(),
       ]);
 
-      onAction('Data berhasil disinkronisasi!', 'success');
+      // 3. Cek apakah Owner berubah berdasarkan respon backend
+      if (basicData.data?.ownerUpdated) {
+        onAction('Sinkronisasi Berhasil! Kepemilikan klan telah diperbarui otomatis.', 'success');
+        router.refresh(); // [KRUSIAL] Refresh halaman agar prop 'clan' (server data) terupdate
+      } else {
+        onAction('Data berhasil disinkronisasi!', 'success');
+      }
+
     } catch (err) {
       const errorMessage =
         (err as Error).message || 'Terjadi kesalahan saat sinkronisasi.';
@@ -517,4 +530,3 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
 };
 
 export default SummaryTabContent;
-
