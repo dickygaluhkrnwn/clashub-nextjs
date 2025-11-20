@@ -1,268 +1,258 @@
 // File: app/player/[playerId]/page.tsx
 // Deskripsi: Menampilkan E-Sports CV pemain (UserProfile) - Server Component.
-// [UPDATE]: Menambahkan logika server-side Caching (TTL) untuk auto-sync data basi.
+// [UPDATE]: Fix TypeScript Error "player possibly null" & Logic Auto-Fix.
 
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 import {
-  UserProfile,
-  Post,
-  PlayerReview,
-  FirestoreDocument,
-  CocPlayer, // <-- [TAMBAH] Impor tipe data CoC
-  ClanRole, // <-- [TAMBAH] Impor tipe data CoC
+  UserProfile,
+  Post,
+  PlayerReview,
+  FirestoreDocument,
+  CocPlayer,
+  ClanRole,
 } from '@/lib/types';
-import { DocumentData } from 'firebase/firestore';
-import { getPostsByAuthor } from '@/lib/firestore'; // <-- [UBAH] Hanya impor getPostsByAuthor
-// [EDIT] Impor fungsi Admin SDK untuk data TAHAP 4.2
+import { DocumentData } from 'firebase-admin/firestore'; // [FIX] Import DocumentData dari admin
+import { getPostsByAuthorAdmin } from '@/lib/firestore-admin/posts'; // [FIX] Pakai Admin SDK
 import {
-  getClanHistoryAdmin,
-  getPlayerReviewsAdmin,
-  getUserProfileAdmin, // <-- [UBAH] Impor getUserProfileAdmin
-  getUserProfileByPlayerTagAdmin, // <-- [UBAH] Impor getUserProfileByPlayerTagAdmin
+  getClanHistoryAdmin,
+  getPlayerReviewsAdmin,
+  getUserProfileAdmin,
+  getUserProfileByPlayerTagAdmin,
 } from '@/lib/firestore-admin/users';
-// [TAMBAH] Impor untuk logika TTL
+
+// [TAMBAH] Impor untuk logika TTL & Auto-Fix
 import cocApi from '@/lib/coc-api';
 import { adminFirestore } from '@/lib/firebase-admin';
-import { getManagedClanByTag } from '@/lib/firestore'; // <-- [TAMBAH] Impor untuk cek ManagedClan
-import { createOrLinkManagedClan } from '@/lib/firestore-admin'; // <-- [TAMBAH] Impor untuk link ManagedClan
-import { ManagerRole, StandardMemberRole } from '@/lib/enums'; // <-- [TAMBAH] Impor Tipe Role
+import { getManagedClanByTag } from '@/lib/firestore'; // Bisa diganti Admin SDK jika ada, tapi read oke.
+import { createOrLinkManagedClan } from '@/lib/firestore-admin';
+import { COLLECTIONS } from '@/lib/firestore-collections';
 
-// Impor Client Component yang baru
+// Impor Client Component
 import PlayerProfileClient from './PlayerProfileClient';
 
-// Definisikan tipe untuk parameter rute dinamis
 interface PlayerDetailPageProps {
-  params: {
-    playerId: string; // Bisa Firebase UID atau Encoded Player Tag CoC
-  };
+  params: {
+    playerId: string; // Bisa Firebase UID atau Encoded Player Tag CoC
+  };
 }
 
 /**
- * Fungsi helper untuk mengecek apakah string terlihat seperti Tag CoC
- */
+ * Fungsi helper untuk mengecek apakah string terlihat seperti Tag CoC
+ */
 const isCocTag = (str: string): boolean => {
-  // Tag CoC (setelah decode) dimulai dengan #
-  return str.startsWith('#') && str.length >= 2;
+  return str.startsWith('#') && str.length >= 2;
 };
 
-// --- [BARU] Helper dari verify-player/route.ts ---
+// Helper Role Mapping
 const mapCocRoleToClashubRole = (cocRole: ClanRole): UserProfile['role'] => {
-  switch (cocRole) {
-    case ClanRole.LEADER:
-      return 'Leader';
-    case ClanRole.CO_LEADER:
-      return 'Co-Leader';
-    case ClanRole.ELDER: // ClanRole.ELDER adalah 'admin'
-      return 'Elder';
-    case ClanRole.MEMBER:
-      return 'Member';
-    case ClanRole.NOT_IN_CLAN:
-    default:
-      return 'Free Agent';
-  }
+  switch (cocRole) {
+    case ClanRole.LEADER:
+      return 'Leader';
+    case ClanRole.CO_LEADER:
+      return 'Co-Leader';
+    case ClanRole.ELDER:
+      return 'Elder';
+    case ClanRole.MEMBER:
+      return 'Member';
+    case ClanRole.NOT_IN_CLAN:
+    default:
+      return 'Free Agent';
+  }
 };
-// --- [AKHIR BARU] ---
 
 /**
- * @function getPlayerProfile
- * Logika utama untuk mengambil UserProfile berdasarkan UID atau Tag CoC.
- * [UBAH] Menggunakan fungsi Admin SDK
- */
+ * @function getPlayerProfile
+ * Logika utama untuk mengambil UserProfile berdasarkan UID atau Tag CoC.
+ */
 const getPlayerProfile = async (
-  id: string,
+  id: string,
 ): Promise<FirestoreDocument<UserProfile> | null> => {
-  // 1. Coba sebagai UID
-  // [UBAH] Menggunakan Admin SDK
-  let player: FirestoreDocument<UserProfile> | null =
-    await getUserProfileAdmin(id);
+  // 1. Coba sebagai UID
+  let player: FirestoreDocument<UserProfile> | null =
+    await getUserProfileAdmin(id);
 
-  if (player) return player;
+  if (player) return player;
 
-  // 2. Jika bukan UID, coba sebagai Tag CoC (setelah decode)
-  const decodedId = decodeURIComponent(id).toUpperCase();
+  // 2. Jika bukan UID, coba sebagai Tag CoC
+  const decodedId = decodeURIComponent(id).toUpperCase();
 
-  if (isCocTag(decodedId)) {
-    console.log(
-      `[PlayerDetailPage] Attempting to find UserProfile by CoC Tag: ${decodedId}`,
-    );
-    // [UBAH] Menggunakan Admin SDK
-    player = await getUserProfileByPlayerTagAdmin(decodedId);
-    return player;
-  }
+  if (isCocTag(decodedId)) {
+    console.log(
+      `[PlayerDetailPage] Attempting to find UserProfile by CoC Tag: ${decodedId}`,
+    );
+    player = await getUserProfileByPlayerTagAdmin(decodedId);
+    return player;
+  }
 
-  return null;
+  return null;
 };
 
-/**
- * @function generateMetadata
- * Membuat metadata dinamis untuk SEO di sisi Server.
- */
 export async function generateMetadata({
-  params,
+  params,
 }: PlayerDetailPageProps): Promise<Metadata> {
-  const playerId = params.playerId;
-  // [CATATAN] getPlayerProfile di sini mungkin mengambil data basi,
-  // tapi itu tidak masalah untuk metadata (kecepatan lebih penting).
-  const player = await getPlayerProfile(playerId);
+  const playerId = params.playerId;
+  const player = await getPlayerProfile(playerId);
 
-  if (!player) {
-    return { title: 'Pemain Tidak Ditemukan | Clashub' };
-  }
+  if (!player) {
+    return { title: 'Pemain Tidak Ditemukan | Clashub' };
+  }
 
-  return {
-    title: `Clashub | E-Sports CV: ${player.displayName}`,
-    description: `Lihat E-Sports CV, Town Hall ${
-      player.thLevel || 'N/A'
-    }, dan reputasi komitmen ${player.reputation} ★ dari ${
-      player.displayName
-    }.`,
-  };
+  return {
+    title: `Clashub | E-Sports CV: ${player.displayName}`,
+    description: `Lihat E-Sports CV, Town Hall ${
+      player.thLevel || 'N/A'
+    } dari ${player.displayName}.`,
+  };
 }
 
 /**
- * @component PlayerDetailPage (Server Component)
- * Menampilkan detail lengkap E-Sports CV pemain (Profil Publik).
- */
+ * @component PlayerDetailPage (Server Component)
+ */
 const PlayerDetailPage = async ({ params }: PlayerDetailPageProps) => {
-  const playerId = params.playerId;
+  const playerId = params.playerId;
+  
+  // 1. Konfigurasi TTL
+  const TTL_MS = 15 * 60 * 1000; // 15 Menit default
 
-  // --- [LOGIKA TTL DIMULAI] ---
-  // Tentukan TTL (Time-to-Live) di sini. Misal: 15 Menit.
-  const TTL_MS = 15 * 60 * 1000;
+  // 2. Ambil Profil (Fetch awal)
+  // [FIX TS ERROR]: Gunakan const untuk fetch awal, cek null, baru assign ke let.
+  const initialPlayer = await getPlayerProfile(playerId);
 
-  // 1. Mengambil data profil pengguna (E-Sports CV) menggunakan dual ID logic
-  let player: FirestoreDocument<UserProfile> | null =
-    await getPlayerProfile(playerId);
+  if (!initialPlayer) {
+    return notFound(); // return agar TS tahu eksekusi berhenti
+  }
 
-  if (!player) {
-    notFound(); // Jika data tidak ada di Firestore, tampilkan halaman 404
-  }
+  // Assign ke variabel let yang tipenya PASTI UserProfile (tanpa null)
+  let player = initialPlayer;
 
-  // 2. Cek apakah data basi (stale)
-  // lastVerified bisa jadi string atau Firestore Timestamp, konversi ke number
-  const lastVerifiedTime = player.lastVerified
-    ? new Date(
-        (player.lastVerified as any).seconds * 1000 || player.lastVerified,
-      ).getTime()
-    : 0;
+  // 3. Cek Status Data (TTL & Suspicious Data)
+  const lastVerifiedTime = player.lastVerified
+    ? new Date(
+        (player.lastVerified as any).seconds * 1000 || player.lastVerified,
+      ).getTime()
+    : 0;
 
-  const isStale = Date.now() - lastVerifiedTime > TTL_MS;
+  const isStale = Date.now() - lastVerifiedTime > TTL_MS;
 
-  // 3. Jika Basi DAN terverifikasi, picu sinkronisasi
-  if (player.isVerified && isStale) {
-    console.log(
-      `[PlayerDetailPage] Data untuk ${player.playerTag} basi. Memicu auto-sync...`,
-    );
-    try {
-      // 3a. Ambil data CoC Live
-      const encodedPlayerTag = encodeURIComponent(player.playerTag);
-      const cocPlayerData: CocPlayer =
-        await cocApi.getPlayerData(encodedPlayerTag);
-      console.log(`[PlayerDetailPage] Sync sukses: Data ${cocPlayerData.name} diambil.`);
+  // [SMART AUTO-FIX]: Deteksi data mencurigakan (Punya Clan Tag tapi Role Free Agent)
+  const isSuspicious = player.clanTag && player.role === 'Free Agent';
+  
+  const shouldSync = player.isVerified && (isStale || isSuspicious);
 
-      // 3b. Mapping data (logika sama persis dari verify-player/route.ts)
-      const cocApiRole = cocPlayerData.clan
-        ? (cocPlayerData.role?.toLowerCase() as ClanRole) || ClanRole.MEMBER
-        : ClanRole.NOT_IN_CLAN;
+  // 4. Logika Sinkronisasi (Self-Healing)
+  if (shouldSync) {
+    console.log(
+      `[PlayerDetailPage] Sync Triggered for ${player.inGameName || player.uid}. Reason: ${
+        isSuspicious ? 'SUSPICIOUS_DATA' : 'TTL_EXPIRED'
+      }`
+    );
+    
+    try {
+      // 4a. Ambil Data CoC Live
+      const encodedPlayerTag = encodeURIComponent(player.playerTag);
+      const cocPlayerData: CocPlayer =
+        await cocApi.getPlayerData(encodedPlayerTag);
 
-      let clashubRole: UserProfile['role'] = mapCocRoleToClashubRole(cocApiRole);
-      let managedClanId: string | null = player.clanId || null; // Pertahankan clanId lama by default
-      let managedClanName: string | null = player.clanName || null; // Pertahankan clanName lama
+      // 4b. Mapping Role
+      const cocApiRole = cocPlayerData.clan
+        ? (cocPlayerData.role?.toLowerCase() as ClanRole) || ClanRole.MEMBER
+        : ClanRole.NOT_IN_CLAN;
 
-      if (cocPlayerData.clan) {
-        // Jika klan berubah, cek klan baru
-        if (player.clanTag !== cocPlayerData.clan.tag) {
-          // Logika auto-link/auto-sync saat verifikasi
-          if (
-            cocApiRole === ClanRole.LEADER ||
-            cocApiRole === ClanRole.CO_LEADER
-          ) {
-            managedClanId = await createOrLinkManagedClan(
-              cocPlayerData.clan.tag,
-              cocPlayerData.clan.name,
-              player.uid,
-            );
-          } else {
-            const managedClan = await getManagedClanByTag(cocPlayerData.clan.tag);
-            if (managedClan) {
-              managedClanId = managedClan.id;
-            } else {
-              managedClanId = null; // Klan baru tidak dikelola
-            }
-          }
-          managedClanName = cocPlayerData.clan.name;
-        }
-      } else {
-        // Jika tidak punya klan, set role Free Agent dan hapus clanId
-        clashubRole = 'Free Agent';
-        managedClanId = null;
-        managedClanName = null;
-      }
+      let clashubRole: UserProfile['role'] = mapCocRoleToClashubRole(cocApiRole);
+      let managedClanId: string | null = player.clanId || null;
+      let managedClanName: string | null = player.clanName || null;
 
-      // 3c. Siapkan data update
-      const updateData: Partial<UserProfile> = {
-        inGameName: cocPlayerData.name,
-        thLevel: cocPlayerData.townHallLevel,
-        trophies: cocPlayerData.trophies,
-        lastVerified: new Date(), // <-- TIMESTAMP DIPERBARUI
-        clanTag: cocPlayerData.clan?.tag || null,
-        clanRole: cocApiRole,
-        role: clashubRole,
-        clanId: managedClanId,
-        clanName: managedClanName,
-      };
+      // 4c. Cek Relasi Clan
+      if (cocPlayerData.clan) {
+        // Cek Managed Clan via Admin SDK
+        if (cocApiRole === ClanRole.LEADER || cocApiRole === ClanRole.CO_LEADER) {
+           // Manager logic
+           managedClanId = await createOrLinkManagedClan(
+              cocPlayerData.clan.tag,
+              cocPlayerData.clan.name,
+              player.uid
+           );
+        } else {
+           // Member logic: Cek apakah clan ada di DB
+           const clanQuery = await adminFirestore
+             .collection(COLLECTIONS.MANAGED_CLANS)
+             .where('tag', '==', cocPlayerData.clan.tag)
+             .limit(1)
+             .get();
+             
+           if (!clanQuery.empty) {
+             managedClanId = clanQuery.docs[0].id;
+           } else {
+             managedClanId = null;
+           }
+        }
+        managedClanName = cocPlayerData.clan.name;
+      } else {
+        clashubRole = 'Free Agent';
+        managedClanId = null;
+        managedClanName = null;
+      }
 
-      // 3d. Update Firestore (Admin SDK)
-      const userRef = adminFirestore.doc(`users/${player.uid}`);
-      await userRef.set(updateData, { merge: true });
+      // 4d. Siapkan Update Data
+      const updateData: Partial<UserProfile> = {
+        inGameName: cocPlayerData.name,
+        thLevel: cocPlayerData.townHallLevel,
+        trophies: cocPlayerData.trophies,
+        lastVerified: new Date(), // Reset TTL
+        clanTag: cocPlayerData.clan?.tag || null,
+        clanRole: cocApiRole,
+        role: clashubRole,
+        clanId: managedClanId,
+        clanName: managedClanName,
+      };
 
-      // 3e. Perbarui variabel 'player' LOKAL dengan data fresh
-      player = { ...player, ...updateData };
-    } catch (error) {
-      console.error(
-        `[PlayerDetailPage] Gagal auto-sync untuk ${player.playerTag}:`,
-        error,
-      );
-      // Jika gagal, biarkan. Halaman akan tetap render data basi (lebih baik daripada error 500)
-    }
-  }
-  // --- [LOGIKA TTL SELESAI] ---
+      // 4e. Eksekusi Update ke Firestore
+      // Bersihkan undefined/null values jika diperlukan (JSON trick)
+      const cleanUpdate = JSON.parse(JSON.stringify(updateData));
+      await adminFirestore.collection(COLLECTIONS.USERS).doc(player.uid).update(cleanUpdate);
 
-  // --- Mengambil semua data tambahan (posts, history, reviews) ---
-  let recentPosts: FirestoreDocument<Post>[] = [];
-  let clanHistory: FirestoreDocument<DocumentData>[] = [];
-  let playerReviews: FirestoreDocument<PlayerReview>[] = [];
+      // Update variabel lokal agar UI menampilkan data baru
+      player = { ...player, ...cleanUpdate };
+      console.log(`[PlayerDetailPage] ✅ Auto-Healed data for ${player.inGameName}`);
 
-  try {
-    // Ambil semua data secara paralel menggunakan UID pemain
-    const [postsData, historyData, reviewsData] = await Promise.all([
-      getPostsByAuthor(player.uid, 3), // (Postingan)
-      getClanHistoryAdmin(player.uid), // (Riwayat Klan) [FIX]
-      getPlayerReviewsAdmin(player.uid), // (Ulasan) [FIX]
-    ]);
+    } catch (error) {
+      console.error(
+        `[PlayerDetailPage] Gagal auto-sync:`, error
+      );
+    }
+  }
 
-    recentPosts = postsData;
-    clanHistory = historyData;
-    playerReviews = reviewsData;
-  } catch (e) {
-    console.error(
-      `[PlayerDetailPage] Gagal fetch detail (posts, history, reviews) untuk UID: ${player.uid}:`,
-      e,
-    );
-    // Biarkan array kosong jika gagal, halaman tetap bisa render
-  }
-  // ----------------------------------------------------------------------
+  // 5. Fetch Data Tambahan (Posts, History, Reviews) - Parallel
+  let recentPosts: FirestoreDocument<Post>[] = [];
+  let clanHistory: FirestoreDocument<DocumentData>[] = [];
+  let playerReviews: FirestoreDocument<PlayerReview>[] = [];
 
-  // Render Client Component baru dengan data yang sudah di-fetch (fresh atau dari cache)
-  return (
-    <PlayerProfileClient
-      userProfile={JSON.parse(JSON.stringify(player))}
-      recentPosts={JSON.parse(JSON.stringify(recentPosts))}
-      clanHistory={JSON.parse(JSON.stringify(clanHistory))}
-      playerReviews={JSON.parse(JSON.stringify(playerReviews))}
-    />
-  );
+  try {
+    // Gunakan Admin SDK untuk performa & konsistensi
+    const [postsData, historyData, reviewsData] = await Promise.all([
+      getPostsByAuthorAdmin(player.uid, 3), 
+      getClanHistoryAdmin(player.uid),
+      getPlayerReviewsAdmin(player.uid),
+    ]);
+
+    recentPosts = postsData;
+    clanHistory = historyData;
+    playerReviews = reviewsData;
+  } catch (e) {
+    console.error(
+      `[PlayerDetailPage] Error fetching details for ${player.uid}:`, e
+    );
+  }
+
+  return (
+    <PlayerProfileClient
+      userProfile={JSON.parse(JSON.stringify(player))}
+      recentPosts={JSON.parse(JSON.stringify(recentPosts))}
+      clanHistory={JSON.parse(JSON.stringify(clanHistory))}
+      playerReviews={JSON.parse(JSON.stringify(playerReviews))}
+    />
+  );
 };
 
 export default PlayerDetailPage;

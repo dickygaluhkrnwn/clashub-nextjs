@@ -42,25 +42,26 @@ export async function POST(request: Request) {
     // Cari UserProfile yang memiliki tag ini di database.
     // Kita tidak boleh mengasumsikan user yang login adalah pemilik data yang dikirim.
     // Tag dari API CoC biasanya raw (misal #ABC), pastikan formatnya sesuai dengan di DB.
-    const targetUserProfile = await getUserProfileByPlayerTagAdmin(playerData.tag);
+    const userProfileSnap = await getUserProfileByPlayerTagAdmin(playerData.tag);
 
-    if (!targetUserProfile) {
+    if (!userProfileSnap) {
         // Jika tidak ada user di database dengan tag ini, kita tidak perlu update cache 
         // (karena cache UserProfile hanya untuk user yang terdaftar di Clashub).
+        // Kita return success: true agar client tidak retry atau error, tapi beri info di message.
         return NextResponse.json({
-            success: false,
-            message: 'User dengan tag tersebut tidak ditemukan di database. Cache tidak disimpan.',
+            success: true, 
+            message: 'User dengan tag tersebut tidak ditemukan di database. Cache diabaikan.',
         });
     }
 
     // 3. Panggil fungsi Admin SDK untuk menyimpan ke Firestore
-    // Gunakan UID dari targetUserProfile yang ditemukan, BUKAN sessionUser
-    await updatePlayerCacheAdmin(targetUserProfile.uid, playerData);
+    // Gunakan UID (id) dari userProfileSnap yang ditemukan, BUKAN sessionUser
+    await updatePlayerCacheAdmin(userProfileSnap.id, playerData);
 
     // 4. Kirim respons sukses
     return NextResponse.json({
       success: true,
-      message: `Cache player untuk ${playerData.name} (${targetUserProfile.uid}) berhasil diperbarui.`,
+      message: `Cache player untuk ${playerData.name} (${userProfileSnap.id}) berhasil diperbarui.`,
     });
 
   } catch (error) {

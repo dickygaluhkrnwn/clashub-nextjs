@@ -1,50 +1,47 @@
 // File: app/api/coc/verify-player/route.ts
 // Deskripsi: API Route untuk memproses verifikasi Player Tag Clash of Clans
-// menggunakan Token Verifikasi In-Game. (PERBAIKAN: API Flow, Tipe Data, Error Handling, Import Fix, Use Admin Function, Encoding Tag)
+// menggunakan Token Verifikasi In-Game. 
+// [PERBAIKAN CRITICAL]: Menggunakan Admin SDK sepenuhnya untuk menghindari isu Cache/Permission Client SDK.
+// [PERBAIKAN TIPE]: Memperbaiki validasi token yang mengembalikan boolean (sesuai error log).
 
 import { NextRequest, NextResponse } from 'next/server';
-// Menggunakan default export dari lib/coc-api
 import cocApi from '@/lib/coc-api';
-// Import fungsi Client SDK untuk read dan fungsi Admin SDK untuk write
-// FIX: Menggunakan getManagedClanByTag dari lib/firestore untuk auto-sync member
-import { getUserProfile, getManagedClanByTag } from '@/lib/firestore'; 
-import { createOrLinkManagedClan } from '@/lib/firestore-admin'; // <<<--- IMPORT FUNGSI ADMIN DARI SINI
-import { adminFirestore } from '@/lib/firebase-admin'; // Import adminFirestore untuk update user profile
-import { getSessionUser } from '@/lib/server-auth'; // Untuk otentikasi Server-Side
+// [PERBAIKAN] Hapus import Client SDK (getManagedClanByTag, getUserProfile)
+import { createOrLinkManagedClan } from '@/lib/firestore-admin'; 
+import { adminFirestore } from '@/lib/firebase-admin';
+import { COLLECTIONS } from '@/lib/firestore-collections'; // Pastikan import ini ada
+import { getSessionUser } from '@/lib/server-auth';
 import {
   PlayerVerificationRequest,
   UserProfile,
   ClanRole,
   CocPlayer,
-} from '@/lib/types'; // Import tipe data ClanRole dan CocPlayer
+} from '@/lib/types';
 
-
-// --- HELPER BARU: Map Role CoC API string ke Clashub Role string ---
+// --- HELPER: Map Role CoC API string ke Clashub Role string ---
 const mapCocRoleToClashubRole = (cocRole: ClanRole): UserProfile['role'] => {
-      switch (cocRole) {
-        case ClanRole.LEADER:
-          return 'Leader';
-        case ClanRole.CO_LEADER:
-          return 'Co-Leader';
-        case ClanRole.ELDER: // ClanRole.ELDER adalah 'admin'
-          return 'Elder';
-        case ClanRole.MEMBER:
-          return 'Member';
-        case ClanRole.NOT_IN_CLAN:
-        default:
-          return 'Free Agent'; // Jika tidak di klan atau role tidak dikenal
-      }
+  switch (cocRole) {
+    case ClanRole.LEADER:
+      return 'Leader';
+    case ClanRole.CO_LEADER:
+      return 'Co-Leader';
+    case ClanRole.ELDER:
+      return 'Elder';
+    case ClanRole.MEMBER:
+      return 'Member';
+    case ClanRole.NOT_IN_CLAN:
+    default:
+      return 'Free Agent';
+  }
 };
-// --- END HELPER ---
-
 
 /**
  * @function POST
  * Menangani permintaan POST untuk memverifikasi token pemain.
  */
 export async function POST(request: NextRequest) {
-  let playerTag: string = ''; // Inisialisasi untuk logging error
-  let encodedPlayerTag: string = ''; // Variabel untuk menyimpan tag yang sudah di-encode
+  let playerTag: string = ''; 
+  let encodedPlayerTag: string = '';
 
   try {
     // 1. Otorisasi Pengguna
@@ -57,9 +54,9 @@ export async function POST(request: NextRequest) {
     }
     const uid = authUser.uid;
 
-    // 2. Ambil dan Validasi Payload Dasar
+    // 2. Ambil dan Validasi Payload
     const payload = (await request.json()) as PlayerVerificationRequest;
-    playerTag = payload.playerTag; // Simpan tag MENTAH untuk logging error dan pesan
+    playerTag = payload.playerTag;
     const apiToken = payload.apiToken;
 
     if (!playerTag || !apiToken) {
@@ -69,167 +66,147 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // --- PERBAIKAN: Encode playerTag SEBELUM dikirim ke cocApi ---
-    // Pastikan tag selalu diawali '#' sebelum encoding
+    // Encode Tag
     const cleanedTag = playerTag.trim().toUpperCase();
     const tagWithHash = cleanedTag.startsWith('#') ? cleanedTag : `#${cleanedTag}`;
     encodedPlayerTag = encodeURIComponent(tagWithHash);
-    // --- AKHIR PERBAIKAN ---
 
     // --- LOGIKA API ---
 
-    // 3. Verifikasi Token melalui API CoC (Gunakan encoded tag)
-    await cocApi.verifyPlayerToken(encodedPlayerTag, apiToken);
+    // 3. Verifikasi Token
+    // [PERBAIKAN FIX ERROR TS 2339] verifyPlayerToken mengembalikan boolean (true/false)
+    // Error log: Property 'status' does not exist on type 'boolean'.
+    const isTokenValid = await cocApi.verifyPlayerToken(encodedPlayerTag, apiToken);
+    
+    if (!isTokenValid) {
+       throw new Error('Token tidak valid');
+    }
+    
     console.log(`[VERIFIKASI] Token valid untuk ${playerTag}`);
 
-    // 4. Ambil Data Pemain yang baru saja terverifikasi (Gunakan encoded tag)
+    // 4. Ambil Data Pemain
     const cocPlayerData: CocPlayer = await cocApi.getPlayerData(encodedPlayerTag);
-    console.log(
-      `[VERIFIKASI] Data pemain ${cocPlayerData.name} (${playerTag}) berhasil diambil.`
-    );
-
-    // Map role CoC API (string) ke Enum ClanRole
+    
+    // Map role
     const cocApiRole = cocPlayerData.clan 
         ? (cocPlayerData.role?.toLowerCase() as ClanRole) || ClanRole.MEMBER
         : ClanRole.NOT_IN_CLAN;
 
-    // Tentukan Clashub Role internal
     let clashubRole: UserProfile['role'] = mapCocRoleToClashubRole(cocApiRole); 
     let managedClanId: string | null = null;
     let managedClanName: string | null = null;
 
-
     if (cocPlayerData.clan) {
-      // 5. Logika Penentuan Penautan Klan (Leader/Co-Leader vs Anggota)
-      
+      // Cek apakah klan ini sudah terdaftar di sistem kita (Managed Clan)
+      // [PERBAIKAN UTAMA]: Query menggunakan Admin SDK, bukan Client SDK
+      const clanQuery = await adminFirestore
+        .collection(COLLECTIONS.MANAGED_CLANS)
+        .where('tag', '==', cocPlayerData.clan.tag)
+        .limit(1)
+        .get();
+
+      const existingClanDoc = !clanQuery.empty ? clanQuery.docs[0] : null;
+
       if (cocApiRole === ClanRole.LEADER || cocApiRole === ClanRole.CO_LEADER) {
-        // [SCENARIO 1]: MANAGER - CREATE OR LINK MANAGED CLAN
+        // [SCENARIO 1]: MANAGER
         try {
+          // Jika klan sudah ada, kita hanya ambil ID-nya. 
+          // Jika belum, createOrLinkManagedClan akan membuatnya.
           managedClanId = await createOrLinkManagedClan(
             cocPlayerData.clan.tag, 
             cocPlayerData.clan.name,
             uid
           );
           managedClanName = cocPlayerData.clan.name;
-          console.log(
-            `[VERIFIKASI] User ${uid} menautkan klan ${cocPlayerData.clan.tag} ke ManagedClan ${managedClanId}`
-          );
+          console.log(`[VERIFIKASI] Manager ${uid} linked to Clan ${managedClanId}`);
         } catch (clanLinkError) {
-          console.error(
-            `[VERIFIKASI] Gagal menautkan klan ${cocPlayerData.clan.tag} untuk user ${uid}:`,
-            clanLinkError
-          );
+          console.error(`[VERIFIKASI] Error linking clan:`, clanLinkError);
         }
       } else {
-        // [SCENARIO 2]: ANGGOTA - AUTO-SYNC ROLE CLASHUB
-        // Jika bukan Leader/Co-Leader, cek apakah klan mereka SUDAH dikelola.
-        try {
-             // Cari ManagedClan berdasarkan Clan Tag CoC menggunakan fungsi baru
-             const managedClan = await getManagedClanByTag(cocPlayerData.clan.tag);
-             
-             if (managedClan) {
-                  // Jika ditemukan, auto-sync role Clashub mereka dan set clanId
-                  managedClanId = managedClan.id;
-                  managedClanName = managedClan.name;
-                  console.log(`[VERIFIKASI] User ${uid} (Member/Elder) auto-synced to ManagedClan ${managedClanId}.`);
-             }
-        } catch (clanSearchError) {
-             console.warn(`[VERIFIKASI] Gagal mencari ManagedClan untuk auto-sync bagi ${uid}:`, clanSearchError);
-             // Lanjutkan, ID dan Nama tetap null jika gagal atau tidak ditemukan
+        // [SCENARIO 2]: ANGGOTA (MEMBER/ELDER)
+        if (existingClanDoc) {
+          managedClanId = existingClanDoc.id;
+          managedClanName = existingClanDoc.data().name;
+          console.log(`[VERIFIKASI] Member ${uid} found existing ManagedClan ${managedClanId}`);
+        } else {
+          console.log(`[VERIFIKASI] Member ${uid} verified, but clan ${cocPlayerData.clan.tag} is not managed yet.`);
         }
-        // Set nama klan dari CoC API untuk display
-        managedClanName = cocPlayerData.clan.name;
-        // Role Clashub sudah di set di awal berdasarkan cocApiRole (Elder/Member)
+        
+        // Nama klan tetap di-set dari data CoC agar tampilan UI bagus
+        if (!managedClanName) managedClanName = cocPlayerData.clan.name;
       }
     } else {
       // [SCENARIO 3]: FREE AGENT
       clashubRole = 'Free Agent';
+      managedClanName = null;
+      managedClanId = null;
     }
 
-    // 6. Siapkan data update final untuk UserProfile
+    // 6. Siapkan data update
     const updateData: Partial<UserProfile> = {
       isVerified: true,
       playerTag: cocPlayerData.tag, 
       inGameName: cocPlayerData.name,
       thLevel: cocPlayerData.townHallLevel,
       trophies: cocPlayerData.trophies,
-      lastVerified: new Date(),
+      lastVerified: new Date(), // Akan dikonversi Firestore Admin secara otomatis
       
-      // Update data Clan Internal dan Role Clashub
+      // Data Clan & Role
       clanTag: cocPlayerData.clan?.tag || null,
       clanRole: cocApiRole,
       role: clashubRole,
-      clanId: managedClanId,
+      clanId: managedClanId, // Pastikan field ini tersimpan!
       clanName: managedClanName,
     };
     
-    // 7. Simpan Pembaruan ke Firestore User Profile (Gunakan Admin SDK langsung)
-    const userRef = adminFirestore.doc(`users/${uid}`);
-    // Hapus field undefined sebelum mengirim ke Admin SDK
-    Object.keys(updateData).forEach((keyStr) => {
-      const key = keyStr as keyof Partial<UserProfile>; // Assertion
-      if (updateData[key] === undefined) {
-        delete updateData[key];
-      }
-    });
-    await userRef.set(updateData, { merge: true });
-    console.log(
-      `[VERIFIKASI] Profil Firestore untuk ${uid} berhasil diperbarui via Admin SDK.`
-    );
+    // 7. Simpan ke Firestore (Admin SDK)
+    const userRef = adminFirestore.collection(COLLECTIONS.USERS).doc(uid);
+    
+    // Bersihkan undefined
+    const cleanedData = JSON.parse(JSON.stringify(updateData)); 
+    // Note: JSON.parse/stringify menghapus undefined, tapi mengubah Date jadi string. 
+    // Kita perlu kembalikan Date object untuk lastVerified.
+    if (updateData.lastVerified) cleanedData.lastVerified = updateData.lastVerified;
 
-    // 8. Berikan respons yang sukses
-    const updatedProfile = await getUserProfile(uid); // Baca ulang pakai Client SDK (aman)
+    await userRef.set(cleanedData, { merge: true });
+    
+    console.log(`[VERIFIKASI] Profil diperbarui untuk UID: ${uid}. Role: ${clashubRole}, ClanId: ${managedClanId}`);
+
+    // 8. Ambil Data Terbaru untuk Respon (Admin SDK Read)
+    // Menggunakan Client SDK 'getUserProfile' di sini bisa menyebabkan race condition pembacaan.
+    // Kita gunakan data yang baru saja kita tulis + data lama yang diambil via Admin SDK.
+    const freshUserSnap = await userRef.get();
+    const freshUserData = freshUserSnap.exists ? { id: freshUserSnap.id, ...freshUserSnap.data() } : null;
 
     return NextResponse.json(
       {
         message: 'Verifikasi sukses! Profil Clash of Clans Anda telah ditautkan.',
-        profile: updatedProfile,
+        profile: freshUserData, // Kembalikan data fresh dari Admin SDK
         clan: cocPlayerData.clan || null,
       },
       { status: 200 }
     );
+
   } catch (error: any) {
-    // Penanganan Error Spesifik (Gunakan playerTag mentah untuk pesan error)
     console.error(
       `API Verifikasi Error untuk PlayerTag: ${playerTag}. Detail:`,
-      error.message
+      error
     );
+    
     let errorMessage = 'Terjadi kesalahan tidak diketahui saat verifikasi.';
     let statusCode = 500;
 
     if (error instanceof Error) {
       errorMessage = error.message;
-      // Gunakan playerTag mentah dalam pesan error ke pengguna
-      if (
-        errorMessage.includes('Pemain tidak ditemukan') ||
-        errorMessage.startsWith('notFound')
-      ) {
+      if (errorMessage.includes('404') || errorMessage.includes('notFound')) {
         statusCode = 404;
-        errorMessage = `Pemain dengan tag ${playerTag} tidak ditemukan. Pastikan tag benar.`;
-      } else if (
-        errorMessage.includes('Token tidak valid') ||
-        errorMessage.includes('Player Tag salah')
-      ) {
+        errorMessage = `Pemain dengan tag ${playerTag} tidak ditemukan.`;
+      } else if (errorMessage.includes('invalid') || errorMessage.includes('400') || errorMessage.includes('Token tidak valid')) {
         statusCode = 400;
-        errorMessage = `Token API atau Player Tag (${playerTag}) salah. Periksa kembali input Anda.`;
-      } else if (
-        errorMessage.includes('Akses API ditolak (403)') ||
-        errorMessage.includes('Forbidden')
-      ) {
+        errorMessage = `Token API atau Player Tag salah.`;
+      } else if (errorMessage.includes('403')) {
         statusCode = 403;
-        errorMessage = `Akses ke API CoC ditolak (403). Masalah pada API Key atau IP Whitelist. Hubungi admin.`;
-      } else if (errorMessage.includes('Gagal menghubungi API CoC')) {
-        statusCode = 503;
-        errorMessage =
-          'Tidak dapat menghubungi server Clash of Clans saat ini. Coba lagi nanti.';
-      } else if (
-        errorMessage.includes('Gagal membuat profil pengguna') ||
-        errorMessage.includes('Gagal memperbarui profil pengguna') ||
-        errorMessage.includes('Admin SDK')
-      ) {
-        statusCode = 500;
-        errorMessage =
-          'Verifikasi API CoC berhasil, tetapi gagal menyimpan data ke profil Anda. Hubungi admin.';
+        errorMessage = `Akses ke API CoC ditolak (Maintenance/IP blocked).`;
       }
     }
 
