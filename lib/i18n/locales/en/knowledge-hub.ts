@@ -94,10 +94,10 @@ export const knowledgeHub: KnowledgeHubSection = {
       views: "Views",
       likes: "Likes",
       comments: "Comments",
-      categoryLabel: "Category:", // <-- BARU
-      anonymous: "Anonymous Contributor", // <-- BARU
-      invalidDate: "Invalid Date", // <-- BARU
-      noTags: "#NO_TAGS", // <-- BARU
+      categoryLabel: "Category:",
+      anonymous: "Anonymous Contributor",
+      invalidDate: "Invalid Date",
+      noTags: "#NO_TAGS",
     },
     sections: {
       about: "About this Strategy",
@@ -111,12 +111,29 @@ export const knowledgeHub: KnowledgeHubSection = {
       delete: "Delete",
       edit: "Edit",
       report: "Report",
-      // --- TOMBOL KHUSUS BARU ---
       copyBaseLink: "Copy Base Link",
       copyArmyLink: "Copy Army Link",
       watchYoutube: "Watch on YouTube",
       baseLinkHeader: "BASE LINK:",
       troopLinkHeader: "TROOP LINK:",
+    },
+    messages: {
+      loadingAuth: "Loading auth status...",
+      emptyReply: "Reply cannot be empty",
+      fetchError: "Failed to load replies",
+      sendError: "Failed to send reply",
+      serverError: "Server error occurred.",
+      loginRequired: "You must be logged in to reply",
+    },
+    postManagement: {
+      deleteConfirmation: "Are you sure you want to delete this post? This action cannot be undone.",
+      deleteConfirmButton: "Yes, Delete Permanently",
+      deleteCancelButton: "Cancel",
+      deleting: "Deleting post...",
+      deleteSuccess: "Post deleted successfully",
+      deleteError: "Failed to delete post",
+      likeLoginError: "You must be logged in to like a post",
+      likeError: "Failed to process like",
     },
     comments: {
       title: "Comments",

@@ -92,10 +92,10 @@ export interface KnowledgeHubSection {
       views: string;
       likes: string;
       comments: string;
-      categoryLabel: string; // <-- BARU: Label "Kategori:"
-      anonymous: string;     // <-- BARU: "Kontributor Anonim"
-      invalidDate: string;   // <-- BARU: "Tanggal Tidak Valid"
-      noTags: string;        // <-- BARU: "#TAG_TIDAK_TERSEDIA"
+      categoryLabel: string;
+      anonymous: string;
+      invalidDate: string;
+      noTags: string;
     };
     sections: {
       about: string;
@@ -109,12 +109,30 @@ export interface KnowledgeHubSection {
       delete: string;
       edit: string;
       report: string;
-      // --- TOMBOL KHUSUS BARU ---
       copyBaseLink: string;
       copyArmyLink: string;
       watchYoutube: string;
-      baseLinkHeader: string; // "BASE LINK:"
-      troopLinkHeader: string; // "TROOP LINK:"
+      baseLinkHeader: string;
+      troopLinkHeader: string;
+    };
+    messages: {
+      loadingAuth: string;
+      emptyReply: string;
+      fetchError: string;
+      sendError: string;
+      serverError: string;
+      loginRequired: string;
+    };
+    // --- BAGIAN BARU: POST MANAGEMENT ---
+    postManagement: {
+      deleteConfirmation: string;
+      deleteConfirmButton: string;
+      deleteCancelButton: string;
+      deleting: string;
+      deleteSuccess: string;
+      deleteError: string;
+      likeLoginError: string;
+      likeError: string;
     };
     comments: {
       title: string;

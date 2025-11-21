@@ -1,12 +1,12 @@
 // File: app/api/posts/[postId]/replies/route.ts
-// Deskripsi: API endpoint untuk mengambil (GET) dan membuat (POST) balasan pada postingan.
+// Deskripsi: API endpoint untuk mengambil (GET), membuat (POST), dan menghapus (DELETE) balasan pada postingan.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/server-auth';
 import { adminFirestore } from '@/lib/firebase-admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { COLLECTIONS } from '@/lib/firestore-collections';
-import { Reply, UserProfile } from '@/lib/clashub.types';
+import { Reply } from '@/lib/clashub.types';
 import { getUserProfileAdmin } from '@/lib/firestore-admin/users';
 import { docToDataAdmin } from '@/lib/firestore-admin/utils';
 
@@ -31,17 +31,17 @@ export async function GET(
     const repliesRef = adminFirestore
       .collection(COLLECTIONS.POSTS)
       .doc(postId)
-      .collection('replies'); // Sesuai Peta Develop (Langkah 3.2)
+      .collection('replies');
 
     // Mengambil balasan dan mengurutkannya berdasarkan yang terlama (asc)
     const q = repliesRef.orderBy('createdAt', 'asc');
     const snapshot = await q.get();
 
     if (snapshot.empty) {
-      return NextResponse.json([], { status: 200 }); // Kembalikan array kosong jika tidak ada balasan
+      return NextResponse.json([], { status: 200 });
     }
 
-    // Menggunakan docToDataAdmin untuk serialisasi (termasuk konversi Timestamp)
+    // Menggunakan docToDataAdmin untuk serialisasi
     const replies = snapshot.docs
       .map((doc) => docToDataAdmin<Reply>(doc))
       .filter(Boolean) as Reply[];
@@ -99,7 +99,7 @@ export async function POST(
   }
 
   try {
-    // 3. Ambil data profil pengguna untuk denormalisasi
+    // 3. Ambil data profil pengguna
     const userProfile = await getUserProfileAdmin(uid);
     if (!userProfile) {
       return NextResponse.json(
@@ -114,17 +114,17 @@ export async function POST(
       content: content.trim(),
       authorId: uid,
       authorName: userProfile.displayName || 'Clasher',
-      authorAvatarUrl: userProfile.avatarUrl || '', // Default ke string kosong jika tidak ada
+      authorAvatarUrl: userProfile.avatarUrl || '',
       createdAt: adminTimestamp,
     };
 
-    // 5. Gunakan Batch Write untuk operasi atomik
+    // 5. Gunakan Batch Write
     const postRef = adminFirestore.collection(COLLECTIONS.POSTS).doc(postId);
     const newReplyRef = adminFirestore
       .collection(COLLECTIONS.POSTS)
       .doc(postId)
       .collection('replies')
-      .doc(); // Buat referensi dokumen baru dengan ID auto-generated
+      .doc();
 
     const batch = adminFirestore.batch();
 
@@ -136,14 +136,12 @@ export async function POST(
       replies: FieldValue.increment(1),
     });
 
-    // Jalankan batch
     await batch.commit();
 
-    // 6. Kembalikan data balasan yang baru dibuat (JSON-safe)
+    // 6. Kembalikan data balasan
     const responseData = {
       id: newReplyRef.id,
       ...newReplyData,
-      // Konversi Admin Timestamp ke ISO string agar aman di-parsing oleh client
       createdAt: adminTimestamp.toDate().toISOString(),
     };
 
@@ -155,6 +153,93 @@ export async function POST(
     );
     return NextResponse.json(
       { error: 'Gagal memposting balasan' },
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * @handler DELETE
+ * @route DELETE /api/posts/[postId]/replies?replyId=[replyId]
+ * @deskripsi Menghapus balasan milik pengguna sendiri.
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { postId: string } },
+) {
+  // 1. Otentikasi Pengguna
+  const user = await getSessionUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const { uid } = user;
+
+  // 2. Validasi Parameter
+  const { postId } = params;
+  const { searchParams } = new URL(request.url);
+  const replyId = searchParams.get('replyId');
+
+  if (!postId || !replyId) {
+    return NextResponse.json(
+      { error: 'Post ID atau Reply ID tidak ditemukan' },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const replyRef = adminFirestore
+      .collection(COLLECTIONS.POSTS)
+      .doc(postId)
+      .collection('replies')
+      .doc(replyId);
+
+    const postRef = adminFirestore.collection(COLLECTIONS.POSTS).doc(postId);
+
+    // 3. Cek Kepemilikan (Get dokumen reply dulu)
+    const replySnap = await replyRef.get();
+
+    if (!replySnap.exists) {
+      return NextResponse.json(
+        { error: 'Balasan tidak ditemukan' },
+        { status: 404 },
+      );
+    }
+
+    const replyData = replySnap.data() as Reply;
+
+    // Pastikan user yang login adalah pemilik balasan
+    if (replyData.authorId !== uid) {
+      return NextResponse.json(
+        { error: 'Anda tidak memiliki izin untuk menghapus balasan ini' },
+        { status: 403 },
+      );
+    }
+
+    // 4. Gunakan Batch Write untuk menghapus dan update counter
+    const batch = adminFirestore.batch();
+
+    // Operasi 1: Hapus dokumen balasan
+    batch.delete(replyRef);
+
+    // Operasi 2: Kurangi counter 'replies' di dokumen Post utama
+    // Gunakan increment(-1)
+    batch.update(postRef, {
+      replies: FieldValue.increment(-1),
+    });
+
+    await batch.commit();
+
+    return NextResponse.json(
+      { message: 'Balasan berhasil dihapus' },
+      { status: 200 },
+    );
+  } catch (error) {
+    console.error(
+      `Firestore Error [DELETE /api/posts/${postId}/replies]:`,
+      error,
+    );
+    return NextResponse.json(
+      { error: 'Gagal menghapus balasan' },
       { status: 500 },
     );
   }

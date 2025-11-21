@@ -9,13 +9,14 @@ interface FormGroupProps {
   error?: string | null;
   label: string;
   htmlFor: string;
+  helperText?: ReactNode; // [TAMBAHAN] Helper text untuk instruksi tambahan
 }
 
 /**
  * Komponen pembungkus untuk setiap field form, menampilkan label dan pesan error.
  */
-export const FormGroup: React.FC<FormGroupProps> = ({ children, error, label, htmlFor }) => (
-  <div className="space-y-2 mt-6">
+export const FormGroup: React.FC<FormGroupProps> = ({ children, error, label, htmlFor, helperText }) => (
+  <div className="space-y-2 mt-4 first:mt-0">
     <label
       htmlFor={htmlFor}
       className="block text-sm font-bold text-gray-200"
@@ -23,6 +24,7 @@ export const FormGroup: React.FC<FormGroupProps> = ({ children, error, label, ht
       {label}
     </label>
     {children}
+    {helperText}
     {error && (
       <p id={`${htmlFor}-error`} className="text-xs text-red-400 mt-1 font-sans">
         {error}
@@ -31,7 +33,7 @@ export const FormGroup: React.FC<FormGroupProps> = ({ children, error, label, ht
   </div>
 );
 
-// --- Style input yang disempurnakan (diambil dari PostForm.tsx) ---
+// --- Style input yang disempurnakan ---
 /**
  * Kelas CSS Tailwind yang konsisten untuk semua elemen input/textarea/select.
  * @param hasError - Boolean untuk memicu styling error.
@@ -46,6 +48,5 @@ export const getInputClasses = (hasError: boolean) =>
       ? 'border-coc-red focus:border-coc-red focus:ring-coc-red/50' // Error state
       : 'border-coc-gold-dark/50' // Default state
   }`;
-// --- End Style input ---
 
 export default FormGroup;

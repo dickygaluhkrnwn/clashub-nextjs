@@ -94,10 +94,10 @@ export const knowledgeHub: KnowledgeHubSection = {
       views: "Dilihat",
       likes: "Suka",
       comments: "Komentar",
-      categoryLabel: "Kategori:", // <-- BARU
-      anonymous: "Kontributor Anonim", // <-- BARU
-      invalidDate: "Tanggal Tidak Valid", // <-- BARU
-      noTags: "#TAG_TIDAK_TERSEDIA", // <-- BARU
+      categoryLabel: "Kategori:",
+      anonymous: "Kontributor Anonim",
+      invalidDate: "Tanggal Tidak Valid",
+      noTags: "#TAG_TIDAK_TERSEDIA",
     },
     sections: {
       about: "Tentang Strategi Ini",
@@ -111,12 +111,29 @@ export const knowledgeHub: KnowledgeHubSection = {
       delete: "Hapus",
       edit: "Edit",
       report: "Lapor",
-      // --- TOMBOL KHUSUS BARU ---
       copyBaseLink: "Salin Link Base",
       copyArmyLink: "Salin Komposisi Pasukan",
       watchYoutube: "Tonton di YouTube",
       baseLinkHeader: "BASE LINK:",
       troopLinkHeader: "TROOP LINK:",
+    },
+    messages: {
+      loadingAuth: "Memuat status login...",
+      emptyReply: "Balasan tidak boleh kosong",
+      fetchError: "Gagal mengambil balasan",
+      sendError: "Gagal mengirim balasan",
+      serverError: "Terjadi kesalahan server.",
+      loginRequired: "Anda harus login untuk membalas",
+    },
+    postManagement: {
+      deleteConfirmation: "Apakah Anda yakin ingin menghapus postingan ini? Aksi ini tidak dapat dibatalkan.",
+      deleteConfirmButton: "Ya, Hapus Permanen",
+      deleteCancelButton: "Batal",
+      deleting: "Menghapus postingan...",
+      deleteSuccess: "Postingan berhasil dihapus",
+      deleteError: "Gagal menghapus postingan",
+      likeLoginError: "Anda harus login untuk menyukai postingan",
+      likeError: "Gagal memproses like",
     },
     comments: {
       title: "Komentar",

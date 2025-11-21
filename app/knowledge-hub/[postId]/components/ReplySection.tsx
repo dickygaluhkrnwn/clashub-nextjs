@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link'; // [FIX] Menambahkan impor Link yang hilang
+import Link from 'next/link';
 import { Button } from '@/app/components/ui/Button';
 import Notification, {
   NotificationProps,
@@ -9,7 +9,8 @@ import Notification, {
 import { PaperPlaneIcon, RefreshCwIcon } from '@/app/components/icons';
 import { useAuth } from '@/app/context/AuthContext';
 import { Reply } from '@/lib/clashub.types';
-import ReplyItem from './ReplyItem'; // Komponen yang kita buat sebelumnya
+import ReplyItem from './ReplyItem';
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 // Definisikan props
 interface ReplySectionProps {
@@ -26,6 +27,7 @@ const ReplySection: React.FC<ReplySectionProps> = ({
   initialReplyCount,
 }) => {
   const { userProfile, loading: authLoading } = useAuth(); // Dapatkan status auth
+  const { t } = useLanguage(); // Hook bahasa
 
   // State untuk daftar balasan
   const [replies, setReplies] = useState<Reply[]>([]);
@@ -56,14 +58,14 @@ const ReplySection: React.FC<ReplySectionProps> = ({
       try {
         const response = await fetch(`/api/posts/${postId}/replies`);
         if (!response.ok) {
-          throw new Error('Gagal mengambil balasan');
+          throw new Error(t.knowledgeHub.detail.messages.fetchError);
         }
         const data: Reply[] = await response.json();
         setReplies(data);
         setReplyCount(data.length); // Update count dari data aktual
       } catch (err) {
         const errorMessage =
-          (err as Error).message || 'Terjadi kesalahan server.';
+          (err as Error).message || t.knowledgeHub.detail.messages.serverError;
         showNotification(errorMessage, 'error');
       } finally {
         setIsLoading(false);
@@ -71,19 +73,19 @@ const ReplySection: React.FC<ReplySectionProps> = ({
     };
 
     fetchReplies();
-  }, [postId]); // Jalankan jika postId berubah
+  }, [postId, t.knowledgeHub.detail.messages.fetchError, t.knowledgeHub.detail.messages.serverError]); 
 
   // 2. Handler untuk submit form balasan baru
   const handleSubmitReply = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (authLoading) return; // Jangan lakukan apa-apa jika auth masih loading
+    if (authLoading) return;
     if (!userProfile) {
-      showNotification('Anda harus login untuk membalas', 'error');
+      showNotification(t.knowledgeHub.detail.messages.loginRequired, 'error');
       return;
     }
     if (newReplyContent.trim().length === 0) {
-      showNotification('Balasan tidak boleh kosong', 'warning');
+      showNotification(t.knowledgeHub.detail.messages.emptyReply, 'warning');
       return;
     }
 
@@ -97,26 +99,22 @@ const ReplySection: React.FC<ReplySectionProps> = ({
         body: JSON.stringify({ content: newReplyContent.trim() }),
       });
 
-      // [FIX] Ambil data JSON terlebih dahulu
       const responseData = await response.json();
 
-      // [FIX] Cek response.ok. Jika tidak ok, responseData adalah { error: '...' }
       if (!response.ok) {
-        // Sekarang 'responseData.error' aman diakses
-        throw new Error(responseData.error || 'Gagal mengirim balasan');
+        throw new Error(responseData.error || t.knowledgeHub.detail.messages.sendError);
       }
 
-      // [FIX] Jika ok, responseData adalah objek Reply
       const newReply: Reply = responseData;
 
       // 3. Tambahkan balasan baru ke state (Optimistic UI)
       setReplies((prevReplies) => [...prevReplies, newReply]);
-      setReplyCount((prevCount) => prevCount + 1); // Tambah counter
-      setNewReplyContent(''); // Kosongkan textarea
-      setNotification(null); // Hapus notifikasi error (jika ada)
+      setReplyCount((prevCount) => prevCount + 1);
+      setNewReplyContent('');
+      setNotification(null);
     } catch (err) {
       const errorMessage =
-        (err as Error).message || 'Terjadi kesalahan server.';
+        (err as Error).message || t.knowledgeHub.detail.messages.serverError;
       showNotification(errorMessage, 'error');
     } finally {
       setIsSubmitting(false);
@@ -128,20 +126,18 @@ const ReplySection: React.FC<ReplySectionProps> = ({
     if (authLoading) {
       return (
         <div className="bg-coc-stone/50 p-4 rounded-lg mb-6 text-center text-gray-400">
-          Memuat status login...
+          {t.knowledgeHub.detail.messages.loadingAuth}
         </div>
       );
     }
 
     if (!userProfile) {
       return (
-        <div className="bg-coc-stone/50 p-4 rounded-lg mb-6 text-center text-gray-400">
-          Silakan{' '}
-          {/* [FIX] Komponen Link sekarang dikenali */}
-          <Link href="/auth" className="text-coc-gold hover:underline font-bold">
-            login
-          </Link>{' '}
-          untuk mengirim balasan.
+        <div className="bg-coc-stone/50 p-4 rounded-lg mb-6 text-center text-gray-400 flex flex-col items-center gap-2">
+          <p>{t.knowledgeHub.detail.comments.loginToComment}</p>
+          <Link href="/auth">
+            <Button variant="secondary" size="sm">Login</Button>
+          </Link>
         </div>
       );
     }
@@ -152,9 +148,9 @@ const ReplySection: React.FC<ReplySectionProps> = ({
         className="bg-coc-stone/50 p-4 rounded-lg mb-6"
       >
         <textarea
-          placeholder="Tulis balasan atau pertanyaan Anda di sini..."
+          placeholder={t.knowledgeHub.detail.comments.placeholder}
           rows={3}
-          className="w-full bg-transparent border-b border-coc-gold-dark/50 p-2 text-white focus:outline-none resize-none font-sans"
+          className="w-full bg-transparent border-b border-coc-gold-dark/50 p-2 text-white focus:outline-none resize-none font-sans placeholder-gray-500"
           value={newReplyContent}
           onChange={(e) => setNewReplyContent(e.target.value)}
           disabled={isSubmitting}
@@ -171,7 +167,7 @@ const ReplySection: React.FC<ReplySectionProps> = ({
           ) : (
             <PaperPlaneIcon className="inline h-4 w-4 mr-2" />
           )}
-          {isSubmitting ? 'Mengirim...' : 'Kirim Balasan'}
+          {isSubmitting ? t.knowledgeHub.detail.comments.submitting : t.knowledgeHub.detail.comments.submit}
         </Button>
       </form>
     );
@@ -190,7 +186,7 @@ const ReplySection: React.FC<ReplySectionProps> = ({
     if (replies.length === 0) {
       return (
         <div className="p-4 bg-coc-stone/50 rounded-lg text-center text-gray-400">
-          Belum ada balasan. Jadilah yang pertama!
+          {t.knowledgeHub.detail.comments.noComments}
         </div>
       );
     }
@@ -198,7 +194,8 @@ const ReplySection: React.FC<ReplySectionProps> = ({
     return (
       <div className="space-y-4">
         {replies.map((reply) => (
-          <ReplyItem key={reply.id} reply={reply} />
+          // [FIX] Wajib kirim postId ke ReplyItem agar fitur delete berfungsi
+          <ReplyItem key={reply.id} reply={reply} postId={postId} />
         ))}
       </div>
     );
@@ -206,17 +203,14 @@ const ReplySection: React.FC<ReplySectionProps> = ({
 
   return (
     <div className="mt-10 pt-6 border-t-2 border-coc-gold-dark/30" id="comments">
-      {/* Notifikasi untuk error/sukses */}
       {notification && <Notification notification={notification} />}
 
       <h2 className="text-2xl font-clash border-l-4 border-coc-gold pl-3 mb-6">
-        Balasan ({replyCount})
+        {t.knowledgeHub.detail.comments.title} ({replyCount})
       </h2>
 
-      {/* Area Form Input Balasan (Dinamis) */}
       {renderReplyForm()}
 
-      {/* Daftar Balasan (Dinamis) */}
       {renderReplyList()}
     </div>
   );

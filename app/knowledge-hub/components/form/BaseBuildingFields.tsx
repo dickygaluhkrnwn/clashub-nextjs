@@ -1,13 +1,11 @@
 'use client';
 
 import React from 'react';
-// Kita pakai CogsIcon karena di PostForm.tsx sebelumnya menggunakan CogsIcon
-// (Ikon ini sudah kita alias-kan ke SettingsIcon di ui-actions.tsx)
-import { CogsIcon, LinkIcon, HomeIcon } from '@/app/components/icons'; 
-import { FormGroup, getInputClasses } from './PostFormGroup'; // Import utility components
-import { PostFormData } from './usePostForm'; // Import the type definitions
+import { CogsIcon } from '@/app/components/icons'; 
+import { FormGroup, getInputClasses } from './PostFormGroup';
+import { PostFormData } from './usePostForm';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // Integrasi i18n
 
-// Define props based on what's needed from usePostForm hook
 interface BaseBuildingFieldsProps {
   formData: PostFormData;
   handleInputChange: (
@@ -17,37 +15,40 @@ interface BaseBuildingFieldsProps {
   isBaseBuildingPost: boolean;
 }
 
-/**
- * Komponen modular untuk field input spesifik kategori 'Base Building'.
- * Ditampilkan secara kondisional di PostForm.
- */
 const BaseBuildingFields: React.FC<BaseBuildingFieldsProps> = ({
   formData,
   handleInputChange,
   isFormValid,
   isBaseBuildingPost,
 }) => {
-  // Jika bukan postingan Base Building, jangan render apa-apa.
+  const { language } = useLanguage(); // Gunakan hook bahasa
+
   if (!isBaseBuildingPost) return null;
 
-  // Cek validitas kondisional untuk menampilkan error field.
   const hasLinkError = !isFormValid && isBaseBuildingPost && !formData.baseImageUrl.trim() && !formData.baseLinkUrl.trim();
 
   return (
     <div className="space-y-6 pt-6 border-t border-coc-gold-dark/20 mt-6">
       <h3 className="text-xl font-clash text-coc-gold-dark flex items-center">
-        {/* Menggunakan CogsIcon (Alias dari SettingsIcon) */}
-        <CogsIcon className="h-5 w-5 mr-2" /> Detail Base (Minimal satu wajib diisi)
+        <CogsIcon className="h-5 w-5 mr-2" /> 
+        {language === 'id' ? 'Detail Base (Minimal satu wajib diisi)' : 'Base Details (At least one required)'}
       </h3>
 
       {/* Base Image URL */}
       <FormGroup
-        label="Base Image URL (Imgur/Hosting Lain)"
+        label={language === 'id' ? "URL Gambar Base (Imgur)" : "Base Image URL (Imgur)"}
         htmlFor="baseImageUrl"
         error={
           hasLinkError
-            ? 'Wajib diisi jika tidak ada Base Link URL'
+            ? (language === 'id' ? 'Wajib diisi jika tidak ada Base Link URL' : 'Required if no Base Link URL')
             : null
+        }
+        helperText={
+          <p className="text-xs text-gray-500 font-sans mt-1">
+            {language === 'id' 
+              ? 'URL gambar base dari Imgur (format: .png, .jpg).'
+              : 'Direct image URL from Imgur (format: .png, .jpg).'}
+          </p>
         }
       >
         <input
@@ -55,31 +56,26 @@ const BaseBuildingFields: React.FC<BaseBuildingFieldsProps> = ({
           id="baseImageUrl"
           value={formData.baseImageUrl}
           onChange={handleInputChange}
-          placeholder="Contoh: https://i.imgur.com/your-image.png"
+          placeholder="https://i.imgur.com/..."
           className={getInputClasses(hasLinkError)}
         />
-        <p className="text-xs text-gray-500 font-sans mt-1">
-          URL gambar base dari hosting (misalnya Imgur). Anda bisa mengunggah gambar dan mendapatkan URL di{' '}
-          <a
-            href="https://imgur.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-coc-gold hover:underline"
-          >
-            imgur.com
-          </a>
-          .
-        </p>
       </FormGroup>
 
       {/* Base Link URL */}
       <FormGroup
-        label="Base Link URL (Clash of Clans Link)"
+        label={language === 'id' ? "Link Salin Base" : "Base Copy Link"}
         htmlFor="baseLinkUrl"
         error={
           hasLinkError
-            ? 'Wajib diisi jika tidak ada Base Image URL'
+            ? (language === 'id' ? 'Wajib diisi jika tidak ada Base Image URL' : 'Required if no Base Image URL')
             : null
+        }
+        helperText={
+          <p className="text-xs text-gray-500 font-sans mt-1">
+            {language === 'id' 
+              ? 'Link base dari Clash of Clans (dimulai dengan `https://link.clashofclans.com/`).'
+              : 'Clash of Clans base link (starts with `https://link.clashofclans.com/`).'}
+          </p>
         }
       >
         <input
@@ -87,13 +83,9 @@ const BaseBuildingFields: React.FC<BaseBuildingFieldsProps> = ({
           id="baseLinkUrl"
           value={formData.baseLinkUrl}
           onChange={handleInputChange}
-          placeholder="Contoh: https://link.clashofclans.com/en?action=OpenLayout&id=..."
+          placeholder="https://link.clashofclans.com/en?action=OpenLayout..."
           className={getInputClasses(hasLinkError)}
         />
-        <p className="text-xs text-gray-500 font-sans mt-1">
-          Link base dari Clash of Clans (dimulai dengan
-          `https://link.clashofclans.com/`).
-        </p>
       </FormGroup>
     </div>
   );

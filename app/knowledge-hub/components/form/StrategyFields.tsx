@@ -2,10 +2,10 @@
 
 import React from 'react';
 import { InfoIcon } from '@/app/components/icons';
-import { FormGroup, getInputClasses } from './PostFormGroup'; // Import utility components
-import { PostFormData } from './usePostForm'; // Import the type definitions
+import { FormGroup, getInputClasses } from './PostFormGroup';
+import { PostFormData } from './usePostForm';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // Integrasi i18n
 
-// Define props based on what's needed from usePostForm hook
 interface StrategyFieldsProps {
   formData: PostFormData;
   handleInputChange: (
@@ -15,26 +15,23 @@ interface StrategyFieldsProps {
   isStrategyPost: boolean;
 }
 
-/**
- * Komponen modular untuk field input spesifik kategori 'Strategi Serangan'.
- * Ditampilkan secara kondisional di PostForm.
- */
 const StrategyFields: React.FC<StrategyFieldsProps> = ({
   formData,
   handleInputChange,
   isFormValid,
   isStrategyPost,
 }) => {
-  // Jika bukan postingan strategi, jangan render apa-apa.
+  const { t, language } = useLanguage(); // Gunakan hook bahasa
+
   if (!isStrategyPost) return null;
 
-  // Cek validitas kondisional untuk menampilkan error field.
   const hasLinkError = !isFormValid && isStrategyPost && !formData.troopLink.trim() && !formData.videoUrl.trim();
 
   return (
     <div className="space-y-6 pt-6 border-t border-coc-gold-dark/20 mt-6">
       <h3 className="text-xl font-clash text-coc-gold-dark flex items-center">
-        <InfoIcon className="h-5 w-5 mr-2" /> Detail Tambahan Strategi (Minimal satu wajib diisi)
+        <InfoIcon className="h-5 w-5 mr-2" /> 
+        {language === 'id' ? 'Detail Tambahan (Minimal satu wajib diisi)' : 'Strategy Details (At least one required)'}
       </h3>
       
       {/* Troop Link */}
@@ -43,8 +40,15 @@ const StrategyFields: React.FC<StrategyFieldsProps> = ({
         htmlFor="troopLink"
         error={
           hasLinkError
-            ? 'Wajib diisi jika tidak ada Video URL'
+            ? (language === 'id' ? 'Wajib diisi jika tidak ada Video URL' : 'Required if no Video URL')
             : null
+        }
+        helperText={
+          <p className="text-xs text-gray-500 font-sans mt-1">
+            {language === 'id' 
+              ? 'Link untuk menyalin kombinasi pasukan langsung ke game (dimulai dengan `coc://`).'
+              : 'Link to copy army composition directly to game (starts with `coc://`).'}
+          </p>
         }
       >
         <input
@@ -55,20 +59,23 @@ const StrategyFields: React.FC<StrategyFieldsProps> = ({
           placeholder="Contoh: coc://open-troop-link?troop=..."
           className={getInputClasses(hasLinkError)}
         />
-        <p className="text-xs text-gray-500 font-sans mt-1">
-          Link untuk menyalin kombinasi pasukan langsung ke game (dimulai
-          dengan `coc://`).
-        </p>
       </FormGroup>
       
       {/* Video URL */}
       <FormGroup
-        label="Video URL (YouTube)"
+        label={t.knowledgeHub.form.labels.youtubeUrl}
         htmlFor="videoUrl"
         error={
           hasLinkError
-            ? 'Wajib diisi jika tidak ada Troop Link'
+            ? (language === 'id' ? 'Wajib diisi jika tidak ada Troop Link' : 'Required if no Troop Link')
             : null
+        }
+        helperText={
+          <p className="text-xs text-gray-500 font-sans mt-1">
+            {language === 'id' 
+              ? 'Link ke video YouTube yang menampilkan cara menggunakan strategi ini.'
+              : 'Link to a YouTube video showing this strategy in action.'}
+          </p>
         }
       >
         <input
@@ -76,13 +83,9 @@ const StrategyFields: React.FC<StrategyFieldsProps> = ({
           id="videoUrl"
           value={formData.videoUrl}
           onChange={handleInputChange}
-          placeholder="Contoh: https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          placeholder={t.knowledgeHub.form.placeholders.youtubeUrl}
           className={getInputClasses(hasLinkError)}
         />
-        <p className="text-xs text-gray-500 font-sans mt-1">
-          Link ke video YouTube yang menampilkan cara menggunakan strategi
-          ini.
-        </p>
       </FormGroup>
     </div>
   );

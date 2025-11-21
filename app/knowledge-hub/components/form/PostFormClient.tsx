@@ -2,56 +2,52 @@
 
 import React from 'react';
 import { EditIcon } from '@/app/components/icons';
-import Notification from '@/app/components/ui/Notification';
 import { Post } from '@/lib/types';
-// Import semua komponen modular yang sudah dibuat
-import usePostForm from './usePostForm';
+import Notification from '@/app/components/ui/Notification';
+import { useLanguage } from '@/lib/hooks/useLanguage';
+
+// Import Sub-components & Hook
+import { usePostForm, CATEGORY_OPTIONS } from './usePostForm';
 import { FormGroup, getInputClasses } from './PostFormGroup';
-import StrategyFields from './StrategyFields';
 import BaseBuildingFields from './BaseBuildingFields';
+import StrategyFields from './StrategyFields';
 import FormActions from './FormActions';
 
-// Interface PostFormProps asli
-interface PostFormProps {
+interface PostFormClientProps {
   initialData?: (Post & { id: string }) | null;
   className?: string;
 }
 
-/**
- * Komponen Utama untuk PostForm (Client-side UI).
- * Menggunakan usePostForm untuk semua logika dan state.
- */
-const PostFormClient: React.FC<PostFormProps> = ({ initialData, className = '' }) => {
-  // --- Hubungkan ke Custom Hook ---
+const PostFormClient = ({ initialData, className = '' }: PostFormClientProps) => {
+  const { t } = useLanguage();
   const {
     formData,
-    isEditMode,
-    isSubmitting,
-    formError,
-    notification,
-    isFormValid,
-    isStrategyPost,
-    isBaseBuildingPost,
-    submitIcon,
-    submitText,
     handleInputChange,
     handleSubmit,
-    CATEGORY_OPTIONS,
+    isSubmitting,
+    formError,
+    isFormValid,
+    notification,
+    isEditMode,
+    isStrategyPost,
+    isBaseBuildingPost
   } = usePostForm({ initialData });
-  // ---------------------------------
+
+  // Helper untuk label kategori
+  const getCategoryLabel = (cat: string) => {
+    if (cat === 'Strategi Serangan') return t.knowledgeHub.form.options.types.attackStrategy;
+    if (cat === 'Base Building') return t.knowledgeHub.form.options.types.baseBuilding;
+    return cat;
+  };
 
   return (
     <>
-      {/* Render Komponen Notifikasi (di luar form) */}
       <Notification notification={notification ?? undefined} />
 
-      <form
-        onSubmit={handleSubmit}
-        className={`${className} max-w-4xl mx-auto`}
-      >
-        <h1 className="text-3xl md:text-4xl text-center mb-6 font-clash flex items-center justify-center">
+      <form onSubmit={handleSubmit} className={`${className} max-w-4xl mx-auto`}>
+        <h1 className="text-3xl md:text-4xl text-center mb-6 font-clash flex items-center justify-center text-white">
           <EditIcon className="inline h-7 w-7 mr-3 text-coc-gold" />
-          {isEditMode ? 'Edit Postingan' : 'Buat Postingan Baru'}
+          {isEditMode ? t.knowledgeHub.create.editTitle : t.knowledgeHub.create.title}
         </h1>
 
         {formError && (
@@ -62,56 +58,41 @@ const PostFormClient: React.FC<PostFormProps> = ({ initialData, className = '' }
 
         {/* Judul */}
         <FormGroup
-          label="Judul Postingan (Wajib)"
+          label={t.knowledgeHub.form.labels.title + " *"}
           htmlFor="title"
-          error={
-            !formData.title.trim() && isFormValid === false
-              ? 'Judul wajib diisi'
-              : null
-          }
+          error={!formData.title.trim() && isFormValid === false ? t.knowledgeHub.form.validation.titleRequired : null}
         >
           <input
             type="text"
             id="title"
             value={formData.title}
             onChange={handleInputChange}
-            placeholder="Contoh: Strategi War TH 16 Terbaik Musim Ini..."
+            placeholder={t.knowledgeHub.form.placeholders.title}
             required
-            // Menggunakan helper class dari PostFormGroup
-            className={getInputClasses(
-              !formData.title.trim() && isFormValid === false
-            )}
+            className={getInputClasses(!formData.title.trim() && isFormValid === false)}
           />
         </FormGroup>
 
         {/* Konten */}
         <FormGroup
-          label="Isi Konten (Wajib)"
+          label={t.knowledgeHub.form.labels.description + " *"}
           htmlFor="content"
-          error={
-            !formData.content.trim() && isFormValid === false
-              ? 'Konten wajib diisi'
-              : null
-          }
+          error={!formData.content.trim() && isFormValid === false ? t.knowledgeHub.form.validation.descriptionRequired : null}
         >
           <textarea
             id="content"
             value={formData.content}
             onChange={handleInputChange}
-            placeholder="Tulis konten panduan, pertanyaan, atau tempel Base Link di sini..."
+            placeholder={t.knowledgeHub.form.placeholders.description}
             required
             rows={10}
-            // Menggunakan helper class dari PostFormGroup
-            className={
-              getInputClasses(!formData.content.trim() && isFormValid === false) +
-              ' resize-y min-h-[150px]'
-            }
+            className={getInputClasses(!formData.content.trim() && isFormValid === false) + ' resize-y min-h-[150px]'}
           />
         </FormGroup>
 
-        {/* Kategori dan Tag (dalam satu baris) */}
+        {/* Kategori & Tags */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FormGroup label="Pilih Kategori" htmlFor="category">
+          <FormGroup label={t.knowledgeHub.form.labels.type} htmlFor="category">
             <select
               id="category"
               value={formData.category}
@@ -120,57 +101,46 @@ const PostFormClient: React.FC<PostFormProps> = ({ initialData, className = '' }
               className={getInputClasses(false) + ' appearance-none'}
             >
               {CATEGORY_OPTIONS.map((cat) => (
-                <option
-                  key={cat}
-                  value={cat}
-                  className="bg-coc-stone text-white font-sans"
-                >
-                  {cat}
+                <option key={cat} value={cat} className="bg-coc-stone text-white font-sans">
+                  {getCategoryLabel(cat)}
                 </option>
               ))}
             </select>
           </FormGroup>
 
-          <FormGroup
-            label="Tambahkan Tag (Pisahkan dengan koma)"
-            htmlFor="tags"
-          >
+          <FormGroup label={t.knowledgeHub.form.labels.tags} htmlFor="tags">
             <input
               type="text"
               id="tags"
               value={formData.tags}
               onChange={handleInputChange}
-              placeholder="Contoh: TH16, Hybrid, CWL"
+              placeholder={t.knowledgeHub.form.placeholders.tags}
               className={getInputClasses(false)}
             />
           </FormGroup>
         </div>
 
-        {/* START: FIELD KHUSUS STRATEGI SERANGAN (Modular Component) */}
-        <StrategyFields 
+        {/* Field Dinamis */}
+        <StrategyFields
           formData={formData}
           handleInputChange={handleInputChange}
           isFormValid={isFormValid}
           isStrategyPost={isStrategyPost}
         />
-        {/* END: FIELD KHUSUS STRATEGI SERANGAN */}
 
-        {/* --- FIELD KHUSUS BASE BUILDING (Modular Component) --- */}
-        <BaseBuildingFields 
+        <BaseBuildingFields
           formData={formData}
           handleInputChange={handleInputChange}
           isFormValid={isFormValid}
           isBaseBuildingPost={isBaseBuildingPost}
         />
-        {/* --- AKHIR FIELD BASE BUILDING --- */}
 
-        {/* Tombol Aksi (Modular Component) */}
+        {/* Tombol Aksi */}
         <FormActions 
           isEditMode={isEditMode}
           isSubmitting={isSubmitting}
-          submitIcon={submitIcon}
-          submitText={submitText}
-          initialPostId={initialData?.id}
+          isFormValid={isFormValid}
+          cancelHref={isEditMode ? `/knowledge-hub/${initialData!.id}` : '/knowledge-hub'}
         />
       </form>
     </>

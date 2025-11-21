@@ -1,42 +1,50 @@
 'use client';
 
-import React, { useState, useMemo } from 'react'; // [TAMBAHAN] Import useMemo
+import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/Button';
 import Notification, {
   ConfirmationProps,
   NotificationProps,
 } from '@/app/components/ui/Notification';
-// [TAMBAHAN] Import HeartIcon dan ServerUser
 import {
   EditIcon,
   TrashIcon,
   RefreshCwIcon,
-  HeartIcon,
+  // HeartIcon, // [HAPUS] Hapus import HeartIcon untuk menghindari error jika tidak ada
 } from '@/app/components/icons';
 import { ServerUser } from '@/lib/server-auth';
-import { useAuth } from '@/app/context/AuthContext'; // [TAMBAHAN] Import useAuth
+import { useAuth } from '@/app/context/AuthContext';
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
-// [PERUBAHAN] Definisikan props untuk komponen ini
+// [FIX] Definisikan Icon Heart secara lokal/inline agar aman
+const HeartIcon = ({ className, fill }: { className?: string; fill?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill={fill || "none"} viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+  </svg>
+);
+
+// Definisikan props untuk komponen ini
 interface PostActionButtonsProps {
   postId: string;
   isAuthor: boolean;
-  initialLikes: string[]; // Prop baru dari page.tsx
-  sessionUser: ServerUser | null; // Prop baru dari page.tsx
+  initialLikes: string[];
+  sessionUser: ServerUser | null;
 }
 
 /**
  * @component PostActionButtons
- * Menangani logika like, edit, dan delete postingan. Ini adalah Client Component.
+ * Menangani logika like, edit, dan delete postingan dengan dukungan multibahasa.
  */
 const PostActionButtons: React.FC<PostActionButtonsProps> = ({
   postId,
   isAuthor,
   initialLikes,
-  sessionUser, // Prop ini bisa digunakan untuk mengecek login awal
+  sessionUser,
 }) => {
-  // --- Hooks yang Sudah Ada ---
   const router = useRouter();
+  const { t, language } = useLanguage(); // Hook bahasa
+  
   const [notification, setNotification] = useState<NotificationProps | null>(
     null,
   );
@@ -45,8 +53,8 @@ const PostActionButtons: React.FC<PostActionButtonsProps> = ({
   );
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // --- [BARU] Hooks untuk Fitur Like ---
-  const { userProfile, loading: authLoading } = useAuth(); // Ambil profil pengguna client-side
+  // --- Hooks untuk Fitur Like ---
+  const { userProfile, loading: authLoading } = useAuth();
   const [likes, setLikes] = useState<string[]>(initialLikes);
   const [isLiking, setIsLiking] = useState(false);
 
@@ -55,7 +63,6 @@ const PostActionButtons: React.FC<PostActionButtonsProps> = ({
     if (!userProfile?.uid) return false;
     return likes.includes(userProfile.uid);
   }, [likes, userProfile]);
-  // --- [AKHIR BARU] ---
 
   // Helper untuk menampilkan notifikasi
   const showNotification = (
@@ -68,10 +75,9 @@ const PostActionButtons: React.FC<PostActionButtonsProps> = ({
   // Handler untuk menampilkan konfirmasi sebelum menghapus
   const confirmDelete = () => {
     setConfirmation({
-      message:
-        'Apakah Anda yakin ingin menghapus postingan ini? Aksi ini tidak dapat dibatalkan.',
-      confirmText: 'Ya, Hapus Permanen',
-      cancelText: 'Batal',
+      message: t.knowledgeHub.detail.postManagement.deleteConfirmation,
+      confirmText: t.knowledgeHub.detail.postManagement.deleteConfirmButton,
+      cancelText: t.knowledgeHub.detail.postManagement.deleteCancelButton,
       onConfirm: handleDelete,
       onCancel: () => setConfirmation(null),
     });
@@ -79,13 +85,11 @@ const PostActionButtons: React.FC<PostActionButtonsProps> = ({
 
   // Handler penghapusan (memanggil API DELETE)
   const handleDelete = async () => {
-    // ... (Logika handleDelete tetap sama, tidak perlu diubah) ...
     setConfirmation(null); // Tutup modal konfirmasi
     setIsDeleting(true);
-    showNotification('Menghapus postingan...', 'info');
+    showNotification(t.knowledgeHub.detail.postManagement.deleting, 'info');
 
     try {
-      // Memanggil API DELETE /api/posts/[postId]
       const response = await fetch(`/api/posts/${postId}`, {
         method: 'DELETE',
       });
@@ -93,40 +97,36 @@ const PostActionButtons: React.FC<PostActionButtonsProps> = ({
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || 'Gagal menghapus postingan.');
+        throw new Error(result.message || t.knowledgeHub.detail.postManagement.deleteError);
       }
 
-      showNotification(result.message, 'success');
+      showNotification(t.knowledgeHub.detail.postManagement.deleteSuccess, 'success');
       // Redirect ke Knowledge Hub setelah berhasil dihapus
       setTimeout(() => router.push('/knowledge-hub'), 1500);
     } catch (err) {
       const errorMessage =
-        (err as Error).message || 'Terjadi kesalahan saat menghapus postingan.';
+        (err as Error).message || t.knowledgeHub.detail.postManagement.deleteError;
       showNotification(errorMessage, 'error');
       setIsDeleting(false);
     }
   };
 
-  // --- [BARU] Handler untuk Like/Unlike (memanggil API POST) ---
+  // Handler untuk Like/Unlike (memanggil API POST)
   const handleLike = async () => {
-    // Cegah aksi jika sedang proses liking, auth belum selesai, atau pengguna tidak login
     if (isLiking || authLoading) return;
 
-    // Cek jika pengguna login (dari client-side context)
     if (!userProfile?.uid) {
-      showNotification('Anda harus login untuk menyukai postingan', 'error');
+      showNotification(t.knowledgeHub.detail.postManagement.likeLoginError, 'error');
       return;
     }
 
     setIsLiking(true);
     const currentUid = userProfile.uid;
 
-    // 1. Optimistic Update (Update UI terlebih dahulu)
+    // 1. Optimistic Update
     if (isLiked) {
-      // Jika sudah like -> Unlike
       setLikes((prev) => prev.filter((uid) => uid !== currentUid));
     } else {
-      // Jika belum like -> Like
       setLikes((prev) => [...prev, currentUid]);
     }
 
@@ -139,29 +139,25 @@ const PostActionButtons: React.FC<PostActionButtonsProps> = ({
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || 'Gagal memproses like');
+        throw new Error(result.message || t.knowledgeHub.detail.postManagement.likeError);
       }
 
-      // Sukses: Cek apakah status API (result.newLikeStatus)
-      // sesuai dengan status UI (isLiked baru, yaitu !isLiked lama).
-      // Jika tidak sesuai, kita revert.
+      // Sukses: Cek sinkronisasi
       const newIsLiked = !isLiked;
       if (result.newLikeStatus !== newIsLiked) {
-        // Terjadi desinkronisasi, revert ke data awal
+        // Revert jika tidak sinkron
         setLikes(initialLikes);
       }
-      // Jika sesuai, biarkan state optimistic update
     } catch (err) {
-      // 3. Revert state jika API call gagal
+      // 3. Revert state jika gagal
       setLikes(initialLikes);
       const errorMessage =
-        (err as Error).message || 'Terjadi kesalahan saat menyukai.';
+        (err as Error).message || t.knowledgeHub.detail.postManagement.likeError;
       showNotification(errorMessage, 'error');
     } finally {
       setIsLiking(false);
     }
   };
-  // --- [AKHIR BARU] ---
 
   return (
     <React.Fragment>
@@ -169,16 +165,14 @@ const PostActionButtons: React.FC<PostActionButtonsProps> = ({
       {notification && <Notification notification={notification} />}
       {confirmation && <Notification confirmation={confirmation} />}
 
-      {/* [PERUBAHAN] Container diubah menjadi flex justify-between */}
       <div className="flex justify-between items-center gap-4 pt-4 border-t border-coc-gold-dark/20">
         
-        {/* [BARU] Tombol Like (Sisi Kiri) */}
+        {/* Tombol Like (Sisi Kiri) */}
         <div>
           <Button
             variant={isLiked ? 'primary' : 'secondary'}
             size="sm"
             onClick={handleLike}
-            // Nonaktifkan jika sedang liking, auth loading, atau pengguna tidak login (dari server prop)
             disabled={isLiking || authLoading || !sessionUser}
             className={`flex items-center gap-2 ${
               isLiked
@@ -189,16 +183,15 @@ const PostActionButtons: React.FC<PostActionButtonsProps> = ({
             {isLiking ? (
               <RefreshCwIcon className="h-4 w-4 animate-spin" />
             ) : (
-              // Tampilkan ikon hati solid jika di-like, jika tidak, outline
               <HeartIcon
                 className="h-4 w-4"
                 fill={isLiked ? 'currentColor' : 'none'}
               />
             )}
-            <span>{likes.length} Suka</span>
+            {/* Gunakan variabel bahasa untuk 'Suka' / 'Likes' */}
+            <span>{likes.length} {t.knowledgeHub.detail.meta.likes}</span>
           </Button>
         </div>
-        {/* [AKHIR BARU] */}
 
         {/* Tombol Aksi Penulis (Sisi Kanan) */}
         {isAuthor && (
@@ -208,14 +201,13 @@ const PostActionButtons: React.FC<PostActionButtonsProps> = ({
               href={`/knowledge-hub/create?postId=${postId}`}
               variant="secondary"
               size="sm"
-              // Nonaktifkan tombol edit jika sedang proses hapus
               className={
                 isDeleting
                   ? 'opacity-50 cursor-not-allowed pointer-events-none'
                   : ''
               }
             >
-              <EditIcon className="h-4 w-4 mr-2" /> Edit Postingan
+              <EditIcon className="h-4 w-4 mr-2" /> {t.knowledgeHub.detail.actions.edit}
             </Button>
 
             {/* Tombol Hapus */}
@@ -231,7 +223,7 @@ const PostActionButtons: React.FC<PostActionButtonsProps> = ({
               ) : (
                 <TrashIcon className="h-4 w-4 mr-2" />
               )}
-              {isDeleting ? 'Menghapus...' : 'Hapus'}
+              {isDeleting ? t.knowledgeHub.detail.postManagement.deleting : t.knowledgeHub.detail.actions.delete}
             </Button>
           </div>
         )}

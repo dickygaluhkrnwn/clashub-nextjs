@@ -2,50 +2,61 @@
 
 import React from 'react';
 import { Button } from '@/app/components/ui/Button';
-import { XIcon } from '@/app/components/icons';
+import { 
+  PaperPlaneIcon, 
+  SaveIcon, 
+  RefreshCwIcon, 
+  XIcon 
+} from '@/app/components/icons';
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 interface FormActionsProps {
   isEditMode: boolean;
   isSubmitting: boolean;
-  submitIcon: React.ReactNode;
-  submitText: string;
-  initialPostId?: string; // Diperlukan untuk link 'Batal' di mode edit
+  isFormValid: boolean;
+  cancelHref: string;
 }
 
-/**
- * Komponen modular untuk tombol Aksi (Batal dan Submit/Publikasikan).
- * Mengambil semua properti dari usePostForm.
- */
 const FormActions: React.FC<FormActionsProps> = ({
   isEditMode,
   isSubmitting,
-  submitIcon,
-  submitText,
-  initialPostId,
+  isFormValid,
+  cancelHref
 }) => {
-  // Tentukan tujuan link Batal: kembali ke post yang diedit atau ke hub utama
-  const cancelHref = isEditMode && initialPostId 
-    ? `/knowledge-hub/${initialPostId}` 
-    : '/knowledge-hub';
+  const { t, language } = useLanguage();
+
+  // Teks tombol submit dinamis
+  const submitText = isEditMode
+    ? isSubmitting
+      ? t.knowledgeHub.create.submitting
+      : (language === 'id' ? 'Simpan Perubahan' : 'Save Changes')
+    : isSubmitting
+    ? t.knowledgeHub.create.submitting
+    : t.knowledgeHub.create.submitButton;
+
+  // Ikon tombol submit dinamis
+  const submitIcon = isSubmitting ? (
+    <RefreshCwIcon className="inline h-5 w-5 mr-2 animate-spin" />
+  ) : isEditMode ? (
+    <SaveIcon className="inline h-5 w-5 mr-2" />
+  ) : (
+    <PaperPlaneIcon className="inline h-5 w-5 mr-2" />
+  );
 
   return (
     <div className="flex justify-end gap-4 pt-4 border-t border-coc-gold-dark/20 mt-6">
-      {/* Tombol Batal (sebagai Link) */}
       <Button
+        type="button"
         variant="secondary"
         href={cancelHref}
-        // Mengganti 'disabled' dengan kelas CSS untuk Link
-        // Menambahkan pointer-events-none dan opacity untuk meniru efek disabled pada elemen <a>
-        className={isSubmitting ? 'pointer-events-none opacity-50' : ''}
       >
-        <XIcon className="inline h-5 w-5 mr-2" /> Batal
+        <XIcon className="inline h-5 w-5 mr-2" /> 
+        {t.knowledgeHub.create.cancelButton}
       </Button>
-      
-      {/* Tombol Submit */}
       <Button
         type="submit"
         variant="primary"
-        disabled={isSubmitting} // Atribut disabled yang berfungsi pada elemen <button>
+        disabled={isSubmitting || !isFormValid}
       >
         {submitIcon}
         {submitText}
