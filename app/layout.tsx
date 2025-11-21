@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import localFont from 'next/font/local'; // Import localFont
+import localFont from 'next/font/local';
 import "./globals.css";
 import Header from "@/app/components/layout/Header";
 import Footer from "@/app/components/layout/Footer";
 import { AuthProvider } from "@/app/context/AuthContext";
-import { LanguageProvider } from "@/app/context/LanguageContext"; // Import LanguageProvider
+import { LanguageProvider } from "@/app/context/LanguageContext";
 import { getSessionUser, ServerUser } from "@/lib/server-auth";
+// [BARU] Import Analytics dari package Vercel
+import { Analytics } from "@vercel/analytics/react"; // Menggunakan '/react' yang umum untuk App Router, jika error coba '/next' sesuai dokumentasi spesifik versi
 
 // Konfigurasi font Inter (Tetap)
 const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
@@ -56,6 +58,9 @@ export default async function RootLayout({
             <Footer />
           </AuthProvider>
         </LanguageProvider>
+        
+        {/* [BARU] Komponen Analytics ditempatkan di sini agar mencakup seluruh aplikasi */}
+        <Analytics />
       </body>
     </html>
   );
