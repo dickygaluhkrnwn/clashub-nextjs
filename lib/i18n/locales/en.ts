@@ -37,6 +37,7 @@ import {
 import { tournament } from './en/tournament';
 import { tournamentManage } from './en/tournament-manage';
 import { tournamentCreate } from './en/tournament-create';
+import { knowledgeHub } from './en/knowledge-hub';
 
 export const en: Translation = {
   // Common
@@ -88,4 +89,7 @@ export const en: Translation = {
   tournament,
   tournamentManage,
   tournamentCreate,
+
+  // Knowledge Hub
+  knowledgeHub,
 };

@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, ReactNode } from 'react';
+import React, { useState, useEffect, ReactNode, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/Button';
-// --- PERBAIKAN: Hapus ImageIcon karena tidak ada di icons.tsx ---
 import {
   SaveIcon,
   PaperPlaneIcon,
@@ -11,20 +10,15 @@ import {
   XIcon,
   InfoIcon,
   CogsIcon,
-  LinkIcon,
-  HomeIcon,
   RefreshCwIcon,
-} from '@/app/components/icons'; // Added HomeIcon, RefreshCwIcon
+} from '@/app/components/icons';
 import { POST_CATEGORIES } from '@/lib/knowledge-hub-utils';
-import { PostCategory, Post } from '@/lib/types'; // Import Post untuk type assertion
+import { PostCategory, Post } from '@/lib/types';
 import { useAuth } from '@/app/context/AuthContext';
-// [HAPUS TAHAP 4.3] Hapus impor client-side, kita akan pakai API
-// import { createPost, getUserProfile } from '@/lib/firestore';
-// [HAPUS TAHAP 4.3] Tidak perlu lagi, authorProfile ditangani server
-// import { UserProfile } from '@/lib/types';
 import Notification, {
   NotificationProps,
 } from '@/app/components/ui/Notification';
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 // Opsi kategori yang tersedia (difilter agar tidak termasuk 'Semua Diskusi')
 const CATEGORY_OPTIONS: PostCategory[] = POST_CATEGORIES.filter(
@@ -33,7 +27,7 @@ const CATEGORY_OPTIONS: PostCategory[] = POST_CATEGORIES.filter(
 
 interface PostFormProps {
   // Digunakan untuk mode edit di masa depan
-  initialData?: (Post & { id: string }) | null; // Tambahkan ID dan izinkan null
+  initialData?: (Post & { id: string }) | null;
   // Menerima className dari parent (page.tsx)
   className?: string;
 }
@@ -44,7 +38,8 @@ const FormGroup: React.FC<{
   error?: string | null;
   label: string;
   htmlFor: string;
-}> = ({ children, error, label, htmlFor }) => (
+  helperText?: ReactNode;
+}> = ({ children, error, label, htmlFor, helperText }) => (
   <div className="space-y-2">
     <label
       htmlFor={htmlFor}
@@ -53,6 +48,7 @@ const FormGroup: React.FC<{
       {label}
     </label>
     {children}
+    {helperText}
     {error && (
       <p id={`${htmlFor}-error`} className="text-xs text-red-400 mt-1 font-sans">
         {error}
@@ -66,6 +62,7 @@ const FormGroup: React.FC<{
 const PostForm = ({ initialData, className = '' }: PostFormProps) => {
   const router = useRouter();
   const { currentUser } = useAuth();
+  const { t, language } = useLanguage();
 
   // Tentukan mode: EDIT atau CREATE
   const isEditMode = !!initialData;
@@ -207,28 +204,34 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
 
     // Cek validitas form di sini juga
     if (!isFormValid) {
-      let errorMsg = 'Judul dan Konten wajib diisi.';
+      let errorMsg = t.knowledgeHub.form.validation.titleRequired;
       if (
         isStrategyPost &&
         !formData.troopLink.trim() &&
         !formData.videoUrl.trim()
       ) {
-        errorMsg =
-          "Untuk kategori Strategi Serangan, minimal salah satu dari 'Troop Link' atau 'Video URL' wajib diisi.";
+        errorMsg = language === 'id' 
+          ? "Untuk kategori Strategi Serangan, minimal salah satu dari 'Troop Link' atau 'Video URL' wajib diisi."
+          : "For Attack Strategy, at least one of 'Troop Link' or 'Video URL' is required.";
       } else if (
         isBaseBuildingPost &&
         !formData.baseImageUrl.trim() &&
         !formData.baseLinkUrl.trim()
       ) {
-        errorMsg =
-          "Untuk kategori Base Building, minimal salah satu dari 'Base Image URL' atau 'Base Link URL' wajib diisi.";
+        errorMsg = language === 'id'
+          ? "Untuk kategori Base Building, minimal salah satu dari 'Base Image URL' atau 'Base Link URL' wajib diisi."
+          : "For Base Building, at least one of 'Base Image URL' or 'Base Link URL' is required.";
       }
       setFormError(errorMsg);
       return;
     }
 
     if (isSubmitting || !currentUser) {
-      setFormError('Anda harus login untuk membuat postingan.');
+      setFormError(
+        language === 'id' 
+          ? 'Anda harus login untuk membuat postingan.' 
+          : 'You must be logged in to create a post.'
+      );
       return;
     }
 
@@ -283,7 +286,7 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
       if (isEditMode) {
         // --- MODE EDIT (Memanggil API PUT) ---
         postId = initialData!.id;
-        showNotification('Memperbarui postingan...', 'info');
+        showNotification(t.knowledgeHub.create.submitting, 'info');
 
         // Panggil API PUT
         response = await fetch(`/api/posts/${postId}`, {
@@ -294,19 +297,16 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
         result = await response.json();
 
         if (!response.ok) {
-          throw new Error(result.message || 'Gagal memperbarui postingan.');
+          throw new Error(result.message || t.knowledgeHub.form.messages.createError);
         }
 
         showNotification(
-          'Postingan berhasil diperbarui! Mengalihkan...',
+          language === 'id' ? 'Postingan berhasil diperbarui!' : 'Post updated successfully!',
           'success'
         );
       } else {
-        // --- [UBAH TAHAP 4.3] ---
         // --- MODE CREATE (Memanggil API /api/posts) ---
-        // Logika dipindahkan ke API route agar bisa menambah poin popularitas
-
-        showNotification('Memublikasikan postingan...', 'info');
+        showNotification(t.knowledgeHub.create.submitting, 'info');
 
         response = await fetch('/api/posts', {
           method: 'POST',
@@ -317,17 +317,16 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
 
         if (!response.ok) {
           // Ambil error dari API
-          throw new Error(result.error || 'Gagal memublikasikan postingan.');
+          throw new Error(result.error || t.knowledgeHub.form.messages.createError);
         }
 
         // Ambil postId dari data yang dikembalikan API
         postId = result.id;
 
         showNotification(
-          'Postingan berhasil dipublikasikan! Mengalihkan...',
+          t.knowledgeHub.form.messages.createSuccess,
           'success'
         );
-        // --- [AKHIR UBAHAN TAHAP 4.3] ---
       }
 
       // Redirect ke halaman detail setelah sukses
@@ -338,17 +337,17 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
       console.error('Gagal memublikasikan/memperbarui postingan:', err);
       const errorMessage =
         (err as Error).message ||
-        `Gagal ${
-          isEditMode ? 'memperbarui' : 'memublikasikan'
-        } postingan ke database.`;
+        t.knowledgeHub.form.messages.createError;
 
-      if (errorMessage.includes('E-Sports CV Anda belum lengkap')) {
-        setFormError(
-          errorMessage + ' Silakan klik Batal dan lengkapi CV Anda.'
+      if (errorMessage.includes('E-Sports CV')) {
+        // Pesan spesifik backend ini kita biarkan dinamis dari server, atau handle khusus
+        setFormError(errorMessage);
+        showNotification(
+          language === 'id' ? 'Aksi diblokir: Profil belum lengkap.' : 'Action blocked: Profile incomplete.', 
+          'warning'
         );
-        showNotification('Aksi diblokir: Profil belum lengkap.', 'warning');
       } else {
-        setFormError(`Terjadi kesalahan: ${errorMessage}`);
+        setFormError(errorMessage);
         showNotification(errorMessage, 'error');
       }
     } finally {
@@ -356,30 +355,33 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
     }
   };
 
+  // Helper untuk mendapatkan label kategori yang diterjemahkan
+  const getCategoryLabel = (cat: PostCategory) => {
+    if (cat === 'Strategi Serangan') return t.knowledgeHub.form.options.types.attackStrategy;
+    if (cat === 'Base Building') return t.knowledgeHub.form.options.types.baseBuilding;
+    // Fallback untuk kategori lain yang mungkin belum ada di kamus
+    return cat;
+  };
+
   // Teks tombol submit dinamis
   const submitText = isEditMode
     ? isSubmitting
-      ? 'Menyimpan...'
-      : 'Simpan Perubahan'
+      ? t.knowledgeHub.create.submitting
+      : (language === 'id' ? 'Simpan Perubahan' : 'Save Changes')
     : isSubmitting
-    ? 'Memublikasikan...'
-    : 'Publikasikan';
+    ? t.knowledgeHub.create.submitting
+    : t.knowledgeHub.create.submitButton;
+
   // Ikon tombol submit dinamis
-  const submitIcon = isEditMode ? (
-    isSubmitting ? (
-      <RefreshCwIcon className="inline h-5 w-5 mr-2 animate-spin" />
-    ) : (
-      <SaveIcon className="inline h-5 w-5 mr-2" />
-    )
-  ) : isSubmitting ? (
+  const submitIcon = isSubmitting ? (
     <RefreshCwIcon className="inline h-5 w-5 mr-2 animate-spin" />
+  ) : isEditMode ? (
+    <SaveIcon className="inline h-5 w-5 mr-2" />
   ) : (
     <PaperPlaneIcon className="inline h-5 w-5 mr-2" />
   );
 
   return (
-    // Wrapper <main> dipindahkan ke page.tsx
-    // Form sekarang menerima className dari parent
     <>
       {/* Render Komponen Notifikasi (di luar form) */}
       <Notification notification={notification ?? undefined} />
@@ -388,9 +390,9 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
         onSubmit={handleSubmit}
         className={`${className} max-w-4xl mx-auto`}
       >
-        <h1 className="text-3xl md:text-4xl text-center mb-6 font-clash flex items-center justify-center">
+        <h1 className="text-3xl md:text-4xl text-center mb-6 font-clash flex items-center justify-center text-white">
           <EditIcon className="inline h-7 w-7 mr-3 text-coc-gold" />
-          {isEditMode ? 'Edit Postingan' : 'Buat Postingan Baru'}
+          {isEditMode ? t.knowledgeHub.create.editTitle : t.knowledgeHub.create.title}
         </h1>
 
         {formError && (
@@ -401,11 +403,11 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
 
         {/* Judul */}
         <FormGroup
-          label="Judul Postingan (Wajib)"
+          label={t.knowledgeHub.form.labels.title + " *"}
           htmlFor="title"
           error={
             !formData.title.trim() && isFormValid === false
-              ? 'Judul wajib diisi'
+              ? t.knowledgeHub.form.validation.titleRequired
               : null
           }
         >
@@ -414,7 +416,7 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
             id="title"
             value={formData.title}
             onChange={handleInputChange}
-            placeholder="Contoh: Strategi War TH 16 Terbaik Musim Ini..."
+            placeholder={t.knowledgeHub.form.placeholders.title}
             required
             className={inputClasses(
               !formData.title.trim() && isFormValid === false
@@ -424,11 +426,11 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
 
         {/* Konten */}
         <FormGroup
-          label="Isi Konten (Wajib)"
+          label={t.knowledgeHub.form.labels.description + " *"}
           htmlFor="content"
           error={
             !formData.content.trim() && isFormValid === false
-              ? 'Konten wajib diisi'
+              ? t.knowledgeHub.form.validation.descriptionRequired
               : null
           }
         >
@@ -436,7 +438,7 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
             id="content"
             value={formData.content}
             onChange={handleInputChange}
-            placeholder="Tulis konten panduan, pertanyaan, atau tempel Base Link di sini..."
+            placeholder={t.knowledgeHub.form.placeholders.description}
             required
             rows={10}
             className={
@@ -448,7 +450,7 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
 
         {/* Kategori dan Tag (dalam satu baris) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FormGroup label="Pilih Kategori" htmlFor="category">
+          <FormGroup label={t.knowledgeHub.form.labels.type} htmlFor="category">
             <select
               id="category"
               value={formData.category}
@@ -462,14 +464,14 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
                   value={cat}
                   className="bg-coc-stone text-white font-sans"
                 >
-                  {cat}
+                  {getCategoryLabel(cat)}
                 </option>
               ))}
             </select>
           </FormGroup>
 
           <FormGroup
-            label="Tambahkan Tag (Pisahkan dengan koma)"
+            label={t.knowledgeHub.form.labels.tags}
             htmlFor="tags"
           >
             <input
@@ -477,7 +479,7 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
               id="tags"
               value={formData.tags}
               onChange={handleInputChange}
-              placeholder="Contoh: TH16, Hybrid, CWL"
+              placeholder={t.knowledgeHub.form.placeholders.tags}
               className={inputClasses(false)}
             />
           </FormGroup>
@@ -486,21 +488,26 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
         {/* START: FIELD KHUSUS STRATEGI SERANGAN */}
         {isStrategyPost && (
           <div className="space-y-6 pt-6 border-t border-coc-gold-dark/20 mt-6">
-            {' '}
-            {/* Tambah mt-6 */}
             <h3 className="text-xl font-clash text-coc-gold-dark flex items-center">
-              <InfoIcon className="h-5 w-5 mr-2" /> Detail Tambahan Strategi
-              (Minimal satu wajib diisi)
+              <InfoIcon className="h-5 w-5 mr-2" /> 
+              {language === 'id' ? 'Detail Tambahan' : 'Strategy Details'}
             </h3>
             <FormGroup
               label="Troop Link (COC API Link)"
               htmlFor="troopLink"
+              helperText={
+                <p className="text-xs text-gray-500 font-sans mt-1">
+                  {language === 'id' 
+                    ? 'Link untuk menyalin kombinasi pasukan langsung ke game (dimulai dengan `coc://`).'
+                    : 'Link to copy army composition directly to game (starts with `coc://`).'}
+                </p>
+              }
               error={
                 !isFormValid &&
                 isStrategyPost &&
                 !formData.troopLink.trim() &&
                 !formData.videoUrl.trim()
-                  ? 'Wajib diisi jika tidak ada Video URL'
+                  ? (language === 'id' ? 'Wajib diisi jika tidak ada Video URL' : 'Required if no Video URL')
                   : null
               }
             >
@@ -512,20 +519,23 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
                 placeholder="Contoh: coc://open-troop-link?troop=..."
                 className={inputClasses(false)}
               />
-              <p className="text-xs text-gray-500 font-sans mt-1">
-                Link untuk menyalin kombinasi pasukan langsung ke game (dimulai
-                dengan `coc://`).
-              </p>
             </FormGroup>
             <FormGroup
-              label="Video URL (YouTube)"
+              label={t.knowledgeHub.form.labels.youtubeUrl}
               htmlFor="videoUrl"
+              helperText={
+                <p className="text-xs text-gray-500 font-sans mt-1">
+                  {language === 'id' 
+                    ? 'Link ke video YouTube yang menampilkan cara menggunakan strategi ini.'
+                    : 'Link to a YouTube video showing this strategy in action.'}
+                </p>
+              }
               error={
                 !isFormValid &&
                 isStrategyPost &&
                 !formData.troopLink.trim() &&
                 !formData.videoUrl.trim()
-                  ? 'Wajib diisi jika tidak ada Troop Link'
+                  ? (language === 'id' ? 'Wajib diisi jika tidak ada Troop Link' : 'Required if no Troop Link')
                   : null
               }
             >
@@ -534,13 +544,9 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
                 id="videoUrl"
                 value={formData.videoUrl}
                 onChange={handleInputChange}
-                placeholder="Contoh: https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                placeholder={t.knowledgeHub.form.placeholders.youtubeUrl}
                 className={inputClasses(false)}
               />
-              <p className="text-xs text-gray-500 font-sans mt-1">
-                Link ke video YouTube yang menampilkan cara menggunakan strategi
-                ini.
-              </p>
             </FormGroup>
           </div>
         )}
@@ -549,21 +555,26 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
         {/* --- FIELD KHUSUS BASE BUILDING --- */}
         {isBaseBuildingPost && (
           <div className="space-y-6 pt-6 border-t border-coc-gold-dark/20 mt-6">
-            {' '}
-            {/* Tambah mt-6 */}
             <h3 className="text-xl font-clash text-coc-gold-dark flex items-center">
-              <CogsIcon className="h-5 w-5 mr-2" /> Detail Base (Minimal satu
-              wajib diisi)
+              <CogsIcon className="h-5 w-5 mr-2" /> 
+              {language === 'id' ? 'Detail Base' : 'Base Details'}
             </h3>
             <FormGroup
-              label="Base Image URL (Imgur)"
+              label={language === 'id' ? "URL Gambar Base (Imgur)" : "Base Image URL (Imgur)"}
               htmlFor="baseImageUrl"
+              helperText={
+                <p className="text-xs text-gray-500 font-sans mt-1">
+                  {language === 'id' 
+                    ? 'URL gambar base dari Imgur (format: .png, .jpg).'
+                    : 'Direct image URL from Imgur (format: .png, .jpg).'}
+                </p>
+              }
               error={
                 !isFormValid &&
                 isBaseBuildingPost &&
                 !formData.baseImageUrl.trim() &&
                 !formData.baseLinkUrl.trim()
-                  ? 'Wajib diisi jika tidak ada Base Link URL'
+                  ? (language === 'id' ? 'Wajib diisi jika tidak ada Base Link URL' : 'Required if no Base Link URL')
                   : null
               }
             >
@@ -572,32 +583,26 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
                 id="baseImageUrl"
                 value={formData.baseImageUrl}
                 onChange={handleInputChange}
-                placeholder="Contoh: https://i.imgur.com/your-image.png"
+                placeholder="https://i.imgur.com/..."
                 className={inputClasses(false)}
               />
-              <p className="text-xs text-gray-500 font-sans mt-1">
-                URL gambar base dari Imgur (format: .png, .jpg). Anda bisa
-                mengunggah gambar dan mendapatkan URL di{' '}
-                <a
-                  href="https://imgur.com/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-coc-gold hover:underline"
-                >
-                  imgur.com
-                </a>
-                .
-              </p>
             </FormGroup>
             <FormGroup
-              label="Base Link URL (Clash of Clans Link)"
+              label={language === 'id' ? "Link Salin Base" : "Base Copy Link"}
               htmlFor="baseLinkUrl"
+              helperText={
+                <p className="text-xs text-gray-500 font-sans mt-1">
+                  {language === 'id' 
+                    ? 'Link base dari Clash of Clans (dimulai dengan `https://link.clashofclans.com/`).'
+                    : 'Clash of Clans base link (starts with `https://link.clashofclans.com/`).'}
+                </p>
+              }
               error={
                 !isFormValid &&
                 isBaseBuildingPost &&
                 !formData.baseImageUrl.trim() &&
                 !formData.baseLinkUrl.trim()
-                  ? 'Wajib diisi jika tidak ada Base Image URL'
+                  ? (language === 'id' ? 'Wajib diisi jika tidak ada Base Image URL' : 'Required if no Base Image URL')
                   : null
               }
             >
@@ -606,13 +611,9 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
                 id="baseLinkUrl"
                 value={formData.baseLinkUrl}
                 onChange={handleInputChange}
-                placeholder="Contoh: https://link.clashofclans.com/en?action=OpenLayout&id=..."
+                placeholder="https://link.clashofclans.com/en?action=OpenLayout..."
                 className={inputClasses(false)}
               />
-              <p className="text-xs text-gray-500 font-sans mt-1">
-                Link base dari Clash of Clans (dimulai dengan
-                `https://link.clashofclans.com/`).
-              </p>
             </FormGroup>
           </div>
         )}
@@ -627,7 +628,8 @@ const PostForm = ({ initialData, className = '' }: PostFormProps) => {
               isEditMode ? `/knowledge-hub/${initialData!.id}` : '/knowledge-hub'
             }
           >
-            <XIcon className="inline h-5 w-5 mr-2" /> Batal
+            <XIcon className="inline h-5 w-5 mr-2" /> 
+            {t.knowledgeHub.create.cancelButton}
           </Button>
           <Button
             type="submit"

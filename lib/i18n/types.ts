@@ -51,6 +51,7 @@ import {
 import { TournamentSection } from './sections/tournament';
 import { TournamentManageSection } from './sections/tournament-manage';
 import { TournamentCreateSection } from './sections/tournament-create';
+import { KnowledgeHubSection } from './sections/knowledge-hub';
 
 export type Language = 'id' | 'en';
 
@@ -108,4 +109,7 @@ export interface Translation {
   tournament: TournamentSection;
   tournamentManage: TournamentManageSection;
   tournamentCreate: TournamentCreateSection;
+
+  // --- Knowledge Hub ---
+  knowledgeHub: KnowledgeHubSection;
 }

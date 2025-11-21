@@ -3,10 +3,11 @@
 import React, { useState, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/app/components/ui/Button';
-import { Post, KnowledgeHubItem } from '@/lib/types';
+import { KnowledgeHubItem } from '@/lib/types';
 import { SortAscIcon, FilterIcon, CogsIcon, EditIcon } from '@/app/components/icons';
 import { ALL_CATEGORIES, sortItems, SortOption, KnowledgeHubCategory, getCategoryDisplayName, isVideo } from '@/lib/knowledge-hub-utils';
 import FullPostDisplay from './components/FullPostDisplay';
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 interface KnowledgeHubClientProps {
   initialPosts: KnowledgeHubItem[];
@@ -21,6 +22,7 @@ const ITEMS_PER_LOAD_POSTS = 3;
 const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, error }: KnowledgeHubClientProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t, language } = useLanguage();
 
   // State untuk loading filter
   const [isFiltering, setIsFiltering] = useState(false);
@@ -54,20 +56,20 @@ const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, erro
 
   const filteredAndSortedItems = useMemo(() => {
     const filtered = allItems.filter(item => {
-        if (!item) return false;
+      if (!item) return false;
 
-        if (activeCategory === 'Semua Konten') return true;
-        
-        if (activeCategory === 'Semua Diskusi') return !isVideo(item);
-        
-        if (activeCategory === 'Berita Komunitas') {
-            if (isVideo(item)) return true;
-            return !isVideo(item) && item.category === 'Berita Komunitas';
-        }
+      if (activeCategory === 'Semua Konten') return true;
+      
+      if (activeCategory === 'Semua Diskusi') return !isVideo(item);
+      
+      if (activeCategory === 'Berita Komunitas') {
+          if (isVideo(item)) return true;
+          return !isVideo(item) && item.category === 'Berita Komunitas';
+      }
 
-        if (isVideo(item)) return false; 
-        
-        return item.category === activeCategory;
+      if (isVideo(item)) return false; 
+      
+      return item.category === activeCategory;
     });
     
     return sortItems(filtered, activeSort);
@@ -102,13 +104,18 @@ const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, erro
   const itemsToShow = useMemo(() => filteredAndSortedItems.slice(0, visibleItemsCount), [filteredAndSortedItems, visibleItemsCount]);
   const showLoadMoreItems = visibleItemsCount < filteredAndSortedItems.length;
 
+  // --- Helpers Translation ---
+  const getCategoryLabel = (cat: KnowledgeHubCategory) => {
+    if (cat === 'Semua Konten') return t.knowledgeHub.page.filters.all;
+    if (cat === 'Base Building') return t.knowledgeHub.page.filters.baseBuilding;
+    if (cat === 'Strategi Serangan') return t.knowledgeHub.page.filters.attackStrategy;
+    return getCategoryDisplayName(cat);
+  };
+
+  // [REVISI] Helper getSortLabel dihapus dan digantikan dengan direct usage dari 't'
+
   return (
     <div className="relative">
-      {/* [PERBAIKAN JARAK] 
-          Menghapus 'container mx-auto p-4 md:p-8 mt-6 md:mt-10' 
-          karena parent (page.tsx) sudah memiliki container sendiri.
-          Cukup gunakan grid layout saja.
-      */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8">
         
         {/* Kolom Kiri: Navigasi Topik (Filter) */}
@@ -121,7 +128,8 @@ const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, erro
           >
               <h2 className="text-xl border-l-4 border-coc-gold-dark pl-3 flex items-center gap-2 font-clash text-coc-gold">
                   <FilterIcon className="h-5 w-5 text-coc-gold-dark"/> 
-                  Kategori Forum
+                  {/* Menggunakan 'Knowledge Hub' (page title) sebagai header kategori agar konsisten dengan dictionary */}
+                  {t.knowledgeHub.page.title}
               </h2>
               
               {/* Icon Chevron (Hanya Mobile) */}
@@ -146,7 +154,7 @@ const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, erro
                         : 'text-gray-300 hover:bg-coc-stone-light/50'
                     }`}
                   >
-                    {getCategoryDisplayName(category)}
+                    {getCategoryLabel(category)}
                   </button>
                 ))}
               </div>
@@ -154,7 +162,7 @@ const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, erro
               {/* Filter Sortir */}
               <div>
                 <h3 className="text-sm font-clash text-coc-gold-dark mb-3 flex items-center gap-1">
-                  <SortAscIcon className="h-4 w-4"/> Urutkan
+                  <SortAscIcon className="h-4 w-4"/> {t.knowledgeHub.sorting.label}
                 </h3>
                 <div className="space-y-1">
                   <button
@@ -165,7 +173,7 @@ const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, erro
                         : 'text-gray-300 hover:bg-coc-stone-light/50'
                     }`}
                   >
-                    Terbaru
+                    {t.knowledgeHub.sorting.newest}
                   </button>
                   <button
                     onClick={() => handleSortChange('trending')}
@@ -175,7 +183,7 @@ const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, erro
                         : 'text-gray-300 hover:bg-coc-stone-light/50'
                     }`}
                   >
-                    Paling Trending
+                    {t.knowledgeHub.sorting.trending}
                   </button>
                 </div>
               </div>
@@ -184,23 +192,27 @@ const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, erro
 
         {/* Kolom Tengah: Feed Postingan */}
         <section className="lg:col-span-3">
-          {/* [MODIFIKASI] Menghapus Header Halaman agar tampilan lebih fokus ke konten kartu */}
-
           {/* Tampilkan loading state saat memfilter */}
           {isFiltering ? (
               <div className="text-center py-20 card-stone rounded-lg">
                 <CogsIcon className="h-10 w-10 text-coc-gold animate-spin mx-auto mb-4" />
-                <h2 className="text-xl font-clash text-coc-gold">Memfilter...</h2>
+                <h2 className="text-xl font-clash text-coc-gold">
+                    {language === 'id' ? 'Memfilter...' : 'Filtering...'}
+                </h2>
             </div>
           ) : error ? (
               <div className="text-center py-20 card-stone p-6 rounded-lg">
                   <h2 className="text-2xl font-clash text-coc-red">{error}</h2>
-                  <p className="text-gray-400 mt-2">Gagal memuat data dari server.</p>
+                  <p className="text-gray-400 mt-2">
+                      {language === 'id' ? 'Gagal memuat data dari server.' : 'Failed to load data from server.'}
+                  </p>
               </div>
           ) : itemsToShow.length === 0 ? ( 
             <div className="text-center py-20 card-stone p-6 rounded-lg">
-              <h2 className="text-2xl font-clash text-gray-400">Tidak ada konten di kategori ini.</h2>
-              <p className="text-gray-500 mt-2">Coba ubah kriteria filter Anda.</p>
+              <h2 className="text-2xl font-clash text-gray-400">{t.knowledgeHub.page.emptyState}</h2>
+              <p className="text-gray-500 mt-2">
+                  {language === 'id' ? 'Coba ubah kriteria filter Anda.' : 'Try changing your filter criteria.'}
+              </p>
             </div>
           ) : (
             <div className="space-y-6"> 
@@ -215,7 +227,7 @@ const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, erro
           {showLoadMoreItems && (
             <div className="text-center mt-8">
                 <Button variant="secondary" size="lg" onClick={handleLoadMoreItems} disabled={isFiltering}>
-                    Muat Lebih Banyak Konten
+                    {language === 'id' ? 'Muat Lebih Banyak' : 'Load More'}
                 </Button>
             </div>
           )}
@@ -228,7 +240,7 @@ const KnowledgeHubClient = ({ initialPosts, initialCategory, initialSortBy, erro
           href="/knowledge-hub/create"
           variant="primary"
           className="rounded-full w-14 h-14 p-0 flex items-center justify-center shadow-[0_0_20px_rgba(255,215,0,0.3)] hover:shadow-[0_0_30px_rgba(255,215,0,0.5)] hover:scale-110 transition-all duration-300 border-2 border-coc-gold bg-coc-stone"
-          title="Buat Postingan Baru"
+          title={t.knowledgeHub.page.createButton}
         >
           <EditIcon className="h-7 w-7 text-coc-gold" />
         </Button>
