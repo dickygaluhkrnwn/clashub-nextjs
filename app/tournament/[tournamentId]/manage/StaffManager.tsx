@@ -1,8 +1,5 @@
 'use client';
 
-// File: app/tournament/[tournamentId]/manage/StaffManager.tsx
-// Deskripsi: [BARU - FASE 5] Komponen untuk mengelola staf (panitia) turnamen.
-
 import React, { useState, useEffect } from 'react';
 import {
   FirestoreDocument,
@@ -10,7 +7,6 @@ import {
   UserProfile,
 } from '@/lib/clashub.types';
 import { Button } from '@/app/components/ui/Button';
-// [PERBAIKAN 1] Hapus ekstensi .tsx dari impor Input
 import { Input } from '@/app/components/ui/Input';
 import Notification, {
   NotificationProps,
@@ -24,10 +20,11 @@ import {
 } from '@/app/components/icons';
 import Image from 'next/image';
 import { useAuth } from '@/app/context/AuthContext';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook
 
 interface StaffManagerProps {
   tournament: FirestoreDocument<Tournament>;
-  isOrganizer: boolean; // Diterima dari page.tsx (Server Component)
+  isOrganizer: boolean;
 }
 
 type StaffProfile = Pick<
@@ -39,18 +36,17 @@ const StaffManager: React.FC<StaffManagerProps> = ({
   tournament,
   isOrganizer,
 }) => {
-  const { currentUser } = useAuth(); // Untuk mengecek UID diri sendiri
+  const { t } = useLanguage(); // [BARU] Init Hook
+  const { currentUser } = useAuth(); 
   const [staffProfiles, setStaffProfiles] = useState<StaffProfile[]>([]);
   const [inviteEmail, setInviteEmail] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isInviting, setIsInviting] = useState(false);
-  const [isRemoving, setIsRemoving] = useState<string | null>(null); // Menyimpan UID yang sedang dihapus
+  const [isRemoving, setIsRemoving] = useState<string | null>(null);
   
-  // [PERBAIKAN 2] Tipe state harus NotificationProps | null, bukan mengambil properti 'notification'
   const [notification, setNotification] =
     useState<NotificationProps | null>(null);
 
-  // Fungsi untuk menampilkan notifikasi
   const showNotification = (
     message: string,
     type: 'success' | 'error' | 'info',
@@ -58,7 +54,6 @@ const StaffManager: React.FC<StaffManagerProps> = ({
     setNotification({ message, type, onClose: () => setNotification(null) });
   };
 
-  // 1. Fungsi untuk Fetch Profil Staf
   const fetchStaffProfiles = async () => {
     setIsLoading(true);
     const uidsToFetch = [
@@ -67,9 +62,6 @@ const StaffManager: React.FC<StaffManagerProps> = ({
     ];
 
     try {
-      // Kita perlu API route baru untuk mengambil data user berdasarkan array UID
-      // Sesuai roadmap, kita akan buat API ini nanti.
-      // Untuk sekarang, kita buat call-nya:
       const response = await fetch('/api/users/profiles-by-ids', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -78,7 +70,7 @@ const StaffManager: React.FC<StaffManagerProps> = ({
 
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.error || 'Gagal mengambil data staf.');
+        throw new Error(result.error || t.tournamentManage.staff.listError); // [i18n]
       }
 
       setStaffProfiles(result.profiles || []);
@@ -89,22 +81,19 @@ const StaffManager: React.FC<StaffManagerProps> = ({
     }
   };
 
-  // 2. useEffect untuk fetch data saat komponen dimuat
   useEffect(() => {
     fetchStaffProfiles();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tournament.organizerUid, tournament.committeeUids]); // <-- Dijalankan jika daftar staf berubah
+  }, [tournament.organizerUid, tournament.committeeUids]);
 
-  // 3. Handler untuk Mengundang Panitia
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteEmail || !isOrganizer) return;
 
     setIsInviting(true);
-    showNotification('Mengundang panitia...', 'info');
+    showNotification(t.tournamentManage.staff.toastInviting, 'info'); // [i18n]
 
     try {
-      // Kita perlu API route baru untuk ini (ROADMAP FASE 5)
       const response = await fetch(
         `/api/tournaments/${tournament.id}/manage/invite`,
         {
@@ -116,12 +105,12 @@ const StaffManager: React.FC<StaffManagerProps> = ({
 
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.error || 'Gagal mengundang panitia.');
+        throw new Error(result.error || t.common.error);
       }
 
-      showNotification(result.message, 'success');
-      setInviteEmail(''); // Kosongkan input
-      fetchStaffProfiles(); // Refresh daftar staf
+      showNotification(result.message || t.common.success, 'success');
+      setInviteEmail('');
+      fetchStaffProfiles();
     } catch (error: any) {
       showNotification(error.message, 'error');
     } finally {
@@ -129,19 +118,17 @@ const StaffManager: React.FC<StaffManagerProps> = ({
     }
   };
 
-  // 4. Handler untuk Mengeluarkan Panitia
   const handleRemove = async (uidToRemove: string) => {
     if (!isOrganizer || uidToRemove === tournament.organizerUid) return;
 
     setIsRemoving(uidToRemove);
-    showNotification('Mengeluarkan panitia...', 'info');
+    showNotification(t.tournamentManage.staff.toastRemoving, 'info'); // [i18n]
 
     try {
-      // Kita perlu API route baru untuk ini (ROADMAP FASE 5)
       const response = await fetch(
         `/api/tournaments/${tournament.id}/manage/remove`,
         {
-          method: 'POST', // Menggunakan POST agar bisa kirim body
+          method: 'POST', 
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ uidToRemove: uidToRemove }),
         },
@@ -149,11 +136,11 @@ const StaffManager: React.FC<StaffManagerProps> = ({
 
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.error || 'Gagal mengeluarkan panitia.');
+        throw new Error(result.error || t.common.error);
       }
 
-      showNotification(result.message, 'success');
-      fetchStaffProfiles(); // Refresh daftar staf
+      showNotification(t.tournamentManage.staff.toastRemoveSuccess, 'success'); // [i18n]
+      fetchStaffProfiles();
     } catch (error: any) {
       showNotification(error.message, 'error');
     } finally {
@@ -163,27 +150,21 @@ const StaffManager: React.FC<StaffManagerProps> = ({
 
   return (
     <div className="space-y-8">
-      {/* [PERBAIKAN] Ganti 'notification={notification}' 
-        menjadi 'notification={notification ?? undefined}'
-        Ini akan mengubah 'null' menjadi 'undefined' agar sesuai 
-        dengan tipe props komponen <Notification>.
-      */}
       <Notification notification={notification ?? undefined} />
 
       {/* Bagian 1: Form Undangan (Hanya untuk Organizer) */}
       {isOrganizer && (
         <div className="card-stone p-5 rounded-lg border border-coc-gold-dark/30">
           <h3 className="font-clash text-xl text-white mb-4">
-            Undang Panitia Baru
+            {t.tournamentManage.staff.inviteTitle} {/* [i18n] */}
           </h3>
           <p className="text-sm text-gray-400 mb-4 font-sans">
-            Panitia yang diundang akan mendapatkan hak akses yang sama
-            (kecuali mengeluarkan organizer) untuk mengelola turnamen ini.
+            {t.tournamentManage.staff.inviteDesc} {/* [i18n] */}
           </p>
           <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-3">
             <Input
               type="email"
-              placeholder="Masukkan email user Clashub..."
+              placeholder={t.tournamentManage.staff.inputPlaceholder} // [i18n]
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
               disabled={isInviting}
@@ -200,7 +181,7 @@ const StaffManager: React.FC<StaffManagerProps> = ({
               ) : (
                 <UserPlusIcon className="h-5 w-5" />
               )}
-              <span className="ml-2">{isInviting ? 'Mengundang...' : 'Undang'}</span>
+              <span className="ml-2">{isInviting ? t.tournamentManage.staff.btnInviting : t.tournamentManage.staff.btnInvite}</span> {/* [i18n] */}
             </Button>
           </form>
         </div>
@@ -209,7 +190,7 @@ const StaffManager: React.FC<StaffManagerProps> = ({
       {/* Bagian 2: Daftar Staf Saat Ini */}
       <div>
         <h3 className="font-clash text-xl text-white mb-4">
-          Staf & Panitia Saat Ini
+          {t.tournamentManage.staff.listTitle} {/* [i18n] */}
         </h3>
         {isLoading ? (
           <div className="flex justify-center items-center h-40">
@@ -218,8 +199,8 @@ const StaffManager: React.FC<StaffManagerProps> = ({
         ) : staffProfiles.length === 0 ? (
           <div className="card-stone p-8 text-center rounded-lg border border-coc-gold-dark/20">
              <AlertTriangleIcon className="h-10 w-10 text-coc-yellow/70 mx-auto mb-3" />
-            <p className="text-gray-400">Gagal memuat data staf.</p>
-            <Button variant="secondary" size="sm" onClick={fetchStaffProfiles} className="mt-3">Coba Lagi</Button>
+            <p className="text-gray-400">{t.tournamentManage.staff.listError}</p> {/* [i18n] */}
+            <Button variant="secondary" size="sm" onClick={fetchStaffProfiles} className="mt-3">{t.tournamentManage.staff.listRetry}</Button> {/* [i18n] */}
           </div>
         ) : (
           <div className="card-stone rounded-lg overflow-hidden border border-coc-gold-dark/30">
@@ -247,7 +228,7 @@ const StaffManager: React.FC<StaffManagerProps> = ({
                         <p className="text-base font-semibold text-white">
                           {staff.displayName}{' '}
                           {isSelf && (
-                            <span className="text-xs text-coc-gold/80">(Anda)</span>
+                            <span className="text-xs text-coc-gold/80">{t.tournamentManage.staff.labelYou}</span> // [i18n]
                           )}
                         </p>
                         <p className="text-sm text-gray-400 font-mono">
@@ -260,18 +241,18 @@ const StaffManager: React.FC<StaffManagerProps> = ({
                       {isOrg && (
                         <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-coc-gold/10 text-coc-gold text-xs font-bold">
                           <CrownIcon className="h-4 w-4" />
-                          <span>Organizer</span>
+                          <span>{t.tournamentManage.staff.roleOrganizer}</span> {/* [i18n] */}
                         </div>
                       )}
                       
-                      {/* Tombol Hapus (Hanya Organizer, tidak bisa hapus diri sendiri/organizer) */}
+                      {/* Tombol Hapus */}
                       {isOrganizer && !isOrg && (
                         <Button
                           variant="danger"
                           size="sm"
                           onClick={() => handleRemove(staff.uid)}
                           disabled={isRemoving === staff.uid}
-                          className="px-2 py-1 h-8 w-8" // Tombol ikon kecil
+                          className="px-2 py-1 h-8 w-8"
                         >
                           {isRemoving === staff.uid ? (
                              <Loader2Icon className="h-4 w-4 animate-spin" />

@@ -1,9 +1,5 @@
 'use client';
 
-// File: app/tournament/[tournamentId]/manage/ManageTournamentClient.tsx
-// Deskripsi: Client Component untuk layout tab manajemen turnamen.
-// [UPDATE FASE 15.2] Memperbaiki error TS2741 dan menambahkan tab Settings.
-
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { Tournament, FirestoreDocument } from '@/lib/clashub.types';
@@ -16,70 +12,96 @@ import {
   SettingsIcon,
   MenuIcon,
   XIcon,
+  AlertTriangleIcon, // [BARU] Untuk tampilan error
 } from '@/app/components/icons';
 import Notification, {
   NotificationProps,
 } from '@/app/components/ui/Notification';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook i18n
 
 // Impor komponen-komponen tab
 import StaffManager from './StaffManager';
 import ParticipantManager from './ParticipantManager';
 import BracketGenerator from './BracketGenerator';
 import ScheduleManager from './ScheduleManager';
-// [BARU FASE 15.2] Impor komponen SettingsManager baru
 import SettingsManager from './components/SettingsManager';
 
 type ActiveTab = 'participants' | 'staff' | 'bracket' | 'settings';
+type ErrorType = 'not_found' | 'access_denied';
 
+// [MODIFIKASI] Props sekarang opsional karena bisa jadi hanya menerima error
 interface ManageTournamentClientProps {
-  tournament: FirestoreDocument<Tournament>;
-  isOrganizer: boolean;
+  tournament?: FirestoreDocument<Tournament>;
+  isOrganizer?: boolean;
+  error?: ErrorType;
 }
 
 const ManageTournamentClient: React.FC<ManageTournamentClientProps> = ({
   tournament,
-  isOrganizer,
+  isOrganizer = false,
+  error,
 }) => {
+  const { t } = useLanguage(); // [BARU] Init Hook
   const [activeTab, setActiveTab] = useState<ActiveTab>('participants');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [notification, setNotification] =
-    useState<NotificationProps | null>(null);
+  const [notification, setNotification] = useState<NotificationProps | null>(null);
+
+  // --- [BARU] Handle Error View dengan i18n ---
+  if (error) {
+    const title = error === 'not_found' ? t.tournamentManage.notFoundTitle : t.tournamentManage.accessDeniedTitle;
+    const desc = error === 'not_found' ? t.tournamentManage.notFoundDesc : t.tournamentManage.accessDeniedDesc;
+
+    return (
+      <main className="container mx-auto p-4 md:p-8 mt-10 min-h-[60vh]">
+        <div className="flex justify-center items-center">
+          <div className="card-stone p-8 max-w-lg text-center rounded-lg border-2 border-coc-red/50 bg-coc-red/10">
+            <AlertTriangleIcon className="h-12 w-12 text-coc-red mx-auto mb-4" />
+            <h2 className="text-2xl text-coc-red font-clash mb-4">{title}</h2>
+            <p className="text-gray-300 mb-6 font-sans">{desc}</p>
+            <Button href="/my-tournaments" variant="primary">
+              {t.tournamentManage.btnBackToHub}
+            </Button>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // Jika tidak ada error, tournament PASTI ada (karena logic di page.tsx)
+  if (!tournament) return null; 
 
   const handleRefreshData = () => {
     setNotification({
-      message: 'Aksi berhasil! Memuat ulang data...',
+      message: t.tournamentManage.toastSuccess, // [i18n]
       type: 'info',
       onClose: () => setNotification(null),
     });
     
-    // [FIX FASE 15.2]
-    // Kita tambahkan reload halaman agar data baru (Tag Klan atau status Batal)
-    // langsung terlihat setelah aksi selesai.
     setTimeout(() => {
       window.location.reload();
-    }, 1500); // Beri waktu 1.5 detik agar notifikasi terbaca
+    }, 1500);
   };
 
   const TABS: { tabName: ActiveTab; icon: React.ReactNode; label: string }[] = [
     {
       tabName: 'participants',
       icon: <UsersIcon />,
-      label: 'Peserta',
+      label: t.tournamentManage.tabParticipants, // [i18n]
     },
     {
       tabName: 'staff',
       icon: <UsersCogIcon />,
-      label: 'Staf & Panitia',
+      label: t.tournamentManage.tabStaff, // [i18n]
     },
     {
       tabName: 'bracket',
       icon: <TrophyIcon />,
-      label: 'Bracket & Jadwal',
+      label: t.tournamentManage.tabBracket, // [i18n]
     },
     {
       tabName: 'settings',
       icon: <SettingsIcon />,
-      label: 'Pengaturan',
+      label: t.tournamentManage.tabSettings, // [i18n]
     },
   ];
 
@@ -123,16 +145,12 @@ const ManageTournamentClient: React.FC<ManageTournamentClientProps> = ({
             <BracketGenerator
               tournament={tournament}
               onBracketGenerated={handleRefreshData}
-              // [PERBAIKAN ERROR TS2741] Tambahkan prop yang hilang
-              // Kita gunakan handleRefreshData agar halaman me-refresh
-              // datanya saat turnamen dibatalkan.
               onTournamentCancelled={handleRefreshData}
             />
             <ScheduleManager tournament={tournament} />
           </React.Fragment>
         );
       case 'settings':
-        // [PERBAIKAN FASE 15.2] Ganti placeholder dengan komponen baru
         return (
           <SettingsManager
             tournament={tournament}
@@ -150,11 +168,11 @@ const ManageTournamentClient: React.FC<ManageTournamentClientProps> = ({
       <Notification notification={notification ?? undefined} />
 
       <div className="space-y-8">
-        {/* Header Halaman (Tombol Kembali & Judul) */}
+        {/* Header Halaman */}
         <div className="flex items-center justify-between gap-4">
           <Button href="/my-tournaments" variant="secondary" size="sm">
             <ChevronLeftIcon className="h-5 w-5 mr-1.5" />
-            Kembali ke Hub
+            {t.tournamentManage.btnBack} {/* [i18n] */}
           </Button>
 
           <div className="flex items-center gap-3">
@@ -171,7 +189,7 @@ const ManageTournamentClient: React.FC<ManageTournamentClientProps> = ({
           </div>
         </div>
 
-        {/* Tombol Toggle Sidebar (untuk mobile/tablet) */}
+        {/* Tombol Toggle Sidebar (Mobile) */}
         <div className="lg:hidden mb-4">
           <Button
             variant="secondary"
@@ -184,11 +202,11 @@ const ManageTournamentClient: React.FC<ManageTournamentClientProps> = ({
             ) : (
               <MenuIcon className="h-5 w-5 mr-2" />
             )}
-            {isSidebarOpen ? 'Tutup Menu' : 'Buka Menu'}
+            {isSidebarOpen ? t.tournamentManage.btnCloseMenu : t.tournamentManage.btnToggleMenu} {/* [i18n] */}
           </Button>
         </div>
 
-        {/* Layout Utama (Sidebar + Konten) */}
+        {/* Layout Utama */}
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Sidebar Navigasi */}
           <nav

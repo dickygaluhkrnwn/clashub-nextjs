@@ -1,0 +1,91 @@
+import { TournamentSection } from '../../sections/tournament';
+
+export const tournament: TournamentSection = {
+  pageTitle: 'Turnamen & Liga',
+  pageDesc: 'Ikuti turnamen kompetitif, menangkan hadiah, dan naikkan peringkat klanmu.',
+  metaTitle: 'Clashub | Turnamen & Liga',
+  metaDesc: 'Lihat daftar turnamen Clash of Clans yang akan datang, sedang berlangsung, dan klasemen liga kompetitif.',
+  
+  filterSearchPlaceholder: 'Cari turnamen...',
+  filterStatusLabel: 'Status Turnamen',
+  filterStatusAll: 'Semua Status',
+  filterStatusUpcoming: 'Akan Datang',
+  filterStatusOngoing: 'Sedang Berjalan',
+  filterStatusCompleted: 'Selesai',
+  
+  cardPrize: 'Total Hadiah',
+  cardSlots: 'Slot Tim',
+  cardTeamSize: 'Format',
+  cardStatusDraft: 'Draft',
+  cardStatusRegistering: 'Pendaftaran Buka',
+  cardStatusOngoing: 'Berlangsung',
+  cardStatusCompleted: 'Selesai',
+  cardStatusCancelled: 'Dibatalkan',
+  btnDetail: 'Lihat Detail',
+  
+  noTournaments: 'Tidak Ada Turnamen Ditemukan',
+  noTournamentsDesc: 'Belum ada turnamen yang sesuai dengan filter pencarian Anda saat ini.',
+  errorTitle: 'Gagal Memuat Turnamen',
+  errorDesc: 'Terjadi kesalahan saat mengambil data turnamen. Silakan periksa koneksi Anda dan coba lagi.',
+  btnTryAgain: 'Coba Lagi',
+
+  detail: {
+    manageBtn: 'Kelola Turnamen',
+    regClosedBtn: 'Pendaftaran Ditutup',
+    regNotOpenBtn: 'Pendaftaran Belum Dibuka',
+    endedBtn: 'Turnamen Selesai/Berlangsung',
+    loginBtn: 'Login untuk Daftar',
+    verifyBtn: 'Verifikasi Player Tag untuk Daftar',
+    registerBtn: 'Daftar Sekarang',
+    loadingBtn: 'Memuat...',
+    
+    infoStarts: 'Turnamen Dimulai',
+    infoFormat: 'Format',
+    infoTh: 'Syarat Town Hall',
+    infoParticipants: 'Peserta',
+    infoOrganizer: 'Penyelenggara',
+    infoRegStart: 'Pendaftaran Dibuka',
+    infoRegEnd: 'Pendaftaran Ditutup',
+    
+    descTitle: 'Deskripsi Turnamen',
+    rulesTitle: 'Aturan',
+    
+    bracketUpper: 'Upper Bracket',
+    bracketLower: 'Lower Bracket',
+    roundPrefix: 'Ronde',
+    bracketLoading: 'Memuat data bracket...',
+    bracketError: 'Gagal memuat bracket',
+    bracketEmpty: 'Bracket turnamen belum dibuat oleh panitia.',
+    bracketEmptyDesc: 'Silakan cek kembali setelah pendaftaran ditutup.',
+    
+    thUniform: 'Seragam TH',
+    thMixed: 'Campuran: TH',
+    matchScheduled: 'Dijadwalkan',
+
+    btnBackToBracket: 'Kembali ke Bracket',
+    labelStatus: 'Status',
+    labelSchedule: 'Jadwal',
+    labelBracket: 'Bracket',
+    labelRound: 'Ronde',
+    matchTbd: 'Belum Diatur',
+  },
+
+  match: {
+    matchPending: 'Menunggu',
+    byeTitle: 'Tim (BYE)',
+    byeDesc: 'Slot ini kosong (BYE).',
+    membersTitle: 'Anggota Tim',
+    assignmentTitle: 'Penugasan Klan Tanding',
+    assignmentDesc: 'Tim Anda ditugaskan untuk bertanding di klan panitia berikut:',
+    btnOpenClan: 'Buka Profil Klan',
+    assignmentNote: 'Harap segera masuk ke klan tersebut 1 jam sebelum jadwal pertandingan.',
+    assignmentWaiting: 'Klan tanding belum ditugaskan oleh panitia.',
+    
+    liveWarTitle: 'Live War',
+    waitingLive: 'Menunggu Friendly War dimulai oleh panitia...',
+    loadingLive: 'Memuat Live War...',
+    waitingDesc: 'Panitia akan memulai war sesuai jadwal.',
+    notStartedTitle: 'Pertandingan Belum Dimulai',
+    notStartedDesc: 'Live war akan tampil di sini saat panitia telah memulai pertandingan.',
+  },
+};

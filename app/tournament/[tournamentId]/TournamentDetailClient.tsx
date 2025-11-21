@@ -1,12 +1,9 @@
 'use client';
 
-// [TAHAP 6] Tambahkan useState, useEffect
-import React, { useState, useEffect } from 'react';
-// [PERBAIKAN] Ganti Image next/image menjadi img biasa
-// import Image from 'next/image';
-import Link from 'next/link';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-// [TAHAP 6] Ganti Tipe Lama ke Tipe Baru
+// [PERBAIKAN] Tambahkan import Link
+import Link from 'next/link';
 import {
   FirestoreDocument,
   Tournament,
@@ -22,21 +19,19 @@ import {
   UserIcon,
   UsersIcon,
   TrophyIcon,
-  ShieldIcon, // Menggunakan ShieldIcon sebagai pengganti THIcon
-  Loader2Icon, // [TAHAP 6] Tambahkan Loader2Icon
-  SwordsIcon, // [FIX] Ganti SwordIcon menjadi SwordsIcon
-  // [BARU FASE 12.2] Tambahkan CogsIcon untuk tombol Manage
+  ShieldIcon, 
+  Loader2Icon, 
+  SwordsIcon, 
   CogsIcon,
 } from '@/app/components/icons';
 import { format } from 'date-fns';
-// import { id } from 'date-fns/locale/id'; // Opsional jika ingin format bahasa Indonesia
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 // Tipe untuk props
 interface TournamentDetailClientProps {
   tournament: FirestoreDocument<Tournament>;
 }
 
-// --- [BARU TAHAP 6] ---
 // Tipe data gabungan untuk match + data tim yang sudah dipopulasi
 type FullMatchData = FirestoreDocument<TournamentMatch> & {
   team1: FirestoreDocument<TournamentTeam> | null;
@@ -44,26 +39,7 @@ type FullMatchData = FirestoreDocument<TournamentMatch> & {
 };
 
 /**
- * @function formatThRequirement
- * Helper untuk memformat objek ThRequirement menjadi string yang mudah dibaca.
- */
-const formatThRequirement = (th: ThRequirement): string => {
-  if (th.type === 'any') {
-    return `TH ${th.minLevel} - ${th.maxLevel}`;
-  }
-  if (th.type === 'uniform') {
-    return `Seragam TH ${th.allowedLevels[0]}`;
-  }
-  if (th.type === 'mixed') {
-    return `Campuran: TH ${th.allowedLevels.join(', ')}`;
-  }
-  return 'N/A';
-};
-// --- [AKHIR BARU TAHAP 6] ---
-
-/**
  * @component InfoCard
- * Komponen kecil internal untuk menampilkan detail item di grid.
  */
 const InfoCard: React.FC<{
   icon: React.ElementType;
@@ -84,56 +60,52 @@ const InfoCard: React.FC<{
 /**
  * @component RegisterButtonLogic
  * Komponen internal untuk menangani logika tombol pendaftaran.
- * [UPDATE FASE 12.2] Sekarang juga menangani tombol Manajemen.
  */
 const RegisterButtonLogic: React.FC<{
   tournament: FirestoreDocument<Tournament>;
-}> = ({ tournament }) => {
+  t: any;
+}> = ({ tournament, t }) => {
   const { userProfile, loading } = useAuth();
   const router = useRouter();
 
   const handleRegisterClick = () => {
-    // [PERBAIKAN] Gunakan path singular /tournament/
     router.push(`/tournament/${tournament.id}/register`);
   };
 
-  // --- [PERBAIKAN FASE 12.2] ---
   // Cek kepemilikan (organizer) SEBAGAI PRIORITAS PERTAMA.
   if (userProfile && userProfile.uid === tournament.organizerUid) {
     return (
       <Button
         size="lg"
-        // [PERBAIKAN FASE 13.2] Ganti "primaryOutline" (error) menjadi "secondary" (valid)
-        variant="secondary" // Variant berbeda untuk organizer
+        variant="secondary"
         href={`/tournament/${tournament.id}/manage`}
       >
         <CogsIcon className="mr-2 h-5 w-5" />
-        Kelola Turnamen
+        {t.tournament.detail.manageBtn}
       </Button>
     );
   }
-  // --- [AKHIR PERBAIKAN FASE 12.2] ---
 
   // 1. Saat loading status auth
   if (loading) {
     return (
       <Button size="lg" disabled>
-        Memuat...
+        {t.tournament.detail.loadingBtn}
       </Button>
     );
   }
 
   // 2. Jika turnamen tidak lagi 'registration_open'
   if (tournament.status !== 'registration_open') {
-    let closedMessage = 'Pendaftaran Ditutup';
+    let closedMessage = t.tournament.detail.regClosedBtn; // Default
     if (tournament.status === 'scheduled') {
-      closedMessage = 'Pendaftaran Belum Dibuka';
+      closedMessage = t.tournament.detail.regNotOpenBtn;
     } else if (
       tournament.status === 'ongoing' ||
       tournament.status === 'completed' ||
       tournament.status === 'cancelled'
     ) {
-      closedMessage = 'Turnamen Selesai/Berlangsung';
+      closedMessage = t.tournament.detail.endedBtn;
     }
 
     return (
@@ -147,7 +119,7 @@ const RegisterButtonLogic: React.FC<{
   if (!userProfile) {
     return (
       <Button size="lg" variant="primary" href="/auth">
-        Login untuk Daftar
+        {t.tournament.detail.loginBtn}
       </Button>
     );
   }
@@ -156,7 +128,7 @@ const RegisterButtonLogic: React.FC<{
   if (!userProfile.isVerified) {
     return (
       <Button size="lg" variant="secondary" disabled>
-        Verifikasi Player Tag untuk Daftar
+        {t.tournament.detail.verifyBtn}
       </Button>
     );
   }
@@ -164,26 +136,13 @@ const RegisterButtonLogic: React.FC<{
   // 5. User sudah login dan terverifikasi (dan BUKAN organizer)
   return (
     <Button size="lg" variant="primary" onClick={handleRegisterClick}>
-      Daftar Sekarang
+      {t.tournament.detail.registerBtn}
     </Button>
   );
 };
 
-// --- [HAPUS TAHAP 6] ---
-// Komponen ParticipantList (daftar tabel) akan dihapus seluruhnya
-// dan digantikan dengan BracketDisplay di bawah.
-/*
-const ParticipantList: React.FC<{ ... }> = ({ ... }) => {
-  ... (SELURUH KODE ParticipantList DARI baris 111 s/d 251 DIHAPUS) ...
-};
-*/
-// --- [AKHIR HAPUS TAHAP 6] ---
-
-// --- [BARU TAHAP 6] ---
 /**
  * @component TeamDisplay
- * Menampilkan nama tim dan badge untuk slot di MatchCard.
- * Menangani kasus 'BYE' (tim null).
  */
 const TeamDisplay: React.FC<{
   team: FirestoreDocument<TournamentTeam> | null;
@@ -222,12 +181,12 @@ const TeamDisplay: React.FC<{
 
 /**
  * @component MatchCard
- * Merender satu kartu pertandingan di dalam kolom bracket.
  */
 const MatchCard: React.FC<{
   match: FullMatchData;
   tournamentId: string;
-}> = ({ match, tournamentId }) => {
+  t: any;
+}> = ({ match, tournamentId, t }) => {
   const { team1, team2, winnerTeamRef, matchId, status } = match;
 
   const isTeam1Winner = winnerTeamRef?.path === team1?.id;
@@ -236,20 +195,21 @@ const MatchCard: React.FC<{
   // Tentukan status untuk styling
   let statusText = 'Pending';
   let statusColor = 'text-coc-font-secondary/70';
+  
+  // [i18n] Terjemahkan status match sederhana
   if (status === 'completed' || status === 'reported') {
-    statusText = 'Selesai';
+    statusText = t.tournament.cardStatusCompleted; 
     statusColor = 'text-green-400';
   } else if (status === 'live') {
-    statusText = 'Live';
+    statusText = t.tournament.cardStatusOngoing;
     statusColor = 'text-red-500 animate-pulse';
   } else if (status === 'scheduled' && match.scheduledTime) {
-    // [FIX FASE 12.2] Pastikan scheduledTime ada sebelum memformat
     const scheduleDate = new Date(match.scheduledTime);
     if (!isNaN(scheduleDate.getTime())) {
       statusText = format(scheduleDate, 'dd/MM HH:mm');
       statusColor = 'text-blue-400';
     } else {
-      statusText = 'Dijadwalkan'; // Fallback jika tanggal tidak valid
+      statusText = t.tournament.detail.matchScheduled;
       statusColor = 'text-blue-400';
     }
   }
@@ -271,7 +231,7 @@ const MatchCard: React.FC<{
 
         {/* VS Separator */}
         <div className="flex items-center pl-10">
-          <SwordsIcon className="h-4 w-4 text-coc-font-secondary/50" /> {/* [FIX] Ganti SwordIcon menjadi SwordsIcon */}
+          <SwordsIcon className="h-4 w-4 text-coc-font-secondary/50" />
           <hr className="ml-2 w-full border-t border-coc-border/30" />
         </div>
 
@@ -284,14 +244,13 @@ const MatchCard: React.FC<{
 
 /**
  * @component BracketColumn
- * Merender satu kolom penuh (misal: Upper Bracket) yang berisi ronde-ronde.
  */
 const BracketColumn: React.FC<{
   title: string;
   matches: FullMatchData[];
   tournamentId: string;
-}> = ({ title, matches, tournamentId }) => {
-  // Kelompokkan match berdasarkan ronde
+  t: any;
+}> = ({ title, matches, tournamentId, t }) => {
   const groupedMatches = matches.reduce(
     (acc, match) => {
       const round = match.round;
@@ -311,7 +270,7 @@ const BracketColumn: React.FC<{
         {Object.entries(groupedMatches).map(([round, roundMatches]) => (
           <div key={round}>
             <h4 className="mb-3 text-sm font-semibold uppercase tracking-wider text-coc-font-secondary">
-              Ronde {round}
+              {t.tournament.detail.roundPrefix} {round}
             </h4>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {roundMatches.map((match) => (
@@ -319,6 +278,7 @@ const BracketColumn: React.FC<{
                   key={match.id}
                   match={match}
                   tournamentId={tournamentId}
+                  t={t}
                 />
               ))}
             </div>
@@ -331,139 +291,145 @@ const BracketColumn: React.FC<{
 
 /**
  * @component BracketDisplay
- * Komponen utama untuk fetch data bracket dan menampilkannya.
  */
 const BracketDisplay: React.FC<{
   tournamentId: string;
   matches: FullMatchData[];
   isLoading: boolean;
   error: string | null;
-}> = ({ tournamentId, matches, isLoading, error }) => {
-  // State Loading
+  t: any;
+}> = ({ tournamentId, matches, isLoading, error, t }) => {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-coc-border p-12 text-center">
         <Loader2Icon className="h-12 w-12 animate-spin text-coc-gold" />
         <p className="mt-3 text-lg text-coc-font-secondary">
-          Memuat data bracket...
+          {t.tournament.detail.bracketLoading}
         </p>
       </div>
     );
   }
 
-  // State Error
   if (error) {
     return (
       <div className="rounded-lg border border-dashed border-red-700 bg-red-900/30 p-12 text-center text-red-300">
-        <p className="text-lg font-bold">Gagal memuat bracket</p>
+        <p className="text-lg font-bold">{t.tournament.detail.bracketError}</p>
         <p className="text-sm">{error}</p>
       </div>
     );
   }
 
-  // State Sukses (Data Kosong - Bracket belum di-generate)
   if (matches.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-coc-border p-12 text-center">
         <p className="text-lg text-coc-font-secondary">
-          Bracket turnamen belum dibuat oleh panitia.
+          {t.tournament.detail.bracketEmpty}
         </p>
         <p className="text-sm text-coc-font-secondary/70">
-          Silakan cek kembali setelah pendaftaran ditutup.
+          {t.tournament.detail.bracketEmptyDesc}
         </p>
       </div>
     );
   }
 
-  // State Sukses (Ada Data)
-  // Pisahkan match Upper dan Lower
   const upperBracketMatches = matches.filter((m) => m.bracket === 'upper');
   const lowerBracketMatches = matches.filter((m) => m.bracket === 'lower');
 
   return (
     <section className="space-y-8 rounded-lg border border-coc-border bg-coc-dark-blue p-6">
       <BracketColumn
-        title="Upper Bracket"
+        title={t.tournament.detail.bracketUpper}
         matches={upperBracketMatches}
         tournamentId={tournamentId}
+        t={t}
       />
       {lowerBracketMatches.length > 0 && (
         <>
           <hr className="border-t border-coc-border/50" />
           <BracketColumn
-            title="Lower Bracket"
+            title={t.tournament.detail.bracketLower}
             matches={lowerBracketMatches}
             tournamentId={tournamentId}
+            t={t}
           />
         </>
       )}
     </section>
   );
 };
-// --- [AKHIR BARU TAHAP 6] ---
 
 /**
  * @component TournamentDetailClient
- * Client Component untuk me-render detail turnamen.
  */
 const TournamentDetailClient: React.FC<TournamentDetailClientProps> = ({
   tournament,
 }) => {
-  // --- [BARU TAHAP 6] ---
-  // State untuk menyimpan data bracket (matches + teams)
+  const { t } = useLanguage(); 
+  
   const [matches, setMatches] = useState<FullMatchData[]>([]);
   const [isLoadingBracket, setIsLoadingBracket] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  // Fetch data bracket saat komponen dimuat
+  // Helper format TH dengan i18n
+  const formatThRequirement = useCallback((th: ThRequirement): string => {
+    if (th.type === 'any') {
+      return `TH ${th.minLevel} - ${th.maxLevel}`;
+    }
+    if (th.type === 'uniform') {
+      return `${t.tournament.detail.thUniform} ${th.allowedLevels[0]}`;
+    }
+    if (th.type === 'mixed') {
+      return `${t.tournament.detail.thMixed} ${th.allowedLevels.join(', ')}`;
+    }
+    return 'N/A';
+  }, [t]);
+
   useEffect(() => {
     const fetchBracketData = async () => {
       try {
         setIsLoadingBracket(true);
         setFetchError(null);
-        // Panggil API route publik baru yang kita buat (Tahap 6)
         const response = await fetch(
           `/api/tournaments/${tournament.id}/bracket`,
         );
         if (!response.ok) {
-          throw new Error('Gagal memuat data bracket.');
+          throw new Error('Failed to fetch bracket data.');
         }
         const data: { matches: FullMatchData[] } = await response.json();
         setMatches(data.matches || []);
       } catch (err: any) {
         console.error('Error fetching bracket data:', err);
-        setFetchError(err.message || 'Terjadi kesalahan.');
+        setFetchError(err.message || 'An error occurred.');
       } finally {
         setIsLoadingBracket(false);
       }
     };
 
-    // Hanya fetch bracket jika turnamen sudah 'ongoing' atau 'completed'
     if (tournament.status === 'ongoing' || tournament.status === 'completed') {
       fetchBracketData();
     } else {
-      // Jika masih registrasi, tidak perlu fetch bracket, set loading ke false
       setIsLoadingBracket(false);
     }
-  }, [tournament.id, tournament.status]); // Fetch ulang jika ID atau status berubah
-  // --- [AKHIR BARU TAHAP 6] ---
+  }, [tournament.id, tournament.status]);
 
-  // Format tanggal menggunakan date-fns
-  // Kita pakai new Date() untuk mengurai string tanggal yang diserialisasi dari Server Component
+  // Format tanggal dinamis
   const formattedDate = format(
-    // [PERBAIKAN FASE 8.2] Ganti 'startsAt' (string) lama menjadi 'tournamentStartsAt' (Date) baru
-    // Ini adalah penyebab error "Invalid time value"
     new Date(tournament.tournamentStartsAt),
     'dd MMMM yyyy - HH:mm',
-    // { locale: id } // Opsional jika ingin format bahasa Indonesia
+  );
+  const regStartDate = format(
+    new Date(tournament.registrationStartsAt),
+    'dd MMMM yyyy - HH:mm',
+  );
+  const regEndDate = format(
+    new Date(tournament.registrationEndsAt),
+    'dd MMMM yyyy - HH:mm',
   );
 
   const getStatusClasses = () => {
     switch (tournament.status) {
-      // [TAHAP 6] Sesuaikan status dengan Tipe Baru
       case 'registration_open':
         return 'bg-green-600/20 text-green-300 border-green-500';
-      // [BARU FASE 8.2] Tambahkan status 'scheduled' dan 'cancelled'
       case 'scheduled':
         return 'bg-cyan-600/20 text-cyan-300 border-cyan-500';
       case 'registration_closed':
@@ -471,28 +437,22 @@ const TournamentDetailClient: React.FC<TournamentDetailClientProps> = ({
       case 'ongoing':
         return 'bg-blue-600/20 text-blue-300 border-blue-500';
       case 'completed':
-        // [PERBAIKAN FASE 12.2] Ganti warna Selesai agar beda dari Dibatalkan
         return 'bg-purple-600/20 text-purple-300 border-purple-500';
       case 'cancelled':
         return 'bg-red-600/20 text-red-300 border-red-500';
       default:
-        // Hapus status lama, biarkan default
-        // case 'UPCOMING':
-        // case 'ONGOING':
-        // case 'COMPLETED':
         return 'bg-gray-600/20 text-gray-300 border-gray-500';
     }
   };
 
-  // [BARU FASE 8.2] Helper untuk memformat status agar lebih rapi
   const formatStatusText = (status: string) => {
-    if (status === 'registration_open') return 'Pendaftaran Dibuka';
-    if (status === 'registration_closed') return 'Pendaftaran Ditutup';
-    if (status === 'scheduled') return 'Terjadwal';
-    if (status === 'ongoing') return 'Sedang Berlangsung';
-    if (status === 'completed') return 'Selesai';
-    if (status === 'cancelled') return 'Dibatalkan';
-    return status.replace('_', ' '); // Fallback
+    if (status === 'registration_open') return t.tournament.cardStatusRegistering;
+    if (status === 'registration_closed') return t.cards.statusRegClosed;
+    if (status === 'scheduled') return t.tournament.cardStatusDraft; 
+    if (status === 'ongoing') return t.tournament.cardStatusOngoing;
+    if (status === 'completed') return t.tournament.cardStatusCompleted;
+    if (status === 'cancelled') return t.tournament.cardStatusCancelled;
+    return status.replace('_', ' ');
   };
 
   return (
@@ -500,12 +460,10 @@ const TournamentDetailClient: React.FC<TournamentDetailClientProps> = ({
       {/* 1. Banner & Header */}
       <section>
         <div className="relative mb-6 h-48 w-full overflow-hidden rounded-xl border-2 border-coc-border md:h-64 lg:h-80">
-          {/* [PERBAIKAN] Ganti Next/Image menjadi <img> standar */}
           <img
             src={tournament.bannerUrl}
             alt={`Banner ${tournament.title}`}
             className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 hover:scale-105"
-            // Hapus props Next/Image: layout, objectFit, priority
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
         </div>
@@ -514,7 +472,6 @@ const TournamentDetailClient: React.FC<TournamentDetailClientProps> = ({
             <span
               className={`mb-2 inline-block rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-widest ${getStatusClasses()}`}
             >
-              {/* [PERBAIKAN FASE 8.2] Gunakan helper formatStatusText */}
               {formatStatusText(tournament.status)}
             </span>
             <h1 className="font-clash text-4xl font-bold leading-tight text-white md:text-5xl">
@@ -522,8 +479,7 @@ const TournamentDetailClient: React.FC<TournamentDetailClientProps> = ({
             </h1>
           </div>
           <div className="flex-shrink-0">
-            {/* [PERBAIKAN FASE 12.2] Komponen ini sekarang punya logika 'Manage' */}
-            <RegisterButtonLogic tournament={tournament} />
+            <RegisterButtonLogic tournament={tournament} t={t} />
           </div>
         </div>
       </section>
@@ -532,53 +488,43 @@ const TournamentDetailClient: React.FC<TournamentDetailClientProps> = ({
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <InfoCard
           icon={TrophyIcon}
-          title="Hadiah"
+          title={t.tournament.cardPrize}
           value={tournament.prizePool}
         />
         <InfoCard
           icon={ClockIcon}
-          // [PERBAIKAN FASE 8.2] Ubah title "Tanggal Mulai" menjadi "Turnamen Dimulai"
-          title="Turnamen Dimulai"
+          title={t.tournament.detail.infoStarts}
           value={`${formattedDate} WIB`}
         />
         <InfoCard
           icon={UsersIcon}
-          title="Format"
+          title={t.tournament.detail.infoFormat}
           value={`${tournament.format} (${tournament.teamSize}v${tournament.teamSize})`}
         />
         <InfoCard
-          icon={ShieldIcon} // Menggunakan ShieldIcon sebagai pengganti THIcon
-          title="Syarat Town Hall"
-          // [TAHAP 6] Gunakan helper baru untuk format objek ThRequirement
+          icon={ShieldIcon}
+          title={t.tournament.detail.infoTh}
           value={formatThRequirement(tournament.thRequirement)}
         />
         <InfoCard
           icon={UsersIcon}
-          title="Peserta"
-          // [TAHAP 6] Gunakan counter 'participantCountCurrent' dan limit 'participantCount'
+          title={t.tournament.detail.infoParticipants}
           value={`${tournament.participantCountCurrent} / ${tournament.participantCount}`}
         />
         <InfoCard
           icon={UserIcon}
-          title="Organizer"
+          title={t.tournament.detail.infoOrganizer}
           value={tournament.organizerName}
         />
-        {/* [BARU FASE 8.2] Tambahkan 2 InfoCard baru untuk tanggal pendaftaran */}
         <InfoCard
           icon={ClockIcon}
-          title="Pendaftaran Dibuka"
-          value={`${format(
-            new Date(tournament.registrationStartsAt),
-            'dd MMMM yyyy - HH:mm',
-          )} WIB`}
+          title={t.tournament.detail.infoRegStart}
+          value={`${regStartDate} WIB`}
         />
         <InfoCard
           icon={ClockIcon}
-          title="Pendaftaran Ditutup"
-          value={`${format(
-            new Date(tournament.registrationEndsAt),
-            'dd MMMM yyyy - HH:mm',
-          )} WIB`}
+          title={t.tournament.detail.infoRegEnd}
+          value={`${regEndDate} WIB`}
         />
       </section>
 
@@ -587,9 +533,8 @@ const TournamentDetailClient: React.FC<TournamentDetailClientProps> = ({
         {/* Kolom Deskripsi */}
         <div className="rounded-lg border border-coc-border bg-coc-dark-blue p-6 md:col-span-2">
           <h2 className="mb-4 font-clash text-2xl font-bold text-white">
-            Deskripsi Turnamen
+            {t.tournament.detail.descTitle}
           </h2>
-          {/* Menggunakan 'prose' untuk styling teks yang aman */}
           <div className="prose prose-invert max-w-none text-coc-font-secondary">
             <p>{tournament.description}</p>
           </div>
@@ -599,21 +544,21 @@ const TournamentDetailClient: React.FC<TournamentDetailClientProps> = ({
         <div className="rounded-lg border border-coc-border bg-coc-dark-blue p-6 md:col-span-1">
           <h2 className="mb-4 flex items-center font-clash text-2xl font-bold text-white">
             <BookOpenIcon className="mr-2 h-6 w-6" />
-            Aturan
+            {t.tournament.detail.rulesTitle}
           </h2>
           <div className="prose prose-invert max-w-none text-coc-font-secondary">
-            {/* Asumsi 'rules' adalah teks biasa. Jika ini markdown, kita perlu parser. */}
             <p className="whitespace-pre-wrap">{tournament.rules}</p>
           </div>
         </div>
       </section>
 
-      {/* 4. [ROMBAK TAHAP 6] Ganti Daftar Peserta menjadi Tampilan Bracket */}
+      {/* 4. Bracket Display */}
       <BracketDisplay
         tournamentId={tournament.id}
         matches={matches}
         isLoading={isLoadingBracket}
         error={fetchError}
+        t={t}
       />
     </div>
   );

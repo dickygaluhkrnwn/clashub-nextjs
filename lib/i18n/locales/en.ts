@@ -34,6 +34,8 @@ import {
   clanBanners,
   clanAI,
 } from './en/management';
+import { tournament } from './en/tournament';
+import { tournamentManage } from './en/tournament-manage';
 
 export const en: Translation = {
   // Common
@@ -80,4 +82,8 @@ export const en: Translation = {
   clanPromotions,
   clanBanners,
   clanAI,
+
+  // Tournament
+  tournament,
+  tournamentManage,
 };

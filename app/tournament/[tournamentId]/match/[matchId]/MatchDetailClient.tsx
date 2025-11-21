@@ -1,65 +1,47 @@
 'use client';
 
-// File: app/tournament/[tournamentId]/match/[matchId]/MatchDetailClient.tsx
-// Deskripsi: [UPDATE FASE 16.3] Perbaikan typo 'ongoing' menjadi 'live'.
-// Logika polling dihapus, check-in diubah jadi display-only (sesuai ide "2 Klan Panitia").
-
 import React, { useState } from 'react';
 import Link from 'next/link';
-// [FIX 1] Ganti impor dari 'clashub.types' ke 'types' (barrel file)
 import {
   FirestoreDocument,
   Tournament,
-  // [FASE 15.4] Impor tipe serializable baru dari page.tsx
-  // TournamentMatch, // Tipe lama
   TournamentTeam,
-  TournamentTeamMember,
   CocCurrentWar,
 } from '@/lib/types';
-// [FASE 15.4] Impor tipe serializable baru dari page.tsx
-import { SerializableFullMatchData } from './page';
-
+import { SerializableFullMatchData } from './page'; // Asumsi page.tsx di folder ini mengekspor tipe ini
 import { useAuth } from '@/app/context/AuthContext';
 import { Button } from '@/app/components/ui/Button';
-// [FASE 15.4] Hapus Input, sudah tidak dipakai
-// import { Input } from '@/app/components/ui/Input';
 import {
   ArrowLeftIcon,
-  CheckCircleIcon,
-  ClockIcon,
   Loader2Icon,
   ShieldIcon,
   SwordsIcon,
-  UserIcon,
-  UsersIcon,
   AlertTriangleIcon,
-  LinkIcon, // [FASE 15.4] Tambahkan LinkIcon
+  LinkIcon,
+  ClockIcon, // [PERBAIKAN] Tambahkan ClockIcon di sini
 } from '@/app/components/icons';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
-// [TAHAP 6] Impor komponen display war yang baru
 import CurrentWarDisplay from '@/app/components/war/CurrentWarDisplay';
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 // Tipe data gabungan yang diterima dari Server Component
-// [FASE 15.4] Gunakan tipe Serializable yang baru
 type FullMatchData = SerializableFullMatchData;
 
-// Tipe props untuk Client Component
 interface MatchDetailClientProps {
   tournament: FirestoreDocument<Tournament>;
   initialMatchData: FullMatchData;
-  // [BARU FASE 15.4] Menerima data war yang sudah di-fetch oleh server
   initialWarData: CocCurrentWar | null;
 }
 
 /**
  * @component MatchHeader
- * Menampilkan header pertandingan (Team A vs Team B).
  */
 const MatchHeader: React.FC<{
   match: FullMatchData;
   tournamentTitle: string;
-}> = ({ match, tournamentTitle }) => {
+  t: any;
+}> = ({ match, tournamentTitle, t }) => {
   const router = useRouter();
   const { team1, team2, matchId } = match;
 
@@ -67,12 +49,12 @@ const MatchHeader: React.FC<{
     <div className="mb-6">
       {/* Tombol Kembali */}
       <Button
-        variant="secondary" // [FIX 2] Ganti "outline" menjadi "secondary"
+        variant="secondary"
         onClick={() => router.back()}
         className="mb-4"
       >
         <ArrowLeftIcon className="mr-2 h-4 w-4" />
-        Kembali ke Bracket
+        {t.tournament.detail.btnBackToBracket}
       </Button>
 
       {/* Info Match */}
@@ -117,45 +99,48 @@ const MatchHeader: React.FC<{
 
 /**
  * @component MatchStatusInfo
- * Menampilkan info status, jadwal, dan ronde.
  */
-const MatchStatusInfo: React.FC<{ match: FullMatchData }> = ({ match }) => {
+const MatchStatusInfo: React.FC<{ match: FullMatchData, t: any }> = ({ match, t }) => {
   const { status, scheduledTime, round, bracket } = match;
 
   let statusText = 'Pending';
   let statusColor = 'text-gray-400';
+  
+  // [i18n] Status terjemahan
   if (status === 'completed' || status === 'reported') {
-    statusText = 'Selesai';
+    statusText = t.tournament.cardStatusCompleted;
     statusColor = 'text-green-400';
   } else if (status === 'live') {
-    statusText = 'Live';
+    statusText = t.tournament.cardStatusOngoing;
     statusColor = 'text-red-500 animate-pulse';
   } else if (status === 'scheduled') {
-    statusText = 'Terjadwal';
+    statusText = t.tournament.detail.matchScheduled;
     statusColor = 'text-blue-400';
+  } else {
+    statusText = t.tournament.match.matchPending || 'Pending';
   }
 
   return (
     <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
       <div className="rounded-lg bg-white/5 p-4">
         <p className="text-sm font-semibold uppercase text-coc-font-secondary">
-          Status
+          {t.tournament.detail.labelStatus}
         </p>
         <p className={`text-lg font-bold ${statusColor}`}>{statusText}</p>
       </div>
       <div className="rounded-lg bg-white/5 p-4">
         <p className="text-sm font-semibold uppercase text-coc-font-secondary">
-          Jadwal
+          {t.tournament.detail.labelSchedule}
         </p>
         <p className="text-lg font-bold text-coc-font-primary">
           {scheduledTime
             ? format(new Date(scheduledTime), 'dd/MM/yy - HH:mm')
-            : 'Belum Diatur'}
+            : t.tournament.detail.matchTbd}
         </p>
       </div>
       <div className="rounded-lg bg-white/5 p-4">
         <p className="text-sm font-semibold uppercase text-coc-font-secondary">
-          Bracket
+          {t.tournament.detail.labelBracket}
         </p>
         <p className="text-lg font-bold capitalize text-coc-font-primary">
           {bracket}
@@ -163,7 +148,7 @@ const MatchStatusInfo: React.FC<{ match: FullMatchData }> = ({ match }) => {
       </div>
       <div className="rounded-lg bg-white/5 p-4">
         <p className="text-sm font-semibold uppercase text-coc-font-secondary">
-          Ronde
+          {t.tournament.detail.labelRound}
         </p>
         <p className="text-lg font-bold text-coc-font-primary">{round}</p>
       </div>
@@ -173,26 +158,23 @@ const MatchStatusInfo: React.FC<{ match: FullMatchData }> = ({ match }) => {
 
 /**
  * @component TeamCheckInCard
- * [UPDATE FASE 15.4] Dirombak total.
- * TIDAK ADA LAGI LOGIKA CHECK-IN.
- * Komponen ini sekarang hanya menampilkan klan panitia (A/B) yang ditugaskan.
  */
 const TeamCheckInCard: React.FC<{
   team: FirestoreDocument<TournamentTeam> | null;
-  assignedClanTag: string | null; // Menerima tag klan yang ditugaskan
-}> = ({ team, assignedClanTag }) => {
+  assignedClanTag: string | null;
+  t: any;
+}> = ({ team, assignedClanTag, t }) => {
   if (!team) {
     return (
       <div className="rounded-lg border border-coc-border bg-coc-dark-blue p-6">
         <h3 className="mb-4 font-clash text-xl font-bold text-white">
-          Tim (BYE)
+          {t.tournament.match.byeTitle}
         </h3>
-        <p className="text-coc-font-secondary">Slot ini kosong (BYE).</p>
+        <p className="text-coc-font-secondary">{t.tournament.match.byeDesc}</p>
       </div>
     );
   }
 
-  // Helper untuk membuat link 'open in-game'
   const clanLink = assignedClanTag
     ? `https://link.clashofclans.com/en?action=OpenClanProfile&tag=${assignedClanTag.replace(
         '#',
@@ -214,7 +196,7 @@ const TeamCheckInCard: React.FC<{
             {team.teamName}
           </h3>
           <p className="text-sm text-coc-font-secondary">
-            Leader: {team.leaderUid.substring(0, 6)}...
+            {t.clanEsports.leaderLabel} {team.leaderUid.substring(0, 6)}...
           </p>
         </div>
       </div>
@@ -222,7 +204,7 @@ const TeamCheckInCard: React.FC<{
       {/* Daftar Anggota Tim */}
       <div className="mb-4">
         <h4 className="mb-2 text-sm font-semibold uppercase text-coc-font-secondary">
-          Anggota Tim
+          {t.tournament.match.membersTitle}
         </h4>
         <ul className="space-y-2">
           {team.members.map((member) => (
@@ -242,16 +224,15 @@ const TeamCheckInCard: React.FC<{
         </ul>
       </div>
 
-      {/* [ROMBAK FASE 15.4] Panel Penugasan Klan (Bukan Check-in) */}
+      {/* Panel Penugasan Klan */}
       <div>
         <h4 className="mb-2 text-sm font-semibold uppercase text-coc-font-secondary">
-          Penugasan Klan Tanding
+          {t.tournament.match.assignmentTitle}
         </h4>
         {assignedClanTag ? (
-          // KLAN SUDAH DITUGASKAN
           <div className="flex flex-col gap-3 rounded-lg border border-blue-700 bg-blue-900/30 p-4">
             <p className="text-sm text-blue-200">
-              Tim Anda ditugaskan untuk bertanding di klan panitia berikut:
+              {t.tournament.match.assignmentDesc}
             </p>
             <p className="font-mono text-xl font-bold text-white">
               {assignedClanTag}
@@ -260,22 +241,20 @@ const TeamCheckInCard: React.FC<{
               href={clanLink}
               variant="secondary"
               size="sm"
-              target="_blank" // Buka di tab baru
+              target="_blank"
             >
               <LinkIcon className="mr-2 h-4 w-4" />
-              Buka Profil Klan
+              {t.tournament.match.btnOpenClan}
             </Button>
             <p className="text-xs text-blue-300">
-              Harap segera masuk ke klan tersebut 1 jam sebelum jadwal
-              pertandingan.
+              {t.tournament.match.assignmentNote}
             </p>
           </div>
         ) : (
-          // KLAN BELUM DITUGASKAN (Seharusnya tidak terjadi jika bracket sudah ada)
           <div className="flex items-center space-x-2 rounded-lg border border-yellow-700 bg-yellow-900/30 p-4">
             <AlertTriangleIcon className="h-6 w-6 flex-shrink-0 text-yellow-400" />
             <p className="text-sm font-semibold text-yellow-300">
-              Klan tanding belum ditugaskan oleh panitia.
+              {t.tournament.match.assignmentWaiting}
             </p>
           </div>
         )}
@@ -284,145 +263,115 @@ const TeamCheckInCard: React.FC<{
   );
 };
 
-// --- [ROMBAK FASE 15.4] ---
 /**
  * @component LiveWarTracker
- * Komponen diubah menjadi "dumb component".
- * TIDAK ADA LAGI POLLING. Hanya menerima data dari server.
  */
 const LiveWarTracker: React.FC<{
   match: FullMatchData;
-  initialWarData: CocCurrentWar | null; // Menerima data dari server
-}> = ({ match, initialWarData }) => {
-  // Data war didapat dari props, tidak perlu state polling
+  initialWarData: CocCurrentWar | null;
+  t: any;
+}> = ({ match, initialWarData, t }) => {
   const [warData] = useState(initialWarData);
-  // Status loading di-set false karena data sudah ada atau memang null
   const [isLoading] = useState(false);
-  // Set error HANYA jika war belum dimulai
   const [error] = useState(
     !initialWarData && match.status !== 'pending' && match.status !== 'scheduled'
-      ? 'Menunggu Friendly War dimulai oleh panitia...'
+      ? t.tournament.match.waitingLive
       : null,
   );
 
-  // Tampilan Loading (sekarang tidak terpakai, tapi kita simpan)
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-coc-border p-8 text-center">
         <Loader2Icon className="h-10 w-10 animate-spin text-coc-gold" />
-        <p className="mt-2 text-coc-font-secondary">Memuat Live War...</p>
+        <p className="mt-2 text-coc-font-secondary">{t.tournament.match.loadingLive}</p>
       </div>
     );
   }
 
-  // Tampilan Error atau Menunggu
   if (error && !warData) {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-yellow-700 bg-yellow-900/30 p-8 text-center">
         <AlertTriangleIcon className="h-10 w-10 text-yellow-400" />
         <p className="mt-2 font-semibold text-yellow-300">{error}</p>
         <p className="text-sm text-yellow-500">
-          Panitia akan memulai war sesuai jadwal.
+          {t.tournament.match.waitingDesc}
         </p>
       </div>
     );
   }
 
-  // Tampilan Sukses: Tampilkan Komponen Live War
   if (warData && match.team1AssignedClanTag) {
     return (
       <CurrentWarDisplay
         currentWar={warData}
-        // Tampilkan Klan A sebagai "Klan Kita"
         ourClanTag={match.team1AssignedClanTag}
       />
     );
   }
 
-  // Fallback jika match masih 'pending' atau 'scheduled'
   return (
     <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-coc-border p-8 text-center">
       <ClockIcon className="h-10 w-10 text-coc-font-secondary" />
       <p className="mt-2 text-lg text-coc-font-primary">
-        Pertandingan Belum Dimulai
+        {t.tournament.match.notStartedTitle}
       </p>
       <p className="text-sm text-coc-font-secondary">
-        Live war akan tampil di sini saat panitia telah memulai pertandingan.
+        {t.tournament.match.notStartedDesc}
       </p>
     </div>
   );
 };
-// --- [AKHIR ROMBAK FASE 15.4] ---
 
 /**
  * @component MatchDetailClient
- * Komponen Client utama yang menggabungkan semua bagian.
  */
 const MatchDetailClient: React.FC<MatchDetailClientProps> = ({
   tournament,
   initialMatchData,
-  initialWarData, // [BARU FASE 15.4] Terima data war
+  initialWarData,
 }) => {
-  // [ROMBAK FASE 15.4] State hanya untuk data match (jika ada update check-in)
-  // Data 'liveWar' sekarang statis dari props 'initialWarData'.
-  const [matchData, setMatchData] = useState<FullMatchData>(initialMatchData);
+  const { t } = useLanguage(); // Init Hook
+  const [matchData] = useState<FullMatchData>(initialMatchData);
 
-  // [ROMBAK FASE 15.4] Fungsi ini tidak lagi relevan karena check-in dihapus
-  // const handleCheckInSuccess = (updatedMatch: FullMatchData) => {
-  //   setMatchData((prev) => ({ ...prev, ...updatedMatch })); // Gabungkan data
-  // };
-
-  // [ROMBAK FASE 15.4] Fungsi ini tidak lagi relevan karena polling dihapus
-  // const handleSetLive = (liveWar: CocCurrentWar) => {
-  //   setMatchData((prevData) => ({
-  //     ...prevData,
-  //     status: 'live',
-  //     liveWarData: liveWar,
-  //   }));
-  // };
-
-  // [ROMBAK FASE 15.4] Logika 'allCheckedIn' tidak relevan lagi
-  // const allCheckedIn = !!matchData.team1ClanTag && !!matchData.team2ClanTag;
   const isLiveOrScheduled =
     matchData.status === 'live' ||
     matchData.status === 'scheduled' ||
-    // [PERBAIKAN FASE 16.3] Ganti 'ongoing' (typo) menjadi 'live'
-    // matchData.status === 'ongoing' || // <-- [FIX] Ini adalah typo (Error 1)
     matchData.status === 'reported' ||
     matchData.status === 'completed';
 
   return (
     <div className="space-y-6">
-      {/* 1. Header (Tim vs Tim) */}
-      <MatchHeader match={matchData} tournamentTitle={tournament.title} />
+      {/* 1. Header */}
+      <MatchHeader match={matchData} tournamentTitle={tournament.title} t={t} />
 
-      {/* 2. Info Status, Jadwal, Ronde */}
-      <MatchStatusInfo match={matchData} />
+      {/* 2. Info Status */}
+      <MatchStatusInfo match={matchData} t={t} />
 
-      {/* 3. Panel Live War (Logika disederhanakan) */}
+      {/* 3. Panel Live War */}
       {isLiveOrScheduled ? (
         <section className="rounded-lg border-2 border-coc-gold/50 bg-coc-dark-blue p-6 shadow-lg">
           <h2 className="mb-4 font-clash text-3xl font-bold text-coc-gold">
-            Live War
+            {t.tournament.match.liveWarTitle}
           </h2>
-          {/* [ROMBAK FASE 15.4] Kirim 'initialWarData' ke tracker "dumb" */}
           <LiveWarTracker
             match={matchData}
             initialWarData={initialWarData}
+            t={t}
           />
         </section>
       ) : null}
 
-      {/* 4. Panel Penugasan Klan (Bukan Check-in) */}
+      {/* 4. Panel Penugasan Klan */}
       <section className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {/* [ROMBAK FASE 15.4] Kirim prop 'assignedClanTag' */}
         <TeamCheckInCard
           team={matchData.team1}
           assignedClanTag={matchData.team1AssignedClanTag}
+          t={t}
         />
         <TeamCheckInCard
           team={matchData.team2}
           assignedClanTag={matchData.team2AssignedClanTag}
+          t={t}
         />
       </section>
     </div>

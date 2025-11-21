@@ -1,6 +1,3 @@
-// File: app/tournament/[tournamentId]/manage/components/SettingsManager.tsx
-// Deskripsi: [BARU FASE 15.2] Komponen UI untuk form pengaturan klan panitia.
-
 'use client';
 
 import React, { useState } from 'react';
@@ -14,6 +11,7 @@ import {
   getInputClasses,
 } from '@/app/knowledge-hub/components/form/PostFormGroup';
 import { Loader2Icon, ShieldIcon } from '@/app/components/icons';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook i18n
 
 interface SettingsManagerProps {
   tournament: FirestoreDocument<Tournament>;
@@ -24,6 +22,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
   tournament,
   onSettingsSaved,
 }) => {
+  const { t } = useLanguage(); // [BARU] Init Hook
   const [clanATag, setClanATag] = useState(tournament.panitiaClanA_Tag || '');
   const [clanBTag, setClanBTag] = useState(tournament.panitiaClanB_Tag || '');
   const [isLoading, setIsLoading] = useState(false);
@@ -44,12 +43,12 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
 
     // Validasi dasar
     if (!clanATag.startsWith('#') || !clanBTag.startsWith('#')) {
-      showNotification('Format Tag Klan tidak valid. Harus diawali #.', 'error');
+      showNotification(t.tournamentManage.settings.errFormat, 'error'); // [i18n]
       setIsLoading(false);
       return;
     }
     if (clanATag === clanBTag) {
-      showNotification('Tag Klan A dan B tidak boleh sama.', 'error');
+      showNotification(t.tournamentManage.settings.errSame, 'error'); // [i18n]
       setIsLoading(false);
       return;
     }
@@ -69,11 +68,11 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
 
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.error || 'Gagal menyimpan pengaturan.');
+        throw new Error(result.error || t.tournamentManage.settings.errSave); // [i18n]
       }
 
-      showNotification(result.message, 'success');
-      onSettingsSaved(); // Memberi tahu parent (ManageTournamentClient) untuk refresh data
+      showNotification(result.message || t.tournamentManage.toastSuccess, 'success');
+      onSettingsSaved();
     } catch (error: any) {
       showNotification(error.message, 'error');
     } finally {
@@ -84,20 +83,18 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
   return (
     <div className="space-y-6">
       <Notification notification={notification ?? undefined} />
-      <h3 className="font-clash text-xl text-white">Pengaturan Klan Panitia</h3>
+      <h3 className="font-clash text-xl text-white">{t.tournamentManage.settings.title}</h3> {/* [i18n] */}
       <p className="text-gray-400 font-sans -mt-4">
-        Ini adalah 2 klan yang Anda (panitia) kontrol penuh. Semua pertandingan
-        akan diselenggarakan di dalam 2 klan ini agar website dapat
-        menarik data live war.
+        {t.tournamentManage.settings.desc} {/* [i18n] */}
       </p>
 
       <form onSubmit={handleSubmit} className="max-w-lg space-y-4">
         <FormGroup
-          label="Tag Klan A Panitia"
+          label={t.tournamentManage.settings.labelClanA} // [i18n]
           htmlFor="clanATag"
           error={
             clanATag && !clanATag.startsWith('#')
-              ? 'Tag harus diawali #'
+              ? t.tournamentManage.settings.errFormat // [i18n]
               : undefined
           }
         >
@@ -116,11 +113,11 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
         </FormGroup>
 
         <FormGroup
-          label="Tag Klan B Panitia"
+          label={t.tournamentManage.settings.labelClanB} // [i18n]
           htmlFor="clanBTag"
           error={
             clanBTag && !clanBTag.startsWith('#')
-              ? 'Tag harus diawali #'
+              ? t.tournamentManage.settings.errFormat // [i18n]
               : undefined
           }
         >
@@ -145,7 +142,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
             ) : (
               <ShieldIcon className="h-5 w-5 mr-2" />
             )}
-            {isLoading ? 'Menyimpan...' : 'Simpan Pengaturan Klan'}
+            {isLoading ? t.tournamentManage.settings.btnSaving : t.tournamentManage.settings.btnSave} {/* [i18n] */}
           </Button>
         </div>
       </form>

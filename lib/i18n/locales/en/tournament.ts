@@ -1,0 +1,91 @@
+import { TournamentSection } from '../../sections/tournament';
+
+export const tournament: TournamentSection = {
+  pageTitle: 'Tournaments & Leagues',
+  pageDesc: 'Join competitive tournaments, win prizes, and rank up your clan.',
+  metaTitle: 'Clashub | Tournaments & Leagues',
+  metaDesc: 'View upcoming and ongoing Clash of Clans tournaments and competitive league standings.',
+  
+  filterSearchPlaceholder: 'Search tournaments...',
+  filterStatusLabel: 'Tournament Status',
+  filterStatusAll: 'All Status',
+  filterStatusUpcoming: 'Upcoming',
+  filterStatusOngoing: 'Ongoing',
+  filterStatusCompleted: 'Completed',
+  
+  cardPrize: 'Prize Pool',
+  cardSlots: 'Team Slots',
+  cardTeamSize: 'Format',
+  cardStatusDraft: 'Draft',
+  cardStatusRegistering: 'Registration Open',
+  cardStatusOngoing: 'Ongoing',
+  cardStatusCompleted: 'Completed',
+  cardStatusCancelled: 'Cancelled',
+  btnDetail: 'View Details',
+  
+  noTournaments: 'No Tournaments Found',
+  noTournamentsDesc: 'There are no tournaments matching your current search filters.',
+  errorTitle: 'Failed to Load Tournaments',
+  errorDesc: 'An error occurred while fetching tournament data. Please check your connection and try again.',
+  btnTryAgain: 'Try Again',
+
+  detail: {
+    manageBtn: 'Manage Tournament',
+    regClosedBtn: 'Registration Closed',
+    regNotOpenBtn: 'Registration Not Open',
+    endedBtn: 'Tournament Ended/Ongoing',
+    loginBtn: 'Login to Register',
+    verifyBtn: 'Verify Player Tag to Register',
+    registerBtn: 'Register Now',
+    loadingBtn: 'Loading...',
+    
+    infoStarts: 'Tournament Starts',
+    infoFormat: 'Format',
+    infoTh: 'Town Hall Requirements',
+    infoParticipants: 'Participants',
+    infoOrganizer: 'Organizer',
+    infoRegStart: 'Registration Opens',
+    infoRegEnd: 'Registration Closes',
+    
+    descTitle: 'Tournament Description',
+    rulesTitle: 'Rules',
+    
+    bracketUpper: 'Upper Bracket',
+    bracketLower: 'Lower Bracket',
+    roundPrefix: 'Round',
+    bracketLoading: 'Loading bracket data...',
+    bracketError: 'Failed to load bracket',
+    bracketEmpty: 'Tournament bracket has not been generated yet.',
+    bracketEmptyDesc: 'Please check back after registration closes.',
+    
+    thUniform: 'Uniform TH',
+    thMixed: 'Mixed: TH',
+    matchScheduled: 'Scheduled',
+
+    btnBackToBracket: 'Back to Bracket',
+    labelStatus: 'Status',
+    labelSchedule: 'Schedule',
+    labelBracket: 'Bracket',
+    labelRound: 'Round',
+    matchTbd: 'TBD',
+  },
+
+  match: {
+    matchPending: 'Pending',
+    byeTitle: 'Team (BYE)',
+    byeDesc: 'This slot is empty (BYE).',
+    membersTitle: 'Team Members',
+    assignmentTitle: 'Assigned Clan',
+    assignmentDesc: 'Your team is assigned to match in the following committee clan:',
+    btnOpenClan: 'Open Clan Profile',
+    assignmentNote: 'Please join this clan 1 hour before the scheduled match time.',
+    assignmentWaiting: 'Match clan has not been assigned by the committee yet.',
+    
+    liveWarTitle: 'Live War',
+    waitingLive: 'Waiting for Friendly War to be started by the committee...',
+    loadingLive: 'Loading Live War...',
+    waitingDesc: 'The committee will start the war according to schedule.',
+    notStartedTitle: 'Match Has Not Started',
+    notStartedDesc: 'Live war will appear here once the committee starts the match.',
+  },
+};

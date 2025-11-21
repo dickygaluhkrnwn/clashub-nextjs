@@ -1,8 +1,5 @@
 'use client';
 
-// File: app/tournament/[tournamentId]/manage/ScheduleManager.tsx
-// Deskripsi: [FASE 6 DIEDIT] Komponen untuk mengatur jadwal DAN melaporkan pemenang.
-
 import React, { useState, useEffect } from 'react';
 import {
   FirestoreDocument,
@@ -19,18 +16,18 @@ import {
   InfoIcon,
   CalendarCheck2Icon,
   SaveIcon,
-  ShieldIcon, // Untuk 'BYE'
-  TrophyIcon, // [FASE 6] Ikon untuk tombol lapor pemenang
-  CheckCircleIcon, // [FASE 6] Ikon untuk status selesai
+  ShieldIcon,
+  TrophyIcon,
+  CheckCircleIcon,
 } from '@/app/components/icons';
 import Image from 'next/image';
-import { Input } from '@/app/components/ui/Input'; // Kita pakai input standar
+import { Input } from '@/app/components/ui/Input';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook i18n
 
 interface ScheduleManagerProps {
   tournament: FirestoreDocument<Tournament>;
 }
 
-// Tipe data gabungan untuk menampilkan info tim di match
 type FullMatchData = FirestoreDocument<TournamentMatch> & {
   team1: FirestoreDocument<TournamentTeam> | null;
   team2: FirestoreDocument<TournamentTeam> | null;
@@ -53,22 +50,19 @@ const MatchRow: React.FC<{
   tournamentId: string;
   onAction: (message: string, type: 'success' | 'error' | 'info') => void;
   onRefresh: () => void;
-}> = ({ match, tournamentId, onAction, onRefresh }) => {
+  t: any; // [BARU] Props translation
+}> = ({ match, tournamentId, onAction, onRefresh, t }) => {
   const [schedule, setSchedule] = useState<string>(
     match.scheduledTime ? formatDateForInput(new Date(match.scheduledTime)) : '',
   );
   const [isScheduleLoading, setIsScheduleLoading] = useState(false);
-  
-  // --- [BARU FASE 6] ---
   const [isReporting, setIsReporting] = useState(false);
-  const [reportError, setReportError] = useState<string | null>(null);
-  // --- [AKHIR BARU FASE 6] ---
 
   const handleSaveSchedule = async () => {
     if (!schedule || match.status !== 'pending') return;
 
     setIsScheduleLoading(true);
-    onAction(`Menyimpan jadwal untuk Match ${match.matchId}...`, 'info');
+    onAction(t.tournamentManage.schedule.toastSaving.replace('{id}', match.matchId), 'info'); // [i18n]
 
     try {
       const response = await fetch(
@@ -82,8 +76,8 @@ const MatchRow: React.FC<{
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
 
-      onAction(result.message, 'success');
-      onRefresh(); // Refresh daftar match
+      onAction(result.message || t.common.success, 'success');
+      onRefresh();
     } catch (error: any) {
       onAction(error.message, 'error');
     } finally {
@@ -91,15 +85,9 @@ const MatchRow: React.FC<{
     }
   };
 
-  // --- [BARU FASE 6] ---
-  /**
-   * @function handleReportWinner
-   * @description Memanggil API untuk melaporkan pemenang match.
-   */
   const handleReportWinner = async (winnerTeamId: string) => {
     setIsReporting(true);
-    setReportError(null);
-    onAction(`Melaporkan pemenang untuk Match ${match.matchId}...`, 'info');
+    onAction(t.tournamentManage.schedule.toastReporting.replace('{id}', match.matchId), 'info'); // [i18n]
 
     try {
       const response = await fetch(
@@ -111,19 +99,16 @@ const MatchRow: React.FC<{
         },
       );
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Gagal melaporkan pemenang.');
+      if (!response.ok) throw new Error(result.error || t.common.error);
 
-      onAction(result.message, 'success');
-      onRefresh(); // Refresh daftar match untuk update bracket
+      onAction(result.message || t.common.success, 'success');
+      onRefresh();
     } catch (error: any) {
-      setReportError(error.message);
       onAction(error.message, 'error');
     } finally {
       setIsReporting(false);
     }
   };
-  // --- [AKHIR BARU FASE 6] ---
-
 
   // Tampilkan Tim 1
   const TeamDisplay: React.FC<{ team: FirestoreDocument<TournamentTeam> | null }> = ({
@@ -133,7 +118,9 @@ const MatchRow: React.FC<{
       return (
         <div className="flex items-center gap-2 flex-1">
           <ShieldIcon className="h-8 w-8 text-gray-600" />
-          <p className="text-sm font-semibold text-gray-500 italic">BYE / TBD</p>
+          <p className="text-sm font-semibold text-gray-500 italic">
+            {t.tournamentManage.schedule.byeTbd} {/* [i18n] */}
+          </p>
         </div>
       );
     }
@@ -153,8 +140,6 @@ const MatchRow: React.FC<{
     );
   };
 
-  // --- [EDIT FASE 6] ---
-  // Menentukan status pemenang untuk tampilan
   const winnerId = match.winnerTeamRef?.id;
   const team1Id = match.team1?.id;
   const team2Id = match.team2?.id;
@@ -164,7 +149,6 @@ const MatchRow: React.FC<{
       : winnerId === team2Id
         ? match.team2?.teamName
         : null;
-  // --- [AKHIR EDIT FASE 6] ---
 
   return (
     <li className="flex flex-col md:flex-row items-center p-4 gap-3 bg-coc-dark/40">
@@ -178,9 +162,7 @@ const MatchRow: React.FC<{
         <TeamDisplay team={match.team2} />
       </div>
 
-      {/* --- [ROMBAK TOTAL FASE 6] ---
-        Logika Aksi (Input Jadwal ATAU Lapor Pemenang) 
-      */}
+      {/* Logika Aksi */}
       <div className="w-full md:w-auto flex-shrink-0 flex items-center gap-2 justify-end" style={{minWidth: '220px'}}>
         
         {/* 1. Status: PENDING (Set Jadwal) */}
@@ -226,7 +208,9 @@ const MatchRow: React.FC<{
                 ) : (
                   <TrophyIcon className="h-4 w-4 text-coc-gold" />
                 )}
-                <span className="ml-2 truncate">Set {match.team1.teamName} Wins</span>
+                <span className="ml-2 truncate">
+                  {t.tournamentManage.schedule.setWinner.replace('{team}', match.team1.teamName)} {/* [i18n] */}
+                </span>
               </Button>
               <Button
                 variant="secondary"
@@ -240,7 +224,9 @@ const MatchRow: React.FC<{
                 ) : (
                   <TrophyIcon className="h-4 w-4 text-coc-gold" />
                 )}
-                <span className="ml-2 truncate">Set {match.team2.teamName} Wins</span>
+                <span className="ml-2 truncate">
+                  {t.tournamentManage.schedule.setWinner.replace('{team}', match.team2.teamName)} {/* [i18n] */}
+                </span>
               </Button>
             </div>
           )}
@@ -250,39 +236,37 @@ const MatchRow: React.FC<{
            <div className="flex items-center gap-2 text-green-400">
              <CheckCircleIcon className="h-5 w-5" />
              <p className="text-sm font-semibold">
-               Pemenang: {winnerName || 'N/A'}
+               {t.tournamentManage.schedule.winnerLabel.replace('{team}', winnerName || 'N/A')} {/* [i18n] */}
              </p>
            </div>
         )}
 
-        {/* 4. Fallback (Misal: BYE match atau status aneh) */}
+        {/* 4. Fallback */}
         {match.status !== 'pending' &&
-         !(match.status === 'scheduled' || match.status === 'live') &&
-         !(match.status === 'completed' || match.status === 'reported') &&
-         (
+          !(match.status === 'scheduled' || match.status === 'live') &&
+          !(match.status === 'completed' || match.status === 'reported') &&
+          (
           <div className="text-right">
              <p className="text-sm font-semibold text-gray-400 capitalize">
-               Status: {match.status}
+               {t.tournamentManage.schedule.statusLabel.replace('{status}', match.status)} {/* [i18n] */}
              </p>
            </div>
-         )
+          )
         }
         
       </div>
-      {/* --- [AKHIR ROMBAK FASE 6] --- */}
-
     </li>
   );
 };
 
 // Komponen Utama
 const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tournament }) => {
+  const { t } = useLanguage(); // [BARU] Init Hook
   const [matches, setMatches] = useState<FullMatchData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [notification, setNotification] =
     useState<NotificationProps | null>(null);
 
-  // Fungsi untuk menampilkan notifikasi
   const showNotification = (
     message: string,
     type: 'success' | 'error' | 'info',
@@ -290,18 +274,16 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tournament }) => {
     setNotification({ message, type, onClose: () => setNotification(null) });
   };
 
-  // Fungsi untuk Fetch Daftar Match
   const fetchMatches = async () => {
     setIsLoading(true);
     try {
-      // Panggil API route yang sudah kita buat
       const response = await fetch(
         `/api/tournaments/${tournament.id}/manage/matches`,
       );
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Gagal mengambil daftar match.');
+        throw new Error(result.error || t.common.error);
       }
 
       setMatches(result.matches || []);
@@ -313,24 +295,21 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tournament }) => {
     }
   };
 
-  // useEffect untuk fetch data saat komponen dimuat
   useEffect(() => {
-    // Hanya fetch jika status turnamen sudah 'ongoing'
     if (tournament.status === 'ongoing' || tournament.status === 'completed') {
       fetchMatches();
     } else {
-      setIsLoading(false); // Jangan loading jika bracket belum dibuat
+      setIsLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tournament.id, tournament.status]);
 
-  // Jangan render apapun jika bracket belum dibuat
   if (
     tournament.status === 'draft' ||
     tournament.status === 'registration_open' ||
     tournament.status === 'registration_closed'
   ) {
-    return null; // Komponen ini hanya aktif setelah bracket dibuat
+    return null;
   }
 
   return (
@@ -340,7 +319,7 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tournament }) => {
       <div className="flex items-center gap-3">
         <CalendarCheck2Icon className="h-6 w-6 text-coc-gold" />
         <h3 className="font-clash text-xl text-white">
-          Manajemen Jadwal & Hasil Pertandingan
+          {t.tournamentManage.schedule.title} {/* [i18n] */}
         </h3>
       </div>
 
@@ -352,13 +331,13 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tournament }) => {
         <div className="card-stone flex flex-col items-center justify-center gap-4 p-10 text-center rounded-lg border border-coc-gold-dark/20">
           <InfoIcon className="h-12 w-12 text-coc-gold/50" />
           <h3 className="font-clash text-xl text-white">
-            Data Match Tidak Ditemukan
+            {t.tournamentManage.schedule.emptyTitle} {/* [i18n] */}
           </h3>
           <p className="text-gray-400 max-w-md">
-            Data match untuk turnamen ini belum ada atau gagal dimuat.
+            {t.tournamentManage.schedule.emptyDesc} {/* [i18n] */}
           </p>
           <Button variant="secondary" size="sm" onClick={fetchMatches} className="mt-3">
-            Coba Muat Ulang
+            {t.tournamentManage.schedule.btnRetry} {/* [i18n] */}
           </Button>
         </div>
       ) : (
@@ -371,6 +350,7 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tournament }) => {
                 tournamentId={tournament.id}
                 onAction={showNotification}
                 onRefresh={fetchMatches}
+                t={t} // [BARU]
               />
             ))}
           </ul>

@@ -48,6 +48,9 @@ import {
   ClanAISection,
 } from './sections/management';
 
+import { TournamentSection } from './sections/tournament';
+import { TournamentManageSection } from './sections/tournament-manage';
+
 export type Language = 'id' | 'en';
 
 /**
@@ -90,23 +93,17 @@ export interface Translation {
 
   // --- Clan Management Dashboard ---
   clanManage: ClanManageSection;
-  
-  // Batch A: Members
   clanMembers: ClanMembersSection;
   clanRequests: ClanRequestsSection;
-
-  // Batch B: War & CWL
   clanWar: ClanWarSection;
   clanCwl: ClanCwlSection;
-
-  // Batch C: Esports
   clanEsports: ClanEsportsSection;
-
-  // Batch D: Raid, Promotions, Marketing
   clanRaid: ClanRaidSection;
-  clanPromotions: ClanPromotionsSection; // Member Promotions (Rank)
-  clanBanners: ClanBannersSection; // Marketing Banners
-
-  // Batch E: AI
+  clanPromotions: ClanPromotionsSection;
+  clanBanners: ClanBannersSection;
   clanAI: ClanAISection;
+
+  // --- Tournament System ---
+  tournament: TournamentSection;
+  tournamentManage: TournamentManageSection;
 }

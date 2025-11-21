@@ -25,7 +25,6 @@ export type PostCardProps = {
   author: string;
   stats: string;
   href: string;
-  // [NOTE] stats is pre-formatted string, might need refactor later for full i18n
 };
 
 export type TournamentCardProps = {
@@ -46,49 +45,50 @@ export type PlayerCardProps = {
   avatarUrl?: string;
 };
 
-// Helper untuk status dan styling turnamen (Sekarang menerima 't')
+// Helper untuk status dan styling turnamen (Dipindahkan ke dalam komponen atau terima 't')
+// Sekarang menerima fungsi 't' untuk terjemahan
 const getTournamentStatusUI = (status: Tournament['status'], t: any) => {
   switch (status) {
     case 'scheduled':
       return {
-        text: t.cards.statusScheduled,
+        text: t.tournament.cardStatusDraft, // Menggunakan key draft sementara atau buat key baru 'scheduled' jika perlu
         badge: 'bg-cyan-600/20 text-cyan-300',
         border: 'border-cyan-500',
       };
     case 'registration_open':
       return {
-        text: t.cards.statusRegOpen,
+        text: t.tournament.cardStatusRegistering,
         badge: 'bg-green-600/20 text-green-300',
         border: 'border-green-500',
       };
     case 'registration_closed':
       return {
-        text: t.cards.statusRegClosed,
+        text: t.cards.statusRegClosed, // [i18n]
         badge: 'bg-yellow-600/20 text-yellow-300',
         border: 'border-yellow-500',
       };
     case 'ongoing':
       return {
-        text: t.cards.statusOngoing,
+        text: t.tournament.cardStatusOngoing,
         badge: 'bg-blue-600/20 text-blue-300 animate-pulse',
         border: 'border-blue-500',
       };
     case 'completed':
       return {
-        text: t.cards.statusCompleted,
+        text: t.tournament.cardStatusCompleted,
         badge: 'bg-purple-600/20 text-purple-300',
         border: 'border-purple-500',
       };
     case 'cancelled':
       return {
-        text: t.cards.statusCancelled,
+        text: t.tournament.cardStatusCancelled,
         badge: 'bg-red-600/20 text-red-300',
         border: 'border-red-500',
       };
     case 'draft':
     default:
       return {
-        text: t.cards.statusDraft,
+        text: t.tournament.cardStatusDraft,
         badge: 'bg-gray-600/20 text-gray-300',
         border: 'border-gray-500',
       };
@@ -105,8 +105,13 @@ export const TeamCard = ({
   avgTh,
   logoUrl = '/images/clan-badge-placeholder.png',
 }: TeamCardProps) => {
-  const { t } = useLanguage(); // [BARU]
-  const isCompetitive = vision === 'Kompetitif';
+  const { t, language } = useLanguage(); // [BARU]
+  const locale = language === 'id' ? 'id-ID' : 'en-US';
+  
+  // [i18n] Gunakan terjemahan untuk Visi
+  const isCompetitive = vision === 'Kompetitif'; 
+  // Jika data backend masih string statis Indonesia, kita mapping manual atau biarkan dulu
+  const displayVision = isCompetitive ? t.clanHub.visionCompetitive : t.clanHub.visionCasual;
 
   return (
     <div className="card-stone flex flex-col justify-between h-full p-5 transition-transform hover:scale-[1.02] duration-300">
@@ -134,7 +139,6 @@ export const TeamCard = ({
         </div>
         <div className="space-y-3 pt-4">
           <div className="flex justify-between items-center">
-            {/* [TERJEMAHAN] */}
             <span className="text-sm font-bold text-gray-300">{t.cards.vision}</span>
             <span
               className={`px-3 py-1 text-xs font-bold rounded-full ${
@@ -143,21 +147,19 @@ export const TeamCard = ({
                   : 'bg-coc-green text-coc-stone'
               }`}
             >
-              {vision}
+              {displayVision}
             </span>
           </div>
           <div className="flex justify-between items-center">
-            {/* [TERJEMAHAN] */}
             <span className="text-sm font-bold text-gray-300">{t.cards.avgTh}</span>
             <p className="text-base font-clash text-white">
-              {avgTh.toFixed(1)}
+              {avgTh.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
             </p>
           </div>
         </div>
       </div>
       <Link href={`/clan/internal/${id}`} className="mt-5">
         <Button variant="secondary" className="w-full justify-center">
-          {/* [TERJEMAHAN] */}
           {t.cards.viewClan}
         </Button>
       </Link>
@@ -194,7 +196,6 @@ export const PostCard = ({
         </div>
         <div className="mt-auto pt-3 border-t border-coc-stone-light/30 text-xs text-gray-400 font-sans">
           <p>
-            {/* [TERJEMAHAN] */}
             {t.cards.by} <span className="font-bold text-coc-gold-dark">{author}</span>
           </p>
           <p>{stats}</p>
@@ -213,8 +214,10 @@ export const TournamentCard = ({
   prizePool,
 }: TournamentCardProps) => {
   const { t } = useLanguage(); // [BARU]
+  
+  // Panggil helper dengan 't'
   const { text: statusText, badge: badgeClass, border: borderClass } =
-    getTournamentStatusUI(status, t); // Pass 't' helper
+    getTournamentStatusUI(status, t); 
 
   return (
     <div
@@ -226,11 +229,9 @@ export const TournamentCard = ({
         </h4>
         <div className="text-sm text-gray-300 space-y-1 mt-2 font-sans">
           <p>
-            {/* [TERJEMAHAN] */}
             {t.cards.requirements} <span className="font-bold text-white">{thRequirement}</span>
           </p>
           <p>
-            {/* [TERJEMAHAN] */}
             {t.cards.prizePool} <span className="font-bold text-coc-gold">{prizePool}</span>
           </p>
         </div>
@@ -242,8 +243,7 @@ export const TournamentCard = ({
           {statusText}
         </span>
         <Button href={`/tournament/${id}`} variant="secondary" className="w-full sm:w-auto">
-          {/* [TERJEMAHAN] */}
-          {t.cards.viewDetails}
+          {t.tournament.btnDetail} {/* [i18n] */}
         </Button>
       </div>
     </div>
@@ -260,7 +260,8 @@ export const PlayerCard = ({
   role,
   avatarUrl = '/images/placeholder-avatar.png',
 }: PlayerCardProps) => {
-  const { t } = useLanguage(); // [BARU]
+  const { t, language } = useLanguage(); // [BARU]
+  const locale = language === 'id' ? 'id-ID' : 'en-US';
 
   const roleColors: { [key: string]: string } = {
     Leader: 'bg-coc-gold text-coc-stone',

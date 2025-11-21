@@ -1,23 +1,20 @@
-// File: app/tournament/[tournamentId]/page.tsx
-// Deskripsi: Halaman Server Component untuk menampilkan detail satu turnamen.
-// (Sesuai Peta Pengembangan - Tahap 4, Poin 1)
-
 import { notFound } from 'next/navigation';
 import { Metadata, ResolvingMetadata } from 'next';
-import {
-  getTournamentByIdAdmin,
-} from '@/lib/firestore-admin/tournaments';
-import { Tournament, FirestoreDocument } from '@/lib/types';
-// [PERBAIKAN] Uncomment impor TournamentDetailClient
+import { getTournamentByIdAdmin } from '@/lib/firestore-admin/tournaments';
+// [PERBAIKAN] Gunakan clashub.types agar konsisten dengan modul lain
+import { Tournament, FirestoreDocument } from '@/lib/clashub.types';
 import TournamentDetailClient from './TournamentDetailClient';
 
-// --- [BARU] Tipe untuk Props Halaman Dinamis ---
+// --- Tipe untuk Props Halaman Dinamis ---
 type TournamentPageProps = {
   params: { tournamentId: string };
 };
 
-// --- [BARU] Fungsi generateMetadata (Server Component) ---
-// Ini akan mengambil data turnamen dan mengatur judul <head> HTML
+// --- Konfigurasi Cache (ISR) ---
+// Revalidate data setiap 60 detik
+export const revalidate = 60;
+
+// --- Fungsi generateMetadata (Server Component) ---
 export async function generateMetadata(
   { params }: TournamentPageProps,
   parent: ResolvingMetadata,
@@ -26,50 +23,37 @@ export async function generateMetadata(
   const tournament = await getTournamentByIdAdmin(tournamentId);
 
   if (!tournament) {
-    // Jika tidak ditemukan, kita tidak set metadata khusus
     return {
       title: 'Clashub | Turnamen Tidak Ditemukan',
     };
   }
 
-  // Jika ditemukan, set judul halaman secara dinamis
   return {
     title: `Clashub | ${tournament.title}`,
-    description: `Lihat detail, aturan, dan daftar peserta untuk ${tournament.title}.`,
-    // TODO: Kita bisa tambahkan openGraph image menggunakan tournament.bannerUrl di sini
-    // openGraph: {
-    //   images: [tournament.bannerUrl],
-    // },
+    description: `Lihat detail, aturan, dan daftar peserta untuk ${tournament.title}. Total Hadiah: ${tournament.prizePool}.`,
   };
 }
 
-// --- [BARU] Komponen Halaman (Server Component) ---
-/**
- * @component TournamentDetailPage
- * Server Component yang mengambil data turnamen (by ID) dan memberikannya
- * ke Client Component untuk di-render.
- */
+// --- Komponen Halaman Utama (Server Component) ---
 const TournamentDetailPage = async ({ params }: TournamentPageProps) => {
-  // 1. Ambil data turnamen dari Firestore menggunakan Admin SDK
-  const tournament = await getTournamentByIdAdmin(params.tournamentId);
+  // 1. Ambil data turnamen dari Firestore (Admin SDK)
+  // Casting ke tipe yang benar jika perlu, atau biarkan inferensi
+  const tournamentData = await getTournamentByIdAdmin(params.tournamentId);
 
-  // 2. Handle jika Turnamen tidak ditemukan (404)
-  if (!tournament) {
-    notFound(); // Ini akan menampilkan halaman 404.tsx dari Next.js
+  // 2. Handle 404
+  if (!tournamentData) {
+    notFound();
   }
 
-  // 3. Render Komponen Klien
-  // dan berikan data turnamen sebagai props.
+  // 3. Serialisasi Data untuk Client Component
+  // Firestore Timestamp tidak bisa langsung dikirim ke Client Component.
+  // Kita parse(stringify) untuk mengubahnya menjadi string/JSON plain object.
+  const serializedTournament = JSON.parse(JSON.stringify(tournamentData)) as FirestoreDocument<Tournament>;
+
   return (
     <main className="container mx-auto max-w-6xl px-4 py-8">
-      {/* [PERBAIKAN] Mengaktifkan Client Component */}
-      {/* Kita gunakan JSON.parse(JSON.stringify()) untuk memastikan 
-          objek Date (dari Firestore) aman diserialisasi dari Server ke Client Component. */}
-      <TournamentDetailClient
-        tournament={JSON.parse(JSON.stringify(tournament))}
-      />
-
-      {/* [PERBAIKAN] div placeholder dihapus */}
+      {/* Render Client Component dengan data yang sudah aman */}
+      <TournamentDetailClient tournament={serializedTournament} />
     </main>
   );
 };

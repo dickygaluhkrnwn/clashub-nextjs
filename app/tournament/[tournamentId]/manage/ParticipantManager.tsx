@@ -1,8 +1,5 @@
 'use client';
 
-// File: app/tournament/[tournamentId]/manage/ParticipantManager.tsx
-// Deskripsi: [FIX V2.1] Komponen untuk mengelola peserta (tim) turnamen.
-
 import React, { useState, useEffect } from 'react';
 import {
   FirestoreDocument,
@@ -20,16 +17,13 @@ import {
   XIcon,
   ChevronDownIcon,
   ChevronUpIcon,
-  ShieldIcon,
-  UsersIcon,
 } from '@/app/components/icons';
 import Image from 'next/image';
-import { getThImage } from '@/lib/th-utils'; // Helper untuk gambar TH
+import { getThImage } from '@/lib/th-utils';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook
 
 interface ParticipantManagerProps {
   tournament: FirestoreDocument<Tournament>;
-  // isOrganizer tidak diperlukan di sini karena halaman /manage sudah memvalidasi
-  // bahwa user adalah panitia. Semua panitia bisa approve/reject.
 }
 
 // Komponen Baris untuk setiap tim
@@ -37,22 +31,24 @@ const ParticipantRow: React.FC<{
   team: FirestoreDocument<TournamentTeam>;
   tournamentId: string;
   onAction: (message: string, type: 'success' | 'error' | 'info') => void;
-  onRefresh: () => void; // Fungsi untuk memuat ulang daftar
-}> = ({ team, tournamentId, onAction, onRefresh }) => {
+  onRefresh: () => void;
+  t: any; // [BARU] Props translation
+}> = ({ team, tournamentId, onAction, onRefresh, t }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // [i18n] Status helper
   const getStatusInfo = (
     status: TournamentTeam['status'],
   ): { text: string; color: string } => {
     switch (status) {
       case 'approved':
-        return { text: 'Disetujui', color: 'text-coc-green' };
+        return { text: t.tournamentManage.partStatusApproved, color: 'text-coc-green' };
       case 'rejected':
-        return { text: 'Ditolak', color: 'text-coc-red' };
+        return { text: t.tournamentManage.partStatusRejected, color: 'text-coc-red' };
       case 'pending':
       default:
-        return { text: 'Pending', color: 'text-coc-yellow' };
+        return { text: t.tournamentManage.partStatusPending, color: 'text-coc-yellow' };
     }
   };
 
@@ -64,10 +60,10 @@ const ParticipantRow: React.FC<{
     newStatus: 'approved' | 'rejected',
   ) => {
     setIsLoading(true);
-    onAction(`Memperbarui status tim ${team.teamName}...`, 'info');
+    // [i18n] Toast message
+    onAction(`${t.tournamentManage.partToastUpdating} (${team.teamName})`, 'info');
 
     try {
-      // Kita akan panggil API route baru yang akan kita buat nanti
       const response = await fetch(
         `/api/tournaments/${tournamentId}/manage/participant`,
         {
@@ -79,11 +75,11 @@ const ParticipantRow: React.FC<{
 
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.error || 'Gagal memperbarui status tim.');
+        throw new Error(result.error || t.common.error);
       }
 
-      onAction(result.message, 'success');
-      onRefresh(); // Panggil fungsi refresh dari parent
+      onAction(result.message || t.common.success, 'success');
+      onRefresh();
     } catch (error: any) {
       onAction(error.message, 'error');
     } finally {
@@ -109,7 +105,7 @@ const ParticipantRow: React.FC<{
 
         {/* Info Tim */}
         <Image
-          src={team.originClanBadgeUrl}
+          src={team.originClanBadgeUrl || '/images/clan-badge-placeholder.png'}
           alt="Badge Klan"
           width={40}
           height={40}
@@ -120,7 +116,7 @@ const ParticipantRow: React.FC<{
             {team.teamName}
           </p>
           <p className="text-sm text-gray-400 font-mono truncate">
-            Asal: {team.originClanTag}
+            {t.tournamentManage.partOrigin}: {team.originClanTag} {/* [i18n] */}
           </p>
         </div>
 
@@ -141,6 +137,7 @@ const ParticipantRow: React.FC<{
                 className="!p-2 h-8 w-8 !bg-coc-green hover:!bg-coc-green/80"
                 onClick={() => handleUpdateStatus(team.id, 'approved')}
                 disabled={isLoading}
+                title={t.clanRequests.actionAccept}
               >
                 <CheckIcon className="h-5 w-5" />
               </Button>
@@ -150,6 +147,7 @@ const ParticipantRow: React.FC<{
                 className="!p-2 h-8 w-8"
                 onClick={() => handleUpdateStatus(team.id, 'rejected')}
                 disabled={isLoading}
+                title={t.clanRequests.actionReject}
               >
                 <XIcon className="h-5 w-5" />
               </Button>
@@ -164,7 +162,7 @@ const ParticipantRow: React.FC<{
       {isExpanded && (
         <div className="bg-coc-dark/60 p-4 border-t border-coc-gold-dark/20">
           <h5 className="font-semibold text-gray-300 mb-3 ml-1">
-            Anggota Tim ({team.members.length}):
+            {t.tournamentManage.partMembers} ({team.members.length}): {/* [i18n] */}
           </h5>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {team.members.map((member) => (
@@ -200,12 +198,12 @@ const ParticipantRow: React.FC<{
 const ParticipantManager: React.FC<ParticipantManagerProps> = ({
   tournament,
 }) => {
+  const { t } = useLanguage(); // [BARU] Init Hook
   const [teams, setTeams] = useState<FirestoreDocument<TournamentTeam>[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [notification, setNotification] =
     useState<NotificationProps | null>(null);
 
-  // Fungsi untuk menampilkan notifikasi
   const showNotification = (
     message: string,
     type: 'success' | 'error' | 'info',
@@ -213,42 +211,32 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
     setNotification({ message, type, onClose: () => setNotification(null) });
   };
 
-  // Fungsi untuk Fetch Daftar Tim
   const fetchParticipants = async () => {
     setIsLoading(true);
     try {
-      // Panggil API route yang ada (dibuat di Fase 3)
       const response = await fetch(
         `/api/tournaments/${tournament.id}/participants`,
       );
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Gagal mengambil daftar peserta.');
+        throw new Error(result.error || t.clanEsports.toastFetchError);
       }
 
-      // =================================================================
-      // [PERBAIKAN - FASE 1]
-      // Bug ada di sini. API mengembalikan array langsung [ ... ],
-      // bukan objek { participants: [ ... ] }.
-      // Kita ubah 'result.participants' menjadi 'result'.
-      // =================================================================
       setTeams(result || []);
     } catch (error: any) {
       showNotification(error.message, 'error');
-      setTeams([]); // Kosongkan data jika error
+      setTeams([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // useEffect untuk fetch data saat komponen dimuat
   useEffect(() => {
     fetchParticipants();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tournament.id]);
 
-  // Hitung jumlah tim berdasarkan status
   const pendingCount = teams.filter((t) => t.status === 'pending').length;
   const approvedCount = teams.filter((t) => t.status === 'approved').length;
 
@@ -259,16 +247,16 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
       {/* Header & Statistik */}
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <h3 className="font-clash text-xl text-white">
-          Manajemen Peserta
+          {t.tournamentManage.partTitle} {/* [i18n] */}
         </h3>
         <div className="flex gap-4">
           <div className="text-center">
             <p className="text-2xl font-bold text-white">{approvedCount} <span className='text-sm text-gray-400'>/ {tournament.participantCount}</span></p>
-            <p className="text-xs font-semibold text-coc-green uppercase">Disetujui</p>
+            <p className="text-xs font-semibold text-coc-green uppercase">{t.tournamentManage.partApproved}</p> {/* [i18n] */}
           </div>
           <div className="text-center">
             <p className="text-2xl font-bold text-white">{pendingCount}</p>
-            <p className="text-xs font-semibold text-coc-yellow uppercase">Pending</p>
+            <p className="text-xs font-semibold text-coc-yellow uppercase">{t.tournamentManage.partPending}</p> {/* [i18n] */}
           </div>
         </div>
       </div>
@@ -282,10 +270,10 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
         <div className="card-stone flex flex-col items-center justify-center gap-4 p-10 text-center rounded-lg border border-coc-gold-dark/20">
           <InfoIcon className="h-12 w-12 text-coc-gold/50" />
           <h3 className="font-clash text-xl text-white">
-            Belum Ada Pendaftar
+            {t.tournamentManage.partEmptyTitle} {/* [i18n] */}
           </h3>
           <p className="text-gray-400 max-w-md">
-            Belum ada tim yang mendaftar ke turnamen ini.
+            {t.tournamentManage.partEmptyDesc} {/* [i18n] */}
           </p>
         </div>
       ) : (
@@ -297,7 +285,8 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
                 team={team}
                 tournamentId={tournament.id}
                 onAction={showNotification}
-                onRefresh={fetchParticipants} // Kirim fungsi refresh ke child
+                onRefresh={fetchParticipants}
+                t={t} // [BARU] Pass t helper
               />
             ))}
           </ul>

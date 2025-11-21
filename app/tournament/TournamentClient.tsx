@@ -1,9 +1,6 @@
 'use client';
 
-// [Fase 7.4] Tambahkan useEffect
-// [Fase 12.2] Perbaiki logika filter `useMemo`
-// [Fase 8.3] Hapus translateStatus, biarkan Card yang urus
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { TournamentCard } from '@/app/components/cards';
 import TournamentFilter, {
   TournamentFilters,
@@ -14,8 +11,15 @@ import {
   FirestoreDocument,
   ThRequirement,
 } from '@/lib/clashub.types';
-// [MODIFIKASI] Menambahkan import ikon yang dibutuhkan (Filter, Edit)
-import { TrophyIcon, CogsIcon, FilterIcon, EditIcon } from '@/app/components/icons';
+import { 
+  TrophyIcon, 
+  CogsIcon, 
+  FilterIcon, 
+  EditIcon,
+  AlertTriangleIcon,
+  RefreshCwIcon
+} from '@/app/components/icons';
+import { useLanguage } from '@/lib/hooks/useLanguage'; 
 
 // Definisikan Props untuk Client Component
 interface TournamentClientProps {
@@ -28,60 +32,52 @@ interface TournamentClientProps {
 // --- Konstanta Pagination ---
 const ITEMS_PER_LOAD_TOURNAMENT = 5;
 
-// Helper untuk data V1/V2
-const formatThRequirementToString = (
-  thReq: ThRequirement | undefined,
-): string => {
-  if (!thReq) {
-    return 'N/A (Data Lama)';
-  }
-  switch (thReq.type) {
-    case 'uniform':
-      return `TH ${thReq.allowedLevels[0]} Only`;
-    case 'mixed':
-      return `TH Campuran (${thReq.allowedLevels.slice(0, 2).join(', ')}...)`;
-    case 'any':
-    default:
-      if (thReq.minLevel === 1 && thReq.maxLevel === 17) return 'Semua Level TH';
-      if (thReq.minLevel === thReq.maxLevel) return `TH ${thReq.minLevel} Only`;
-      return `TH ${thReq.minLevel} - ${thReq.maxLevel}`;
-  }
-};
-
 const TournamentClient = ({
   initialTournaments,
   error: serverError,
 }: TournamentClientProps) => {
+  const { t } = useLanguage(); 
+  
   const [allTournaments] = useState(initialTournaments);
-  const [activeTab, setActiveTab] = useState<'tournaments' | 'leagues'>(
-    'tournaments',
-  );
+  const [activeTab, setActiveTab] = useState<'tournaments' | 'leagues'>('tournaments');
 
-  // State untuk filter turnamen
-  const [tournamentFilters, setTournamentFiltersState] =
-    useState<TournamentFilters>({
-      status: 'Semua Status',
-      thLevel: 'Semua Level',
-      prize: 'all',
-    });
+  // [PERBAIKAN FINAL] Hapus 'as any'. Sekarang tipe datanya sudah string dan kompatibel.
+  const [tournamentFilters, setTournamentFiltersState] = useState<TournamentFilters>({
+    status: t.tournament.filterStatusAll, 
+    thLevel: t.clanHub.filterAllTh,
+    prize: 'all',
+  });
 
-  // [MODIFIKASI FASE 3] State untuk toggle filter di mobile
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-
-  const [visibleTournamentsCount, setVisibleTournamentsCount] = useState(
-    ITEMS_PER_LOAD_TOURNAMENT,
-  );
+  const [visibleTournamentsCount, setVisibleTournamentsCount] = useState(ITEMS_PER_LOAD_TOURNAMENT);
   const [isFiltering, setIsFiltering] = useState(false);
 
-  // [BARU: Fase 7.4] Pemicu Cron Job Lokal
+  // Helper untuk format TH Requirement dengan i18n
+  const formatThRequirementToString = useCallback((thReq: ThRequirement | undefined): string => {
+    if (!thReq) {
+      return 'N/A';
+    }
+    switch (thReq.type) {
+      case 'uniform':
+        return `TH ${thReq.allowedLevels[0]} Only`;
+      case 'mixed':
+        return `Mixed TH (${thReq.allowedLevels.slice(0, 2).join(', ')}...)`; 
+      case 'any':
+      default:
+        if (thReq.minLevel === 1 && thReq.maxLevel === 17) return t.clanHub.filterAllTh;
+        if (thReq.minLevel === thReq.maxLevel) return `TH ${thReq.minLevel} Only`;
+        return `TH ${thReq.minLevel} - ${thReq.maxLevel}`;
+    }
+  }, [t]);
+
+  // [Fase 7.4] Pemicu Cron Job Lokal
   useEffect(() => {
     const triggerUpdateStates = async () => {
       try {
-        console.log('[Dev Trigger] Memanggil update status turnamen...');
+        console.log('[Dev Trigger] Calling tournament state update...');
         await fetch('/api/tournaments/update-states', { method: 'POST' });
-        console.log('[Dev Trigger] Update status selesai.');
       } catch (error) {
-        console.warn('[Dev Trigger] Gagal memicu update status:', error);
+        console.warn('[Dev Trigger] Failed to trigger state update:', error);
       }
     };
 
@@ -91,7 +87,6 @@ const TournamentClient = ({
   const setTournamentFilters = (newFilters: TournamentFilters) => {
     setIsFiltering(true);
     setVisibleTournamentsCount(ITEMS_PER_LOAD_TOURNAMENT);
-    // [MODIFIKASI] Tutup filter otomatis di mobile setelah memilih
     setIsFilterOpen(false);
     setTimeout(() => {
       setTournamentFiltersState(newFilters);
@@ -99,28 +94,28 @@ const TournamentClient = ({
     }, 50);
   };
 
-  // [UPDATE FASE 12.2] Logika filter diperbarui
+  // [LOGIKA FILTER]
   const filteredTournaments = useMemo(() => {
     return allTournaments.filter((tournament) => {
       const { status: filterStatus, thLevel, prize } = tournamentFilters;
 
-      // --- [FIX FASE 12.2] Filter Wajib ---
+      // Filter Wajib
       if (tournament.status === 'draft') {
         return false;
       }
 
-      // 1. Filter Status
-      if (filterStatus === 'Semua Status') {
+      // 1. Filter Status (Menggunakan t.* untuk perbandingan dinamis)
+      if (filterStatus === t.tournament.filterStatusAll) {
         if (tournament.status === 'cancelled') return false;
-      } else if (filterStatus === 'Akan Datang') {
+      } else if (filterStatus === t.tournament.filterStatusUpcoming) {
         const isUpcoming =
           tournament.status === 'scheduled' ||
           tournament.status === 'registration_open' ||
           tournament.status === 'registration_closed';
         if (!isUpcoming) return false;
-      } else if (filterStatus === 'Live') {
+      } else if (filterStatus === t.tournament.filterStatusOngoing) {
         if (tournament.status !== 'ongoing') return false;
-      } else if (filterStatus === 'Selesai') {
+      } else if (filterStatus === t.tournament.filterStatusCompleted) {
         const isFinished =
           tournament.status === 'completed' ||
           tournament.status === 'cancelled';
@@ -129,10 +124,11 @@ const TournamentClient = ({
 
       // 2. Filter TH
       let thMatch = false;
-      if (thLevel === 'Semua Level') {
+      if (thLevel === t.clanHub.filterAllTh) {
         thMatch = true;
       } else if (tournament.thRequirement) {
         const thReq = tournament.thRequirement;
+        // Parsing string "TH 10 - 12" atau "TH 15"
         const filterThParts = thLevel
           .replace(/TH /g, '')
           .split(' - ')
@@ -164,16 +160,18 @@ const TournamentClient = ({
         prizeMatch =
           tournament.prizePool.toLowerCase().includes('rp') ||
           tournament.prizePool.toLowerCase().includes('juta') ||
-          tournament.prizePool.toLowerCase().includes('cash');
+          tournament.prizePool.toLowerCase().includes('cash') ||
+          tournament.prizePool.toLowerCase().includes('$');
       } else if (prize === 'item') {
         prizeMatch =
           tournament.prizePool.toLowerCase().includes('item') ||
-          tournament.prizePool.toLowerCase().includes('eksklusif');
+          tournament.prizePool.toLowerCase().includes('pass') ||
+          tournament.prizePool.toLowerCase().includes('skin');
       }
 
       return prizeMatch;
     });
-  }, [allTournaments, tournamentFilters]);
+  }, [allTournaments, tournamentFilters, t]);
 
   const handleLoadMoreTournaments = () => {
     setVisibleTournamentsCount(
@@ -204,7 +202,7 @@ const TournamentClient = ({
                 : 'text-gray-400 hover:text-white'
             }`}
           >
-            Daftar Turnamen
+            {t.navigation.tournaments} 
           </button>
           <button
             onClick={() => setActiveTab('leagues')}
@@ -214,14 +212,14 @@ const TournamentClient = ({
                 : 'text-gray-400 hover:text-white'
             }`}
           >
-            Liga & Klasemen
+            {t.clanCwl.leagueLabel} & {t.clanCwl.rankLabel} 
           </button>
         </div>
 
         <section className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Sidebar Filter Responsif */}
           <div className="lg:col-span-1 space-y-4">
-             {/* [MODIFIKASI] Tombol Toggle Filter (Hanya Mobile) */}
+             {/* Tombol Toggle Filter (Hanya Mobile) */}
              <div className="lg:hidden">
                 <Button
                   variant="secondary"
@@ -230,7 +228,7 @@ const TournamentClient = ({
                 >
                   <span className="flex items-center gap-2">
                     <FilterIcon className="h-5 w-5" />
-                    {isFilterOpen ? 'Sembunyikan Filter' : 'Filter Turnamen'}
+                    {isFilterOpen ? t.clanHub.hideFilter : t.clanHub.showFilter} 
                   </span>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -243,7 +241,7 @@ const TournamentClient = ({
                 </Button>
              </div>
 
-             {/* [MODIFIKASI] Wrapper Filter (Collapsible di Mobile) */}
+             {/* Wrapper Filter */}
              <div className={`${isFilterOpen ? 'block animate-fade-in' : 'hidden'} lg:block`}>
                 <TournamentFilter
                   filters={tournamentFilters}
@@ -256,28 +254,34 @@ const TournamentClient = ({
           <div className="lg:col-span-3">
             {activeTab === 'tournaments' && (
               <>
-                {/* [MODIFIKASI] Hapus Judul 'Turnamen Aktif' agar langsung tampil card */}
-                
                 {isFiltering ? (
                   <div className="text-center py-20 card-stone rounded-lg">
                     <CogsIcon className="h-10 w-10 text-coc-gold animate-spin mx-auto mb-4" />
                     <h3 className="text-xl font-clash text-coc-gold">
-                      Menerapkan Filter...
+                      {t.common.filtering} 
                     </h3>
                   </div>
                 ) : serverError ? (
                   <div className="text-center py-20 card-stone p-6 rounded-lg">
-                    <h3 className="text-xl font-clash text-coc-red">
-                      {serverError}
+                    <AlertTriangleIcon className="h-12 w-12 text-coc-red mx-auto mb-4" />
+                    <h3 className="text-xl font-clash text-coc-red mb-2">
+                      {t.tournament.errorTitle} 
                     </h3>
+                    <p className="text-gray-400 text-sm mb-4">
+                        {t.tournament.errorDesc}
+                    </p>
+                    <Button href="/tournament" variant="secondary" size="sm">
+                        <RefreshCwIcon className="h-4 w-4 mr-2" /> {t.tournament.btnTryAgain}
+                    </Button>
                   </div>
                 ) : tournamentsToShow.length === 0 ? (
                   <div className="text-center py-10 card-stone p-6 rounded-lg">
+                    <TrophyIcon className="h-12 w-12 text-gray-600 mx-auto mb-3" />
                     <h3 className="text-xl font-clash text-gray-400">
-                      Tidak ada turnamen yang ditemukan.
+                      {t.tournament.noTournaments} 
                     </h3>
                     <p className="text-sm text-gray-500">
-                      Coba ubah kriteria filter Anda.
+                      {t.tournament.noTournamentsDesc} 
                     </p>
                   </div>
                 ) : (
@@ -305,7 +309,7 @@ const TournamentClient = ({
                       onClick={handleLoadMoreTournaments}
                       disabled={isFiltering}
                     >
-                      Muat Lebih Banyak Turnamen
+                      {t.common.loadMore} 
                     </Button>
                   </div>
                 )}
@@ -315,10 +319,10 @@ const TournamentClient = ({
             {activeTab === 'leagues' && (
               <div className="text-center py-20 card-stone rounded-lg">
                 <h2 className="text-2xl font-clash text-coc-gold">
-                  Klasemen Liga (Development)
+                  {t.clanCwl.leagueLabel} (Development)
                 </h2>
                 <p className="text-gray-400 mt-2">
-                  Fitur ini sedang dalam pengembangan.
+                  Feature coming soon.
                 </p>
               </div>
             )}
@@ -326,14 +330,13 @@ const TournamentClient = ({
         </section>
       </div>
 
-      {/* [FITUR BARU] Floating Action Button (FAB) Buat Turnamen */}
+      {/* FAB Buat Turnamen */}
       <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-4 fade-in duration-500">
         <Button
           href="/tournament/create"
           variant="primary"
-          // Styling bulat sempurna seperti di Knowledge Hub
           className="rounded-full w-14 h-14 p-0 flex items-center justify-center shadow-[0_0_20px_rgba(255,215,0,0.3)] hover:shadow-[0_0_30px_rgba(255,215,0,0.5)] hover:scale-110 transition-all duration-300 border-2 border-coc-gold bg-coc-stone"
-          title="Buat Turnamen Baru"
+          title={t.clanEsports.createTeam} // Gunakan key 'create' sementara
         >
           <EditIcon className="h-7 w-7 text-coc-gold" />
         </Button>
