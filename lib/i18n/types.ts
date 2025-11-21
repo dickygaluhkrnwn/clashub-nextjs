@@ -50,6 +50,7 @@ import {
 
 import { TournamentSection } from './sections/tournament';
 import { TournamentManageSection } from './sections/tournament-manage';
+import { TournamentCreateSection } from './sections/tournament-create';
 
 export type Language = 'id' | 'en';
 
@@ -106,4 +107,5 @@ export interface Translation {
   // --- Tournament System ---
   tournament: TournamentSection;
   tournamentManage: TournamentManageSection;
+  tournamentCreate: TournamentCreateSection;
 }

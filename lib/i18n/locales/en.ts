@@ -36,6 +36,7 @@ import {
 } from './en/management';
 import { tournament } from './en/tournament';
 import { tournamentManage } from './en/tournament-manage';
+import { tournamentCreate } from './en/tournament-create';
 
 export const en: Translation = {
   // Common
@@ -86,4 +87,5 @@ export const en: Translation = {
   // Tournament
   tournament,
   tournamentManage,
+  tournamentCreate,
 };

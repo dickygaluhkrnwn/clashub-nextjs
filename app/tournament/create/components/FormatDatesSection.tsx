@@ -1,11 +1,13 @@
+'use client';
+
 import React from 'react';
 import {
   FormGroup,
   getInputClasses,
 } from '@/app/knowledge-hub/components/form/PostFormGroup';
-import { TournamentFormData, FormErrors } from '../types'; // Impor dari types.ts
+import { TournamentFormData, FormErrors } from '../types';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook i18n
 
-// Tipe untuk props komponen ini
 interface FormatDatesSectionProps {
   formData: TournamentFormData;
   errors: FormErrors;
@@ -28,12 +30,17 @@ export const FormatDatesSection: React.FC<FormatDatesSectionProps> = ({
   handleChange,
   isLoading,
 }) => {
+  const { t, language } = useLanguage(); // [BARU] Init Hook
+
+  // Helper teks sederhana untuk opsi dropdown
+  const txtTeam = language === 'id' ? 'Tim' : 'Team';
+  const txtSolo = 'Solo';
+  const txtEntity = language === 'id' ? 'Tim/Pemain' : 'Teams/Players';
+
   return (
-    // [ROMBAK V2] Detail Teknis (Format, Slot, Tanggal)
-    // [UPDATE V2.1 / FASE 7.2] Grid diubah menjadi 2x3 untuk 4 input tanggal
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <FormGroup
-        label="Format Turnamen"
+        label={t.tournamentCreate.labelFormat} // [i18n]
         htmlFor="format"
         error={errors.format}
       >
@@ -45,12 +52,13 @@ export const FormatDatesSection: React.FC<FormatDatesSectionProps> = ({
           className={getInputClasses(!!errors.format)}
           disabled={isLoading}
         >
-          <option value="5v5">5 vs 5 (Tim)</option>
-          <option value="1v1">1 vs 1 (Solo)</option>
+          <option value="5v5">5 vs 5 ({txtTeam})</option>
+          <option value="1v1">1 vs 1 ({txtSolo})</option>
         </select>
       </FormGroup>
+
       <FormGroup
-        label="Jumlah Partisipan (Tim/Player)"
+        label={t.tournamentCreate.labelParticipantCount} // [i18n]
         htmlFor="participantCount"
         error={errors.participantCount}
       >
@@ -62,16 +70,16 @@ export const FormatDatesSection: React.FC<FormatDatesSectionProps> = ({
           className={getInputClasses(!!errors.participantCount)}
           disabled={isLoading}
         >
-          <option value={8}>8 Tim/Player</option>
-          <option value={16}>16 Tim/Player</option>
-          <option value={32}>32 Tim/Player</option>
-          <option value={64}>64 Tim/Player</option>
+          <option value={8}>8 {txtEntity}</option>
+          <option value={16}>16 {txtEntity}</option>
+          <option value={32}>32 {txtEntity}</option>
+          <option value={64}>64 {txtEntity}</option>
         </select>
       </FormGroup>
 
-      {/* --- [UPDATE FASE 7.2] Input Tanggal Baru --- */}
+      {/* Input Tanggal */}
       <FormGroup
-        label="Pendaftaran Dibuka"
+        label={t.tournamentCreate.labelRegStart} // [i18n]
         htmlFor="registrationStartsAt"
         error={errors.registrationStartsAt}
       >
@@ -86,7 +94,7 @@ export const FormatDatesSection: React.FC<FormatDatesSectionProps> = ({
         />
       </FormGroup>
       <FormGroup
-        label="Pendaftaran Ditutup"
+        label={t.tournamentCreate.labelRegEnd} // [i18n]
         htmlFor="registrationEndsAt"
         error={errors.registrationEndsAt}
       >
@@ -101,7 +109,7 @@ export const FormatDatesSection: React.FC<FormatDatesSectionProps> = ({
         />
       </FormGroup>
       <FormGroup
-        label="Turnamen Dimulai (Match Pertama)"
+        label={t.tournamentCreate.labelTourStart} // [i18n]
         htmlFor="tournamentStartsAt"
         error={errors.tournamentStartsAt}
       >
@@ -116,7 +124,7 @@ export const FormatDatesSection: React.FC<FormatDatesSectionProps> = ({
         />
       </FormGroup>
       <FormGroup
-        label="Turnamen Selesai (Final)"
+        label={t.tournamentCreate.labelTourEnd} // [i18n]
         htmlFor="tournamentEndsAt"
         error={errors.tournamentEndsAt}
       >
@@ -130,7 +138,6 @@ export const FormatDatesSection: React.FC<FormatDatesSectionProps> = ({
           disabled={isLoading}
         />
       </FormGroup>
-      {/* --- [AKHIR UPDATE FASE 7.2] --- */}
     </div>
   );
 };

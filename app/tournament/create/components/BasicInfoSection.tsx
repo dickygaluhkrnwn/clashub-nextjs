@@ -1,12 +1,15 @@
+'use client';
+
 import React from 'react';
 import {
   FormGroup,
   getInputClasses,
 } from '@/app/knowledge-hub/components/form/PostFormGroup';
-import { LinkIcon } from '@/app/components/icons/ui-general'; // Impor langsung dari file aslinya
-import { TournamentFormData, FormErrors } from '../types'; // Impor dari types.ts
+// Gunakan import dari barrel file icons agar lebih aman
+import { LinkIcon } from '@/app/components/icons'; 
+import { TournamentFormData, FormErrors } from '../types';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook i18n
 
-// Tipe untuk props komponen ini
 interface BasicInfoSectionProps {
   formData: TournamentFormData;
   errors: FormErrors;
@@ -29,11 +32,13 @@ export const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
   handleChange,
   isLoading,
 }) => {
+  const { t } = useLanguage(); // [BARU] Init Hook
+
   return (
     <>
-      {/* Input Banner URL (dari CreateTournamentClient.tsx baris 326) */}
+      {/* Input Banner URL */}
       <FormGroup
-        label="Banner Turnamen URL (Opsional)"
+        label={t.tournamentCreate.labelBanner} // [i18n]
         htmlFor="bannerUrl"
         error={errors.bannerUrl}
       >
@@ -48,29 +53,20 @@ export const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
             value={formData.bannerUrl}
             onChange={handleChange}
             className={`${getInputClasses(!!errors.bannerUrl)} !pl-10`}
-            placeholder="Contoh: https://i.imgur.com/banner.png"
+            placeholder={t.tournamentCreate.placeholderBanner} // [i18n]
             disabled={isLoading}
           />
         </div>
         <p className="text-xs text-gray-500 font-sans mt-2">
-          <strong>Catatan:</strong> Upload gambar Anda ke{' '}
-          <a
-            href="https://imgur.com/upload"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-coc-primary hover:underline"
-          >
-            Imgur
-          </a>{' '}
-          lalu tempel link-nya di sini. Ukuran <strong>1200x400</strong>
-          disarankan. Jika dikosongi, placeholder akan digunakan.
+          {/* [i18n] Menggunakan instruksi Imgur yang sudah ada di modul Banners */}
+          {t.clanBanners.alertImgDesc}
         </p>
       </FormGroup>
 
-      {/* Info Utama (dari CreateTournamentClient.tsx baris 358) */}
+      {/* Info Utama */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <FormGroup
-          label="Nama Turnamen"
+          label={t.tournamentCreate.labelTitle} // [i18n]
           htmlFor="title"
           error={errors.title}
         >
@@ -81,12 +77,12 @@ export const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
             value={formData.title}
             onChange={handleChange}
             className={getInputClasses(!!errors.title)}
-            placeholder="Cth: Clashub Weekly Series"
+            placeholder={t.tournamentCreate.placeholderTitle} // [i18n]
             disabled={isLoading}
           />
         </FormGroup>
         <FormGroup
-          label="Hadiah (Prize Pool)"
+          label={t.tournamentCreate.labelPrize} // [i18n]
           htmlFor="prizePool"
           error={errors.prizePool}
         >
@@ -97,15 +93,15 @@ export const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
             value={formData.prizePool}
             onChange={handleChange}
             className={getInputClasses(!!errors.prizePool)}
-            placeholder="Cth: Rp 1.000.000 + 500 Gems"
+            placeholder={t.tournamentCreate.placeholderPrize} // [i18n]
             disabled={isLoading}
           />
         </FormGroup>
       </div>
 
-      {/* Deskripsi & Aturan (dari CreateTournamentClient.tsx baris 402) */}
+      {/* Deskripsi & Aturan */}
       <FormGroup
-        label="Deskripsi Singkat"
+        label={t.tournamentCreate.labelDesc} // [i18n]
         htmlFor="description"
         error={errors.description}
       >
@@ -116,13 +112,13 @@ export const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
           value={formData.description}
           onChange={handleChange}
           className={getInputClasses(!!errors.description)}
-          placeholder="Jelaskan turnamen Anda secara singkat..."
+          placeholder={t.tournamentCreate.placeholderDesc} // [i18n]
           disabled={isLoading}
         />
       </FormGroup>
 
       <FormGroup
-        label="Peraturan Lengkap"
+        label={t.tournamentCreate.labelRules} // [i18n]
         htmlFor="rules"
         error={errors.rules}
       >
@@ -133,7 +129,7 @@ export const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
           value={formData.rules}
           onChange={handleChange}
           className={getInputClasses(!!errors.rules)}
-          placeholder="Tuliskan semua aturan, jadwal, dan detail teknis di sini..."
+          placeholder={t.tournamentCreate.placeholderRules} // [i18n]
           disabled={isLoading}
         />
       </FormGroup>

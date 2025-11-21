@@ -1,14 +1,16 @@
+'use client';
+
 import React from 'react';
 import {
   FormGroup,
   getInputClasses,
 } from '@/app/knowledge-hub/components/form/PostFormGroup';
-import { TournamentFormData, FormErrors } from '../types'; // Impor dari types.ts
+import { TournamentFormData, FormErrors } from '../types';
+import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook i18n
 
-// Opsi TH 1-17 untuk dropdown (diambil dari CreateTournamentClient.tsx)
+// Opsi TH 1-17 untuk dropdown
 const thLevelOptions = Array.from({ length: 17 }, (_, i) => 17 - i); // [17, 16, ..., 1]
 
-// Tipe untuk props komponen ini
 interface ThRequirementsSectionProps {
   formData: TournamentFormData;
   errors: FormErrors;
@@ -17,7 +19,6 @@ interface ThRequirementsSectionProps {
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >,
   ) => void;
-  // Handler khusus dari file utama untuk array 5 TH
   handleMixedThChange: (
     index: number,
     e: React.ChangeEvent<HTMLSelectElement>,
@@ -36,15 +37,16 @@ export const ThRequirementsSection: React.FC<ThRequirementsSectionProps> = ({
   handleMixedThChange,
   isLoading,
 }) => {
+  const { t } = useLanguage(); // [BARU] Init Hook
+
   return (
-    // [ROMBAK V2] Persyaratan TH Fleksibel
-    // (dari CreateTournamentClient.tsx baris 526)
     <fieldset className="card-form-section space-y-4">
-      <legend className="form-legend">Persyaratan Town Hall</legend>
+      <legend className="form-legend">{t.tournamentCreate.stepTh}</legend> {/* [i18n] Syarat TH */}
+      
       {/* Rentang Umum */}
       <div className="grid grid-cols-2 gap-6">
         <FormGroup
-          label="TH Minimal"
+          label={t.tournamentCreate.labelMinTh} // [i18n]
           htmlFor="thMinLevel"
           error={errors.thMinLevel}
         >
@@ -61,7 +63,7 @@ export const ThRequirementsSection: React.FC<ThRequirementsSectionProps> = ({
           />
         </FormGroup>
         <FormGroup
-          label="TH Maksimal"
+          label={t.tournamentCreate.labelMaxTh} // [i18n]
           htmlFor="thMaxLevel"
           error={errors.thMaxLevel}
         >
@@ -79,15 +81,15 @@ export const ThRequirementsSection: React.FC<ThRequirementsSectionProps> = ({
         </FormGroup>
       </div>
       <p className="text-xs text-gray-500 font-sans -mt-2">
-        Atur rentang TH umum yang diizinkan untuk mendaftar (Cth: Min 1, Max
-        17).
+        {/* [i18n] Menggunakan label generik "Level TH yang Diizinkan" sebagai helper */}
+        {t.tournamentCreate.labelThLevel} (Min: {formData.thMinLevel}, Max: {formData.thMaxLevel})
       </p>
 
       {/* Opsi Khusus 5v5 */}
       {formData.format === '5v5' && (
         <div className="space-y-4 pt-4 border-t border-coc-gold-dark/20">
           <FormGroup
-            label="Aturan TH Khusus (5v5)"
+            label={t.tournamentCreate.labelThMode} // [i18n]
             htmlFor="thRequirementType"
             error={errors.thRequirementType}
           >
@@ -99,16 +101,16 @@ export const ThRequirementsSection: React.FC<ThRequirementsSectionProps> = ({
               className={getInputClasses(!!errors.thRequirementType)}
               disabled={isLoading}
             >
-              <option value="any">Bebas (Sesuai Rentang Min/Max)</option>
-              <option value="uniform">Seragam (Semua 5 TH Sama)</option>
-              <option value="mixed">Campuran (5 TH Spesifik)</option>
+              <option value="any">{t.tournamentCreate.optionAny}</option> {/* [i18n] */}
+              <option value="uniform">{t.tournamentCreate.optionUniform}</option> {/* [i18n] */}
+              <option value="mixed">{t.tournamentCreate.optionMixed}</option> {/* [i18n] */}
             </select>
           </FormGroup>
 
           {/* Opsi jika 'Seragam' */}
           {formData.thRequirementType === 'uniform' && (
             <FormGroup
-              label="Pilih Level TH Seragam"
+              label={t.tournamentCreate.optionUniform} // [i18n] Reuse label
               htmlFor="thUniformLevel"
               error={errors.thUniformLevel}
             >
@@ -138,7 +140,7 @@ export const ThRequirementsSection: React.FC<ThRequirementsSectionProps> = ({
           {/* Opsi jika 'Campuran' */}
           {formData.thRequirementType === 'mixed' && (
             <FormGroup
-              label="Tentukan 5 Level TH Campuran"
+              label={t.tournamentCreate.optionMixed} // [i18n] Reuse label
               htmlFor="thMixedLevel-0"
               error={errors.thMixedLevels}
             >
@@ -153,7 +155,7 @@ export const ThRequirementsSection: React.FC<ThRequirementsSectionProps> = ({
                     className={getInputClasses(!!errors.thMixedLevels)}
                     disabled={isLoading}
                   >
-                    <option value="">Pilih TH</option>
+                    <option value="">TH?</option>
                     {thLevelOptions
                       .filter(
                         (lvl) =>
@@ -162,7 +164,7 @@ export const ThRequirementsSection: React.FC<ThRequirementsSectionProps> = ({
                       )
                       .map((lvl) => (
                         <option key={lvl} value={lvl}>
-                          TH {lvl}
+                          {lvl}
                         </option>
                       ))}
                   </select>
