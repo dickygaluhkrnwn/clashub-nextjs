@@ -3,25 +3,19 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
-  ManagedClan,
   Player,
   PublicClanIndex,
   RecommendedTeam,
 } from '@/lib/types';
 
-// [PERBAIKAN] Hapus TeamHubHeader dan TeamHubTabNavigation
 import { TeamHubFilterBar } from './components/TeamHubFilterBar';
 import { ClashubTeamsTab } from './components/ClashubTeamsTab';
-import { PublicClansTab } from './components/PublicClansTab';
+import { PublicClansTab, PublicClanSearchFilter } from './components/PublicClansTab';
 import { PlayersTab } from './components/PlayersTab';
+import { TeamHubTabNavigation } from './components/TeamHubTabNavigation';
 
-// [PERBAIKAN] Impor ikon yang dibutuhkan untuk Header Halaman
-import { ShieldIcon, UserIcon, GlobeIcon } from '@/app/components/icons';
-
-// [PERBAIKAN LANGKAH 1] Import tipe yang benar dari komponen filter
-// Ini memastikan tipe data konsisten dengan ekspektasi child component (TeamHubFilter)
 import { ManagedClanFilters } from '@/app/components/filters/TeamHubFilter';
-import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Import Hook Bahasa
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 export type PlayerFilters = {
   searchTerm: string;
@@ -30,7 +24,6 @@ export type PlayerFilters = {
   thLevel: number;
 };
 
-// Tipe ActiveTab
 type ActiveTab = 'clashubTeams' | 'publicClans' | 'players';
 
 interface TeamHubClientProps {
@@ -44,37 +37,28 @@ const TeamHubClient = ({
   initialPlayers,
   initialPublicClans,
 }: TeamHubClientProps) => {
-  const { t } = useLanguage(); // [BARU] Gunakan Hook Bahasa
+  const { t } = useLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
 
   // --- STATE ---
   const [activeTab, setActiveTab] = useState<ActiveTab>('clashubTeams');
-
-  // State Filter
-  // [PERBAIKAN ERROR TIPE] thLevel diubah dari 'all' (string) menjadi 0 (number) sesuai definisi ManagedClanFilters
+  
+  // Filter States
   const [clanFilters, setClanFilters] = useState<ManagedClanFilters>({
-    searchTerm: '',
-    thLevel: 0, // 0 melambangkan 'All'
-    minMembers: 0,
-    vision: 'all',
-    reputation: 0,
+    searchTerm: '', thLevel: 0, minMembers: 0, vision: 'all', reputation: 0,
   });
-
   const [playerFilters, setPlayerFilters] = useState<PlayerFilters>({
-    searchTerm: '',
-    role: 'all',
-    reputation: 0,
-    thLevel: 0,
+    searchTerm: '', role: 'all', reputation: 0, thLevel: 0,
   });
 
-  // State Load More & Filtering
+  // Data States
   const [isFiltering, setIsFiltering] = useState(false);
   const [visibleClansCount, setVisibleClansCount] = useState(6);
   const [visiblePlayersCount, setVisiblePlayersCount] = useState(6);
   const [visiblePublicClansCount, setVisiblePublicClansCount] = useState(6);
 
-  // State Pencarian Klan Publik
+  // Public Search States
   const [publicClanTag, setPublicClanTag] = useState('');
   const [publicClanResult, setPublicClanResult] = useState<PublicClanIndex | null>(null);
   const [isSearchingPublicClan, setIsSearchingPublicClan] = useState(false);
@@ -93,20 +77,9 @@ const TeamHubClient = ({
 
   const handleTabChange = useCallback((tab: ActiveTab) => {
     setActiveTab(tab);
-    // Reset filter saat ganti tab
-    setClanFilters({
-        searchTerm: '',
-        thLevel: 0,
-        minMembers: 0,
-        vision: 'all',
-        reputation: 0,
-    });
-    setPlayerFilters({
-        searchTerm: '',
-        role: 'all',
-        reputation: 0,
-        thLevel: 0,
-    });
+    // Reset Filters
+    setClanFilters({ searchTerm: '', thLevel: 0, minMembers: 0, vision: 'all', reputation: 0 });
+    setPlayerFilters({ searchTerm: '', role: 'all', reputation: 0, thLevel: 0 });
     setPublicClanTag('');
     setPublicSearchError(null);
     setPublicClanResult(null);
@@ -121,283 +94,142 @@ const TeamHubClient = ({
     router.push(`/clan-hub?${params.toString()}`, { scroll: false });
   }, [router, searchParams]);
 
-
-  // --- FILTER LOGIC (CLANS) ---
-  // [UPDATE LOGIKA] Implementasi logika filter berdasarkan 'lib/types/clan.types.ts'
-  const filteredClans = useMemo(() => {
-    return initialClans.filter((clan) => {
-      // 1. Search (Nama & Tag)
-      if (
-        clanFilters.searchTerm &&
-        !clan.name.toLowerCase().includes(clanFilters.searchTerm.toLowerCase()) &&
-        !clan.tag.toLowerCase().includes(clanFilters.searchTerm.toLowerCase())
-      ) {
-        return false;
-      }
-
-      // 2. Vision
-      if (
-        clanFilters.vision !== 'all' &&
-        clan.vision !== clanFilters.vision
-      ) {
-        return false;
-      }
-
-      // 3. Reputation (Average Rating)
-      // Menggunakan field averageRating dari RecommendedTeam
-      if (clan.averageRating < clanFilters.reputation) {
-        return false;
-      }
-
-      // 4. Minimum Members
-      // [IMPLEMENTASI BARU] Menggunakan field 'memberCount' dari ManagedClan
-      if (clanFilters.minMembers > 0 && clan.memberCount < clanFilters.minMembers) {
-        return false;
-      }
-
-      // 5. Town Hall Level (Average)
-      // [IMPLEMENTASI BARU] Menggunakan field 'avgTh' dari ManagedClan
-      // Kita bulatkan avgTh ke bawah agar perbandingannya fair (misal avg 12.8 dianggap TH 12)
-      if (clanFilters.thLevel > 0 && Math.floor(clan.avgTh) < clanFilters.thLevel) {
-        return false;
-      }
-
-      return true;
-    }).sort((a, b) => b.averageRating - a.averageRating);
-  }, [initialClans, clanFilters]);
-
-  // --- FILTER LOGIC (PLAYERS) ---
-  const filteredPlayers = useMemo(() => {
-    return initialPlayers.filter((player) => {
-      // 1. Search
-      if (
-        playerFilters.searchTerm &&
-        !(player.displayName || player.name || '')
-          .toLowerCase()
-          .includes(playerFilters.searchTerm.toLowerCase()) &&
-        !(player.playerTag || player.tag || '')
-          .toLowerCase()
-          .includes(playerFilters.searchTerm.toLowerCase())
-      ) {
-        return false;
-      }
-      // 2. Role
-      if (
-        playerFilters.role !== 'all' &&
-        player.role !== playerFilters.role
-      ) {
-        return false;
-      }
-      // 3. Reputation
-      const playerRep = player.reputation || 0;
-      if (playerRep < playerFilters.reputation) {
-        return false;
-      }
-      // 4. TH Level
-      if (
-        playerFilters.thLevel > 0 &&
-        (player.thLevel || 0) < playerFilters.thLevel
-      ) {
-        return false;
-      }
-      return true;
-    }).sort((a, b) => (b.reputation || 0) - (a.reputation || 0));
-  }, [initialPlayers, playerFilters]);
-
-  const publicClansDataSource = publicClansCache;
-
-  // --- HANDLERS ---
+  // Filter Handlers
   const handleClanFilterChange = (newFilters: ManagedClanFilters) => {
     setIsFiltering(true);
-    setVisibleClansCount(6); // Reset pagination
-    setTimeout(() => {
-      setClanFilters(newFilters);
-      setIsFiltering(false);
-    }, 300);
+    setVisibleClansCount(6);
+    setTimeout(() => { setClanFilters(newFilters); setIsFiltering(false); }, 300);
   };
 
   const handlePlayerFilterChange = (newFilters: PlayerFilters) => {
     setIsFiltering(true);
-    setVisiblePlayersCount(6); // Reset pagination
-    setTimeout(() => {
-      setPlayerFilters(newFilters);
-      setIsFiltering(false);
-    }, 300);
+    setVisiblePlayersCount(6);
+    setTimeout(() => { setPlayerFilters(newFilters); setIsFiltering(false); }, 300);
   };
 
-  const handlePublicClanSearch = useCallback(
-    async (e: React.FormEvent) => {
+  const handlePublicClanSearch = useCallback(async (e: React.FormEvent) => {
       e.preventDefault();
       const rawTag = publicClanTag.toUpperCase().trim();
       if (!rawTag) {
-        setPublicClanResult(null);
-        setPublicSearchError(null);
-        setVisiblePublicClansCount(6);
-        return;
+        setPublicClanResult(null); setPublicSearchError(null); setVisiblePublicClansCount(6); return;
       }
-
-      setIsSearchingPublicClan(true);
-      setPublicSearchError(null);
-      setPublicClanResult(null);
-
+      setIsSearchingPublicClan(true); setPublicSearchError(null); setPublicClanResult(null);
       const tagToSearch = rawTag.startsWith('#') ? rawTag : `#${rawTag}`;
-      const encodedTag = encodeURIComponent(tagToSearch);
-
       try {
-        const response = await fetch(
-          `/api/coc/search-clan?clanTag=${encodedTag}`,
-        );
+        const response = await fetch(`/api/coc/search-clan?clanTag=${encodeURIComponent(tagToSearch)}`);
         let result: any;
-        try {
-            result = await response.json();
-        } catch (jsonError) {
-             throw new Error(`Failed to parse response.`);
-        }
-
+        try { result = await response.json(); } catch { throw new Error('Parse error'); }
         if (!response.ok) {
-          setPublicSearchError(
-            response.status === 404
-              ? `Klan dengan tag ${tagToSearch} tidak ditemukan.`
-              : result.error || 'Gagal mengambil data.'
-          );
+          setPublicSearchError(response.status === 404 ? `Klan ${tagToSearch} tidak ditemukan.` : result.error);
           return;
         }
+        if (result && result.clan) setPublicClanResult(result.clan);
+        else setPublicSearchError('Format respons tidak valid.');
+      } catch { setPublicSearchError('Terjadi kesalahan.'); } 
+      finally { setIsSearchingPublicClan(false); }
+    }, [publicClanTag]);
 
-        if (result && result.clan) {
-          setPublicClanResult(result.clan);
-        } else {
-          setPublicSearchError('Format respons tidak valid.');
-        }
-      } catch (error) {
-        setPublicSearchError('Terjadi kesalahan saat mencari klan.');
-      } finally {
-        setIsSearchingPublicClan(false);
-      }
-    },
-    [publicClanTag],
-  );
+  // Filtering Data Logic
+  const filteredClans = useMemo(() => {
+    return initialClans.filter((clan) => {
+      if (clanFilters.searchTerm && !clan.name.toLowerCase().includes(clanFilters.searchTerm.toLowerCase()) && !clan.tag.toLowerCase().includes(clanFilters.searchTerm.toLowerCase())) return false;
+      if (clanFilters.vision !== 'all' && clan.vision !== clanFilters.vision) return false;
+      if (clan.averageRating < clanFilters.reputation) return false;
+      if (clanFilters.minMembers > 0 && clan.memberCount < clanFilters.minMembers) return false;
+      if (clanFilters.thLevel > 0 && Math.floor(clan.avgTh) < clanFilters.thLevel) return false;
+      return true;
+    }).sort((a, b) => b.averageRating - a.averageRating);
+  }, [initialClans, clanFilters]);
 
+  const filteredPlayers = useMemo(() => {
+    return initialPlayers.filter((player) => {
+      if (playerFilters.searchTerm && !(player.displayName || player.name || '').toLowerCase().includes(playerFilters.searchTerm.toLowerCase()) && !(player.playerTag || player.tag || '').toLowerCase().includes(playerFilters.searchTerm.toLowerCase())) return false;
+      if (playerFilters.role !== 'all' && player.role !== playerFilters.role) return false;
+      if ((player.reputation || 0) < playerFilters.reputation) return false;
+      if (playerFilters.thLevel > 0 && (player.thLevel || 0) < playerFilters.thLevel) return false;
+      return true;
+    }).sort((a, b) => (b.reputation || 0) - (a.reputation || 0));
+  }, [initialPlayers, playerFilters]);
 
-  // --- RENDER HELPERS ---
   const clansToShow = filteredClans.slice(0, visibleClansCount);
   const playersToShow = filteredPlayers.slice(0, visiblePlayersCount);
-  const publicClansToShow = publicClansDataSource.slice(0, visiblePublicClansCount);
-
+  const publicClansToShow = publicClansCache.slice(0, visiblePublicClansCount);
   const clansToDisplayPublic = useMemo(() => {
-    if (publicClanResult) {
-      return [publicClanResult];
-    }
-    if (publicClanTag.trim() && !publicSearchError) {
-      return [];
-    }
+    if (publicClanResult) return [publicClanResult];
+    if (publicClanTag.trim() && !publicSearchError) return [];
     return publicClansToShow;
   }, [publicClanResult, publicClanTag, publicSearchError, publicClansToShow]);
 
   return (
-    // [LAYOUT BARU] Menggunakan struktur container biasa, tanpa banner
-    <div className="relative">
-      <div className="container mx-auto p-4 md:p-8 mt-10">
+    <div className="min-h-screen bg-coc-dark pb-20">
+        {/* Background decoration */}
+        <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-coc-stone-light/10 to-transparent pointer-events-none" />
 
-        {/* [TAB NAVIGATION] Sinkron dengan TournamentClient style */}
-        <div className="mb-8 border-b-2 border-coc-gold-dark/20 flex overflow-x-auto custom-scrollbar">
-          <button
-            onClick={() => handleTabChange('clashubTeams')}
-            className={`px-6 py-3 font-clash text-lg whitespace-nowrap transition-colors flex items-center gap-2 ${
-              activeTab === 'clashubTeams'
-                ? 'text-coc-gold border-b-2 border-coc-gold'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            <ShieldIcon className="w-5 h-5" />
-            {t.clanHub.tabTeams}
-          </button>
-          <button
-            onClick={() => handleTabChange('publicClans')}
-            className={`px-6 py-3 font-clash text-lg whitespace-nowrap transition-colors flex items-center gap-2 ${
-              activeTab === 'publicClans'
-                ? 'text-coc-gold border-b-2 border-coc-gold'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            <GlobeIcon className="w-5 h-5" />
-            {t.clanHub.tabPublicClans}
-          </button>
-          <button
-            onClick={() => handleTabChange('players')}
-            className={`px-6 py-3 font-clash text-lg whitespace-nowrap transition-colors flex items-center gap-2 ${
-              activeTab === 'players'
-                ? 'text-coc-gold border-b-2 border-coc-gold'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            <UserIcon className="w-5 h-5" />
-            {t.clanHub.tabPlayers}
-          </button>
+        {/* 1. UNIFIED HEADER (NAV + FILTER) - STICKY & FULL WIDTH */}
+        {/* Diletakkan di luar container agar background-nya full width */}
+        <div className="sticky top-16 md:top-[72px] z-20">
+            <TeamHubTabNavigation activeTab={activeTab} onTabChange={handleTabChange}>
+                {/* Render Filter based on active tab directly in header */}
+                {activeTab !== 'publicClans' ? (
+                    <TeamHubFilterBar
+                        activeTab={activeTab}
+                        clanFilters={clanFilters}
+                        onClanFilterChange={handleClanFilterChange}
+                        playerFilters={playerFilters}
+                        onPlayerFilterChange={handlePlayerFilterChange}
+                    />
+                ) : (
+                    // Render Public Search Bar in header
+                    <PublicClanSearchFilter 
+                        publicClanTag={publicClanTag}
+                        onPublicClanTagChange={setPublicClanTag}
+                        onSearchSubmit={handlePublicClanSearch}
+                        isSearching={isSearchingPublicClan}
+                    />
+                )}
+            </TeamHubTabNavigation>
         </div>
 
-        <div className="mt-8">
-          {/* Konten Tab */}
-          {activeTab === 'publicClans' ? (
-              <PublicClansTab
-                  publicClanTag={publicClanTag}
-                  onPublicClanTagChange={setPublicClanTag}
-                  onSearchSubmit={handlePublicClanSearch}
-                  isSearching={isSearchingPublicClan}
-                  searchError={publicSearchError}
-                  clansToDisplay={clansToDisplayPublic}
-                  isSearchResult={!!publicClanResult}
-                  totalCacheCount={publicClansDataSource.length}
-                  showLoadMore={
-                      !publicClanResult &&
-                      !publicClanTag.trim() &&
-                      visiblePublicClansCount < publicClansDataSource.length
-                  }
-                  onLoadMore={() => setVisiblePublicClansCount((prev) => prev + 6)}
-                  visibleCount={visiblePublicClansCount}
-              />
-          ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 lg:items-start">
-                  {/* Filter Sidebar */}
-                  <TeamHubFilterBar
-                      activeTab={activeTab}
-                      clanFilters={clanFilters}
-                      onClanFilterChange={handleClanFilterChange}
-                      playerFilters={playerFilters}
-                      onPlayerFilterChange={handlePlayerFilterChange}
-                  />
+        {/* 2. CONTENT AREA */}
+        <div className="container mx-auto px-4 md:px-8 relative z-10 mt-8">
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {activeTab === 'clashubTeams' && (
+                    <ClashubTeamsTab
+                        isFiltering={isFiltering}
+                        filteredClans={filteredClans}
+                        clansToShow={clansToShow}
+                        showLoadMoreClans={visibleClansCount < filteredClans.length}
+                        onLoadMoreClans={() => setVisibleClansCount((prev) => prev + 6)}
+                    />
+                )}
 
-                  {/* Konten Utama */}
-                  <div className="lg:col-span-3">
-                      {activeTab === 'clashubTeams' && (
-                          <ClashubTeamsTab
-                              isFiltering={isFiltering}
-                              filteredClans={filteredClans}
-                              clansToShow={clansToShow}
-                              showLoadMoreClans={visibleClansCount < filteredClans.length}
-                              onLoadMoreClans={() =>
-                                  setVisibleClansCount((prev) => prev + 6)
-                              }
-                          />
-                      )}
+                {activeTab === 'players' && (
+                    <PlayersTab
+                        isFiltering={isFiltering}
+                        filteredPlayers={filteredPlayers}
+                        playersToShow={playersToShow}
+                        showLoadMorePlayers={visiblePlayersCount < filteredPlayers.length}
+                        onLoadMorePlayers={() => setVisiblePlayersCount((prev) => prev + 6)}
+                    />
+                )}
 
-                      {activeTab === 'players' && (
-                          <PlayersTab
-                              isFiltering={isFiltering}
-                              filteredPlayers={filteredPlayers}
-                              playersToShow={playersToShow}
-                              showLoadMorePlayers={
-                                  visiblePlayersCount < filteredPlayers.length
-                              }
-                              onLoadMorePlayers={() =>
-                                  setVisiblePlayersCount((prev) => prev + 6)
-                              }
-                          />
-                      )}
-                  </div>
-              </div>
-          )}
+                {activeTab === 'publicClans' && (
+                    <PublicClansTab
+                        publicClanTag={publicClanTag}
+                        onPublicClanTagChange={setPublicClanTag} // Sinkron dengan interface
+                        onSearchSubmit={handlePublicClanSearch}
+                        isSearching={isSearchingPublicClan}
+                        searchError={publicSearchError}
+                        clansToDisplay={clansToDisplayPublic}
+                        isSearchResult={!!publicClanResult}
+                        totalCacheCount={publicClansCache.length}
+                        showLoadMore={!publicClanResult && !publicClanTag.trim() && visiblePublicClansCount < publicClansCache.length}
+                        onLoadMore={() => setVisiblePublicClansCount((prev) => prev + 6)}
+                        visibleCount={visiblePublicClansCount}
+                    />
+                )}
+            </div>
         </div>
-      </div>
     </div>
   );
 };

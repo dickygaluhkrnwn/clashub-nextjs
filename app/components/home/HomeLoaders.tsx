@@ -17,16 +17,18 @@ export const RecommendedTeamsLoading = () => {
       icon={<CogsIcon className="inline-block h-5 w-5 text-coc-gold" />}
     >
       {[...Array(4)].map((_, i) => (
-        <div key={i} className="card-stone p-4 animate-pulse min-w-[280px]">
-          <div className="flex items-center gap-4 mb-3">
-            <div className="w-16 h-16 rounded-lg bg-coc-stone-light/50"></div>
+        // [MOBILE UPDATE] Ubah min-width agar pas di layar kecil tanpa gepeng
+        <div key={i} className="card-stone p-4 animate-pulse min-w-[240px] md:min-w-[280px] border border-white/5">
+          <div className="flex items-center gap-3 mb-3">
+            {/* Ukuran logo disesuaikan */}
+            <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl bg-coc-stone-light/50"></div>
             <div className="flex-1 space-y-2">
-              <div className="h-5 w-3/4 rounded bg-coc-stone-light/50"></div>
-              <div className="h-4 w-1/4 rounded bg-coc-stone-light/50"></div>
+              <div className="h-4 w-3/4 rounded bg-coc-stone-light/50"></div>
+              <div className="h-3 w-1/4 rounded bg-coc-stone-light/50"></div>
             </div>
           </div>
-          <div className="h-4 w-full rounded bg-coc-stone-light/50 mb-2"></div>
-          <div className="h-4 w-5/6 rounded bg-coc-stone-light/50"></div>
+          <div className="h-3 w-full rounded bg-coc-stone-light/50 mb-2"></div>
+          <div className="h-3 w-5/6 rounded bg-coc-stone-light/50"></div>
         </div>
       ))}
     </CarouselSection>
@@ -46,13 +48,14 @@ export const LatestStrategiesLoading = () => {
       icon={<BookOpenIcon className="inline-block h-6 w-6 text-coc-gold" />}
     >
       {[...Array(5)].map((_, i) => (
-        <div key={i} className="card-stone p-4 animate-pulse min-w-[280px]">
-          <div className="flex justify-between items-center mb-2">
-            <div className="h-4 w-1/4 rounded bg-coc-stone-light/50"></div>
-            <div className="h-4 w-1/3 rounded bg-coc-stone-light/50"></div>
+        // [MOBILE UPDATE] Ubah min-width agar konsisten
+        <div key={i} className="card-stone p-4 animate-pulse min-w-[240px] md:min-w-[280px] border border-white/5">
+          <div className="flex justify-between items-center mb-3">
+            <div className="h-3 w-1/4 rounded bg-coc-stone-light/50"></div>
+            <div className="h-3 w-1/3 rounded bg-coc-stone-light/50"></div>
           </div>
-          <div className="h-5 w-full rounded bg-coc-stone-light/50 mb-2"></div>
-          <div className="h-5 w-3/4 rounded bg-coc-stone-light/50"></div>
+          <div className="h-4 w-full rounded bg-coc-stone-light/50 mb-2"></div>
+          <div className="h-4 w-3/4 rounded bg-coc-stone-light/50"></div>
         </div>
       ))}
     </CarouselSection>

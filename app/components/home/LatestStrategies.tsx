@@ -21,7 +21,7 @@ function formatPostStats(likes: number, createdAt: Date): string {
   if (diffInDays === 0) {
     timeAgo = "Hari Ini";
   } else if (diffInDays === 1) {
-    timeAgo = "1 Hari Lalu";
+    timeAgo = "Kemarin";
   } else if (diffInDays < 7) {
     timeAgo = `${diffInDays} Hari Lalu`;
   } else if (diffInDays < 30) {
@@ -33,14 +33,14 @@ function formatPostStats(likes: number, createdAt: Date): string {
   const formattedLikes =
     likes > 999 ? `${(likes / 1000).toFixed(1)}K Likes` : `${likes} Likes`;
 
-  return `${formattedLikes} | ${timeAgo}`;
+  return `${formattedLikes} • ${timeAgo}`;
 }
 
 /**
  * Helper function untuk mencari tag TH dari array tags
  */
 function findThTag(tags: string[]): string {
-  if (!tags || !Array.isArray(tags)) return "#?";
+  if (!tags || !Array.isArray(tags)) return "#Strategies";
   const thTag = tags.find((tag) => tag.startsWith("TH"));
   return thTag ? `#${thTag}` : "#Strategies";
 }
@@ -56,7 +56,7 @@ export default function LatestStrategies({ posts }: LatestStrategiesProps) {
         title="Strategi & Tips"
         icon={<BookOpenIcon className="inline-block h-6 w-6 text-coc-gold" />}
       >
-        <div className="p-6 bg-coc-stone-light/50 text-gray-400 rounded-lg border border-white/5 text-center w-[280px] sm:w-[320px]">
+        <div className="p-6 bg-coc-stone-light/50 text-gray-400 rounded-lg border border-white/5 text-center w-full md:w-auto min-w-[280px]">
           Belum ada strategi terbaru yang dipublikasikan.
         </div>
       </CarouselSection>
@@ -77,14 +77,17 @@ export default function LatestStrategies({ posts }: LatestStrategiesProps) {
         const thCategory = findThTag(post.tags);
 
         return (
-          <div key={post.id} className="snap-center h-full">
+          // [MOBILE OPTIMIZATION]
+          // Menambahkan min-w-[280px] agar kartu tidak gepeng di layar HP
+          // snap-center membuat scroll berhenti pas di tengah kartu
+          <div key={post.id} className="snap-center h-full min-w-[280px] md:min-w-[320px] pr-4 last:pr-0">
              <PostCard
-                title={post.title}
-                category={thCategory}
-                tag={post.category}
-                stats={stats}
-                author={post.authorName || "ClashHub User"}
-                href={`/knowledge-hub/${post.id}`}
+               title={post.title}
+               category={thCategory}
+               tag={post.category}
+               stats={stats}
+               author={post.authorName || "ClashHub User"}
+               href={`/knowledge-hub/${post.id}`}
              />
           </div>
         );

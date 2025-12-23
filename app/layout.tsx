@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import localFont from 'next/font/local';
 import "./globals.css";
@@ -7,8 +7,7 @@ import Footer from "@/app/components/layout/Footer";
 import { AuthProvider } from "@/app/context/AuthContext";
 import { LanguageProvider } from "@/app/context/LanguageContext";
 import { getSessionUser, ServerUser } from "@/lib/server-auth";
-// [BARU] Import Analytics dari package Vercel
-import { Analytics } from "@vercel/analytics/react"; // Menggunakan '/react' yang umum untuk App Router, jika error coba '/next' sesuai dokumentasi spesifik versi
+import { Analytics } from "@vercel/analytics/react";
 
 // Konfigurasi font Inter (Tetap)
 const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
@@ -29,10 +28,19 @@ const clashFontRegular = localFont({
 });
 // --- Akhir Konfigurasi Font Clash ---
 
-// Metadata untuk SEO (Tetap)
+// Metadata untuk SEO
 export const metadata: Metadata = {
   title: "Clashub | E-sports Community",
   description: "Pusat Strategi & Komunitas E-sports Clash of Clans",
+};
+
+// [BARU] Viewport configuration untuk Mobile Optimization yang tepat
+// maximum-scale=1 mencegah auto-zoom pada input form di iOS
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 // Ubah RootLayout menjadi async Server Component (Tetap)
@@ -47,19 +55,19 @@ export default async function RootLayout({
     // Tambahkan variabel clashFontBold dan clashFontRegular ke html
     <html lang="id" className={`${inter.variable} ${clashFontBold.variable} ${clashFontRegular.variable}`}>
       {/* Pastikan body default menggunakan font-sans (Inter) */}
-      <body className={`font-sans flex flex-col min-h-screen`}>
+      <body className={`font-sans flex flex-col min-h-screen bg-coc-dark text-white selection:bg-coc-gold/30 selection:text-coc-gold`}>
         {/* Wrap aplikasi dengan LanguageProvider agar Context Bahasa tersedia global */}
         <LanguageProvider>
           <AuthProvider initialServerUser={initialServerUser}>
             <Header />
-            <main className="flex-grow">
+            <main className="flex-grow w-full max-w-[100vw] overflow-x-hidden">
               {children}
             </main>
             <Footer />
           </AuthProvider>
         </LanguageProvider>
         
-        {/* [BARU] Komponen Analytics ditempatkan di sini agar mencakup seluruh aplikasi */}
+        {/* Komponen Analytics ditempatkan di sini agar mencakup seluruh aplikasi */}
         <Analytics />
       </body>
     </html>

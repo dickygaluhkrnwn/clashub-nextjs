@@ -53,37 +53,37 @@ export default function QuickLinks() {
   ];
 
   return (
-    // Section wrapper (Spacing/jarak antar section akan diperbaiki di app/page.tsx)
-    <section className="mb-12">
-      {/*
-        [PERBAIKAN 1] Teks judul diubah menjadi dinamis.
-        [PERBAIKAN 2] className disederhanakan (hanya flex) agar mengambil
-        style h2 global dari globals.css, sehingga senada dengan section lain.
-      */}
-      <h2 className="flex items-center gap-2">
+    // Section wrapper
+    <section className="mb-8 md:mb-12">
+      <h2 className="flex items-center gap-2 text-xl font-clash text-white mb-4 px-1">
         <LinkIcon className="h-6 w-6 text-coc-gold" />
         {t.quickLinks.title}
       </h2>
 
-      {/* [PERBAIKAN 3] Menambahkan 'mt-4' agar jarak dari judul ke grid 
-        konsisten seperti di CarouselSection.tsx 
+      {/* [MOBILE OPTIMIZATION]
+         Grid Layout:
+         - Mobile: grid-cols-3 (Icon Only / Text Small) atau grid-cols-2 (Safe). 
+           Kita pakai grid-cols-3 agar compact dan mirip menu aplikasi native.
+         - Tablet: grid-cols-3
+         - Desktop: grid-cols-6
       */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6 mt-4">
+      <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4 lg:gap-6">
         {quickLinks.map((link) => {
           const IconComponent = link.icon;
           return (
             <a
-              key={link.href} // Gunakan href sebagai key karena title bisa berubah bahasa
+              key={link.href}
               href={link.href}
-              target="_blank" // Buka di tab baru
+              target="_blank"
               rel="noopener noreferrer"
-              // Style card
-              className="card-stone p-4 flex flex-col items-center justify-center text-center rounded-lg hover:bg-coc-stone-light/70 transition-colors duration-200"
+              // Style card: Padding dikurangi di mobile (p-3) agar muat 3 kolom
+              className="card-stone p-3 md:p-4 flex flex-col items-center justify-center text-center rounded-xl hover:bg-coc-stone-light/70 transition-all duration-200 border border-white/5 active:scale-95 touch-manipulation"
             >
-              {/* Ikon */}
-              <IconComponent className="h-10 w-10 text-coc-gold mb-2" />
-              {/* Judul */}
-              <span className="text-sm font-semibold text-white font-sans">
+              {/* Ikon: Ukuran responsif */}
+              <IconComponent className="h-8 w-8 md:h-10 md:w-10 text-coc-gold mb-2 drop-shadow-md" />
+              
+              {/* Judul: Font size responsif */}
+              <span className="text-[10px] md:text-sm font-bold text-gray-300 font-sans leading-tight">
                 {link.title}
               </span>
             </a>

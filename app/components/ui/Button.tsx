@@ -7,14 +7,15 @@ import Link from 'next/link';
 
 // Properti dasar yang sama untuk semua varian
 type BaseButtonProps = {
-  // PERBAIKAN: Menambahkan 'danger' dan 'ghost' ke tipe variant
+  // PERBAIKAN: Menambahkan 'danger', 'ghost', dan 'outline' ke tipe variant
   variant?:
     | 'primary'
     | 'secondary'
     | 'link'
     | 'tertiary'
     | 'danger'
-    | 'ghost';
+    | 'ghost'
+    | 'outline'; // [FIX] Added outline
   size?: 'sm' | 'md' | 'lg';
   children: ReactNode;
   className?: string;
@@ -48,18 +49,21 @@ export const Button = React.forwardRef<
       variant !== 'link' && variant !== 'ghost' ? 'font-clash' : 'font-sans'
     } rounded-md transition-all duration-200 uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed`;
 
-    // PERBAIKAN: Menambahkan kelas untuk variant 'danger' dan 'ghost'
+    // PERBAIKAN: Menambahkan kelas untuk variant 'danger', 'ghost', dan 'outline'
     const variantClasses = {
       primary: 'btn-3d-gold', // Kelas dari globals.css
       secondary: 'btn-3d-stone', // Kelas dari globals.css
       tertiary: 'btn-3d-silver', // Asumsi: Tambahkan kelas ini di globals.css
       link: 'btn-link font-bold', // Kelas dari globals.css
-      // Style baru untuk danger (mengikuti pola .btn-3d-red dari MemberTabContent)
+      // Style baru untuk danger
       danger:
         'bg-coc-red/80 text-white hover:bg-coc-red border border-coc-red/90',
-      // Style baru untuk ghost (tombol transparan)
+      // Style baru untuk ghost
       ghost:
         'bg-transparent text-gray-300 hover:bg-coc-stone-light/30 hover:text-white',
+      // [FIX] Style baru untuk outline
+      outline:
+        'bg-transparent border-2 border-coc-gold/50 text-coc-gold hover:bg-coc-gold/10 hover:border-coc-gold',
     };
 
     const sizeClasses = {

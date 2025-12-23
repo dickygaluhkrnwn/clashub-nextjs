@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/app/components/ui/Button';
-import { UserSearchIcon } from '@/app/components/icons';
+import { UserSearchIcon, SearchIcon, StarIcon, HomeIcon } from '@/app/components/icons';
 import { Player } from '@/lib/types';
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
-// Tipe PlayerFilters
 export type PlayerFilters = {
   searchTerm: string;
   role: Player['role'] | 'all';
@@ -13,41 +13,33 @@ export type PlayerFilters = {
   thLevel: number;
 };
 
-// Opsi untuk dropdown role
 const roleOptions: (Player['role'] | 'all')[] = [
-  'all',
-  'Free Agent',
-  'Leader',
-  'Co-Leader',
-  'Elder',
-  'Member',
+  'all', 'Leader', 'Co-Leader', 'Elder', 'Member', 'Free Agent',
 ];
 
-// Definisikan props untuk komponen
 type PlayerHubFilterProps = {
   filters: PlayerFilters;
   onFilterChange: (newFilters: PlayerFilters) => void;
 };
 
 const PlayerHubFilter = ({ filters, onFilterChange }: PlayerHubFilterProps) => {
-  // State internal untuk sinkronisasi <select> TH
+  const { t } = useLanguage();
+  
   const [internalThLevel, setInternalThLevel] = useState(filters.thLevel);
+  const [internalReputation, setInternalReputation] = useState(filters.reputation);
 
-  // Efek ini akan menyinkronkan state internal <select> JIKA props dari parent berubah
-  useEffect(() => {
-    setInternalThLevel(filters.thLevel);
-  }, [filters.thLevel]);
+  useEffect(() => { setInternalThLevel(filters.thLevel); }, [filters.thLevel]);
+  useEffect(() => { setInternalReputation(filters.reputation); }, [filters.reputation]);
 
-  const handleFilterChange = (key: keyof PlayerFilters, value: string) => {
+  const handleFilterChange = (key: keyof PlayerFilters, value: string | number) => {
     let processedValue: string | number = value;
-
     if (key === 'reputation') {
-      processedValue = parseFloat(value);
+      processedValue = typeof value === 'string' ? parseFloat(value) : value;
+      setInternalReputation(processedValue as number);
     } else if (key === 'thLevel') {
-      processedValue = parseInt(value, 10);
-      setInternalThLevel(processedValue);
+      processedValue = typeof value === 'string' ? parseInt(value, 10) : value;
+      setInternalThLevel(processedValue as number);
     }
-
     onFilterChange({ ...filters, [key]: processedValue as any });
   };
 
@@ -55,120 +47,93 @@ const PlayerHubFilter = ({ filters, onFilterChange }: PlayerHubFilterProps) => {
     const defaultFilters: PlayerFilters = {
       searchTerm: '',
       role: 'all',
-      reputation: 3.0,
+      reputation: 0,
       thLevel: 0,
     };
     onFilterChange(defaultFilters);
-    setInternalThLevel(defaultFilters.thLevel);
+    setInternalThLevel(0);
+    setInternalReputation(0);
   };
 
   return (
-    // [PERBAIKAN FASE 3: MOBILE RESPONSIVE]
-    // - Ubah 'sticky' jadi 'static lg:sticky' agar tidak menimpa konten di HP
-    // - Ubah padding 'p-6' jadi 'p-4 lg:p-6' agar lebih hemat tempat di HP
-    <aside className="card-stone p-4 lg:p-6 h-fit static lg:sticky lg:top-28 rounded-lg w-full">
-      <h2 className="text-xl lg:text-2xl font-clash text-white border-l-4 border-coc-gold-dark pl-3 mb-6 flex items-center gap-3">
-        <UserSearchIcon className="h-6 w-6 text-coc-gold-dark" />
-        Filter Pemain
-      </h2>
-
-      <div className="space-y-4 lg:space-y-6">
-        {/* Search Input */}
-        <div className="filter-group">
-          <label
-            htmlFor="player-search-input"
-            className="block text-sm font-bold text-gray-300 mb-2 font-sans"
-          >
-            Nama Pemain / Tag
-          </label>
-          <input
-            type="text"
-            id="player-search-input"
-            placeholder="Cari berdasarkan nama/tag..."
-            value={filters.searchTerm}
-            onChange={(e) => handleFilterChange('searchTerm', e.target.value)}
-            className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white placeholder-gray-500 focus:ring-coc-gold focus:border-coc-gold font-sans text-sm lg:text-base"
-          />
+    <div className="bg-[#1a1a1a] border-b border-white/10 p-4 md:p-6 shadow-sm relative">
+      <div className="flex flex-col xl:flex-row gap-6 xl:items-end">
+        
+        {/* Kolom 1: Search */}
+        <div className="flex-grow space-y-4 xl:w-1/3">
+            <div className="relative group">
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-coc-gold transition-colors"/>
+                <input
+                type="text"
+                placeholder="Cari pemain (Nama/Tag)..."
+                value={filters.searchTerm}
+                onChange={(e) => handleFilterChange('searchTerm', e.target.value)}
+                className="w-full bg-black/40 border border-white/10 rounded-lg pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-coc-gold/50 focus:ring-1 focus:ring-coc-gold/50 transition-all font-sans"
+                />
+            </div>
+            
+            {/* Role Filter (Dropdown/Select for compact header) */}
+            <div>
+               <select
+                  value={filters.role}
+                  onChange={(e) => handleFilterChange('role', e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-md px-3 py-2 text-xs font-bold text-gray-300 focus:ring-coc-gold focus:border-coc-gold"
+                >
+                  {roleOptions.map((role) => (
+                    <option key={role} value={role} className="bg-[#2a2a2a] text-white">
+                      {role === 'all' ? 'Semua Role' : role}
+                    </option>
+                  ))}
+                </select>
+            </div>
         </div>
 
-        {/* Role Filter (Dropdown) */}
-        <div className="filter-group">
-          <label
-            htmlFor="role-filter"
-            className="block text-sm font-bold text-gray-300 mb-2 font-sans"
-          >
-            Role Dicari
-          </label>
-          <select
-            id="role-filter"
-            value={filters.role}
-            onChange={(e) => handleFilterChange('role', e.target.value)}
-            className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white focus:ring-coc-gold focus:border-coc-gold font-sans text-sm lg:text-base"
-          >
-            {roleOptions.map((role) => (
-              <option key={role} value={role} className="font-sans text-coc-stone bg-white">
-                {role === 'all' ? 'Semua Role' : role}
-              </option>
-            ))}
-          </select>
+        {/* Kolom 2: Sliders */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-grow xl:w-1/3">
+            {/* Reputation */}
+            <div className="bg-black/20 p-3 rounded-lg border border-white/5">
+                <div className="flex justify-between text-[10px] font-bold text-gray-400 mb-2 font-sans uppercase">
+                    <span className="flex items-center gap-1"><StarIcon className="w-3 h-3 text-coc-gold"/> Min Rep</span>
+                    <span className="text-coc-gold">{internalReputation.toFixed(1)}+</span>
+                </div>
+                <input
+                    type="range"
+                    min="0"
+                    max="5.0"
+                    step="0.1"
+                    value={internalReputation}
+                    onChange={(e) => handleFilterChange('reputation', parseFloat(e.target.value))}
+                    className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-coc-gold"
+                />
+            </div>
+
+            {/* TH Level */}
+            <div className="bg-black/20 p-3 rounded-lg border border-white/5">
+                <div className="flex justify-between text-[10px] font-bold text-gray-400 mb-2 font-sans uppercase">
+                    <span className="flex items-center gap-1"><HomeIcon className="w-3 h-3 text-coc-blue"/> Min TH</span>
+                    <span className="text-coc-blue">{internalThLevel === 0 ? 'All' : `TH ${internalThLevel}+`}</span>
+                </div>
+                <input
+                    type="range"
+                    min="0"
+                    max="17"
+                    step="1"
+                    value={internalThLevel}
+                    onChange={(e) => handleFilterChange('thLevel', parseInt(e.target.value))}
+                    className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-coc-blue"
+                />
+            </div>
         </div>
 
-        {/* Reputation Filter */}
-        <div className="filter-group">
-          <label
-            htmlFor="player-rating-filter"
-            className="block text-sm font-bold text-gray-300 mb-2"
-          >
-            Minimum Reputasi
-          </label>
-          <select
-            id="player-rating-filter"
-            value={filters.reputation}
-            onChange={(e) => handleFilterChange('reputation', e.target.value)}
-            className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white focus:ring-coc-gold focus:border-coc-gold text-sm lg:text-base"
-          >
-            <option value="3.0" className="text-coc-stone bg-white">Semua Reputasi (3.0+ ★)</option>
-            <option value="4.0" className="text-coc-stone bg-white">4.0+ ★</option>
-            <option value="4.5" className="text-coc-stone bg-white">4.5+ ★</option>
-            <option value="5.0" className="text-coc-stone bg-white">5.0 ★ (Sempurna)</option>
-          </select>
+        {/* Reset Button */}
+        <div className="xl:self-center">
+             <Button variant="ghost" onClick={handleReset} className="text-xs text-gray-500 hover:text-red-400 whitespace-nowrap">
+                Reset
+             </Button>
         </div>
 
-        {/* TH Level Filter */}
-        <div className="filter-group">
-          <label
-            htmlFor="player-th-filter"
-            className="block text-sm font-bold text-gray-300 mb-2"
-          >
-            Level TH
-          </label>
-          <select
-            id="player-th-filter"
-            value={internalThLevel}
-            onChange={(e) => handleFilterChange('thLevel', e.target.value)}
-            className="w-full bg-coc-stone/50 border border-coc-gold-dark/50 rounded-md px-3 py-2 text-white focus:ring-coc-gold focus:border-coc-gold text-sm lg:text-base"
-          >
-            <option value="0" className="text-coc-stone bg-white">Semua Level TH</option>
-            <option value="9" className="text-coc-stone bg-white">Minimum TH 9</option>
-            <option value="10" className="text-coc-stone bg-white">Minimum TH 10</option>
-            <option value="11" className="text-coc-stone bg-white">Minimum TH 11</option>
-            <option value="12" className="text-coc-stone bg-white">Minimum TH 12</option>
-            <option value="13" className="text-coc-stone bg-white">Minimum TH 13</option>
-            <option value="14" className="text-coc-stone bg-white">Minimum TH 14</option>
-            <option value="15" className="text-coc-stone bg-white">Minimum TH 15</option>
-            <option value="16" className="text-coc-stone bg-white">Minimum TH 16</option>
-            <option value="17" className="text-coc-stone bg-white">Minimum TH 17</option>
-          </select>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="filter-group pt-4 border-t border-coc-gold-dark/20 space-y-3">
-          <Button variant="secondary" className="w-full" onClick={handleReset}>
-            Reset Filter
-          </Button>
-        </div>
       </div>
-    </aside>
+    </div>
   );
 };
 

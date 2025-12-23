@@ -14,9 +14,11 @@ import {
   ShieldIcon,
   CheckCircleIcon,
   TrophyIcon,
+  HomeIcon,
+  BookOpenIcon
 } from '@/app/components/icons';
 import ThemeToggle from '@/app/components/ui/ThemeToggle';
-import LanguageSwitcher from '@/app/components/ui/LanguageSwitcher'; // Import Component
+import LanguageSwitcher from '@/app/components/ui/LanguageSwitcher';
 import { useAuth } from '@/app/context/AuthContext';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
@@ -26,21 +28,20 @@ import { ServerUser } from '@/lib/server-auth';
 import { useNotifications } from '@/lib/hooks/useNotifications';
 import { getManagedTournamentsForUserClient } from '@/lib/firestore/tournaments';
 
+// Mapping Nav Items dengan Icon untuk Mobile Menu
 const navItems = [
-  { name: 'Home', href: '/' },
-  { name: 'Team Hub', href: '/clan-hub' },
-  { name: 'Tournament', href: '/tournament' },
-  { name: 'Knowledge Hub', href: '/knowledge-hub' },
+  { name: 'Home', href: '/', icon: HomeIcon },
+  { name: 'Team Hub', href: '/clan-hub', icon: ShieldIcon },
+  { name: 'Tournament', href: '/tournament', icon: TrophyIcon },
+  { name: 'Knowledge Hub', href: '/knowledge-hub', icon: BookOpenIcon },
 ];
 
-// Komponen menu dropdown profil pengguna
+// Komponen menu dropdown profil pengguna (Desktop)
 const UserProfileDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // [OLD CODE LOGIC RESTORED]
-  // Menggunakan logika state yang sama dengan versi lama
   const { currentUser, userProfile, loading: authLoading } = useAuth();
   const [isTournamentManager, setIsTournamentManager] = useState(false);
 
@@ -72,9 +73,7 @@ const UserProfileDropdown = () => {
   }, []);
 
   useEffect(() => {
-    // Reset status saat user berganti atau logout
     setIsTournamentManager(false);
-
     if (currentUser?.uid) {
       getManagedTournamentsForUserClient(currentUser.uid)
         .then((tournaments) => {
@@ -88,8 +87,6 @@ const UserProfileDropdown = () => {
     }
   }, [currentUser?.uid]);
 
-  // [LOGIKA LAMA DIKEMBALIKAN - LEBIH KETAT & STABIL]
-  // Pengecekan tipe yang ketat untuk memastikan semua properti ada sebelum render
   const isCompleteUserProfile = (
     profile: UserProfile | ServerUser | null,
   ): profile is UserProfile => {
@@ -104,8 +101,6 @@ const UserProfileDropdown = () => {
   let showClanLink = false;
   let avatarSrc: string | null = null;
 
-  // [LOGIKA LAMA DIKEMBALIKAN]
-  // Hanya tampilkan link klan jika Verified DAN punya ClanTag
   if (isCompleteUserProfile(userProfile)) {
     showClanLink = userProfile.isVerified === true && !!userProfile.clanTag;
     avatarSrc = userProfile.avatarUrl || null;
@@ -115,12 +110,12 @@ const UserProfileDropdown = () => {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="h-9 w-9 flex items-center justify-center rounded-full bg-coc-stone-light hover:ring-2 hover:ring-coc-gold transition-all"
+        className="h-9 w-9 flex items-center justify-center rounded-full bg-coc-stone-light hover:ring-2 hover:ring-coc-gold transition-all overflow-hidden"
       >
         <img
           src={avatarSrc || '/images/placeholder-avatar.png'}
           alt="User Avatar"
-          className="rounded-full h-8 w-8 object-cover"
+          className="h-full w-full object-cover"
           onError={(e) => {
             e.currentTarget.onerror = null;
             e.currentTarget.src = '/images/placeholder-avatar.png';
@@ -129,7 +124,7 @@ const UserProfileDropdown = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-56 card-stone p-2 shadow-lg rounded-md z-50 border border-coc-gold/20">
+        <div className="absolute right-0 mt-2 w-56 card-stone p-2 shadow-lg rounded-md z-50 border border-coc-gold/20 animate-in fade-in zoom-in-95 duration-100">
           <ul className="space-y-1">
             <li>
               <Link
@@ -142,7 +137,6 @@ const UserProfileDropdown = () => {
               </Link>
             </li>
 
-            {/* Tampilkan Link "Klan" secara kondisional (Logic Lama) */}
             {showClanLink && (
               <li>
                 <Link
@@ -169,6 +163,8 @@ const UserProfileDropdown = () => {
               </li>
             )}
 
+            <div className="my-1 border-t border-white/10"></div>
+
             <li>
               <button
                 onClick={handleLogout}
@@ -185,7 +181,7 @@ const UserProfileDropdown = () => {
   );
 };
 
-// Komponen Lonceng Notifikasi Dinamis (TIDAK BERUBAH)
+// Komponen Lonceng Notifikasi
 const NotificationBell = () => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -226,61 +222,61 @@ const NotificationBell = () => {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="text-gray-300 hover:text-coc-gold transition-colors relative p-1"
+        className="text-gray-300 hover:text-coc-gold transition-colors relative p-1.5 rounded-full hover:bg-white/5"
       >
-        <BellIcon className="h-6 w-6" />
+        <BellIcon className="h-6 w-6 md:h-5 md:w-5" />
         {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 flex h-4 w-4 items-center justify-center rounded-full bg-coc-red text-[10px] font-bold text-white border border-coc-stone">
+          <span className="absolute top-0 right-0 flex h-4 w-4 items-center justify-center rounded-full bg-coc-red text-[10px] font-bold text-white border border-coc-stone animate-bounce-short">
             {unreadCount}
           </span>
         )}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 max-h-[400px] overflow-y-auto card-stone shadow-xl rounded-md z-50 border border-coc-gold/20 scrollbar-thin scrollbar-thumb-coc-gold/30 scrollbar-track-transparent">
+        <div className="absolute right-0 mt-3 md:mt-2 w-[85vw] md:w-80 max-h-[60vh] md:max-h-[400px] overflow-y-auto card-stone shadow-xl rounded-lg z-50 border border-coc-gold/20 scrollbar-thin scrollbar-thumb-coc-gold/30 scrollbar-track-transparent">
           <div className="p-3 border-b border-coc-gold-dark/30 sticky top-0 bg-coc-stone/95 backdrop-blur z-10 flex justify-between items-center">
             <h4 className="font-clash text-lg text-white">Notifikasi</h4>
             {unreadCount > 0 && (
-               <span className="text-xs text-coc-gold">{unreadCount} baru</span>
+               <span className="text-xs text-coc-gold bg-coc-gold/10 px-2 py-0.5 rounded-full border border-coc-gold/20">{unreadCount} baru</span>
             )}
           </div>
           
           {isLoading && (
-            <div className="p-6 text-center text-gray-400 animate-pulse">
+            <div className="p-6 text-center text-gray-400 animate-pulse text-sm">
               Memuat notifikasi...
             </div>
           )}
           
           {!isLoading && notifications.length === 0 && (
-            <div className="p-6 text-center flex flex-col items-center gap-2 text-gray-400">
-              <BellIcon className="h-8 w-8 opacity-20" />
-              <p className="text-sm">Tidak ada notifikasi baru</p>
+            <div className="p-8 text-center flex flex-col items-center gap-3 text-gray-400">
+              <BellIcon className="h-10 w-10 opacity-20" />
+              <p className="text-sm">Belum ada notifikasi</p>
             </div>
           )}
           
-          <ul className="divide-y divide-coc-gold-dark/20">
+          <ul className="divide-y divide-white/5">
             {notifications.map((notif) => (
               <li key={notif.id}>
                 <button
                   onClick={() => handleNotifClick(notif)}
-                  className={`w-full text-left flex items-start gap-3 p-3 transition-colors ${
+                  className={`w-full text-left flex items-start gap-3 p-4 md:p-3 transition-colors ${
                     notif.read
                       ? 'bg-transparent hover:bg-coc-stone-light/20 opacity-70'
-                      : 'bg-coc-blue/5 hover:bg-coc-blue/15 border-l-2 border-coc-blue'
+                      : 'bg-coc-blue/5 hover:bg-coc-blue/10 border-l-2 border-coc-blue'
                   }`}
                 >
                   <div className="flex-shrink-0 mt-1">
                     {notif.read ? (
                       <CheckCircleIcon className="h-4 w-4 text-gray-500" />
                     ) : (
-                      <div className="h-2 w-2 rounded-full bg-coc-blue shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
+                      <div className="h-2.5 w-2.5 rounded-full bg-coc-blue shadow-[0_0_8px_rgba(59,130,246,0.6)]"></div>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm line-clamp-2 ${notif.read ? 'text-gray-300' : 'text-white font-medium'}`}>
+                    <p className={`text-sm leading-snug ${notif.read ? 'text-gray-300' : 'text-white font-medium'}`}>
                       {notif.message}
                     </p>
-                    <span className="text-xs text-gray-500 mt-1 block">
+                    <span className="text-[10px] md:text-xs text-gray-500 mt-1.5 block">
                       {new Date(notif.createdAt).toLocaleString('id-ID', {
                         day: 'numeric',
                         month: 'short',
@@ -303,8 +299,22 @@ const Header = () => {
   const pathname = usePathname();
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { currentUser, loading: authLoading } = useAuth();
+  const { currentUser, userProfile, loading: authLoading } = useAuth();
 
+  // Helper untuk user profile logic di mobile (diambil dari desktop logic)
+  const isCompleteUserProfile = (
+    profile: UserProfile | ServerUser | null,
+  ): profile is UserProfile => {
+    return (
+      !!profile &&
+      'isVerified' in profile &&
+      'clanId' in profile &&
+      'role' in profile
+    );
+  };
+
+  const showClanLink = isCompleteUserProfile(userProfile) && userProfile.isVerified === true && !!userProfile.clanTag;
+  
   // Effect untuk menutup menu saat route berubah
   useEffect(() => {
     setIsMenuOpen(false);
@@ -324,40 +334,40 @@ const Header = () => {
 
   return (
     <>
-      <header className="sticky top-0 z-50 bg-coc-stone/95 backdrop-blur-md border-b border-coc-gold-dark/30 shadow-lg h-[72px]">
-        <div className="container mx-auto flex items-center justify-between h-full px-4">
+      <header className="sticky top-0 z-50 bg-coc-stone/95 backdrop-blur-md border-b border-white/5 shadow-lg h-16 md:h-[72px] transition-all duration-300">
+        <div className="container mx-auto flex items-center justify-between h-full px-4 md:px-6">
           
-          {/* Logo */}
+          {/* Logo Section */}
           <Link
             href="/"
             className="flex items-center gap-2 md:gap-3 z-20 hover:opacity-90 transition-opacity group"
           >
-            <div className="relative h-10 w-10 md:h-12 md:w-12 transition-transform group-hover:scale-105">
+            <div className="relative h-9 w-9 md:h-11 md:w-11 transition-transform group-hover:scale-105">
                 <Image
                 src="/images/logoClashub.png"
                 alt="Clashub Logo"
                 fill
-                sizes="(max-width: 768px) 40px, 48px"
+                sizes="(max-width: 768px) 36px, 44px"
                 className="object-contain drop-shadow-md"
                 priority
                 />
             </div>
             <span
-              className="font-clash text-2xl md:text-3xl text-transparent bg-clip-text bg-gradient-to-b from-coc-gold to-coc-gold-dark drop-shadow-sm"
+              className="font-clash text-xl md:text-2xl text-transparent bg-clip-text bg-gradient-to-b from-coc-gold to-coc-gold-dark drop-shadow-sm tracking-wide"
               style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}
             >
               CLASHUB
             </span>
           </Link>
 
-          {/* Navigasi Desktop */}
+          {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-1 lg:gap-2">
             {navItems.map((item) => (
               <Link
                 key={item.name}
                 href={item.href}
                 className={`
-                      px-3 py-2 rounded-md text-sm font-bold tracking-wide transition-all duration-300
+                      px-3 py-2 rounded-md text-sm font-bold tracking-wide transition-all duration-300 flex items-center gap-2
                       ${
                         pathname === item.href
                           ? 'text-coc-gold bg-coc-stone-light/50 shadow-[0_0_10px_rgba(255,215,0,0.1)] border border-coc-gold/20'
@@ -365,24 +375,25 @@ const Header = () => {
                       }
                     `}
               >
+                {/* Optional: Render icon di desktop jika diinginkan, tapi biasanya text only lebih bersih */}
+                {/* <item.icon className="h-4 w-4" /> */}
                 {item.name}
               </Link>
             ))}
           </nav>
 
-          {/* Aksi Pengguna Desktop */}
+          {/* Desktop User Actions */}
           <div className="hidden md:flex items-center gap-4">
             <div className="flex items-center gap-2">
-                {/* Tambahkan LanguageSwitcher Di Sini */}
                 <LanguageSwitcher />
                 <ThemeToggle />
                 <button className="p-2 text-gray-300 hover:text-coc-gold transition-colors rounded-full hover:bg-white/5">
-                <SearchIcon className="h-5 w-5" />
+                  <SearchIcon className="h-5 w-5" />
                 </button>
                 <NotificationBell />
             </div>
 
-            <div className="w-px h-8 bg-gradient-to-b from-transparent via-coc-gold-dark/40 to-transparent"></div>
+            <div className="w-px h-8 bg-gradient-to-b from-transparent via-white/10 to-transparent"></div>
 
             {!authLoading &&
               (currentUser ? (
@@ -398,117 +409,149 @@ const Header = () => {
             )}
           </div>
 
-          {/* Tombol Menu Mobile */}
-          <div className="md:hidden flex items-center gap-4 z-20">
-            {/* Tampilkan Lonceng di Header Mobile juga agar mudah diakses */}
+          {/* Mobile Menu Button & Actions */}
+          <div className="md:hidden flex items-center gap-3 z-20">
+            {/* Lonceng di Header Mobile */}
             {!isMenuOpen && <NotificationBell />}
             
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="text-gray-300 hover:text-coc-gold transition-colors p-1 active:scale-95"
+              className={`text-gray-300 hover:text-coc-gold transition-all p-1 active:scale-90 ${isMenuOpen ? 'rotate-90' : 'rotate-0'}`}
               aria-label="Toggle menu"
             >
               {isMenuOpen ? (
-                <XIcon className="h-8 w-8" />
+                <XIcon className="h-7 w-7" />
               ) : (
-                <MenuIcon className="h-8 w-8" />
+                <MenuIcon className="h-7 w-7" />
               )}
             </button>
           </div>
         </div>
       </header>
 
-      {/* Menu Overlay Mobile */}
+      {/* Mobile Menu Overlay (Drawer Style) */}
       {isMenuOpen && (
-        <div className="fixed inset-0 top-[72px] z-40 bg-coc-stone/95 backdrop-blur-xl border-t border-white/5 md:hidden flex flex-col animate-fade-in">
-          <nav className="flex flex-col p-6 gap-2 overflow-y-auto">
-            {navItems.map((item) => (
-              <Link
-                key={item.name}
-                href={item.href}
-                onClick={() => setIsMenuOpen(false)}
-                className={`
-                    flex items-center justify-between p-4 rounded-xl text-lg font-bold border transition-all
-                    ${
-                    pathname === item.href
-                        ? 'text-coc-gold bg-coc-gold/10 border-coc-gold/30 shadow-[inset_0_0_15px_rgba(255,215,0,0.1)]'
-                        : 'text-gray-300 border-transparent hover:bg-white/5 hover:text-white'
-                    }
-                `}
-              >
-                {item.name}
-                {pathname === item.href && <div className="h-2 w-2 rounded-full bg-coc-gold shadow-[0_0_8px_#FFD700]"></div>}
-              </Link>
-            ))}
+        <div className="fixed inset-0 top-16 z-40 bg-coc-dark/95 backdrop-blur-xl border-t border-white/5 md:hidden flex flex-col animate-in slide-in-from-right-10 duration-300 overflow-hidden h-[calc(100vh-64px)]">
+          
+          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-6">
+            
+            {/* 1. Mobile User Profile Section (Top Priority) */}
+            {!authLoading && (
+                <div className="bg-gradient-to-br from-coc-stone-light to-coc-stone rounded-2xl p-4 border border-white/10 shadow-lg relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-coc-gold/5 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+                    
+                    {currentUser ? (
+                        <>
+                            <div className="flex items-center gap-4 mb-4 relative z-10">
+                                <div className="h-14 w-14 rounded-full p-0.5 bg-gradient-to-b from-coc-gold to-coc-stone overflow-hidden shadow-md">
+                                    <img 
+                                        src={userProfile?.avatarUrl || '/images/placeholder-avatar.png'} 
+                                        alt="Avatar" 
+                                        className="h-full w-full rounded-full object-cover bg-coc-stone"
+                                    />
+                                </div>
+                                <div>
+                                    {/* FIXED: Menggunakan displayName sesuai interface UserProfile */}
+                                    <p className="text-white font-clash text-lg tracking-wide">
+                                        {userProfile?.displayName || 'Clasher'}
+                                    </p>
+                                    <p className="text-coc-gold text-xs uppercase font-bold tracking-wider">{userProfile?.role || 'Member'}</p>
+                                </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-2 relative z-10">
+                                <Link 
+                                    href="/profile" 
+                                    onClick={() => setIsMenuOpen(false)}
+                                    className="flex flex-col items-center justify-center p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors border border-white/5"
+                                >
+                                    <UserCircleIcon className="h-6 w-6 text-coc-gold mb-1"/>
+                                    <span className="text-xs text-gray-300">Profil</span>
+                                </Link>
+                                
+                                {showClanLink ? (
+                                    <Link 
+                                        href="/clan/manage" 
+                                        onClick={() => setIsMenuOpen(false)}
+                                        className="flex flex-col items-center justify-center p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors border border-white/5"
+                                    >
+                                        <ShieldIcon className="h-6 w-6 text-coc-blue mb-1"/>
+                                        <span className="text-xs text-gray-300">Klan Saya</span>
+                                    </Link>
+                                ) : (
+                                    <Link 
+                                        href="/clan-hub" 
+                                        onClick={() => setIsMenuOpen(false)}
+                                        className="flex flex-col items-center justify-center p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors border border-white/5"
+                                    >
+                                        <ShieldIcon className="h-6 w-6 text-gray-400 mb-1"/>
+                                        <span className="text-xs text-gray-300">Cari Klan</span>
+                                    </Link>
+                                )}
+                            </div>
+                        </>
+                    ) : (
+                        <div className="text-center py-4 relative z-10">
+                            <p className="text-gray-300 mb-4 text-sm">Bergabunglah untuk mengelola klan & turnamen!</p>
+                            <Button href="/auth" variant="primary" size="lg" className="w-full justify-center shadow-lg shadow-coc-gold/20" onClick={() => setIsMenuOpen(false)}>
+                                Login / Register
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            )}
 
-            <div className="my-4 h-px bg-gradient-to-r from-transparent via-gray-700 to-transparent"></div>
+            {/* 2. Main Navigation Links */}
+            <nav className="flex flex-col gap-2">
+                <span className="text-xs font-bold text-gray-500 uppercase tracking-widest px-2 mb-1">Menu Utama</span>
+                {navItems.map((item) => (
+                <Link
+                    key={item.name}
+                    href={item.href}
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`
+                        flex items-center gap-4 p-3.5 rounded-xl text-base font-bold transition-all border
+                        ${
+                        pathname === item.href
+                            ? 'text-white bg-gradient-to-r from-coc-blue/20 to-transparent border-coc-blue/30 pl-5'
+                            : 'text-gray-400 border-transparent hover:bg-white/5 hover:text-white'
+                        }
+                    `}
+                >
+                    <item.icon className={`h-6 w-6 ${pathname === item.href ? 'text-coc-blue' : 'text-gray-500'}`} />
+                    {item.name}
+                </Link>
+                ))}
+            </nav>
 
-            {/* Aksi Mobile */}
-            <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between px-2">
-                    <span className="text-gray-400 text-sm font-medium">Preferensi</span>
-                    <div className="flex items-center gap-4">
-                        {/* Tambahkan LanguageSwitcher Mobile Di Sini */}
+            <div className="flex-grow"></div>
+
+            {/* 3. Footer / Preferences */}
+            <div className="mt-auto pt-6 border-t border-white/10 pb-10">
+                <div className="flex items-center justify-between px-2 mb-4">
+                    <span className="text-sm text-gray-400 font-medium">Pengaturan Tampilan</span>
+                    <div className="flex items-center gap-3">
                         <LanguageSwitcher />
                         <ThemeToggle />
-                        <button className="flex items-center gap-2 text-gray-300 hover:text-coc-gold transition-colors">
-                            <SearchIcon className="h-6 w-6" />
-                        </button>
                     </div>
                 </div>
-
-                {!authLoading && (
-                    currentUser ? (
-                        <div className="mt-2">
-                           <div className="bg-coc-stone-light/30 rounded-xl p-4 border border-white/5">
-                                <div className="flex items-center gap-3 mb-4 pb-4 border-b border-white/5">
-                                     <div className="h-10 w-10 rounded-full bg-coc-stone-light flex items-center justify-center ring-1 ring-coc-gold/30">
-                                        <UserCircleIcon className="h-6 w-6 text-gray-400"/>
-                                     </div>
-                                     <div>
-                                        <p className="text-white font-bold">Menu Akun</p>
-                                        <p className="text-xs text-gray-400">Kelola profil & klan</p>
-                                     </div>
-                                </div>
-                                <div className="flex flex-col gap-2">
-                                    {/* Kita render menu dropdown versi mobile yang diexpand */}
-                                    <Link href="/profile" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 text-gray-300 text-sm">
-                                        <UserCircleIcon className="h-5 w-5"/> Profil Saya
-                                    </Link>
-                                    {/* [LOGIKA LAMA KEMBALI] Menu ini tidak muncul jika logika isCompleteUserProfile gagal */}
-                                    <Link href="/clan/manage" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 text-gray-300 text-sm">
-                                        <ShieldIcon className="h-5 w-5"/> Klan Saya
-                                    </Link>
-                                     <Link href="/my-tournaments" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 text-gray-300 text-sm">
-                                        <TrophyIcon className="h-5 w-5"/> Turnamen
-                                     </Link>
-                                    <button 
-                                        onClick={() => {
-                                            signOut(auth);
-                                            setIsMenuOpen(false);
-                                            router.push('/');
-                                        }}
-                                        className="flex items-center gap-3 p-3 rounded-lg hover:bg-coc-red/10 text-red-400 text-sm w-full text-left mt-2 border-t border-white/5 pt-4"
-                                    >
-                                        <LogOutIcon className="h-5 w-5"/> Logout
-                                    </button>
-                                </div>
-                           </div>
-                        </div>
-                    ) : (
-                        <Button
-                        href="/auth"
-                        variant="primary"
-                        size="lg"
-                        className="w-full justify-center shadow-lg shadow-coc-gold/10"
-                        onClick={() => setIsMenuOpen(false)}
-                        >
-                        Login / Register
-                        </Button>
-                    )
+                
+                {currentUser && (
+                    <button 
+                        onClick={() => {
+                            signOut(auth);
+                            setIsMenuOpen(false);
+                            router.push('/');
+                        }}
+                        className="w-full flex items-center justify-center gap-2 p-3 rounded-xl border border-coc-red/30 text-coc-red hover:bg-coc-red/10 transition-colors font-medium text-sm"
+                    >
+                        <LogOutIcon className="h-5 w-5"/>
+                        Keluar Aplikasi
+                    </button>
                 )}
             </div>
-          </nav>
+
+          </div>
         </div>
       )}
     </>
