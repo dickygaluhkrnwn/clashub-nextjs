@@ -22,6 +22,7 @@ export const PublicClanCard = ({ clan }: PublicClanCardProps) => {
         <div className="flex items-start gap-4 mb-5 pb-4 border-b border-white/5 relative">
           <div className="relative flex-shrink-0">
              <div className="w-16 h-16 rounded-xl bg-black/30 flex items-center justify-center p-1 border border-white/5 group-hover:border-coc-gold/20 transition-colors">
+                {/* Menggunakan img tag standar karena URL eksternal (badgeUrls) mungkin belum terdaftar di next.config.js */}
                 <img 
                     src={clan.badgeUrls?.large || '/images/clan-badge-placeholder.png'}
                     alt={`${clan.name} Badge`}

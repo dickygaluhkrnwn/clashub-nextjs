@@ -1,4 +1,3 @@
-// File: app/clan-hub/page.tsx
 import TeamHubClient from './TeamHubClient';
 import { getPlayers, getPublicClansForHub } from '@/lib/firestore';
 import { getManagedClansAdmin } from '@/lib/firestore-admin/clans';
@@ -9,6 +8,7 @@ import {
   RecommendedTeam,
 } from '@/lib/clashub.types';
 import { Metadata } from 'next';
+import { AlertTriangleIcon } from '@/app/components/icons';
 
 export const metadata: Metadata = {
   title: 'Clashub | Hub Tim & Pencarian Klan',
@@ -67,16 +67,18 @@ const ClanHubPage = async () => {
 
   if (loadError) {
     return (
-      <main className="min-h-screen pt-20 pb-10">
+      <main className="min-h-screen pt-32 pb-10 flex items-center justify-center bg-coc-dark">
         <div className="container mx-auto px-4">
-          <div className="text-center py-20 card-stone p-6 max-w-lg mx-auto border border-coc-red/30">
-            <h1 className="text-2xl md:text-3xl text-coc-red font-clash mb-4">
+          <div className="text-center py-12 p-6 max-w-lg mx-auto rounded-2xl bg-coc-red/10 border border-coc-red/30 backdrop-blur-md">
+            <div className="inline-flex p-4 rounded-full bg-coc-red/20 mb-4">
+               <AlertTriangleIcon className="h-8 w-8 text-coc-red" />
+            </div>
+            <h1 className="text-2xl md:text-3xl text-white font-clash mb-2 tracking-wide">
               Kesalahan Server
             </h1>
-            <h2 className="text-lg md:text-xl text-gray-300">{loadError}</h2>
-            <p className="text-sm text-gray-500 mt-4">
-              Data tim dan pemain tidak dapat dimuat saat ini. Coba lagi dalam
-              beberapa saat.
+            <p className="text-coc-red/80 font-medium mb-4">{loadError}</p>
+            <p className="text-sm text-gray-400">
+              Data tim dan pemain tidak dapat dimuat saat ini. Coba lagi dalam beberapa saat.
             </p>
           </div>
         </div>

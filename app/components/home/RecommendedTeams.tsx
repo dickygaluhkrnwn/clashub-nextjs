@@ -1,16 +1,16 @@
 import { TeamCard } from "@/app/components/cards";
-import { ShieldIcon, StarIcon } from "@/app/components/icons";
+import { ShieldIcon } from "@/app/components/icons";
 import { getRecommendedTeams } from "@/lib/server-utils";
 import { RecommendedTeam } from "@/lib/types";
 
-// Helper component untuk header section (biar rapi)
+// Helper component untuk header section (biar rapi & konsisten)
 const SectionHeader = ({ title, icon }: { title: string; icon: React.ReactNode }) => (
   <div className="flex items-center justify-between mb-4 px-1">
-    <h2 className="flex items-center gap-2 text-lg md:text-xl font-clash text-white tracking-wide">
+    <h2 className="flex items-center gap-2 text-lg md:text-xl font-clash text-white tracking-wide drop-shadow-md">
       {icon}
       {title}
     </h2>
-    {/* Indikator scroll visual untuk user (opsional) */}
+    {/* Indikator scroll visual untuk user (opsional - di mobile scrollbar disembunyikan biasanya) */}
     <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold hidden md:block">
       Geser untuk melihat &rarr;
     </span>
@@ -30,7 +30,7 @@ export default async function RecommendedTeams() {
 
   if (error) {
     return (
-      <div className="w-full p-6 rounded-2xl bg-coc-red/5 border border-coc-red/20 text-center">
+      <div className="w-full p-6 rounded-2xl bg-coc-red/10 border border-coc-red/20 text-center backdrop-blur-sm mb-8">
         <p className="text-coc-red text-sm font-bold">{error}</p>
       </div>
     );
@@ -38,17 +38,17 @@ export default async function RecommendedTeams() {
 
   if (recommendedTeams.length === 0) {
     return (
-      <div className="w-full p-8 rounded-2xl bg-coc-stone-light/30 border border-white/5 text-center backdrop-blur-sm">
+      <div className="w-full p-8 rounded-2xl bg-black/20 border border-white/5 text-center backdrop-blur-sm mb-8">
         <p className="text-gray-400 text-sm">Belum ada klan yang direkomendasikan saat ini.</p>
       </div>
     );
   }
 
   return (
-    <section className="animate-fade-in">
+    <section className="animate-fade-in mb-8">
       <SectionHeader 
         title="Rekomendasi Klan" 
-        icon={<ShieldIcon className="h-5 w-5 text-coc-gold" />} 
+        icon={<ShieldIcon className="h-5 w-5 md:h-6 md:w-6 text-coc-gold drop-shadow-md" />} 
       />
 
       {/* [NATIVE SCROLL CONTAINER] 

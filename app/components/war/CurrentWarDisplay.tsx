@@ -1,34 +1,23 @@
 'use client';
 
-// File: app/components/war/CurrentWarDisplay.tsx
-// Deskripsi: [BARU - FASE 6] Komponen UI reuseable untuk menampilkan data live war.
-// Diadaptasi dari ActiveWarTabContent.tsx, tapi menerima data via props.
-
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import {
   CocWarLog,
   CocWarMember,
-  CocWarAttack,
   CocCurrentWar,
 } from '@/lib/types';
 import {
   SwordsIcon,
-  AlertTriangleIcon,
-  TrophyIcon,
-  ShieldIcon,
   StarIcon,
-  ClockIcon,
-  ArrowRightIcon,
-  BookOpenIcon,
-  Loader2Icon,
+  ShieldIcon,
+  TrophyIcon,
 } from '@/app/components/icons';
 import { getThImage } from '@/lib/th-utils';
-import { Button } from '@/app/components/ui/Button';
 
 /**
  * @function formatWarTime
- * Helper untuk format sisa waktu (Diambil dari ActiveWarTabContent.tsx)
+ * Helper untuk format sisa waktu
  */
 const formatWarTime = (
   war: CocWarLog | CocCurrentWar,
@@ -61,20 +50,18 @@ const formatWarTime = (
   const seconds = totalSeconds % 60;
 
   return {
-    text: `Sisa Waktu: ${hours}j ${minutes}m ${seconds}d`,
+    text: `${hours}j ${minutes}m ${seconds}d`,
     isEnded: false,
   };
 };
 
 // ======================================================================================================
 // Helper: War Member Row
-// (Diambil dari ActiveWarTabContent.tsx)
 // ======================================================================================================
 
 interface WarMemberRowProps {
   member: CocWarMember;
   isOurClan: boolean;
-  // clanTag: string; // Tidak diperlukan lagi untuk aksi
   isCwl: boolean;
 }
 
@@ -86,91 +73,96 @@ const WarMemberRow: React.FC<WarMemberRowProps> = ({
   const bestAttackReceived = member.bestOpponentAttack;
   const attacksDone = member.attacks?.length || 0;
   const maxAttacks = isCwl ? 1 : 2;
-  let defenseStatus = 'Belum Diserang';
   let defenseStars = 0;
   let defenseDestruction = 0;
 
   if (bestAttackReceived) {
     defenseStars = bestAttackReceived.stars;
     defenseDestruction = bestAttackReceived.destructionPercentage;
-    if (defenseStars === 3) {
-      defenseStatus = 'Hancur (3 Bintang)';
-    } else {
-      defenseStatus = `${defenseStars} Bintang Diterima`;
-    }
   }
 
-  let attackSummary = '-';
-  if (isOurClan && attacksDone > 0) {
-    attackSummary = `${attacksDone} / ${maxAttacks} Serangan`;
+  let attackSummary = (
+    <span className="text-gray-600">-</span>
+  );
+
+  if (isOurClan) {
+    if (attacksDone > 0) {
+       // Visual bar untuk serangan
+       const attackColor = attacksDone === maxAttacks ? 'bg-coc-green' : 'bg-coc-orange';
+       attackSummary = (
+         <div className="flex flex-col items-center gap-1">
+             <span className="text-xs font-bold text-white">{attacksDone}/{maxAttacks}</span>
+             <div className="w-12 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                <div className={`h-full ${attackColor}`} style={{ width: `${(attacksDone / maxAttacks) * 100}%` }} />
+             </div>
+         </div>
+       );
+    }
   } else if (!isOurClan && bestAttackReceived) {
-    attackSummary = `Diserang: ${bestAttackReceived.stars}⭐ (${bestAttackReceived.destructionPercentage.toFixed(
-      2,
-    )}%)`;
+    attackSummary = (
+        <div className="flex flex-col items-center text-xs">
+            <span className="text-coc-red font-bold">Diserang</span>
+            <span className="text-gray-400">{bestAttackReceived.stars}⭐ ({bestAttackReceived.destructionPercentage.toFixed(0)}%)</span>
+        </div>
+    );
   }
 
   const starColorClass =
     defenseStars === 3
-      ? 'text-coc-red'
+      ? 'text-coc-red drop-shadow-md'
       : defenseStars > 0
         ? 'text-coc-gold'
-        : 'text-gray-500';
+        : 'text-gray-600 opacity-50';
 
   return (
-    <tr key={member.tag} className="hover:bg-coc-stone/20 transition-colors">
+    <tr className="group hover:bg-white/5 transition-colors border-b border-white/5 last:border-0">
       {/* Posisi Peta */}
-      <td className="px-3 py-2 text-center text-sm font-clash text-white">
-        {member.mapPosition}
+      <td className="px-4 py-3 text-center text-sm font-mono text-gray-500 group-hover:text-white transition-colors">
+        {member.mapPosition}.
       </td>
 
       {/* Pemain */}
-      <td className="whitespace-nowrap px-3 py-2 text-sm font-semibold text-white">
+      <td className="whitespace-nowrap px-4 py-3">
         <div className="flex items-center space-x-3">
-          <Image
-            src={getThImage(member.townhallLevel)}
-            alt={`TH ${member.townhallLevel}`}
-            width={28}
-            height={28}
-            className="rounded-full"
-          />
+          <div className="relative w-8 h-8 md:w-10 md:h-10 shrink-0">
+            <Image
+              src={getThImage(member.townhallLevel)}
+              alt={`TH ${member.townhallLevel}`}
+              width={40}
+              height={40}
+              className="rounded-lg shadow-sm"
+            />
+            <div className="absolute -bottom-1 -right-1 bg-black/80 text-[8px] md:text-[10px] px-1 rounded text-white border border-white/20">
+                {member.townhallLevel}
+            </div>
+          </div>
           <div>
-            <p className="font-clash text-base truncate max-w-[150px]">
+            <p className="font-clash text-sm md:text-base text-white truncate max-w-[120px] md:max-w-[180px]">
               {member.name}
             </p>
-            <p className="text-gray-500 text-xs font-mono">{member.tag}</p>
+            <p className="text-gray-500 text-[10px] font-mono">{member.tag}</p>
           </div>
         </div>
       </td>
 
       {/* Serangan Dilakukan */}
-      <td className="px-3 py-2 text-center text-sm text-gray-300">
+      <td className="px-4 py-3 text-center">
         {isOurClan ? attackSummary : '-'}
       </td>
 
       {/* Pertahanan */}
-      <td className="px-3 py-2 text-center text-sm">
-        <div
-          className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs border ${starColorClass} border-current`}
-        >
-          <StarIcon className="w-3 h-3" />
-          <span>{defenseStars} ⭐</span>
+      <td className="px-4 py-3 text-center">
+        <div className="flex items-center justify-center gap-1">
+          <StarIcon className={`w-4 h-4 ${starColorClass}`} />
+          <span className={`text-sm font-bold ${defenseStars === 3 ? 'text-coc-red' : 'text-gray-300'}`}>
+            {defenseStars}
+          </span>
         </div>
       </td>
 
       {/* Detail Pertahanan */}
-      <td className="px-3 py-2 text-center text-xs text-gray-400">
-        {defenseDestruction.toFixed(2)}%
-      </td>
-
-      {/* Aksi (Disederhanakan untuk tampilan publik) */}
-      <td className="px-3 py-2 text-center w-[120px]">
-        {isOurClan && member.attacks && member.attacks.length > 0 ? (
-          <span className="text-xs text-gray-400">
-            {member.attacks.length} serangan
-          </span>
-        ) : (
-          <span className="text-gray-600">-</span>
-        )}
+      <td className="px-4 py-3 text-center text-xs text-gray-400 font-mono">
+        {defenseDestruction.toFixed(1)}%
       </td>
     </tr>
   );
@@ -189,7 +181,7 @@ const CurrentWarDisplay: React.FC<CurrentWarDisplayProps> = ({
   currentWar,
   ourClanTag,
 }) => {
-  const [timeInfo, setTimeInfo] = useState({ text: 'N/A', isEnded: true });
+  const [timeInfo, setTimeInfo] = useState({ text: '...', isEnded: true });
   const isCwl = !!currentWar?.warTag;
 
   // --- Effect untuk update waktu tersisa ---
@@ -218,179 +210,190 @@ const CurrentWarDisplay: React.FC<CurrentWarDisplayProps> = ({
       ? currentWar.opponent
       : currentWar.clan;
 
-  let headerClass = '';
   let statusText = '';
-  let borderClass = 'border-coc-red/50 bg-coc-red/10';
+  let statusBadgeClass = 'bg-gray-600/20 text-gray-400 border-gray-600/30';
+  let accentColor = 'border-white/10';
 
   if (currentWar.state === 'preparation') {
-    statusText = 'Masa Persiapan';
-    headerClass = 'text-coc-blue';
-    borderClass = 'border-coc-blue/50 bg-coc-blue/10';
+    statusText = 'Persiapan';
+    statusBadgeClass = 'bg-coc-blue/20 text-coc-blue border-coc-blue/30';
+    accentColor = 'border-coc-blue/30';
   } else if (currentWar.state === 'inWar') {
-    statusText = 'Sedang Berperang';
-    headerClass = 'text-coc-red';
-    borderClass = 'border-coc-red/50 bg-coc-red/10';
+    statusText = 'Sedang Berlangsung';
+    statusBadgeClass = 'bg-coc-gold/20 text-coc-gold border-coc-gold/30 animate-pulse';
+    accentColor = 'border-coc-gold/30';
   } else if (currentWar.state === 'warEnded') {
-    statusText = 'Perang Selesai';
-    headerClass = 'text-gray-400';
-    borderClass = 'border-gray-600/50 bg-gray-600/10';
+    statusText = 'Berakhir';
+    statusBadgeClass = 'bg-gray-600/20 text-gray-400 border-gray-600/30';
   }
 
+  // Menghitung persentase bar skor
+  const totalPossibleStars = ourClan.members.length * 3;
+  const ourProgress = (ourClan.stars / totalPossibleStars) * 100;
+  const opponentProgress = (opponentClan.stars / totalPossibleStars) * 100;
+
   return (
-    <div className="space-y-6">
-      {/* War Header Info */}
-      <div className={`card-stone p-6 border-4 ${borderClass} rounded-lg`}>
-        <div className="flex justify-between items-start flex-wrap gap-4">
-          <div>
-            <h2
-              className={`text-3xl font-clash ${headerClass} flex items-center gap-3`}
-            >
-              <SwordsIcon className="h-8 w-8" />
-              {ourClan.name} vs {opponentClan.name}
-            </h2>
-
-            <p className="text-gray-300 mt-1">
-              Status:{' '}
-              <span className={`font-semibold capitalize ${headerClass}`}>
-                {statusText}
-              </span>{' '}
-              | Tipe: {isCwl ? 'CWL' : 'Classic War'} (
-              {ourClan.members.length} vs {opponentClan.members.length})
-            </p>
-          </div>
-
-          <div className="text-right flex flex-col gap-2">
-            <p
-              className={`text-lg font-clash ${
-                timeInfo.isEnded ? headerClass : 'text-white'
-              }`}
-            >
-              {timeInfo.text}
-            </p>
-            {/* Tombol Refresh Dihapus, ditangani oleh parent */}
-          </div>
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      
+      {/* 1. WAR HEADER CARD */}
+      <div className={`relative rounded-3xl overflow-hidden bg-gradient-to-br from-[#252525] to-[#1a1a1a] border ${accentColor} shadow-2xl`}>
+        {/* Background Accents */}
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-coc-blue via-transparent to-coc-red opacity-50" />
+        <div className="absolute -right-10 -top-10 opacity-5 pointer-events-none">
+            <SwordsIcon className="w-64 h-64 text-white" />
         </div>
 
-        {/* Skor Ringkasan */}
-        <div className="mt-4 grid grid-cols-2 gap-4 text-center border-t border-coc-gold/30 pt-4">
-          {/* Skor Kita */}
-          <div className="p-3 rounded-lg bg-coc-stone/20 border border-coc-gold/30">
-            <p className="text-xs text-gray-400 font-clash uppercase">
-              Bintang {ourClan.name}
-            </p>
-            <p className="text-3xl font-bold text-coc-gold flex items-center justify-center gap-1 mt-1">
-              <StarIcon className="h-7 w-7 text-coc-gold" /> {ourClan.stars}
-              <span className="text-lg text-gray-300 ml-2">
-                ({ourClan.destructionPercentage.toFixed(2)}%)
-              </span>
-            </p>
-          </div>
-          {/* Skor Lawan */}
-          <div className="p-3 rounded-lg bg-coc-stone/20 border border-coc-red/30">
-            <p className="text-xs text-gray-400 font-clash uppercase">
-              Bintang {opponentClan.name}
-            </p>
-            <p className="text-3xl font-bold text-coc-red flex items-center justify-center gap-1 mt-1">
-              <StarIcon className="h-7 w-7 text-coc-red" /> {opponentClan.stars}
-              <span className="text-lg text-gray-300 ml-2">
-                ({opponentClan.destructionPercentage.toFixed(2)}%)
-              </span>
-            </p>
-          </div>
+        <div className="p-6 md:p-8 relative z-10">
+            {/* Top Bar: Status & Time */}
+            <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
+                <div className={`px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wider ${statusBadgeClass}`}>
+                    {statusText}
+                </div>
+                <div className="flex items-center gap-2 text-gray-400 font-mono text-sm bg-black/30 px-3 py-1 rounded-lg border border-white/5">
+                    <span>Sisa Waktu:</span>
+                    <span className="text-white font-bold">{timeInfo.text}</span>
+                </div>
+            </div>
+
+            {/* Scoreboard Utama */}
+            <div className="flex items-center justify-between gap-4">
+                
+                {/* Tim Kita */}
+                <div className="flex-1 text-center md:text-left">
+                    <h3 className="text-lg md:text-2xl font-clash text-white truncate mb-1">{ourClan.name}</h3>
+                    <div className="flex items-center justify-center md:justify-start gap-2">
+                        <StarIcon className="w-5 h-5 md:w-6 md:h-6 text-coc-gold" />
+                        <span className="text-3xl md:text-5xl font-clash text-white drop-shadow-md">{ourClan.stars}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 font-mono mt-1">{ourClan.destructionPercentage.toFixed(2)}% Hancur</p>
+                </div>
+
+                {/* VS Badge */}
+                <div className="shrink-0 flex flex-col items-center px-2">
+                    <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-black/40 border-2 border-white/10 flex items-center justify-center shadow-lg">
+                        <span className="font-clash text-xl md:text-2xl text-gray-500 italic">VS</span>
+                    </div>
+                </div>
+
+                {/* Tim Lawan */}
+                <div className="flex-1 text-center md:text-right">
+                    <h3 className="text-lg md:text-2xl font-clash text-coc-red truncate mb-1">{opponentClan.name}</h3>
+                    <div className="flex items-center justify-center md:justify-end gap-2">
+                         <span className="text-3xl md:text-5xl font-clash text-white drop-shadow-md">{opponentClan.stars}</span>
+                         <StarIcon className="w-5 h-5 md:w-6 md:h-6 text-coc-red" />
+                    </div>
+                    <p className="text-xs text-gray-500 font-mono mt-1">{opponentClan.destructionPercentage.toFixed(2)}% Hancur</p>
+                </div>
+            </div>
+
+            {/* Progress Bars */}
+            <div className="mt-8 flex gap-2 h-2 rounded-full bg-gray-800 overflow-hidden relative">
+                 {/* Center Line Marker */}
+                 <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-white/20 z-10" />
+                 
+                 {/* Our Bar (Left to Right) */}
+                 <div 
+                    className="h-full bg-gradient-to-r from-coc-blue/50 to-coc-blue" 
+                    style={{ width: '50%', transform: `scaleX(${ourProgress / 100})`, transformOrigin: 'left', transition: 'transform 1s ease-out' }} 
+                 />
+                 
+                 {/* Opponent Bar (Right to Left visual trick - actually just filling from right?) */}
+                 {/* Actually simpler to just use two bars meeting in middle or stacked. Let's use two separate bars under the names for clarity */}
+            </div>
+            {/* Visual Bar Separated */}
+            <div className="flex gap-4 mt-2">
+                <div className="h-1.5 flex-1 bg-gray-800 rounded-full overflow-hidden">
+                    <div className="h-full bg-coc-gold" style={{ width: `${Math.min(ourProgress, 100)}%` }} />
+                </div>
+                <div className="h-1.5 flex-1 bg-gray-800 rounded-full overflow-hidden flex justify-end">
+                    <div className="h-full bg-coc-red" style={{ width: `${Math.min(opponentProgress, 100)}%` }} />
+                </div>
+            </div>
         </div>
       </div>
 
-      {/* Detail Anggota War */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* 2. DETAIL ANGGOTA & STATISTIK */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+        
         {/* Kolom Klan Kita */}
         <div className="space-y-4">
-          <h3 className="text-xl font-clash text-white border-b border-coc-gold-dark/50 pb-2 flex items-center gap-2">
-            <ShieldIcon className="h-6 w-6 text-coc-gold" /> Daftar{' '}
-            {ourClan.name}
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-coc-gold-dark/20 text-xs">
-              <thead className="bg-coc-stone/70 sticky top-0">
-                <tr>
-                  <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider w-10">
-                    #
-                  </th>
-                  <th className="px-3 py-2 text-left font-clash text-coc-gold uppercase tracking-wider">
-                    Pemain
-                  </th>
-                  <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">
-                    Serangan
-                  </th>
-                  <th
-                    className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider"
-                    colSpan={2}
-                  >
-                    Pertahanan Terbaik
-                  </th>
-                  <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider w-[120px]">
-                    Aksi
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-coc-gold-dark/10">
-                {ourClan.members.map((member: CocWarMember) => (
-                  <WarMemberRow
-                    key={member.tag}
-                    member={member}
-                    isOurClan={true}
-                    isCwl={isCwl}
-                  />
-                ))}
-              </tbody>
-            </table>
+          <div className="flex items-center justify-between px-2">
+            <h3 className="text-lg font-clash text-white flex items-center gap-2">
+               <ShieldIcon className="h-5 w-5 text-coc-gold" /> 
+               {ourClan.name}
+            </h3>
+            <span className="text-xs font-bold text-gray-500 bg-white/5 px-2 py-1 rounded">
+                {ourClan.members.length} Pemain
+            </span>
+          </div>
+          
+          <div className="bg-[#1a1a1a] rounded-2xl border border-white/5 overflow-hidden shadow-lg">
+            <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-white/5 text-xs md:text-sm">
+                <thead className="bg-black/30">
+                    <tr>
+                    <th className="px-4 py-3 text-center text-gray-500 font-bold w-10">#</th>
+                    <th className="px-4 py-3 text-left text-coc-gold font-bold">Pemain</th>
+                    <th className="px-4 py-3 text-center text-gray-400 font-bold">Atk</th>
+                    <th className="px-4 py-3 text-center text-gray-400 font-bold">Def</th>
+                    <th className="px-4 py-3 text-center text-gray-400 font-bold">%</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                    {ourClan.members.map((member: CocWarMember) => (
+                    <WarMemberRow
+                        key={member.tag}
+                        member={member}
+                        isOurClan={true}
+                        isCwl={isCwl}
+                    />
+                    ))}
+                </tbody>
+                </table>
+            </div>
           </div>
         </div>
 
         {/* Kolom Klan Lawan */}
         <div className="space-y-4">
-          <h3 className="text-xl font-clash text-white border-b border-coc-red/50 pb-2 flex items-center gap-2">
-            <TrophyIcon className="h-6 w-6 text-coc-red" /> Daftar{' '}
-            {opponentClan.name}
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-coc-red/20 text-xs">
-              <thead className="bg-coc-stone/70 sticky top-0">
-                <tr>
-                  <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider w-10">
-                    #
-                  </th>
-                  <th className="px-3 py-2 text-left font-clash text-coc-gold uppercase tracking-wider">
-                    Pemain
-                  </th>
-                  <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">
-                    Diserang
-                  </th>
-                  <th
-                    className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider"
-                    colSpan={2}
-                  >
-                    Bintang Terbaik
-                  </th>
-                  <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider w-[120px]">
-                    Aksi
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-coc-red/10">
-                {opponentClan.members.map((member: CocWarMember) => (
-                  <WarMemberRow
-                    key={member.tag}
-                    member={member}
-                    isOurClan={false}
-                    isCwl={isCwl}
-                  />
-                ))}
-              </tbody>
-            </table>
+          <div className="flex items-center justify-between px-2">
+            <h3 className="text-lg font-clash text-gray-300 flex items-center gap-2">
+               <TrophyIcon className="h-5 w-5 text-coc-red" /> 
+               {opponentClan.name}
+            </h3>
+            <span className="text-xs font-bold text-gray-500 bg-white/5 px-2 py-1 rounded">
+                {opponentClan.members.length} Pemain
+            </span>
+          </div>
+          
+          <div className="bg-[#1a1a1a] rounded-2xl border border-white/5 overflow-hidden shadow-lg opacity-90">
+            <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-white/5 text-xs md:text-sm">
+                <thead className="bg-black/30">
+                    <tr>
+                    <th className="px-4 py-3 text-center text-gray-500 font-bold w-10">#</th>
+                    <th className="px-4 py-3 text-left text-coc-red-light font-bold">Pemain</th>
+                    <th className="px-4 py-3 text-center text-gray-400 font-bold">Atk</th>
+                    <th className="px-4 py-3 text-center text-gray-400 font-bold">Def</th>
+                    <th className="px-4 py-3 text-center text-gray-400 font-bold">%</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                    {opponentClan.members.map((member: CocWarMember) => (
+                    <WarMemberRow
+                        key={member.tag}
+                        member={member}
+                        isOurClan={false}
+                        isCwl={isCwl}
+                    />
+                    ))}
+                </tbody>
+                </table>
+            </div>
           </div>
         </div>
+
       </div>
-      {/* Akhir Detail Anggota War */}
     </div>
   );
 };

@@ -4,7 +4,7 @@ import React from 'react';
 import { Player } from '@/lib/types';
 import { PlayerCard } from '@/app/components/cards';
 import { Button } from '@/app/components/ui/Button';
-import { RefreshCwIcon, UserIcon } from '@/app/components/icons';
+import { Loader2Icon, UserIcon } from '@/app/components/icons';
 import { useLanguage } from '@/lib/hooks/useLanguage';
 
 interface PlayersTabProps {
@@ -30,36 +30,48 @@ export const PlayersTab = ({
 
   if (isFiltering) {
     return (
-      <div className="text-center py-32 flex flex-col items-center justify-center opacity-70">
-        <RefreshCwIcon className="h-12 w-12 text-coc-gold animate-spin mb-4" />
-        <h2 className="text-xl font-clash text-white tracking-wide">{t.common.filtering}</h2>
+      <div className="flex flex-col items-center justify-center py-32 space-y-4 animate-in fade-in zoom-in-95 duration-300">
+        <div className="p-4 rounded-full bg-coc-green/10 border border-coc-green/20 animate-pulse">
+            <Loader2Icon className="h-10 w-10 text-coc-green animate-spin" />
+        </div>
+        <h2 className="text-lg font-clash text-gray-400 tracking-wide animate-pulse">{t.common.filtering}</h2>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl md:text-2xl font-clash text-white flex items-center gap-2">
-            <UserIcon className="w-6 h-6 text-coc-gold" />
-            <span>{t.clanHub.playersFound.replace('{count}', filteredPlayers.length.toString())}</span>
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex items-center justify-between border-b border-white/5 pb-4">
+        <h2 className="text-xl md:text-2xl font-clash text-white flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-coc-green/10 border border-coc-green/20">
+                <UserIcon className="w-6 h-6 text-coc-green" />
+            </div>
+            <span className="tracking-wide">{t.clanHub.playersFound.replace('{count}', filteredPlayers.length.toString())}</span>
         </h2>
       </div>
 
       {playersToShow.length === 0 ? (
-        <div className="py-20 text-center bg-white/5 rounded-2xl border border-white/5 border-dashed">
-          <UserIcon className="h-16 w-16 text-gray-600 mx-auto mb-4 opacity-50" />
-          <p className="text-gray-400 text-lg font-medium">
+        <div className="flex flex-col items-center justify-center py-24 px-4 bg-white/5 rounded-3xl border border-white/5 border-dashed text-center">
+          <div className="p-6 rounded-full bg-white/5 mb-6">
+            <UserIcon className="h-16 w-16 text-gray-500 opacity-50" />
+          </div>
+          <h3 className="text-xl font-clash text-white mb-2 tracking-wide">
             {t.clanHub.noPlayersMatch}
+          </h3>
+          <p className="text-sm text-gray-400 max-w-md mx-auto leading-relaxed">
+            Coba sesuaikan filter pencarian Anda untuk menemukan pemain yang sesuai.
           </p>
-          <p className="text-sm text-gray-500 mt-2">Coba ubah filter pencarian Anda</p>
         </div>
       ) : (
         <>
           {/* [RESPONSIVE GRID] Mobile: 1 kolom, Tablet: 2, Desktop XL: 3 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
-            {playersToShow.map((player: Player) => (
-              <div key={player.id} className="transition-transform duration-200 hover:-translate-y-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {playersToShow.map((player: Player, index) => (
+              <div 
+                key={player.id} 
+                className="h-full animate-in fade-in slide-in-from-bottom-2 duration-500"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
                   <PlayerCard
                     id={player.id}
                     name={player.displayName || player.name}
@@ -74,15 +86,17 @@ export const PlayersTab = ({
           </div>
           
           {showLoadMorePlayers && (
-            <div className="text-center pt-8 pb-4">
+            <div className="flex justify-center pt-8 pb-12">
               <Button
-                variant="secondary"
+                variant="outline"
                 size="lg"
                 onClick={onLoadMorePlayers}
-                className="shadow-lg shadow-black/30 border border-white/10"
+                className="group border-white/10 hover:border-coc-green/50 text-gray-300 hover:text-white min-w-[200px]"
               >
-                {t.common.loadMore} (
-                {filteredPlayers.length - playersToShow.length} {t.common.remaining})
+                {t.common.loadMore} 
+                <span className="ml-2 text-xs font-bold bg-white/10 px-2 py-0.5 rounded-full group-hover:bg-coc-green group-hover:text-black transition-colors">
+                    {filteredPlayers.length - playersToShow.length}
+                </span>
               </Button>
             </div>
           )}

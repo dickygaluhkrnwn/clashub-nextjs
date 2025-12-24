@@ -10,6 +10,7 @@ import { getSessionUser } from '@/lib/server-auth';
 import { UserProfile } from '@/lib/types';
 import { RosterMember } from '@/app/clan/manage/components/MemberTableRow';
 import ClanDetailClient from './ClanDetailClient'; // Import Client Component
+import { AlertTriangleIcon } from '@/app/components/icons';
 
 interface ClanDetailPageProps {
   params: {
@@ -89,21 +90,21 @@ const ClanDetailPage = async ({ params }: ClanDetailPageProps) => {
     };
   });
 
-  // Pass data yang sudah diproses ke Client Component
-  // Lakukan serialisasi JSON untuk menghindari error object tak terduga
   return (
-    <ClanDetailClient 
-      managedClan={JSON.parse(JSON.stringify(managedClan))}
-      clanReviews={JSON.parse(JSON.stringify(clanReviews))}
-      averageRating={averageRating}
-      totalReviews={totalReviews}
-      totalMembers={totalMembers}
-      isFull={isFull}
-      isClanOwner={isClanOwner}
-      rosterMembers={JSON.parse(JSON.stringify(rosterForTable))}
-      cocApiUrl={cocApiUrl}
-      clanId={clanId}
-    />
+    <main className="min-h-screen bg-coc-dark pb-20">
+      <ClanDetailClient 
+        managedClan={JSON.parse(JSON.stringify(managedClan))}
+        clanReviews={JSON.parse(JSON.stringify(clanReviews))}
+        averageRating={averageRating}
+        totalReviews={totalReviews}
+        totalMembers={totalMembers}
+        isFull={isFull}
+        isClanOwner={isClanOwner}
+        rosterMembers={JSON.parse(JSON.stringify(rosterForTable))}
+        cocApiUrl={cocApiUrl}
+        clanId={clanId}
+      />
+    </main>
   );
 };
 

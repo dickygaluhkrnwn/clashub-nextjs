@@ -7,17 +7,23 @@ const Footer = () => {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="bg-coc-stone border-t-2 border-coc-gold-dark/30 mt-20">
-      <div className="container mx-auto py-8 px-4 text-center text-gray-400">
-        {/* Mengganti font-supercell menjadi font-clash */}
-        <p className="font-clash text-lg text-coc-gold-dark mb-2">CLASHUB</p>
-        <p className="text-sm">
+    <footer className="w-full mt-auto pt-12 pb-8 px-4 text-center">
+      {/* Divider Halus */}
+      <div className="w-full max-w-7xl mx-auto border-t border-white/5 mb-8" />
+
+      <div className="container mx-auto flex flex-col items-center justify-center space-y-4">
+        {/* Logo / Brand Name */}
+        <p className="font-clash text-2xl text-coc-gold tracking-wide drop-shadow-md">
+          CLASHUB
+        </p>
+
+        {/* Deskripsi Singkat */}
+        <p className="text-sm text-gray-500 font-sans max-w-md leading-relaxed">
           {t.footer.aboutDesc}
         </p>
-        <p className="text-xs mt-4">
-          {/* Mengganti tahun '2024' dari kamus dengan tahun dinamis, 
-            agar tidak perlu update kamus tiap tahun baru.
-          */}
+
+        {/* Copyright */}
+        <p className="text-xs text-gray-600 mt-6 font-mono">
           {t.footer.copyright.replace('2024', currentYear.toString())}
         </p>
       </div>

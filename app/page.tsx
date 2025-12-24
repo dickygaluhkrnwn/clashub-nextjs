@@ -74,7 +74,7 @@ export default async function Home() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-coc-dark">
       {/* [HEADER SECTION] */}
       <HomeHeader
         userProfile={userProfile}
@@ -85,18 +85,21 @@ export default async function Home() {
 
       {/* [MAIN CONTENT]
         - pb-4 md:pb-8: Jarak ke footer dikurangi agar lebih rapat
-        - -mt-6: Memberikan sedikit overlap ke atas untuk menyatukan desain
+        - mt-8: Memberikan jarak yang jelas dari header ke konten (menghapus -mt negatif yang bikin overlap)
       */}
-      <main className="container mx-auto px-4 md:px-8 pb-4 md:pb-8 space-y-8 md:space-y-10 -mt-6 relative z-10">
+      <main className="container mx-auto px-4 md:px-8 pb-4 md:pb-8 space-y-12 relative z-10">
         
-        {/* 1. Quick Links (Menu Cepat) */}
-        <div className="bg-coc-stone-light/60 backdrop-blur-md rounded-2xl p-4 md:p-6 border border-white/5 shadow-lg">
+        {/* 1. Quick Links (Menu Cepat) 
+            [CLEANUP] Menghapus wrapper background yang mengganggu. 
+            Sekarang QuickLinks berdiri sendiri dengan style glassmorphism card-nya masing-masing.
+        */}
+        <div className="mt-8">
           <QuickLinks />
         </div>
 
         {/* 2. Banner Promosi (Jika Ada) */}
         {activePromotions.length > 0 && (
-           <div className="w-full overflow-hidden rounded-2xl shadow-stone border border-coc-gold/20">
+           <div className="w-full">
              <HomeBanner promotions={activePromotions} />
            </div>
         )}

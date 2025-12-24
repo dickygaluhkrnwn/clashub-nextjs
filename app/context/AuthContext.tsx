@@ -57,18 +57,26 @@ export function AuthProvider({ children, initialServerUser }: AuthProviderProps)
         try {
           const profile = await getUserProfile(user.uid);
           // FIX 4: Gunakan setUserProfile dengan tipe UserProfile | null
-          setUserProfile(profile); 
+          if (isMounted) {
+            setUserProfile(profile); 
+          }
         } catch (error) {
           console.error('Gagal mengambil profil user di AuthContext:', error);
-          setUserProfile(null); 
+          if (isMounted) {
+            setUserProfile(null); 
+          }
         }
       } else {
         // Jika user logout, kosongkan juga profilnya
-        setUserProfile(null);
+        if (isMounted) {
+            setUserProfile(null);
+        }
       }
       
       // Selesai loading setelah status auth dan profile (jika ada) berhasil didapatkan
-      setLoading(false);
+      if (isMounted) {
+        setLoading(false);
+      }
     });
     
     // Cleanup function
@@ -84,29 +92,33 @@ export function AuthProvider({ children, initialServerUser }: AuthProviderProps)
       let isMounted = true;
       
       const fetchInitialProfile = async () => {
-          if (initialServerUser && isMounted && !currentUser) {
-               // Periksa apakah userProfile masih null, jika ya, fetch.
+          // Hanya fetch jika ada user dari server DAN currentUser belum tersinkronisasi (masih null/loading awal)
+          if (initialServerUser && isMounted && !userProfile) {
                try {
                   const profile = await getUserProfile(initialServerUser.uid);
-                  setUserProfile(profile);
+                  if (isMounted) {
+                      setUserProfile(profile);
+                  }
                } catch (error) {
                    console.error('Gagal mengambil initial profile di AuthContext:', error);
-                   setUserProfile(null);
+                   if (isMounted) {
+                       setUserProfile(null);
+                   }
                }
-               // Tandai loading selesai setelah mencoba fetch data awal
-               setLoading(false); 
-          } else if (!initialServerUser) {
-               // Jika tidak ada user dari SSR, biarkan listener onAuthStateChanged yang menangani loading.
-               setLoading(true);
+               // Jangan set loading false di sini, biarkan onAuthStateChanged yang mengurus final loading state
+               // untuk menghindari race condition, kecuali jika kita yakin onAuthStateChanged lambat.
+               // Namun untuk UX yang lebih cepat, kita bisa set loading false jika profile sudah ada.
+               if (isMounted) {
+                   // Optional: setLoading(false); 
+               }
           }
       };
-      // Panggil fetchInitialProfile HANYA jika currentUser belum diset (proses hydration awal)
-      if (!currentUser) {
-          fetchInitialProfile(); 
-      }
+      
+      fetchInitialProfile();
       
       return () => { isMounted = false; };
-  }, [initialServerUser, currentUser]); // Run once on mount and when currentUser changes to null (logout)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialServerUser]); // Run once on mount if server user exists
 
   const value = {
     currentUser, 
@@ -118,6 +130,12 @@ export function AuthProvider({ children, initialServerUser }: AuthProviderProps)
     <AuthContext.Provider value={value}>
       {/* Tampilkan children hanya jika loading sudah selesai */}
       {!loading && children}
+      {/* Tampilkan loading indicator jika masih loading (opsional) */}
+      {loading && (
+         <div className="min-h-screen flex items-center justify-center bg-coc-dark">
+            <div className="w-12 h-12 border-4 border-coc-gold/30 border-t-coc-gold rounded-full animate-spin"></div>
+         </div>
+      )}
     </AuthContext.Provider>
   );
 }

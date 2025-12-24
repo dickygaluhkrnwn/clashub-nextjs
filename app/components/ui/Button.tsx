@@ -47,34 +47,37 @@ export const Button = React.forwardRef<
     // Menambahkan font-clash ke kelas dasar, kecuali untuk varian 'link' dan 'ghost'
     const baseClasses = `inline-block ${
       variant !== 'link' && variant !== 'ghost' ? 'font-clash' : 'font-sans'
-    } rounded-md transition-all duration-200 uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed`;
+    } rounded-md transition-all duration-200 uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed select-none`;
 
     // PERBAIKAN: Menambahkan kelas untuk variant 'danger', 'ghost', dan 'outline'
     const variantClasses = {
-      primary: 'btn-3d-gold', // Kelas dari globals.css
-      secondary: 'btn-3d-stone', // Kelas dari globals.css
-      tertiary: 'btn-3d-silver', // Asumsi: Tambahkan kelas ini di globals.css
-      link: 'btn-link font-bold', // Kelas dari globals.css
-      // Style baru untuk danger
+      primary: 'btn-3d-gold shadow-lg hover:shadow-xl active:translate-y-0.5', // Menggunakan utility class globals.css + interaksi
+      secondary: 'btn-3d-stone shadow-lg hover:shadow-xl active:translate-y-0.5',
+      tertiary: 'btn-3d-silver shadow-lg hover:shadow-xl active:translate-y-0.5', // Pastikan btn-3d-silver ada atau gunakan fallback
+      link: 'btn-link font-bold text-coc-gold hover:text-white underline-offset-4 hover:underline',
+      
+      // Style baru untuk danger (Merah Clash)
       danger:
-        'bg-coc-red/80 text-white hover:bg-coc-red border border-coc-red/90',
-      // Style baru untuk ghost
+        'bg-gradient-to-b from-coc-red to-red-800 text-white border-b-4 border-red-900 hover:from-red-500 hover:to-coc-red shadow-lg active:border-b-0 active:translate-y-1',
+      
+      // Style baru untuk ghost (Transparan tapi tactile)
       ghost:
-        'bg-transparent text-gray-300 hover:bg-coc-stone-light/30 hover:text-white',
-      // [FIX] Style baru untuk outline
+        'bg-transparent text-gray-400 hover:text-white hover:bg-white/10 active:bg-white/20',
+      
+      // [FIX] Style baru untuk outline (Glassy Border)
       outline:
-        'bg-transparent border-2 border-coc-gold/50 text-coc-gold hover:bg-coc-gold/10 hover:border-coc-gold',
+        'bg-transparent border-2 border-white/20 text-coc-gold hover:border-coc-gold hover:bg-coc-gold/10 hover:text-white shadow-sm active:scale-95',
     };
 
     const sizeClasses = {
-      sm: 'px-3 py-1.5 text-xs',
-      md: 'px-5 py-2.5 text-sm',
-      lg: 'px-6 py-3 text-base',
+      sm: 'px-3 py-1.5 text-[10px] md:text-xs font-bold',
+      md: 'px-5 py-2.5 text-xs md:text-sm font-bold',
+      lg: 'px-8 py-3 text-sm md:text-base font-bold',
     };
 
     // Gabungkan semua kelas yang relevan
     const classes = `${baseClasses} ${
-      variantClasses[variant as keyof typeof variantClasses]
+      variantClasses[variant as keyof typeof variantClasses] || variantClasses.primary
     } ${sizeClasses[size]} ${className}`;
 
     // Render sebagai komponen Link jika ada properti href

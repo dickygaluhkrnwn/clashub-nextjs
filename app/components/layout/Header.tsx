@@ -108,7 +108,7 @@ const UserProfileDropdown = () => {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="h-9 w-9 flex items-center justify-center rounded-full bg-coc-stone-light hover:ring-2 hover:ring-coc-gold transition-all overflow-hidden"
+        className="h-10 w-10 flex items-center justify-center rounded-full bg-black/20 border border-white/10 hover:border-coc-gold/50 transition-all overflow-hidden focus:outline-none focus:ring-2 focus:ring-coc-gold/50"
       >
         <img
           src={avatarSrc || '/images/placeholder-avatar.png'}
@@ -122,15 +122,23 @@ const UserProfileDropdown = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-56 card-stone p-2 shadow-lg rounded-md z-50 border border-coc-gold/20 animate-in fade-in zoom-in-95 duration-100">
-          <ul className="space-y-1">
+        <div className="absolute right-0 mt-3 w-64 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 shadow-2xl rounded-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="p-4 border-b border-white/5 bg-black/20">
+             <p className="text-sm font-bold text-white truncate">
+                {userProfile && 'displayName' in userProfile ? userProfile.displayName : 'User'}
+             </p>
+             <p className="text-xs text-gray-500 truncate">{currentUser?.email}</p>
+          </div>
+          <ul className="p-2 space-y-1">
             <li>
               <Link
                 href="/profile"
                 onClick={() => setIsOpen(false)}
-                className="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-300 hover:bg-coc-gold/10 hover:text-white rounded-md"
+                className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white rounded-xl transition-colors group"
               >
-                <UserCircleIcon className="h-5 w-5 text-coc-gold" />
+                <div className="p-1.5 rounded-lg bg-black/30 group-hover:bg-coc-gold/20 text-gray-400 group-hover:text-coc-gold transition-colors">
+                    <UserCircleIcon className="h-4 w-4" />
+                </div>
                 <span>Profil Saya</span>
               </Link>
             </li>
@@ -140,10 +148,12 @@ const UserProfileDropdown = () => {
                 <Link
                   href="/clan/manage"
                   onClick={() => setIsOpen(false)}
-                  className="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-300 hover:bg-coc-gold/10 hover:text-white rounded-md"
+                  className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white rounded-xl transition-colors group"
                 >
-                  <ShieldIcon className="h-5 w-5 text-coc-blue" />
-                  <span>Klan</span>
+                  <div className="p-1.5 rounded-lg bg-black/30 group-hover:bg-coc-blue/20 text-gray-400 group-hover:text-coc-blue transition-colors">
+                    <ShieldIcon className="h-4 w-4" />
+                  </div>
+                  <span>Klan Saya</span>
                 </Link>
               </li>
             )}
@@ -153,23 +163,27 @@ const UserProfileDropdown = () => {
                 <Link
                   href="/my-tournaments"
                   onClick={() => setIsOpen(false)}
-                  className="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-300 hover:bg-coc-gold/10 hover:text-white rounded-md"
+                  className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white rounded-xl transition-colors group"
                 >
-                  <TrophyIcon className="h-5 w-5 text-coc-orange" />
+                  <div className="p-1.5 rounded-lg bg-black/30 group-hover:bg-coc-gold/20 text-gray-400 group-hover:text-coc-gold transition-colors">
+                    <TrophyIcon className="h-4 w-4" />
+                  </div>
                   <span>Manajemen Turnamen</span>
                 </Link>
               </li>
             )}
 
-            <div className="my-1 border-t border-white/10"></div>
+            <div className="my-1 border-t border-white/5"></div>
 
             <li>
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-3 w-full px-3 py-2 text-sm text-red-400 hover:bg-coc-red/10 hover:text-red-300 rounded-md"
+                className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-red-400 hover:bg-coc-red/10 hover:text-red-300 rounded-xl transition-colors group"
               >
-                <LogOutIcon className="h-5 w-5" />
-                <span>Logout</span>
+                <div className="p-1.5 rounded-lg bg-black/30 group-hover:bg-coc-red/20 text-gray-400 group-hover:text-coc-red transition-colors">
+                    <LogOutIcon className="h-4 w-4" />
+                </div>
+                <span>Keluar</span>
               </button>
             </li>
           </ul>
@@ -220,35 +234,40 @@ const NotificationBell = () => {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="text-gray-300 hover:text-coc-gold transition-colors relative p-1.5 rounded-full hover:bg-white/5"
+        className="text-gray-400 hover:text-coc-gold transition-colors relative p-2 rounded-full hover:bg-white/5 focus:outline-none active:scale-95"
       >
-        <BellIcon className="h-6 w-6 md:h-5 md:w-5" />
+        <BellIcon className="h-6 w-6" />
         {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 flex h-4 w-4 items-center justify-center rounded-full bg-coc-red text-[10px] font-bold text-white border border-coc-stone animate-bounce-short">
-            {unreadCount}
+          <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-coc-red text-[10px] font-bold text-white border border-[#1a1a1a] animate-pulse">
+            {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-3 md:mt-2 w-[85vw] md:w-80 max-h-[60vh] md:max-h-[400px] overflow-y-auto card-stone shadow-xl rounded-lg z-50 border border-coc-gold/20 scrollbar-thin scrollbar-thumb-coc-gold/30 scrollbar-track-transparent">
-          <div className="p-3 border-b border-coc-gold-dark/30 sticky top-0 bg-coc-stone/95 backdrop-blur z-10 flex justify-between items-center">
-            <h4 className="font-clash text-lg text-white">Notifikasi</h4>
+        <div className="absolute right-0 mt-3 w-[90vw] md:w-80 max-h-[60vh] md:max-h-[400px] overflow-y-auto bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 shadow-2xl rounded-2xl z-50 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+          <div className="p-4 border-b border-white/5 sticky top-0 bg-[#1a1a1a]/95 backdrop-blur z-10 flex justify-between items-center">
+            <h4 className="font-clash text-lg text-white tracking-wide">Notifikasi</h4>
             {unreadCount > 0 && (
-               <span className="text-xs text-coc-gold bg-coc-gold/10 px-2 py-0.5 rounded-full border border-coc-gold/20">{unreadCount} baru</span>
+               <span className="text-[10px] font-bold text-coc-gold bg-coc-gold/10 px-2 py-0.5 rounded-full border border-coc-gold/20 tracking-wider uppercase">
+                  {unreadCount} Baru
+               </span>
             )}
           </div>
           
           {isLoading && (
-            <div className="p-6 text-center text-gray-400 animate-pulse text-sm">
-              Memuat notifikasi...
+            <div className="p-8 text-center text-gray-500 animate-pulse text-sm">
+              <div className="w-8 h-8 bg-white/10 rounded-full mx-auto mb-2"></div>
+              Memuat...
             </div>
           )}
           
           {!isLoading && notifications.length === 0 && (
-            <div className="p-8 text-center flex flex-col items-center gap-3 text-gray-400">
-              <BellIcon className="h-10 w-10 opacity-20" />
-              <p className="text-sm">Belum ada notifikasi</p>
+            <div className="p-12 text-center flex flex-col items-center gap-3 text-gray-500">
+              <div className="p-4 rounded-full bg-white/5">
+                <BellIcon className="h-8 w-8 opacity-30" />
+              </div>
+              <p className="text-sm">Tidak ada notifikasi baru</p>
             </div>
           )}
           
@@ -257,24 +276,24 @@ const NotificationBell = () => {
               <li key={notif.id}>
                 <button
                   onClick={() => handleNotifClick(notif)}
-                  className={`w-full text-left flex items-start gap-3 p-4 md:p-3 transition-colors ${
+                  className={`w-full text-left flex items-start gap-4 p-4 transition-all ${
                     notif.read
-                      ? 'bg-transparent hover:bg-coc-stone-light/20 opacity-70'
-                      : 'bg-coc-blue/5 hover:bg-coc-blue/10 border-l-2 border-coc-blue'
+                      ? 'bg-transparent hover:bg-white/5 opacity-60 hover:opacity-100'
+                      : 'bg-coc-gold/5 hover:bg-coc-gold/10 border-l-2 border-coc-gold pl-[14px]' // Compensate padding for border
                   }`}
                 >
                   <div className="flex-shrink-0 mt-1">
                     {notif.read ? (
                       <CheckCircleIcon className="h-4 w-4 text-gray-500" />
                     ) : (
-                      <div className="h-2.5 w-2.5 rounded-full bg-coc-blue shadow-[0_0_8px_rgba(59,130,246,0.6)]"></div>
+                      <div className="h-2.5 w-2.5 rounded-full bg-coc-gold shadow-[0_0_8px_rgba(255,215,0,0.6)] animate-pulse"></div>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm leading-snug ${notif.read ? 'text-gray-300' : 'text-white font-medium'}`}>
+                    <p className={`text-sm leading-snug mb-1 ${notif.read ? 'text-gray-400' : 'text-white font-medium'}`}>
                       {notif.message}
                     </p>
-                    <span className="text-[10px] md:text-xs text-gray-500 mt-1.5 block">
+                    <span className="text-[10px] text-gray-600 uppercase tracking-wider font-bold">
                       {new Date(notif.createdAt).toLocaleString('id-ID', {
                         day: 'numeric',
                         month: 'short',
@@ -299,27 +318,26 @@ const Header = () => {
 
   return (
     <>
-      <header className="sticky top-0 z-50 bg-coc-stone/95 backdrop-blur-md border-b border-white/5 shadow-lg h-16 md:h-[72px] transition-all duration-300">
-        <div className="container mx-auto flex items-center justify-between h-full px-4 md:px-6">
+      <header className="sticky top-0 z-50 bg-[#1a1a1a]/80 backdrop-blur-xl border-b border-white/5 shadow-lg h-16 md:h-[72px] transition-all duration-300">
+        <div className="container mx-auto flex items-center justify-between h-full px-4 md:px-8">
           
           {/* Logo Section */}
           <Link
             href="/"
-            className="flex items-center gap-2 md:gap-3 z-20 hover:opacity-90 transition-opacity group"
+            className="flex items-center gap-3 z-20 group"
           >
-            <div className="relative h-9 w-9 md:h-11 md:w-11 transition-transform group-hover:scale-105">
+            <div className="relative h-8 w-8 md:h-10 md:w-10 transition-transform group-hover:scale-110 duration-300">
                 <Image
                 src="/images/logoClashub.png"
                 alt="Clashub Logo"
                 fill
-                sizes="(max-width: 768px) 36px, 44px"
+                sizes="(max-width: 768px) 32px, 40px"
                 className="object-contain drop-shadow-md"
                 priority
                 />
             </div>
             <span
-              className="font-clash text-xl md:text-2xl text-transparent bg-clip-text bg-gradient-to-b from-coc-gold to-coc-gold-dark drop-shadow-sm tracking-wide"
-              style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}
+              className="font-clash text-xl md:text-2xl text-white tracking-wide group-hover:text-coc-gold transition-colors duration-300"
             >
               CLASHUB
             </span>
@@ -332,50 +350,54 @@ const Header = () => {
                 key={item.name}
                 href={item.href}
                 className={`
-                      px-3 py-2 rounded-md text-sm font-bold tracking-wide transition-all duration-300 flex items-center gap-2
+                      px-4 py-2 rounded-xl text-sm font-bold tracking-wide transition-all duration-300 flex items-center gap-2
                       ${
                         pathname === item.href
-                          ? 'text-coc-gold bg-coc-stone-light/50 shadow-[0_0_10px_rgba(255,215,0,0.1)] border border-coc-gold/20'
-                          : 'text-gray-300 hover:text-white hover:bg-white/5'
+                          ? 'text-coc-gold bg-coc-gold/10 border border-coc-gold/20 shadow-[0_0_15px_rgba(255,215,0,0.1)]'
+                          : 'text-gray-400 hover:text-white hover:bg-white/5'
                       }
                     `}
               >
+                {/* Icon kecil di sebelah teks menu */}
+                <item.icon className={`h-4 w-4 ${pathname === item.href ? 'text-coc-gold' : 'text-gray-500 group-hover:text-gray-300'}`} />
                 {item.name}
               </Link>
             ))}
           </nav>
 
-          {/* Desktop User Actions */}
-          <div className="hidden md:flex items-center gap-4">
-            <div className="flex items-center gap-2">
+          {/* User Actions */}
+          <div className="flex items-center gap-2 md:gap-4">
+            
+            {/* Desktop Only Tools */}
+            <div className="hidden md:flex items-center gap-2">
                 <LanguageSwitcher />
                 <ThemeToggle />
-                <button className="p-2 text-gray-300 hover:text-coc-gold transition-colors rounded-full hover:bg-white/5">
+            </div>
+
+            {/* Notification & Search (Visible on Mobile too) */}
+            <div className="flex items-center gap-1 md:gap-2">
+                <button className="p-2 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-white/5 focus:outline-none">
                   <SearchIcon className="h-5 w-5" />
                 </button>
                 <NotificationBell />
             </div>
 
-            <div className="w-px h-8 bg-gradient-to-b from-transparent via-white/10 to-transparent"></div>
+            {/* Divider Vertical */}
+            <div className="hidden md:block w-px h-6 bg-white/10 mx-1"></div>
 
+            {/* Profile Dropdown / Login Button */}
             {!authLoading &&
               (currentUser ? (
                 <UserProfileDropdown />
               ) : (
-                <Button href="/auth" variant="primary" size="sm" className="min-w-[100px]">
+                <Button href="/auth" variant="primary" size="sm" className="min-w-[90px] shadow-lg shadow-coc-gold/10 ml-2">
                   Login
                 </Button>
               ))}
             
             {authLoading && (
-              <div className="h-9 w-9 rounded-full bg-coc-stone-light animate-pulse ring-1 ring-white/10"></div>
+              <div className="h-9 w-9 rounded-full bg-white/5 animate-pulse ring-1 ring-white/10 ml-2"></div>
             )}
-          </div>
-
-          {/* Mobile Actions (Clean - Only Notification Bell) */}
-          <div className="md:hidden flex items-center gap-3 z-20">
-            <NotificationBell />
-            {/* Note: Tidak ada lagi menu hamburger di sini, digantikan oleh MobileNav di bawah layar */}
           </div>
         </div>
       </header>

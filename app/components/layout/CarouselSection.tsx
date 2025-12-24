@@ -1,5 +1,6 @@
+'use client';
+
 import React, { ReactNode } from 'react';
-import Image from 'next/image';
 
 type CarouselSectionProps = {
   title: string;
@@ -9,25 +10,19 @@ type CarouselSectionProps = {
 
 const CarouselSection = ({ title, icon, children }: CarouselSectionProps) => {
   return (
-    <section className="mb-12 relative">
-      <div className="absolute inset-0 z-0 rounded-xl overflow-hidden opacity-20">
-        <Image
-          src="/images/stone-texture.png" 
-          alt="Stone Texture Background"
-          fill
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 70vw"
-          style={{ objectFit: 'cover' }}
-          className="pointer-events-none"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-coc-stone via-coc-stone/80 to-coc-stone" />
-      </div>
-
-      <div className="relative z-10 p-4">
-        {/* [PERBAIKAN WARNA] Mengubah text-white menjadi text-coc-gold */}
-        <h2 className="flex items-center gap-2 text-xl md:text-2xl font-clash text-coc-gold mb-4 pl-2 border-l-4 border-coc-gold">
-          {icon}
-          {title}
-        </h2>
+    <section className="mb-12 relative w-full">
+      {/* Background Texture dihapus agar lebih bersih (Clean UI) */}
+      
+      <div className="relative z-10">
+        {/* Header Section dengan Text Gold */}
+        <div className="flex items-center gap-3 mb-6 px-1">
+           <div className="text-coc-gold drop-shadow-md">
+              {icon}
+           </div>
+           <h2 className="text-xl md:text-2xl font-clash text-coc-gold tracking-wide drop-shadow-md">
+              {title}
+           </h2>
+        </div>
         
         {/* Kontainer Carousel dengan scroll horizontal */}
         <div className="
@@ -39,9 +34,9 @@ const CarouselSection = ({ title, icon, children }: CarouselSectionProps) => {
           overflow-x-auto 
           pb-6
           pt-2
-          px-2
           custom-scrollbar
           snap-x snap-mandatory
+          -mx-4 px-4 md:mx-0 md:px-0 /* Edge-to-edge scroll di mobile */
         ">
           {children}
         </div>

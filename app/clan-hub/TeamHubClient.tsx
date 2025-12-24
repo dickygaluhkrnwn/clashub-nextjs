@@ -77,7 +77,7 @@ const TeamHubClient = ({
 
   const handleTabChange = useCallback((tab: ActiveTab) => {
     setActiveTab(tab);
-    // Reset Filters
+    // Reset Filters & View Limits when changing tabs
     setClanFilters({ searchTerm: '', thLevel: 0, minMembers: 0, vision: 'all', reputation: 0 });
     setPlayerFilters({ searchTerm: '', role: 'all', reputation: 0, thLevel: 0 });
     setPublicClanTag('');
@@ -162,37 +162,39 @@ const TeamHubClient = ({
 
   return (
     <div className="min-h-screen bg-coc-dark pb-20">
-        {/* Background decoration */}
+        
+        {/* Decorative Background */}
         <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-coc-stone-light/10 to-transparent pointer-events-none" />
 
-        {/* 1. UNIFIED HEADER (NAV + FILTER) - STICKY & FULL WIDTH */}
-        {/* Diletakkan di luar container agar background-nya full width */}
-        <div className="sticky top-16 md:top-[72px] z-20">
-            <TeamHubTabNavigation activeTab={activeTab} onTabChange={handleTabChange}>
-                {/* Render Filter based on active tab directly in header */}
-                {activeTab !== 'publicClans' ? (
-                    <TeamHubFilterBar
-                        activeTab={activeTab}
-                        clanFilters={clanFilters}
-                        onClanFilterChange={handleClanFilterChange}
-                        playerFilters={playerFilters}
-                        onPlayerFilterChange={handlePlayerFilterChange}
-                    />
-                ) : (
-                    // Render Public Search Bar in header
-                    <PublicClanSearchFilter 
-                        publicClanTag={publicClanTag}
-                        onPublicClanTagChange={setPublicClanTag}
-                        onSearchSubmit={handlePublicClanSearch}
-                        isSearching={isSearchingPublicClan}
-                    />
-                )}
-            </TeamHubTabNavigation>
-        </div>
+        {/* MAIN CONTAINER */}
+        <div className="container mx-auto px-4 md:px-8 pt-24 md:pt-28 relative z-10 space-y-8">
+            
+            {/* 1. CONTROL CENTER CARD (Unified Tabs & Filters) */}
+            {/* Kartu ini sekarang berada di dalam flow dokumen, tidak menimpa konten */}
+            <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+                <TeamHubTabNavigation activeTab={activeTab} onTabChange={handleTabChange}>
+                    {/* Render Filter Content based on active tab */}
+                    {activeTab !== 'publicClans' ? (
+                        <TeamHubFilterBar
+                            activeTab={activeTab}
+                            clanFilters={clanFilters}
+                            onClanFilterChange={handleClanFilterChange}
+                            playerFilters={playerFilters}
+                            onPlayerFilterChange={handlePlayerFilterChange}
+                        />
+                    ) : (
+                        <PublicClanSearchFilter 
+                            publicClanTag={publicClanTag}
+                            onPublicClanTagChange={setPublicClanTag}
+                            onSearchSubmit={handlePublicClanSearch}
+                            isSearching={isSearchingPublicClan}
+                        />
+                    )}
+                </TeamHubTabNavigation>
+            </div>
 
-        {/* 2. CONTENT AREA */}
-        <div className="container mx-auto px-4 md:px-8 relative z-10 mt-8">
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* 2. RESULTS CONTENT */}
+            <div className="animate-in fade-in duration-500 delay-150">
                 {activeTab === 'clashubTeams' && (
                     <ClashubTeamsTab
                         isFiltering={isFiltering}
@@ -216,7 +218,7 @@ const TeamHubClient = ({
                 {activeTab === 'publicClans' && (
                     <PublicClansTab
                         publicClanTag={publicClanTag}
-                        onPublicClanTagChange={setPublicClanTag} // Sinkron dengan interface
+                        onPublicClanTagChange={setPublicClanTag} 
                         onSearchSubmit={handlePublicClanSearch}
                         isSearching={isSearchingPublicClan}
                         searchError={publicSearchError}

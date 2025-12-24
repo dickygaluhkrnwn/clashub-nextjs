@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Promotion } from '@/lib/clashub.types';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
-import { ChevronLeftIcon, ChevronRightIcon } from '@/app/components/icons';
+import { ChevronLeftIcon, ChevronRightIcon, StarIcon } from '@/app/components/icons';
 import { useAuth } from '@/app/context/AuthContext';
 import { useLanguage } from '@/lib/hooks/useLanguage';
 import { motion } from 'framer-motion';
@@ -76,10 +76,10 @@ export default function HomeBanner({ promotions }: HomeBannerProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3 }}
-      className="relative w-full rounded-2xl overflow-hidden shadow-2xl border border-coc-gold/20 group"
+      className="relative w-full rounded-2xl overflow-hidden shadow-2xl border border-white/10 group mb-8"
     >
       {/* Container dengan aspect ratio yang konsisten */}
-      <div className="relative aspect-[16/7] md:aspect-[21/9] max-h-[400px] w-full bg-coc-stone">
+      <div className="relative aspect-[16/9] sm:aspect-[21/9] max-h-[450px] w-full bg-coc-stone">
         <div className="overflow-hidden h-full" ref={emblaRef}>
           <div className="flex h-full">
             {validPromotions.map((promo) => (
@@ -88,53 +88,64 @@ export default function HomeBanner({ promotions }: HomeBannerProps) {
                 key={promo.id}
                 onClick={() => handleBannerClick(promo)}
               >
-                {/* Background Image */}
+                {/* Background Image with Zoom Effect */}
                 <div 
-                  className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
+                  className="absolute inset-0 bg-cover bg-center transition-transform duration-[2s] ease-out group-hover:scale-105"
                   style={{ backgroundImage: `url(${promo.imageUrl})` }}
                 />
                 
-                {/* Gradient Overlay untuk keterbacaan teks/kontras */}
-                <div className="absolute inset-0 bg-gradient-to-t from-coc-stone via-transparent to-transparent opacity-90" />
-                <div className="absolute inset-0 bg-gradient-to-r from-coc-stone/50 via-transparent to-transparent opacity-60" />
+                {/* Modern Gradient Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-90" />
+                <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent opacity-60" />
 
-                {/* Badge Featured (Opsional) */}
-                <div className="absolute bottom-0 left-0 p-6 md:p-8 w-full">
-                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-coc-gold/20 backdrop-blur-md border border-coc-gold/40 text-coc-gold text-xs font-bold uppercase tracking-wider mb-2">
+                {/* Content Overlay */}
+                <div className="absolute bottom-0 left-0 p-6 md:p-10 w-full flex flex-col items-start gap-2">
+                    {/* Badge Featured - Glassmorphism */}
+                    <motion.div 
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-coc-gold/20 backdrop-blur-md border border-coc-gold/40 text-coc-gold text-[10px] md:text-xs font-bold uppercase tracking-widest shadow-lg shadow-coc-gold/10"
+                    >
+                      <StarIcon className="w-3 h-3 fill-current" />
                       Featured Clan
-                   </div>
+                    </motion.div>
+
+                    {/* Optional Title/Caption if available in Promotion type */}
+                    {/* <h3 className="text-2xl md:text-4xl font-clash text-white drop-shadow-lg">
+                        {promo.title || "Join Our Clan!"}
+                    </h3> */}
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Tombol Navigasi - Muncul saat Hover di Desktop */}
+        {/* Tombol Navigasi - Tactile & Modern */}
         <button
-          className="absolute z-10 top-1/2 left-4 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md border border-white/10 opacity-0 group-hover:opacity-100 transition-all hover:bg-coc-gold hover:text-black hover:scale-110"
-          onClick={scrollPrev}
+          className="absolute z-10 top-1/2 left-4 -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-md border border-white/10 opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-coc-gold hover:text-black hover:scale-110 active:scale-95 shadow-lg"
+          onClick={(e) => { e.stopPropagation(); scrollPrev(); }}
           aria-label={t.banner.prevSlide}
         >
-          <ChevronLeftIcon className="h-6 w-6" />
+          <ChevronLeftIcon className="h-6 w-6 md:h-7 md:w-7" />
         </button>
         <button
-          className="absolute z-10 top-1/2 right-4 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md border border-white/10 opacity-0 group-hover:opacity-100 transition-all hover:bg-coc-gold hover:text-black hover:scale-110"
-          onClick={scrollNext}
+          className="absolute z-10 top-1/2 right-4 -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-md border border-white/10 opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-coc-gold hover:text-black hover:scale-110 active:scale-95 shadow-lg"
+          onClick={(e) => { e.stopPropagation(); scrollNext(); }}
           aria-label={t.banner.nextSlide}
         >
-          <ChevronRightIcon className="h-6 w-6" />
+          <ChevronRightIcon className="h-6 w-6 md:h-7 md:w-7" />
         </button>
 
-        {/* Indikator Slide (Dots) */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+        {/* Indikator Slide (Dots) - Modern Pill Style */}
+        <div className="absolute bottom-6 md:bottom-8 right-6 md:right-10 flex gap-2 z-10">
           {validPromotions.map((_, index) => (
             <button
               key={index}
-              onClick={() => emblaApi?.scrollTo(index)}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
+              onClick={(e) => { e.stopPropagation(); emblaApi?.scrollTo(index); }}
+              className={`h-1.5 md:h-2 rounded-full transition-all duration-300 shadow-sm ${
                 index === selectedIndex 
-                  ? 'w-8 bg-coc-gold shadow-[0_0_10px_rgba(255,215,0,0.5)]' 
-                  : 'w-2 bg-white/30 hover:bg-white/50'
+                  ? 'w-8 md:w-10 bg-coc-gold shadow-[0_0_10px_rgba(255,215,0,0.6)]' 
+                  : 'w-2 md:w-2 bg-white/30 hover:bg-white/60'
               }`}
               aria-label={`Go to slide ${index + 1}`}
             />

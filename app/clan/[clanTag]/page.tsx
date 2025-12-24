@@ -5,11 +5,11 @@ import { NextPage } from 'next';
 import { useParams } from 'next/navigation'; 
 import { PublicClanIndex, CocMember } from '@/lib/types';
 // Mengimpor semua ikon yang diperlukan
-import { GlobeIcon, ShieldIcon, UserIcon, TrophyIcon, MapPinIcon, ClockIcon, ArrowLeftIcon, RefreshCwIcon, StarIcon, ExternalLinkIcon } from '@/app/components/icons';
+import { GlobeIcon, ShieldIcon, UserIcon, TrophyIcon, MapPinIcon, ClockIcon, ArrowLeftIcon, RefreshCwIcon, StarIcon, ExternalLinkIcon, AlertTriangleIcon, Loader2Icon } from '@/app/components/icons';
 import { Button } from '@/app/components/ui/Button';
 import Image from 'next/image'; 
 import Link from 'next/link'; 
-import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 // Mendefinisikan Tipe Data Klan yang Diterima di Client
 interface ClientClanData extends PublicClanIndex {
@@ -22,11 +22,35 @@ interface ClientClanData extends PublicClanIndex {
 // Utility untuk memformat Tag
 const formatTag = (tag: string) => tag.replace('%23', '#');
 
+// Helper Component for Stats Card
+const StatCard = ({ icon: Icon, title, value, color }: { icon: any, title: string, value: string | number, color: string }) => (
+    <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-black/20 border border-white/5 backdrop-blur-md hover:bg-white/5 transition-colors group">
+        <div className={`p-2 rounded-full mb-2 ${color.replace('text-', 'bg-')}/10`}>
+            <Icon className={`h-6 w-6 ${color}`} />
+        </div>
+        <p className="text-xl md:text-2xl font-clash text-white mb-1 group-hover:scale-110 transition-transform">{value}</p>
+        <p className="text-[10px] md:text-xs uppercase tracking-wider text-gray-400 font-bold text-center">{title}</p>
+    </div>
+);
+
+// Helper Component for Detail Item
+const DetailItem = ({ icon: Icon, label, value }: { icon: any, label: string, value: string }) => (
+    <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-colors">
+        <div className="p-2 rounded-lg bg-black/20">
+            <Icon className="h-5 w-5 text-gray-400" />
+        </div>
+        <div>
+            <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wide">{label}</p>
+            <p className="text-sm font-medium text-gray-200">{value}</p>
+        </div>
+    </div>
+);
+
 // =========================================================================
 // MAIN COMPONENT (CLIENT COMPONENT)
 // =========================================================================
 const ClanPublicProfilePage: NextPage = () => {
-    const { t } = useLanguage(); // [BARU]
+    const { t } = useLanguage(); 
     const params = useParams();
     const encodedTag = params.clanTag as string; 
     const [clan, setClan] = useState<ClientClanData | null>(null); 
@@ -43,17 +67,13 @@ const ClanPublicProfilePage: NextPage = () => {
             setClan(null); 
             console.log(`[ClanPublicProfilePage Client] Fetching data for encoded tag: ${encodedTag}`);
 
-            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin; 
-            const internalApiUrl = `${baseUrl}/api/coc/search-clan?clanTag=${encodedTag}`;
-            console.log(`[ClanPublicProfilePage Client] Calling API route: ${internalApiUrl}`);
-
+            const internalApiUrl = `/api/coc/search-clan?clanTag=${encodedTag}`;
+            
             try {
                 const response = await fetch(internalApiUrl);
-                console.log(`[ClanPublicProfilePage Client] API route response status: ${response.status}`);
-
+                
                 if (response.status === 404) {
-                    console.log(`[ClanPublicProfilePage Client] Clan not found (404) for tag: ${encodedTag}`);
-                    setError(t.clanPublicProfile.notFound);
+                    setError(t.clanPublicProfile.notFound || "Klan tidak ditemukan.");
                     return;
                 }
 
@@ -65,19 +85,14 @@ const ClanPublicProfilePage: NextPage = () => {
                     } catch (parseError) {
                         console.error("[ClanPublicProfilePage Client] Failed to parse error response:", parseError);
                     }
-                    console.error(`[ClanPublicProfilePage Client] Failed fetch. Status: ${response.status}, Message: ${errorMessage}`);
                     throw new Error(errorMessage);
                  }
 
-
                 // Jika response OK, parse JSON
                 const result = await response.json();
-                console.log(`[ClanPublicProfilePage Client] Successfully fetched data for tag: ${encodedTag}. Source: ${result.source}`);
                 if (result.clan) {
-                    // result.clan sekarang bisa berupa PublicClanIndex (cache) atau CocClan (live)
                     setClan(result.clan as ClientClanData);
                 } else {
-                    console.warn("[ClanPublicProfilePage Client] API response OK but 'clan' data is missing:", result);
                     throw new Error("Format data klan tidak valid dari server.");
                 }
 
@@ -96,10 +111,14 @@ const ClanPublicProfilePage: NextPage = () => {
     // --- Loading State ---
     if (loading) {
         return (
-            <main className="max-w-7xl mx-auto p-4 md:p-8 mt-10 flex justify-center items-center min-h-[60vh]">
-                <div className="text-center">
-                    <RefreshCwIcon className="h-12 w-12 text-coc-gold animate-spin mx-auto mb-4" />
-                    <p className="text-xl font-clash text-gray-400">{t.clanPublicProfile.loading}</p>
+            <main className="min-h-screen bg-coc-dark flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="p-4 rounded-full bg-coc-gold/10 animate-pulse border border-coc-gold/20">
+                        <Loader2Icon className="h-12 w-12 text-coc-gold animate-spin" />
+                    </div>
+                    <p className="text-lg font-clash text-gray-400 tracking-wide animate-pulse">
+                        {t.clanPublicProfile.loading || "Memuat Profil Klan..."}
+                    </p>
                 </div>
             </main>
         );
@@ -108,19 +127,21 @@ const ClanPublicProfilePage: NextPage = () => {
     // --- Error State ---
      if (error || !clan) { 
           return (
-               <main className="max-w-7xl mx-auto space-y-8 p-4 md:p-8 mt-10">
-                   <div className="mb-6">
-                       <Button href="/clan-hub" variant="secondary" size="md" className="flex items-center">
-                            <ArrowLeftIcon className="h-4 w-4 mr-2" /> {t.clanPublicProfile.backToHub}
-                       </Button>
-                   </div>
-                   <div className="text-center py-20 card-stone p-6 max-w-lg mx-auto rounded-lg">
-                       <h1 className="text-3xl text-coc-red font-clash mb-4">
-                           {error === t.clanPublicProfile.notFound ? `404 - ${t.clanPublicProfile.notFound}` : t.clanPublicProfile.errorTitle}
-                       </h1>
-                       <p className="text-xl text-gray-300">
-                           {error || "Data klan tidak dapat ditampilkan."}
-                       </p>
+               <main className="min-h-screen bg-coc-dark pt-24 px-4 pb-20 flex flex-col items-center">
+                   <div className="w-full max-w-lg text-center space-y-6">
+                        <div className="p-6 bg-white/5 rounded-3xl border border-white/5 border-dashed">
+                            <AlertTriangleIcon className="h-16 w-16 text-coc-red mx-auto mb-4 opacity-80" />
+                            <h1 className="text-2xl text-white font-clash mb-2">
+                                {t.clanPublicProfile.errorTitle || "Terjadi Kesalahan"}
+                            </h1>
+                            <p className="text-gray-400 mb-6">
+                                {error || "Data klan tidak dapat ditampilkan."}
+                            </p>
+                            <Button href="/clan-hub" variant="secondary" size="md">
+                                 <ArrowLeftIcon className="h-4 w-4 mr-2" /> 
+                                 {t.clanPublicProfile.backToHub || "Kembali ke Clan Hub"}
+                            </Button>
+                        </div>
                    </div>
                </main>
            );
@@ -140,179 +161,228 @@ const ClanPublicProfilePage: NextPage = () => {
     const memberCountValue = `${memberList.length || clan.memberCount || 0}/50`;
 
     return (
-        <main className="max-w-7xl mx-auto space-y-8 p-4 md:p-8 mt-10">
-             {/* [MODIFIKASI] Tombol "Kembali ke Hub" di sini telah DIHAPUS agar sinkron dengan halaman lain */}
+        <main className="min-h-screen bg-coc-dark pb-20 relative overflow-x-hidden">
+             {/* 1. HERO BACKGROUND (REVISI STYLE) */}
+             {/* Menggunakan Ambient Glow daripada blok hitam keras */}
+             <div className="absolute top-0 left-0 w-full h-[500px] bg-radial-at-t from-coc-blue/10 via-coc-dark/50 to-coc-dark pointer-events-none z-0" />
+             <div className="absolute top-[-100px] right-[-100px] w-96 h-96 bg-coc-gold/5 rounded-full blur-3xl pointer-events-none z-0" />
+             <div className="absolute top-[200px] left-[-100px] w-64 h-64 bg-coc-blue/5 rounded-full blur-3xl pointer-events-none z-0" />
 
-            {/* Konten utama */}
-            <>
-                {/* Header Klan Publik */}
-                <div className="card-stone p-6 flex flex-col md:flex-row justify-between items-start md:items-center rounded-lg">
-                    <div className="flex items-center gap-6">
-                        <ClanBadgeImage
-                            src={clan.badgeUrls.large || '/images/clan-badge-placeholder.png'}
-                            alt={`${clan.name} Badge`}
-                            width={80}
-                            height={80}
-                            className="w-20 h-20 rounded-full border-4 border-coc-gold flex-shrink-0"
-                        />
+            <div className="container mx-auto px-4 md:px-8 relative z-10 pt-24 md:pt-32">
+                
+                {/* 2. HEADER PROFILE KLAN */}
+                <div className="flex flex-col lg:flex-row gap-8 items-center lg:items-end mb-12">
+                    {/* Logo Klan */}
+                    <div className="relative shrink-0 group">
+                        <div className="w-32 h-32 md:w-48 md:h-48 rounded-[2rem] bg-black/40 border-2 border-white/10 p-3 shadow-2xl backdrop-blur-md transform group-hover:scale-105 transition-transform duration-300">
+                            {/* Menggunakan img tag karena URL eksternal dinamis */}
+                            <img 
+                                src={clan.badgeUrls.large || '/images/clan-badge-placeholder.png'}
+                                alt={`${clan.name} Badge`}
+                                className="w-full h-full object-contain drop-shadow-xl"
+                                onError={(e) => {
+                                    e.currentTarget.onerror = null;
+                                    e.currentTarget.src = '/images/clan-badge-placeholder.png';
+                                }}
+                            />
+                        </div>
+                        <div className="absolute -bottom-3 -right-3 bg-coc-stone border border-coc-gold/30 text-coc-gold px-4 py-1.5 rounded-full text-sm font-bold shadow-lg shadow-black/50">
+                            Level {clan.clanLevel}
+                        </div>
+                    </div>
+
+                    {/* Info Utama */}
+                    <div className="flex-grow w-full text-center lg:text-left space-y-4">
                         <div>
-                            <h1 className="text-4xl font-clash text-white">{clan.name}</h1>
-                            <p className="text-xl text-coc-gold font-sans font-bold">{decodedTag}</p>
-                            <p className="text-sm text-gray-400 font-sans mt-1">Level {clan.clanLevel} Clan</p>
+                            <h1 className="text-4xl md:text-6xl font-clash text-white mb-2 drop-shadow-lg leading-tight tracking-tight">
+                                {clan.name}
+                            </h1>
+                            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3">
+                                <span className="font-mono text-gray-400 font-bold tracking-wide bg-white/5 px-3 py-1 rounded-lg border border-white/10 text-sm md:text-base">
+                                    {decodedTag}
+                                </span>
+                                <span className={`px-3 py-1 rounded-lg text-xs md:text-sm font-bold uppercase tracking-wider border ${
+                                    clan.type === 'inviteOnly' ? 'bg-coc-orange/10 text-coc-orange border-coc-orange/20' :
+                                    clan.type === 'closed' ? 'bg-coc-red/10 text-coc-red border-coc-red/20' :
+                                    'bg-coc-green/10 text-coc-green border-coc-green/20'
+                                }`}>
+                                    {clan.type === 'inviteOnly' ? 'Invite Only' : clan.type === 'closed' ? 'Closed' : 'Open'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col lg:flex-row items-center gap-4 text-sm text-gray-400">
+                            <span className="flex items-center gap-1.5 bg-black/20 px-3 py-1.5 rounded-full border border-white/5">
+                                <MapPinIcon className="h-4 w-4 text-coc-blue" />
+                                {clan.location?.name || 'International'}
+                            </span>
+                            <span className="flex items-center gap-1.5 bg-black/20 px-3 py-1.5 rounded-full border border-white/5">
+                                <ClockIcon className="h-4 w-4 text-gray-500" />
+                                Updated: {lastUpdatedTime}
+                            </span>
                         </div>
                     </div>
 
-                    <div className="mt-4 md:mt-0 flex flex-col items-end space-y-2">
-                        <Button href={joinUrl} target="_blank" variant="primary" size="lg" className="flex items-center justify-center">
-                            <ExternalLinkIcon className='w-5 h-5 mr-2'/> {t.clanPublicProfile.joinClan}
+                    {/* Action Buttons */}
+                    <div className="flex flex-col gap-3 w-full lg:w-auto shrink-0 min-w-[200px]">
+                        <Button 
+                            href={joinUrl} 
+                            target="_blank" 
+                            variant="primary" 
+                            size="lg" 
+                            className="w-full justify-center shadow-xl shadow-coc-gold/20"
+                        >
+                            <ExternalLinkIcon className='w-5 h-5 mr-2'/> 
+                            {t.clanPublicProfile.joinClan || "Buka di CoC"}
                         </Button>
-                        <p className="text-xs text-gray-500 flex items-center gap-1">
-                            <ClockIcon className="h-3 w-3 inline" /> {t.clanPublicProfile.lastUpdated} {lastUpdatedTime}
-                        </p>
+                        {/* Tombol Kembali ke Hub Dihapus */}
                     </div>
                 </div>
 
-                {/* Ringkasan Statistik */}
-                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4"> 
-                    <StatCard icon={UserIcon} title={t.clanPublicProfile.stats.members} value={memberCountValue} color="text-coc-blue" />
-                    <StatCard icon={TrophyIcon} title={t.clanPublicProfile.stats.clanPoints} value={clan.clanPoints.toLocaleString()} color="text-coc-gold" />
-                    <StatCard icon={StarIcon} title={t.clanPublicProfile.stats.capitalPoints} value={clan.clanCapitalPoints?.toLocaleString() || 'N/A'} color="text-yellow-400" /> 
-                    <StatCard icon={ShieldIcon} title={t.clanPublicProfile.stats.warWins} value={clan.warWins?.toLocaleString() || 'N/A'} color="text-coc-green" />
-                    <StatCard icon={GlobeIcon} title={t.clanPublicProfile.stats.type} value={clan.type || 'N/A'} color="text-gray-400" />
-                 </div>
-
-                {/* Deskripsi & Detail */}
-                <div className="card-stone p-6 space-y-4 rounded-lg">
-                    <h2 className="text-2xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2">{t.clanPublicProfile.descriptionTitle}</h2>
-                    <p className="text-gray-300 whitespace-pre-line font-sans">{clan.description || t.clanPublicProfile.noDescription}</p>
-                    <div className="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-400">
-                        <DetailItem icon={MapPinIcon} label={t.clanPublicProfile.details.location} value={clan.location?.name || 'Global'} />
-                        <DetailItem icon={ClockIcon} label={t.clanPublicProfile.details.warFreq} value={clan.warFrequency || 'N/A'} />
-                        <DetailItem icon={TrophyIcon} label={t.clanPublicProfile.details.requiredTrophies} value={clan.requiredTrophies?.toLocaleString() || '0'} />
-                        <DetailItem icon={ShieldIcon} label={t.clanPublicProfile.details.winStreak} value={clan.warWinStreak?.toLocaleString() || '0'} />
-                    </div>
-                </div>
-
-                {/* Daftar Anggota */}
-                {memberList.length > 0 ? ( 
-                    <div className="card-stone p-6 space-y-4 rounded-lg">
-                        <h2 className="text-2xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2">{t.clanPublicProfile.memberListTitle} ({memberList.length})</h2>
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-coc-gold-dark/20 text-xs">
-                                <thead className="bg-coc-stone/50">
-                                    <tr>
-                                        <th className="px-3 py-2 text-left font-clash text-coc-gold uppercase tracking-wider">{t.clanPublicProfile.table.player}</th>
-                                        <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">{t.clanPublicProfile.table.role}</th>
-                                        <th className="px-3 py-2 text-right font-clash text-coc-gold uppercase tracking-wider">{t.clanPublicProfile.table.trophies}</th>
-                                        <th className="px-3 py-2 text-right font-clash text-coc-gold uppercase tracking-wider">{t.clanPublicProfile.table.donationsGiven}</th>
-                                        <th className="px-3 py-2 text-right font-clash text-coc-gold uppercase tracking-wider">{t.clanPublicProfile.table.donationsReceived}</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-coc-gold-dark/10">
-                                    {memberList
-                                    .sort((a, b) => {
-                                            const rolePriority: { [key: string]: number } = { 'leader': 1, 'coLeader': 2, 'admin': 3, 'elder': 3, 'member': 4 };
-                                            const priorityA = rolePriority[a.role.toLowerCase()] || 5;
-                                            const priorityB = rolePriority[b.role.toLowerCase()] || 5;
-                                            
-                                            if (priorityA !== priorityB) return priorityA - priorityB;
-                                            return b.townHallLevel - a.townHallLevel;
-                                    })
-                                    .map((member) => (
-                                    <tr key={member.tag} className="hover:bg-coc-stone/20 transition-colors">
-                                            <td className="px-3 py-3 whitespace-nowrap text-sm font-semibold">
-                                                <Link 
-                                                    href={`/player/${encodeURIComponent(member.tag)}`} 
-                                                    className="text-white hover:text-coc-gold transition-colors block"
-                                                    title={`Lihat Profil Pemain: ${member.name}`}
-                                                >
-                                                    {member.name}
-                                                </Link>
-                                                <span className="text-gray-500 block text-xs">TH{member.townHallLevel} | {member.tag}</span>
-                                            </td>
-                                            <td className="px-3 py-3 whitespace-nowrap text-center text-xs uppercase font-medium text-coc-gold-light">{member.role}</td>
-                                            <td className="px-3 py-3 whitespace-nowrap text-right text-sm text-gray-300">{member.trophies.toLocaleString()}</td>
-                                            <td className="px-3 py-3 whitespace-nowrap text-right text-sm text-coc-green">{member.donations.toLocaleString()}</td>
-                                            <td className="px-3 py-3 whitespace-nowrap text-right text-sm text-coc-red">{member.donationsReceived.toLocaleString()}</td>
-                                    </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                {/* 3. MAIN CONTENT GRID */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    
+                    {/* LEFT COLUMN: STATS & DETAILS */}
+                    <div className="lg:col-span-2 space-y-8">
+                        
+                        {/* Summary Stats Grid */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <StatCard 
+                                icon={UserIcon} 
+                                title={t.clanPublicProfile.stats.members || "Anggota"} 
+                                value={memberCountValue} 
+                                color="text-coc-blue" 
+                            />
+                            <StatCard 
+                                icon={TrophyIcon} 
+                                title={t.clanPublicProfile.stats.clanPoints || "Poin Klan"} 
+                                value={clan.clanPoints.toLocaleString()} 
+                                color="text-coc-gold" 
+                            />
+                            <StatCard 
+                                icon={StarIcon} 
+                                title="Versus Poin" 
+                                value={clan.clanVersusPoints?.toLocaleString() || '0'} 
+                                color="text-purple-400" 
+                            />
+                            <StatCard 
+                                icon={ShieldIcon} 
+                                title={t.clanPublicProfile.stats.warWins || "War Won"} 
+                                value={clan.warWins?.toLocaleString() || '0'} 
+                                color="text-coc-green" 
+                            />
                         </div>
-                        <p className="text-xs text-gray-500 font-sans pt-2">
-                             {t.clanPublicProfile.disclaimer}
-                        </p>
+
+                        {/* Description */}
+                        <section className="bg-gradient-to-b from-[#252525] to-[#1a1a1a] rounded-3xl border border-white/5 p-6 md:p-8 shadow-xl">
+                            <h2 className="text-xl font-clash text-white mb-6 flex items-center gap-3 border-b border-white/5 pb-4">
+                                <div className="p-2 rounded-lg bg-coc-gold/10 border border-coc-gold/20">
+                                    <StarIcon className="h-5 w-5 text-coc-gold" />
+                                </div>
+                                {t.clanPublicProfile.descriptionTitle || "Tentang Klan"}
+                            </h2>
+                            <p className="text-gray-300 leading-relaxed whitespace-pre-line font-sans text-sm md:text-base">
+                                {clan.description || t.clanPublicProfile.noDescription}
+                            </p>
+                        </section>
+
+                        {/* Additional Details Grid */}
+                        <section>
+                            <h3 className="text-lg font-clash text-gray-400 mb-4 px-2 uppercase tracking-widest">Detail Informasi</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <DetailItem icon={ClockIcon} label={t.clanPublicProfile.details.warFreq || "Frekuensi War"} value={clan.warFrequency || 'N/A'} />
+                                <DetailItem icon={ShieldIcon} label={t.clanPublicProfile.details.winStreak || "Win Streak"} value={clan.warWinStreak?.toString() || '0'} />
+                                <DetailItem icon={TrophyIcon} label={t.clanPublicProfile.details.requiredTrophies || "Min. Trophy"} value={clan.requiredTrophies?.toLocaleString() || '0'} />
+                                <DetailItem icon={StarIcon} label="Clan Capital" value={clan.clanCapitalPoints?.toLocaleString() || '0'} />
+                                {clan.warLeague && (
+                                    <DetailItem icon={TrophyIcon} label="War League" value={clan.warLeague.name} />
+                                )}
+                                {clan.chatLanguage && (
+                                    <DetailItem icon={GlobeIcon} label="Bahasa Chat" value={clan.chatLanguage.name} />
+                                )}
+                            </div>
+                        </section>
                     </div>
-                ) : (
-                    <div className="card-stone p-6 rounded-lg">
-                          <h2 className="text-2xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2">{t.clanPublicProfile.memberListTitle}</h2>
-                          <p className="text-gray-400 text-center py-5">{t.clanPublicProfile.memberListEmpty}</p>
+
+                    {/* RIGHT COLUMN: MEMBER LIST */}
+                    <div className="lg:col-span-1">
+                        <div className="bg-[#1a1a1a] rounded-3xl border border-white/5 overflow-hidden shadow-xl sticky top-24">
+                            <div className="p-6 border-b border-white/5 bg-black/20 flex justify-between items-center">
+                                <h2 className="text-xl font-clash text-white flex items-center gap-2">
+                                    <UserIcon className="h-5 w-5 text-coc-blue" />
+                                    {t.clanPublicProfile.memberListTitle || "Daftar Anggota"}
+                                </h2>
+                                <span className="text-xs font-bold bg-white/10 px-2 py-1 rounded text-gray-300">
+                                    {memberList.length}/50
+                                </span>
+                            </div>
+                            
+                            {memberList.length > 0 ? (
+                                <div className="max-h-[600px] overflow-y-auto custom-scrollbar p-2">
+                                    <div className="space-y-1">
+                                        {memberList
+                                            .sort((a, b) => {
+                                                const rolePriority: { [key: string]: number } = { 'leader': 1, 'coLeader': 2, 'admin': 3, 'elder': 3, 'member': 4 };
+                                                const priorityA = rolePriority[a.role.toLowerCase()] || 5;
+                                                const priorityB = rolePriority[b.role.toLowerCase()] || 5;
+                                                return priorityA - priorityB || b.townHallLevel - a.townHallLevel;
+                                            })
+                                            .map((member) => (
+                                                <div key={member.tag} className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors group">
+                                                    {/* TH Badge */}
+                                                    <div className="relative shrink-0 w-10 h-10 bg-black/40 rounded-lg flex items-center justify-center border border-white/10 group-hover:border-coc-gold/30">
+                                                        <span className="text-[10px] text-gray-500 font-bold absolute -top-2 left-1/2 -translate-x-1/2 bg-[#1a1a1a] px-1 rounded">TH</span>
+                                                        <span className="text-lg font-bold text-white group-hover:text-coc-gold">{member.townHallLevel}</span>
+                                                    </div>
+                                                    
+                                                    <div className="flex-grow min-w-0">
+                                                        <div className="flex items-baseline justify-between">
+                                                            <Link 
+                                                                href={`/player/${encodeURIComponent(member.tag)}`}
+                                                                className="text-sm font-bold text-gray-200 hover:text-white truncate block"
+                                                            >
+                                                                {member.name}
+                                                            </Link>
+                                                            <span className="text-[10px] text-coc-gold font-bold ml-2">
+                                                                {member.league?.name || "Unranked"}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center justify-between mt-0.5">
+                                                            <span className={`text-[10px] uppercase font-bold tracking-wide ${
+                                                                member.role === 'leader' ? 'text-coc-gold' : 
+                                                                member.role === 'coLeader' ? 'text-gray-300' : 
+                                                                'text-gray-500'
+                                                            }`}>
+                                                                {member.role === 'admin' ? 'Elder' : member.role}
+                                                            </span>
+                                                            <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                                                                <span className="flex items-center gap-0.5 text-coc-green">
+                                                                    ▲ {member.donations.toLocaleString()}
+                                                                </span>
+                                                                <span className="flex items-center gap-0.5 text-coc-red">
+                                                                    ▼ {member.donationsReceived.toLocaleString()}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        }
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="p-8 text-center text-gray-500">
+                                    <UserIcon className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                                    <p className="text-sm">{t.clanPublicProfile.memberListEmpty || "Data anggota tidak tersedia."}</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                )}
-            </>
+
+                </div>
+            </div>
         </main>
     );
 };
-
-// =========================================================================
-// CLIENT COMPONENT FOR CLAN BADGE WITH FALLBACK
-// =========================================================================
-interface ClanBadgeImageProps {
-    src: string;
-    alt: string;
-    width: number;
-    height: number;
-    className?: string;
-}
-
-const ClanBadgeImage: React.FC<ClanBadgeImageProps> = ({ src: initialSrc, alt, width, height, className }) => {
-    const [currentSrc, setCurrentSrc] = useState(initialSrc);
-    const placeholderSrc = '/images/clan-badge-placeholder.png';
-
-    useEffect(() => {
-        setCurrentSrc(initialSrc || placeholderSrc);
-    }, [initialSrc, placeholderSrc]);
-
-    const handleError = () => {
-        if (currentSrc !== placeholderSrc) {
-            console.warn(`[ClanBadgeImage] Failed to load image: ${initialSrc}. Falling back to placeholder.`);
-            setCurrentSrc(placeholderSrc);
-        }
-    };
-
-    return (
-        <Image
-            src={currentSrc}
-            alt={alt}
-            width={width}
-            height={height}
-            className={className}
-            onError={handleError} 
-        />
-    );
-};
-
-// =========================================================================
-// HELPER COMPONENTS
-// =========================================================================
-const StatCard = ({ icon: Icon, title, value, color }: { icon: React.FC<React.SVGProps<SVGSVGElement>>, title: string, value: string | undefined, color: string }) => ( 
-    <div className="card-stone p-4 flex items-center space-x-3 bg-coc-stone/50 rounded-lg">
-        <Icon className={`h-8 w-8 ${color} flex-shrink-0`} />
-        <div>
-            <p className="text-sm text-gray-400 font-sans">{title}</p>
-            <p className="text-xl font-clash text-white">{value ?? 'N/A'}</p>
-        </div>
-    </div>
-);
-
-
-const DetailItem = ({ icon: Icon, label, value }: { icon: React.FC<React.SVGProps<SVGSVGElement>>, label: string, value: string | undefined }) => ( 
-    <div className="flex items-center space-x-3">
-        <Icon className="h-5 w-5 text-coc-gold flex-shrink-0" />
-        <p>
-            <span className="font-bold text-white">{label}:</span> {value ?? 'N/A'} 
-        </p>
-    </div>
-);
 
 export default ClanPublicProfilePage;

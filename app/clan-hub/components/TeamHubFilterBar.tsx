@@ -16,7 +16,8 @@ interface TeamHubFilterBarProps {
 }
 
 /**
- * Komponen Wrapper untuk Filter di bagian Header.
+ * Komponen Wrapper untuk Filter.
+ * Sekarang lebih bersih karena hanya merender konten filter tanpa header tambahan.
  */
 export const TeamHubFilterBar = ({
   activeTab,
@@ -26,24 +27,21 @@ export const TeamHubFilterBar = ({
   onPlayerFilterChange,
 }: TeamHubFilterBarProps) => {
 
-  // Tidak ada filter bar untuk tab "Pencarian Klan" (Search bar ada di dalam tabnya sendiri)
-  if (activeTab === 'publicClans') {
-    return null;
-  }
+  if (activeTab === 'publicClans') return null;
 
   return (
-    <div className="w-full animate-in fade-in slide-in-from-top-2 duration-300 z-20">
+    <div className="w-full">
         {activeTab === 'clashubTeams' && (
-          <TeamHubFilter
+            <TeamHubFilter
             filters={clanFilters}
             onFilterChange={onClanFilterChange} 
-          />
+            />
         )}
         {activeTab === 'players' && (
-          <PlayerHubFilter
+            <PlayerHubFilter
             filters={playerFilters}
             onFilterChange={onPlayerFilterChange as any} 
-          />
+            />
         )}
     </div>
   );

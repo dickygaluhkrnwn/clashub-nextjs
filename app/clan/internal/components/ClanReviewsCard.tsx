@@ -2,9 +2,9 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { StarIcon } from '@/app/components/icons';
+import { StarIcon, UserIcon } from '@/app/components/icons';
 import { ClanReview, FirestoreDocument } from '@/lib/types';
-import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 interface ClanReviewsCardProps {
   clanReviews: FirestoreDocument<ClanReview>[];
@@ -12,74 +12,87 @@ interface ClanReviewsCardProps {
 
 /**
  * @component ClanReviewsCard
- * Komponen Card untuk menampilkan "Ulasan Diterima" di halaman profil klan.
+ * Menampilkan ulasan klan dengan gaya testimonial card modern.
  */
 export const ClanReviewsCard = ({ clanReviews }: ClanReviewsCardProps) => {
-  const { t } = useLanguage(); // [BARU]
+  const { t } = useLanguage();
 
   const formatReviewDate = (date: any): string => {
     try {
-      if (date && typeof date._seconds === 'number') {
-        return new Date(date._seconds * 1000).toLocaleDateString('id-ID', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-        });
-      }
-      return new Date(date).toLocaleDateString('id-ID', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
+      const d = (date && typeof date._seconds === 'number') 
+        ? new Date(date._seconds * 1000) 
+        : new Date(date);
+        
+      return d.toLocaleDateString('id-ID', {
+        year: 'numeric', month: 'short', day: 'numeric',
       });
     } catch (error) {
-      console.error('Error formatting date:', error);
-      return 'Tanggal tidak valid';
+      return 'N/A';
     }
   };
 
   return (
-    <div className="card-stone p-6 rounded-lg">
-      <h2 className="mb-4 flex items-center gap-2 font-clash text-2xl text-white border-b border-coc-gold-dark/30 pb-2">
-        {/* [TERJEMAHAN] */}
-        <StarIcon className="h-6 w-6 text-coc-gold" /> {t.clanReviewsCard.title}
-      </h2>
-
-      <div className="space-y-4">
-        {clanReviews.length === 0 ? (
-          <p className="text-gray-400 text-sm">
-            {/* [TERJEMAHAN] */}
-            {t.clanReviewsCard.empty}
-          </p>
-        ) : (
-          <ul className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-            {clanReviews.map((review) => (
-              <li
-                key={review.id}
-                className="p-4 bg-coc-stone/50 rounded-md border border-coc-gold-dark/30"
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <Link
-                    href={`/player/${review.authorUid}`}
-                    className="font-semibold text-white hover:text-coc-gold hover:underline"
-                  >
-                    {review.authorName}
-                  </Link>
-                  <span className="flex items-center text-coc-gold font-bold">
-                    {review.rating.toFixed(1)}{' '}
-                    <StarIcon className="h-4 w-4 ml-1 fill-coc-gold" />
-                  </span>
-                </div>
-                <p className="text-sm text-gray-300 italic">
-                  "{review.comment}"
-                </p>
-                <p className="text-xs text-gray-500 mt-2">
-                  {formatReviewDate(review.createdAt)}
-                </p>
-              </li>
-            ))}
-          </ul>
-        )}
+    <div className="space-y-6">
+      <div className="flex items-center justify-between border-b border-white/5 pb-2">
+        <h2 className="text-xl md:text-2xl font-clash text-white flex items-center gap-2">
+            <StarIcon className="h-6 w-6 text-coc-gold" /> 
+            {t.clanReviewsCard.title}
+        </h2>
+        {/* Indikator jumlah ulasan */}
+        <span className="text-sm font-bold text-gray-500 bg-white/5 px-2 py-1 rounded">
+            {clanReviews.length}
+        </span>
       </div>
+
+      {clanReviews.length === 0 ? (
+        <div className="text-center py-12 bg-white/5 rounded-2xl border border-white/5 border-dashed">
+            <StarIcon className="h-12 w-12 text-gray-600 mx-auto mb-3 opacity-30" />
+            <p className="text-gray-400 text-sm">Belum ada ulasan untuk klan ini.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {clanReviews.map((review) => (
+            <div
+              key={review.id}
+              className="p-5 rounded-2xl bg-gradient-to-br from-[#252525] to-[#1a1a1a] border border-white/5 hover:border-coc-gold/20 transition-all hover:-translate-y-1 shadow-lg"
+            >
+              {/* Header Ulasan: Author & Rating */}
+              <div className="flex justify-between items-start mb-3">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-coc-gold/10 flex items-center justify-center border border-coc-gold/20 text-coc-gold">
+                        <UserIcon className="h-5 w-5" />
+                    </div>
+                    <div>
+                        <Link
+                            href={`/player/${review.authorUid}`}
+                            className="font-bold text-white text-sm hover:text-coc-gold transition-colors block"
+                        >
+                            {review.authorName}
+                        </Link>
+                        <p className="text-[10px] text-gray-500 font-mono">
+                            {formatReviewDate(review.createdAt)}
+                        </p>
+                    </div>
+                </div>
+                
+                {/* Star Rating Badge */}
+                <div className="flex items-center gap-1 bg-black/40 px-2 py-1 rounded-lg border border-white/5">
+                    <span className="text-coc-gold font-bold text-sm">{review.rating.toFixed(1)}</span>
+                    <StarIcon className="h-3 w-3 fill-coc-gold text-coc-gold" />
+                </div>
+              </div>
+
+              {/* Isi Komentar */}
+              <div className="relative">
+                <span className="absolute -top-2 -left-1 text-4xl text-white/5 font-serif leading-none">“</span>
+                <p className="text-sm text-gray-300 leading-relaxed pl-2 relative z-10 line-clamp-3">
+                    {review.comment}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
