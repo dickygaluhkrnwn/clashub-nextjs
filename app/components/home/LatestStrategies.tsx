@@ -1,9 +1,7 @@
 import { PostCard } from "@/app/components/cards";
 import { BookOpenIcon } from "@/app/components/icons";
-import CarouselSection from "@/app/components/layout/CarouselSection";
 import { FirestoreDocument, Post } from "@/lib/types";
 
-// Tipe untuk props yang diterima dari app/page.tsx
 interface LatestStrategiesProps {
   posts: FirestoreDocument<Post>[];
 }
@@ -45,53 +43,67 @@ function findThTag(tags: string[]): string {
   return thTag ? `#${thTag}` : "#Strategies";
 }
 
-/**
- * Komponen LatestStrategies
- */
 export default function LatestStrategies({ posts }: LatestStrategiesProps) {
-  // Tampilkan pesan jika tidak ada postingan
+  // Jika tidak ada postingan
   if (!posts || posts.length === 0) {
     return (
-      <CarouselSection
-        title="Strategi & Tips"
-        icon={<BookOpenIcon className="inline-block h-6 w-6 text-coc-gold" />}
-      >
-        <div className="p-6 bg-coc-stone-light/50 text-gray-400 rounded-lg border border-white/5 text-center w-full md:w-auto min-w-[280px]">
-          Belum ada strategi terbaru yang dipublikasikan.
+      <section className="mb-8">
+        <div className="flex items-center gap-2 mb-4 px-1">
+          <BookOpenIcon className="h-5 w-5 text-coc-gold" />
+          <h2 className="text-lg md:text-xl font-clash text-white tracking-wide">Strategi & Tips</h2>
         </div>
-      </CarouselSection>
+        <div className="w-full p-8 rounded-2xl bg-coc-stone-light/30 border border-white/5 text-center backdrop-blur-sm">
+          <p className="text-gray-400 text-sm">Belum ada strategi terbaru yang dipublikasikan.</p>
+        </div>
+      </section>
     );
   }
 
   return (
-    <CarouselSection
-      title="Strategi & Tips"
-      icon={<BookOpenIcon className="inline-block h-6 w-6 text-coc-gold" />}
-    >
-      {posts.map((post) => {
-        const stats = formatPostStats(
-          post.likes?.length || 0,
-          post.createdAt
-        );
+    <section className="animate-fade-in mb-8">
+      {/* Header Section */}
+      <div className="flex items-center justify-between mb-4 px-1">
+        <h2 className="flex items-center gap-2 text-lg md:text-xl font-clash text-white tracking-wide">
+          <BookOpenIcon className="h-5 w-5 text-coc-gold" />
+          Strategi & Tips
+        </h2>
+        <a href="/knowledge-hub" className="text-xs text-coc-gold hover:text-white transition-colors font-bold uppercase tracking-wider">
+          Lihat Semua
+        </a>
+      </div>
 
-        const thCategory = findThTag(post.tags);
+      {/* [SCROLL CONTAINER]
+        Sama dengan RecommendedTeams, menggunakan teknik negative margin (-mx-4)
+        agar konten menyentuh tepi layar di mobile.
+      */}
+      <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 -mx-4 px-4 md:mx-0 md:px-0 md:scrollbar-thin custom-scrollbar">
+        {posts.map((post, index) => {
+          const stats = formatPostStats(
+            post.likes?.length || 0,
+            post.createdAt
+          );
+          const thCategory = findThTag(post.tags);
 
-        return (
-          // [MOBILE OPTIMIZATION]
-          // Menambahkan min-w-[280px] agar kartu tidak gepeng di layar HP
-          // snap-center membuat scroll berhenti pas di tengah kartu
-          <div key={post.id} className="snap-center h-full min-w-[280px] md:min-w-[320px] pr-4 last:pr-0">
-             <PostCard
-               title={post.title}
-               category={thCategory}
-               tag={post.category}
-               stats={stats}
-               author={post.authorName || "ClashHub User"}
-               href={`/knowledge-hub/${post.id}`}
-             />
-          </div>
-        );
-      })}
-    </CarouselSection>
+          return (
+            <div 
+              key={post.id} 
+              className="snap-center shrink-0 w-[280px] md:w-[320px] first:pl-0 last:pr-4"
+              style={{ animationDelay: `${index * 100 + 200}ms` }} // Sedikit delay agar muncul setelah RecommendedTeams
+            >
+              <div className="h-full transition-transform hover:-translate-y-1 duration-300">
+                <PostCard
+                  title={post.title}
+                  category={thCategory}
+                  tag={post.category}
+                  stats={stats}
+                  author={post.authorName || "ClashHub User"}
+                  href={`/knowledge-hub/${post.id}`}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }

@@ -7,8 +7,6 @@ import { useState, useEffect, useRef } from 'react';
 import {
   BellIcon,
   SearchIcon,
-  MenuIcon,
-  XIcon,
   LogOutIcon,
   UserCircleIcon,
   ShieldIcon,
@@ -28,7 +26,7 @@ import { ServerUser } from '@/lib/server-auth';
 import { useNotifications } from '@/lib/hooks/useNotifications';
 import { getManagedTournamentsForUserClient } from '@/lib/firestore/tournaments';
 
-// Mapping Nav Items dengan Icon untuk Mobile Menu
+// Mapping Nav Items dengan Icon (Hanya digunakan untuk Desktop sekarang)
 const navItems = [
   { name: 'Home', href: '/', icon: HomeIcon },
   { name: 'Team Hub', href: '/clan-hub', icon: ShieldIcon },
@@ -297,40 +295,7 @@ const NotificationBell = () => {
 
 const Header = () => {
   const pathname = usePathname();
-  const router = useRouter();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { currentUser, userProfile, loading: authLoading } = useAuth();
-
-  // Helper untuk user profile logic di mobile (diambil dari desktop logic)
-  const isCompleteUserProfile = (
-    profile: UserProfile | ServerUser | null,
-  ): profile is UserProfile => {
-    return (
-      !!profile &&
-      'isVerified' in profile &&
-      'clanId' in profile &&
-      'role' in profile
-    );
-  };
-
-  const showClanLink = isCompleteUserProfile(userProfile) && userProfile.isVerified === true && !!userProfile.clanTag;
-  
-  // Effect untuk menutup menu saat route berubah
-  useEffect(() => {
-    setIsMenuOpen(false);
-  }, [pathname]);
-
-  // Effect untuk mencegah scroll body saat menu terbuka
-  useEffect(() => {
-    if (isMenuOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isMenuOpen]);
+  const { currentUser, loading: authLoading } = useAuth();
 
   return (
     <>
@@ -375,8 +340,6 @@ const Header = () => {
                       }
                     `}
               >
-                {/* Optional: Render icon di desktop jika diinginkan, tapi biasanya text only lebih bersih */}
-                {/* <item.icon className="h-4 w-4" /> */}
                 {item.name}
               </Link>
             ))}
@@ -409,151 +372,13 @@ const Header = () => {
             )}
           </div>
 
-          {/* Mobile Menu Button & Actions */}
+          {/* Mobile Actions (Clean - Only Notification Bell) */}
           <div className="md:hidden flex items-center gap-3 z-20">
-            {/* Lonceng di Header Mobile */}
-            {!isMenuOpen && <NotificationBell />}
-            
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className={`text-gray-300 hover:text-coc-gold transition-all p-1 active:scale-90 ${isMenuOpen ? 'rotate-90' : 'rotate-0'}`}
-              aria-label="Toggle menu"
-            >
-              {isMenuOpen ? (
-                <XIcon className="h-7 w-7" />
-              ) : (
-                <MenuIcon className="h-7 w-7" />
-              )}
-            </button>
+            <NotificationBell />
+            {/* Note: Tidak ada lagi menu hamburger di sini, digantikan oleh MobileNav di bawah layar */}
           </div>
         </div>
       </header>
-
-      {/* Mobile Menu Overlay (Drawer Style) */}
-      {isMenuOpen && (
-        <div className="fixed inset-0 top-16 z-40 bg-coc-dark/95 backdrop-blur-xl border-t border-white/5 md:hidden flex flex-col animate-in slide-in-from-right-10 duration-300 overflow-hidden h-[calc(100vh-64px)]">
-          
-          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-6">
-            
-            {/* 1. Mobile User Profile Section (Top Priority) */}
-            {!authLoading && (
-                <div className="bg-gradient-to-br from-coc-stone-light to-coc-stone rounded-2xl p-4 border border-white/10 shadow-lg relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-coc-gold/5 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
-                    
-                    {currentUser ? (
-                        <>
-                            <div className="flex items-center gap-4 mb-4 relative z-10">
-                                <div className="h-14 w-14 rounded-full p-0.5 bg-gradient-to-b from-coc-gold to-coc-stone overflow-hidden shadow-md">
-                                    <img 
-                                        src={userProfile?.avatarUrl || '/images/placeholder-avatar.png'} 
-                                        alt="Avatar" 
-                                        className="h-full w-full rounded-full object-cover bg-coc-stone"
-                                    />
-                                </div>
-                                <div>
-                                    {/* FIXED: Menggunakan displayName sesuai interface UserProfile */}
-                                    <p className="text-white font-clash text-lg tracking-wide">
-                                        {userProfile?.displayName || 'Clasher'}
-                                    </p>
-                                    <p className="text-coc-gold text-xs uppercase font-bold tracking-wider">{userProfile?.role || 'Member'}</p>
-                                </div>
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-2 relative z-10">
-                                <Link 
-                                    href="/profile" 
-                                    onClick={() => setIsMenuOpen(false)}
-                                    className="flex flex-col items-center justify-center p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors border border-white/5"
-                                >
-                                    <UserCircleIcon className="h-6 w-6 text-coc-gold mb-1"/>
-                                    <span className="text-xs text-gray-300">Profil</span>
-                                </Link>
-                                
-                                {showClanLink ? (
-                                    <Link 
-                                        href="/clan/manage" 
-                                        onClick={() => setIsMenuOpen(false)}
-                                        className="flex flex-col items-center justify-center p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors border border-white/5"
-                                    >
-                                        <ShieldIcon className="h-6 w-6 text-coc-blue mb-1"/>
-                                        <span className="text-xs text-gray-300">Klan Saya</span>
-                                    </Link>
-                                ) : (
-                                    <Link 
-                                        href="/clan-hub" 
-                                        onClick={() => setIsMenuOpen(false)}
-                                        className="flex flex-col items-center justify-center p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors border border-white/5"
-                                    >
-                                        <ShieldIcon className="h-6 w-6 text-gray-400 mb-1"/>
-                                        <span className="text-xs text-gray-300">Cari Klan</span>
-                                    </Link>
-                                )}
-                            </div>
-                        </>
-                    ) : (
-                        <div className="text-center py-4 relative z-10">
-                            <p className="text-gray-300 mb-4 text-sm">Bergabunglah untuk mengelola klan & turnamen!</p>
-                            <Button href="/auth" variant="primary" size="lg" className="w-full justify-center shadow-lg shadow-coc-gold/20" onClick={() => setIsMenuOpen(false)}>
-                                Login / Register
-                            </Button>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* 2. Main Navigation Links */}
-            <nav className="flex flex-col gap-2">
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-widest px-2 mb-1">Menu Utama</span>
-                {navItems.map((item) => (
-                <Link
-                    key={item.name}
-                    href={item.href}
-                    onClick={() => setIsMenuOpen(false)}
-                    className={`
-                        flex items-center gap-4 p-3.5 rounded-xl text-base font-bold transition-all border
-                        ${
-                        pathname === item.href
-                            ? 'text-white bg-gradient-to-r from-coc-blue/20 to-transparent border-coc-blue/30 pl-5'
-                            : 'text-gray-400 border-transparent hover:bg-white/5 hover:text-white'
-                        }
-                    `}
-                >
-                    <item.icon className={`h-6 w-6 ${pathname === item.href ? 'text-coc-blue' : 'text-gray-500'}`} />
-                    {item.name}
-                </Link>
-                ))}
-            </nav>
-
-            <div className="flex-grow"></div>
-
-            {/* 3. Footer / Preferences */}
-            <div className="mt-auto pt-6 border-t border-white/10 pb-10">
-                <div className="flex items-center justify-between px-2 mb-4">
-                    <span className="text-sm text-gray-400 font-medium">Pengaturan Tampilan</span>
-                    <div className="flex items-center gap-3">
-                        <LanguageSwitcher />
-                        <ThemeToggle />
-                    </div>
-                </div>
-                
-                {currentUser && (
-                    <button 
-                        onClick={() => {
-                            signOut(auth);
-                            setIsMenuOpen(false);
-                            router.push('/');
-                        }}
-                        className="w-full flex items-center justify-center gap-2 p-3 rounded-xl border border-coc-red/30 text-coc-red hover:bg-coc-red/10 transition-colors font-medium text-sm"
-                    >
-                        <LogOutIcon className="h-5 w-5"/>
-                        Keluar Aplikasi
-                    </button>
-                )}
-            </div>
-
-          </div>
-        </div>
-      )}
     </>
   );
 };
