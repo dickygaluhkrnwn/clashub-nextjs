@@ -25,13 +25,39 @@ const nextConfig = {
         port: '',
         pathname: '/vi/**', // Path umum untuk thumbnail video (/vi/<videoId>/...)
       },
+      // --- PENAMBAHAN BARU: Izinkan Gambar dari GitHub ---
+      {
+        protocol: 'https',
+        hostname: 'github.com', // Untuk aset yang diupload di issue/readme
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'raw.githubusercontent.com', // Untuk file raw
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'user-images.githubusercontent.com', // Host umum untuk gambar upload user GitHub
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'avatars.githubusercontent.com', // Untuk avatar user GitHub
+        port: '',
+        pathname: '/**',
+      },
+      // --- Izinkan Placeholder Image (Penting untuk Default Banner) ---
+      {
+        protocol: 'https',
+        hostname: 'placehold.co',
+        port: '',
+        pathname: '/**',
+      },
       // --- AKHIR PENAMBAHAN ---
-      // Anda bisa menambahkan pattern lain di sini jika perlu
-      // Contoh: Untuk gambar placeholder jika digunakan di next/image
-      // {
-      //   protocol: 'https',
-      //   hostname: 'placehold.co',
-      // },
     ],
   },
 };

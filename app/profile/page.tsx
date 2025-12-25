@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation';
 import { Metadata } from 'next';
-import { getSessionUser } from '@/lib/server-auth'; // Utilitas Auth Sisi Server
+import { getSessionUser } from '@/lib/server-auth';
 
-// [EDIT TAHAP 4.2] Mengganti impor ke versi Admin SDK
+// Admin SDK Imports
 import {
   getUserProfileAdmin,
   getClanHistoryAdmin,
@@ -10,14 +10,14 @@ import {
 } from '@/lib/firestore-admin/users';
 import { getPostsByAuthorAdmin } from '@/lib/firestore-admin/posts';
 
-// [PERBAIKAN AUTO-FIX] Import Admin Firestore untuk Auto-Fix Database
+// Auto-Fix Imports
 import { adminFirestore } from '@/lib/firebase-admin';
 import { COLLECTIONS } from '@/lib/firestore-collections';
 
-import cocApi from '@/lib/coc-api'; // Objek yang berisi method API CoC
-import ProfileClient from './ProfileClient'; // Client Component (untuk interaktivitas)
+import cocApi from '@/lib/coc-api';
+import ProfileClient from './ProfileClient';
 
-// [EDIT TAHAP 4.2] Menambahkan tipe baru
+// Types
 import {
   UserProfile,
   ClanRole,
@@ -26,19 +26,17 @@ import {
   PlayerReview,
   FirestoreDocument,
 } from '@/lib/types';
-import { DocumentData } from 'firebase-admin/firestore'; // Diperlukan untuk tipe clanHistory
+import { DocumentData } from 'firebase-admin/firestore';
 
-// Metadata untuk SEO
 export const metadata: Metadata = {
   title: 'Clashub | E-Sports CV Anda',
   description: 'Lihat dan kelola E-Sports CV Clash of Clans Anda.',
 };
 
-// --- Tambahkan baris ini untuk memaksa render dinamis ---
+// Force dynamic rendering
 export const dynamic = 'force-dynamic';
-// --- Akhir tambahan ---
 
-// --- Fungsi Helper untuk Map Role CoC API ke Enum ClanRole ---
+// --- Helpers ---
 const mapCocRoleToClanRole = (cocRole?: string): ClanRole => {
   switch (cocRole?.toLowerCase()) {
     case 'leader':
@@ -46,7 +44,7 @@ const mapCocRoleToClanRole = (cocRole?: string): ClanRole => {
     case 'coleader':
       return ClanRole.CO_LEADER;
     case 'admin':
-      return ClanRole.ELDER; // CoC API uses 'admin' for Elder
+      return ClanRole.ELDER;
     case 'member':
       return ClanRole.MEMBER;
     default:
@@ -54,7 +52,6 @@ const mapCocRoleToClanRole = (cocRole?: string): ClanRole => {
   }
 };
 
-// [HELPER BARU] Map untuk role sistem Clashub
 const mapCocRoleToClashubRole = (cocRole?: string): UserProfile['role'] => {
   const roleStr = cocRole?.toLowerCase();
   if (roleStr === 'leader') return 'Leader';
@@ -64,44 +61,26 @@ const mapCocRoleToClashubRole = (cocRole?: string): UserProfile['role'] => {
   return 'Free Agent';
 };
 
-// Mengubah komponen menjadi fungsi async: Server Component
 const ProfilePage = async () => {
   let profileData: UserProfile | null = null;
   let serverError: string | null = null;
-  // [EDIT TAHAP 4.2] Inisialisasi data baru
   let recentPosts: FirestoreDocument<Post>[] = [];
   let clanHistory: FirestoreDocument<DocumentData>[] = [];
   let playerReviews: FirestoreDocument<PlayerReview>[] = [];
 
-  // 1. Dapatkan status pengguna dari Sisi Server
+  // 1. Get Session
   const sessionUser = await getSessionUser();
 
-  // 2. Route Protection (Server-Side Redirect)
-  // [PERBAIKAN] Kita komentari redirect ini.
-  // Biarkan Client Component (ProfileClient) menangani loading/redirect
-  // berdasarkan state dari useAuth() di sisi client.
-  // Ini mencegah redirect loop jika session cookie server-side belum sinkron
-  // dengan auth state client-side.
-  /*
-  if (!sessionUser) {
-      // Jika tidak ada sesi, alihkan pengguna ke halaman login
-      redirect('/auth');
-  }
-  */
-
-  // 3. Ambil data profil dari Firestore menggunakan UID
   try {
-    // [PERBAIKAN] Hanya coba ambil data jika sessionUser ADA
     if (sessionUser) {
-      // [EDIT TAHAP 4.2] Menggunakan getUserProfileAdmin
+      // 2. Fetch Profile
       profileData = await getUserProfileAdmin(sessionUser.uid);
 
       if (!profileData) {
-        // KASUS PROFIL BARU: Profil belum ada di Firestore
+        // NEW PROFILE CASE
         serverError =
           'Profil E-Sports CV Anda belum ditemukan. Silakan lengkapi data Anda di halaman Edit Profil.';
 
-        // Inisialisasi data minimal
         profileData = {
           uid: sessionUser.uid,
           email: sessionUser.email || null,
@@ -123,166 +102,162 @@ const ProfilePage = async () => {
           discordId: null,
           website: null,
           bio: '',
-          // FIX: Ganti teamId/teamName menjadi clanId/clanName
           clanId: null,
           clanName: null,
-        } as UserProfile; // Casting untuk memastikan tipe lengkap
+        } as UserProfile;
       } else {
-        // KASUS PROFIL DITEMUKAN:
-        serverError = null; // Pastikan error direset
+        // EXISTING PROFILE CASE
+        serverError = null;
 
-        // --- Ambil data live jika terverifikasi ---
+        // --- Live Data & Auto-Fix Logic ---
         if (profileData.isVerified && profileData.playerTag) {
           try {
-            // --- PERBAIKAN: Encode playerTag sebelum memanggil API ---
             const encodedPlayerTag = encodeURIComponent(profileData.playerTag);
             console.log(
-              `[ProfilePage] Fetching live CoC data for encoded tag: ${encodedPlayerTag}`,
+              `[ProfilePage] Fetching live CoC data for: ${encodedPlayerTag}`
             );
             const livePlayerData: CocPlayer | null =
-              await cocApi.getPlayerData(encodedPlayerTag); // Gunakan tag yang sudah di-encode
+              await cocApi.getPlayerData(encodedPlayerTag);
 
             if (livePlayerData) {
-              console.log(`[ProfilePage] Live data found.`);
-
               // =================================================================
-              // [FITUR AUTO-FIX]: Self-Healing Database Logic
+              // [AUTO-FIX]: Self-Healing Database Logic
               // =================================================================
-              // Cek apakah data di database (Ghost Data) berbeda dengan Live Data.
-              // Jika berbeda, kita perbaiki Database-nya SEKARANG JUGA.
-
               let fixedClanId = profileData.clanId;
               let fixedClanName = profileData.clanName;
               let shouldUpdateDb = false;
               const liveClanTag = livePlayerData.clan?.tag;
 
-              // 1. Cek Konsistensi Clan
-              // Jika live ada clan, tapi di DB tidak ada clanId atau clanTag beda
-              if (liveClanTag && (profileData.clanTag !== liveClanTag || !profileData.clanId)) {
-                  console.log(`[ProfilePage] Mismatch Clan detected! Searching managed clan for ${liveClanTag}...`);
-                  
-                  // Cari apakah clan ini terdaftar di sistem kita
-                  const clanQuery = await adminFirestore
-                      .collection(COLLECTIONS.MANAGED_CLANS)
-                      .where('tag', '==', liveClanTag)
-                      .limit(1)
-                      .get();
+              // 1. Check Clan Consistency
+              if (
+                liveClanTag &&
+                (profileData.clanTag !== liveClanTag || !profileData.clanId)
+              ) {
+                console.log(
+                  `[ProfilePage] Mismatch Clan detected! Searching managed clan for ${liveClanTag}...`
+                );
 
-                  if (!clanQuery.empty) {
-                      const foundClan = clanQuery.docs[0];
-                      fixedClanId = foundClan.id;
-                      fixedClanName = foundClan.data().name;
-                      console.log(`[ProfilePage] Found managed clan: ${fixedClanId}. Scheduling DB fix.`);
-                      shouldUpdateDb = true;
-                  }
-              }
+                const clanQuery = await adminFirestore
+                  .collection(COLLECTIONS.MANAGED_CLANS)
+                  .where('tag', '==', liveClanTag)
+                  .limit(1)
+                  .get();
 
-              // 2. Cek Konsistensi Role
-              const correctClashubRole = mapCocRoleToClashubRole(livePlayerData.role);
-              if (profileData.role !== correctClashubRole) {
-                  console.log(`[ProfilePage] Role mismatch! DB: ${profileData.role} vs Live: ${correctClashubRole}. Scheduling DB fix.`);
+                if (!clanQuery.empty) {
+                  const foundClan = clanQuery.docs[0];
+                  fixedClanId = foundClan.id;
+                  fixedClanName = foundClan.data().name;
+                  console.log(
+                    `[ProfilePage] Found managed clan: ${fixedClanId}. Scheduling DB fix.`
+                  );
                   shouldUpdateDb = true;
+                }
               }
 
-              // 3. Eksekusi Perbaikan ke Database (Admin SDK)
+              // 2. Check Role Consistency
+              const correctClashubRole = mapCocRoleToClashubRole(
+                livePlayerData.role
+              );
+              if (profileData.role !== correctClashubRole) {
+                console.log(
+                  `[ProfilePage] Role mismatch! DB: ${profileData.role} vs Live: ${correctClashubRole}. Scheduling DB fix.`
+                );
+                shouldUpdateDb = true;
+              }
+
+              // 3. Execute DB Fix
               if (shouldUpdateDb) {
-                  try {
-                      const updatePayload = {
-                          inGameName: livePlayerData.name,
-                          thLevel: livePlayerData.townHallLevel,
-                          trophies: livePlayerData.trophies,
-                          clanTag: liveClanTag || null,
-                          clanRole: livePlayerData.role || ClanRole.NOT_IN_CLAN,
-                          role: correctClashubRole,
-                          clanId: fixedClanId, // Update Clan ID yang benar
-                          clanName: fixedClanName || livePlayerData.clan?.name || null,
-                          lastVerified: new Date() // Update timestamp agar cache refresh
-                      };
-                      
-                      // Tulis ke Database
-                      await adminFirestore.collection(COLLECTIONS.USERS).doc(sessionUser.uid).update(updatePayload);
-                      console.log(`[ProfilePage] ✅ Database AUTO-FIXED for user ${sessionUser.uid}`);
-                  } catch (fixError) {
-                      console.error(`[ProfilePage] ❌ Failed to Auto-Fix database:`, fixError);
-                  }
+                try {
+                  const updatePayload = {
+                    inGameName: livePlayerData.name,
+                    thLevel: livePlayerData.townHallLevel,
+                    trophies: livePlayerData.trophies,
+                    clanTag: liveClanTag || null,
+                    clanRole: livePlayerData.role || ClanRole.NOT_IN_CLAN,
+                    role: correctClashubRole,
+                    clanId: fixedClanId,
+                    clanName:
+                      fixedClanName || livePlayerData.clan?.name || null,
+                    lastVerified: new Date(),
+                  };
+
+                  await adminFirestore
+                    .collection(COLLECTIONS.USERS)
+                    .doc(sessionUser.uid)
+                    .update(updatePayload);
+                  console.log(
+                    `[ProfilePage] ✅ Database AUTO-FIXED for user ${sessionUser.uid}`
+                  );
+                } catch (fixError) {
+                  console.error(
+                    `[ProfilePage] ❌ Failed to Auto-Fix database:`,
+                    fixError
+                  );
+                }
               }
               // =================================================================
-              // [AKHIR FITUR AUTO-FIX]
-              // =================================================================
 
-              // Timpa data Firestore (profileData) dengan data live untuk tampilan UI sekarang
-              // Kita gunakan data 'fixed' jika tadi ada perbaikan
+              // Merge Live Data for UI
               profileData = {
                 ...profileData,
                 inGameName: livePlayerData.name,
                 thLevel: livePlayerData.townHallLevel,
                 trophies: livePlayerData.trophies,
                 clanTag: livePlayerData.clan?.tag || null,
-                // FIX: Ganti teamName menjadi clanName
                 clanName: livePlayerData.clan
-                  ? fixedClanName // Gunakan nama dari Managed Clan jika ada
-                    ? fixedClanName 
+                  ? fixedClanName
+                    ? fixedClanName
                     : livePlayerData.clan.name
                   : null,
                 clanRole: mapCocRoleToClanRole(livePlayerData.role),
-                role: shouldUpdateDb ? mapCocRoleToClashubRole(livePlayerData.role) : profileData.role, // Tampilkan role yang benar
-                clanId: fixedClanId, // Gunakan ID yang benar
+                role: shouldUpdateDb
+                  ? mapCocRoleToClashubRole(livePlayerData.role)
+                  : profileData.role,
+                clanId: fixedClanId,
               };
             } else {
               console.warn(
-                `[ProfilePage] Live CoC data not found for tag: ${profileData.playerTag}. Using Firestore data.`,
+                `[ProfilePage] Live CoC data not found. Using Firestore data.`
               );
             }
           } catch (cocErr) {
             console.error(
-              `[ProfilePage] Error fetching live CoC data for tag ${profileData.playerTag}:`,
-              cocErr,
+              `[ProfilePage] Error fetching live CoC data:`,
+              cocErr
             );
           }
         }
       }
 
-      // Ambil postingan, riwayat, dan ulasan (setelah profileData dipastikan ada)
-      // [PERBAIKAN] Pindahkan ini ke dalam 'if (sessionUser)'
+      // 3. Fetch Additional Data (Posts, History, Reviews)
       if (profileData?.uid) {
-        // [EDIT TAHAP 4.2] Fetch data baru secara paralel
         try {
           const [postsData, historyData, reviewsData] = await Promise.all([
-            getPostsByAuthorAdmin(profileData.uid, 3), // Menggunakan versi Admin
+            getPostsByAuthorAdmin(profileData.uid, 3),
             getClanHistoryAdmin(profileData.uid),
             getPlayerReviewsAdmin(profileData.uid),
-            // Catatan: getClanReviewsAdmin() akan dilewati (sesuai roadmap)
-            // karena tidak ada di file lib/firestore-admin/users.ts Anda.
           ]);
 
           recentPosts = postsData;
           clanHistory = historyData;
           playerReviews = reviewsData;
         } catch (dataErr) {
-          // Log error jika index belum dibuat, tapi jangan blokir render halaman
           console.error(
-            'Server Error: Failed to load recent posts, history, or reviews (Firestore Index might be missing):',
-            dataErr,
+            'Server Error: Failed to load auxiliary data (Firestore Index might be missing):',
+            dataErr
           );
-          // Biarkan array kosong jika gagal
         }
       }
     } else {
-      // Jika tidak ada sessionUser, kirim null ke client
       profileData = null;
-      // Kita tidak set serverError di sini, biarkan client component
-      // (ProfileClient via useAuth) yang menangani redirect ke /auth
     }
   } catch (err) {
-    // KASUS KONEKSI ERROR
     console.error('Server Error: Failed to load user profile:', err);
     profileData = null;
     serverError = 'Gagal memuat data profil dari Firestore. Coba lagi.';
   }
 
-  // 4. Meneruskan data ke Client Component
-  // [EDIT TAHAP 4.2] Menambahkan props baru dan memastikan SEMUA data diserialisasi
-  // untuk menghindari error Next.js (Server Component -> Client Component)
+  // 4. Render Client Component with Serialized Data
   return (
     <ProfileClient
       initialProfile={

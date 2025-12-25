@@ -22,3 +22,6 @@ export * from './icons/navigation';
 
 // Ekspor ikon-ikon Clash
 export * from './icons/clash';
+
+// [BARU] Ekspor ikon-ikon Tambahan (Extended)
+export * from './icons/ui-icons-extended';

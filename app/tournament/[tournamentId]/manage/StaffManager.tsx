@@ -17,10 +17,11 @@ import {
   Loader2Icon,
   CrownIcon,
   AlertTriangleIcon,
+  UsersCogIcon
 } from '@/app/components/icons';
 import Image from 'next/image';
 import { useAuth } from '@/app/context/AuthContext';
-import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 interface StaffManagerProps {
   tournament: FirestoreDocument<Tournament>;
@@ -36,7 +37,7 @@ const StaffManager: React.FC<StaffManagerProps> = ({
   tournament,
   isOrganizer,
 }) => {
-  const { t } = useLanguage(); // [BARU] Init Hook
+  const { t } = useLanguage();
   const { currentUser } = useAuth(); 
   const [staffProfiles, setStaffProfiles] = useState<StaffProfile[]>([]);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -44,8 +45,7 @@ const StaffManager: React.FC<StaffManagerProps> = ({
   const [isInviting, setIsInviting] = useState(false);
   const [isRemoving, setIsRemoving] = useState<string | null>(null);
   
-  const [notification, setNotification] =
-    useState<NotificationProps | null>(null);
+  const [notification, setNotification] = useState<NotificationProps | null>(null);
 
   const showNotification = (
     message: string,
@@ -70,7 +70,7 @@ const StaffManager: React.FC<StaffManagerProps> = ({
 
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.error || t.tournamentManage.staff.listError); // [i18n]
+        throw new Error(result.error || t.tournamentManage.staff.listError);
       }
 
       setStaffProfiles(result.profiles || []);
@@ -91,7 +91,7 @@ const StaffManager: React.FC<StaffManagerProps> = ({
     if (!inviteEmail || !isOrganizer) return;
 
     setIsInviting(true);
-    showNotification(t.tournamentManage.staff.toastInviting, 'info'); // [i18n]
+    showNotification(t.tournamentManage.staff.toastInviting, 'info');
 
     try {
       const response = await fetch(
@@ -122,7 +122,7 @@ const StaffManager: React.FC<StaffManagerProps> = ({
     if (!isOrganizer || uidToRemove === tournament.organizerUid) return;
 
     setIsRemoving(uidToRemove);
-    showNotification(t.tournamentManage.staff.toastRemoving, 'info'); // [i18n]
+    showNotification(t.tournamentManage.staff.toastRemoving, 'info');
 
     try {
       const response = await fetch(
@@ -139,7 +139,7 @@ const StaffManager: React.FC<StaffManagerProps> = ({
         throw new Error(result.error || t.common.error);
       }
 
-      showNotification(t.tournamentManage.staff.toastRemoveSuccess, 'success'); // [i18n]
+      showNotification(t.tournamentManage.staff.toastRemoveSuccess, 'success');
       fetchStaffProfiles();
     } catch (error: any) {
       showNotification(error.message, 'error');
@@ -149,39 +149,49 @@ const StaffManager: React.FC<StaffManagerProps> = ({
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
       <Notification notification={notification ?? undefined} />
 
       {/* Bagian 1: Form Undangan (Hanya untuk Organizer) */}
       {isOrganizer && (
-        <div className="card-stone p-5 rounded-lg border border-coc-gold-dark/30">
-          <h3 className="font-clash text-xl text-white mb-4">
-            {t.tournamentManage.staff.inviteTitle} {/* [i18n] */}
-          </h3>
-          <p className="text-sm text-gray-400 mb-4 font-sans">
-            {t.tournamentManage.staff.inviteDesc} {/* [i18n] */}
-          </p>
-          <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-3">
-            <Input
-              type="email"
-              placeholder={t.tournamentManage.staff.inputPlaceholder} // [i18n]
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              disabled={isInviting}
-              className="flex-grow"
-            />
+        <div className="bg-white/5 border border-white/5 p-6 rounded-2xl shadow-lg">
+          <div className="flex items-center gap-3 mb-4">
+             <div className="p-2 bg-coc-gold/10 rounded-lg">
+                <UserPlusIcon className="h-6 w-6 text-coc-gold" />
+             </div>
+             <div>
+                <h3 className="font-clash text-xl text-white">
+                  {t.tournamentManage.staff.inviteTitle}
+                </h3>
+                <p className="text-sm text-gray-400 font-sans">
+                  {t.tournamentManage.staff.inviteDesc}
+                </p>
+             </div>
+          </div>
+          
+          <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-3 items-stretch">
+            <div className="flex-grow">
+               <Input
+                type="email"
+                placeholder={t.tournamentManage.staff.inputPlaceholder}
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                disabled={isInviting}
+                className="bg-black/20 border-white/10 h-[46px]" // Custom height match button
+              />
+            </div>
             <Button
               type="submit"
               variant="primary"
               disabled={isInviting || !inviteEmail}
-              className="w-full sm:w-auto"
+              className="w-full sm:w-auto h-[46px] shadow-lg shadow-coc-gold/10"
             >
               {isInviting ? (
                 <Loader2Icon className="h-5 w-5 animate-spin" />
               ) : (
                 <UserPlusIcon className="h-5 w-5" />
               )}
-              <span className="ml-2">{isInviting ? t.tournamentManage.staff.btnInviting : t.tournamentManage.staff.btnInvite}</span> {/* [i18n] */}
+              <span className="ml-2">{isInviting ? t.tournamentManage.staff.btnInviting : t.tournamentManage.staff.btnInvite}</span>
             </Button>
           </form>
         </div>
@@ -189,84 +199,101 @@ const StaffManager: React.FC<StaffManagerProps> = ({
 
       {/* Bagian 2: Daftar Staf Saat Ini */}
       <div>
-        <h3 className="font-clash text-xl text-white mb-4">
-          {t.tournamentManage.staff.listTitle} {/* [i18n] */}
+        <h3 className="font-clash text-xl text-white mb-6 flex items-center gap-2 border-b border-white/10 pb-4">
+          <UsersCogIcon className="h-6 w-6 text-coc-blue" />
+          {t.tournamentManage.staff.listTitle}
         </h3>
+
         {isLoading ? (
-          <div className="flex justify-center items-center h-40">
-            <Loader2Icon className="h-8 w-8 animate-spin text-coc-gold" />
+          <div className="flex justify-center items-center h-40 bg-white/5 rounded-2xl border border-white/5">
+            <div className="text-center">
+               <Loader2Icon className="h-8 w-8 animate-spin text-coc-gold mx-auto mb-2" />
+               <p className="text-sm text-gray-400">Memuat data staf...</p>
+            </div>
           </div>
         ) : staffProfiles.length === 0 ? (
-          <div className="card-stone p-8 text-center rounded-lg border border-coc-gold-dark/20">
-             <AlertTriangleIcon className="h-10 w-10 text-coc-yellow/70 mx-auto mb-3" />
-            <p className="text-gray-400">{t.tournamentManage.staff.listError}</p> {/* [i18n] */}
-            <Button variant="secondary" size="sm" onClick={fetchStaffProfiles} className="mt-3">{t.tournamentManage.staff.listRetry}</Button> {/* [i18n] */}
+          <div className="bg-red-500/5 p-8 text-center rounded-2xl border border-red-500/20">
+             <AlertTriangleIcon className="h-10 w-10 text-coc-red/70 mx-auto mb-3" />
+             <p className="text-gray-400 mb-4">{t.tournamentManage.staff.listError}</p>
+             <Button variant="secondary" size="sm" onClick={fetchStaffProfiles}>
+                {t.tournamentManage.staff.listRetry}
+             </Button>
           </div>
         ) : (
-          <div className="card-stone rounded-lg overflow-hidden border border-coc-gold-dark/30">
-            <ul className="divide-y divide-coc-gold-dark/30">
-              {staffProfiles.map((staff) => {
-                const isOrg = staff.uid === tournament.organizerUid;
-                const isSelf = staff.uid === currentUser?.uid;
+          <div className="grid grid-cols-1 gap-4">
+            {staffProfiles.map((staff) => {
+              const isOrg = staff.uid === tournament.organizerUid;
+              const isSelf = staff.uid === currentUser?.uid;
 
-                return (
-                  <li
-                    key={staff.uid}
-                    className="flex items-center justify-between p-4 bg-coc-dark/40 hover:bg-coc-dark/80 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
+              return (
+                <div
+                  key={staff.uid}
+                  className="flex items-center justify-between p-4 bg-black/20 border border-white/5 rounded-xl hover:border-white/10 transition-all group"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
                       <Image
-                        src={
-                          staff.avatarUrl || '/images/placeholder-avatar.png'
-                        }
+                        src={staff.avatarUrl || '/images/placeholder-avatar.png'}
                         alt="Avatar"
-                        width={40}
-                        height={40}
-                        className="rounded-full object-cover"
+                        width={48}
+                        height={48}
+                        className={`rounded-full object-cover border-2 ${isOrg ? 'border-coc-gold' : 'border-white/10'}`}
                       />
-                      <div>
-                        <p className="text-base font-semibold text-white">
-                          {staff.displayName}{' '}
-                          {isSelf && (
-                            <span className="text-xs text-coc-gold/80">{t.tournamentManage.staff.labelYou}</span> // [i18n]
-                          )}
-                        </p>
-                        <p className="text-sm text-gray-400 font-mono">
-                          {staff.email}
-                        </p>
-                      </div>
+                      {isOrg && (
+                         <div className="absolute -top-1 -right-1 bg-coc-dark rounded-full p-0.5 border border-coc-gold/50">
+                            <CrownIcon className="h-3 w-3 text-coc-gold" />
+                         </div>
+                      )}
                     </div>
                     
-                    <div className="flex items-center gap-2">
-                      {isOrg && (
-                        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-coc-gold/10 text-coc-gold text-xs font-bold">
-                          <CrownIcon className="h-4 w-4" />
-                          <span>{t.tournamentManage.staff.roleOrganizer}</span> {/* [i18n] */}
-                        </div>
-                      )}
-                      
-                      {/* Tombol Hapus */}
-                      {isOrganizer && !isOrg && (
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={() => handleRemove(staff.uid)}
-                          disabled={isRemoving === staff.uid}
-                          className="px-2 py-1 h-8 w-8"
-                        >
-                          {isRemoving === staff.uid ? (
-                             <Loader2Icon className="h-4 w-4 animate-spin" />
-                          ) : (
-                             <TrashIcon className="h-4 w-4" />
-                          )}
-                        </Button>
-                      )}
+                    <div>
+                      <p className="text-base font-bold text-white flex items-center gap-2">
+                        {staff.displayName}
+                        {isSelf && (
+                          <span className="text-[10px] bg-white/10 text-gray-300 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+                             {t.tournamentManage.staff.labelYou}
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-gray-500 font-mono mt-0.5">
+                        {staff.email}
+                      </p>
                     </div>
-
-                  </li>
-                );
-              })}
-            </ul>
+                  </div>
+                  
+                  <div className="flex items-center gap-3">
+                    {isOrg ? (
+                      <span className="text-xs font-bold text-coc-gold bg-coc-gold/10 px-3 py-1.5 rounded-full border border-coc-gold/20 flex items-center gap-1.5 shadow-sm">
+                        <CrownIcon className="h-3.5 w-3.5" />
+                        {t.tournamentManage.staff.roleOrganizer}
+                      </span>
+                    ) : (
+                      <span className="text-xs font-bold text-coc-blue bg-coc-blue/10 px-3 py-1.5 rounded-full border border-coc-blue/20">
+                        Staff
+                      </span>
+                    )}
+                    
+                    {/* Tombol Hapus */}
+                    {isOrganizer && !isOrg && (
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => handleRemove(staff.uid)}
+                        disabled={isRemoving === staff.uid}
+                        className="h-8 w-8 p-0 flex items-center justify-center rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 border-red-500/30"
+                        title="Remove Staff"
+                      >
+                        {isRemoving === staff.uid ? (
+                           <Loader2Icon className="h-4 w-4 animate-spin" />
+                        ) : (
+                           <TrashIcon className="h-4 w-4" />
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

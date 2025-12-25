@@ -4,28 +4,28 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { UserProfile, Tournament, ThRequirement } from '@/lib/clashub.types';
 import { Button } from '@/app/components/ui/Button';
-import Notification, {
-  NotificationProps,
-} from '@/app/components/ui/Notification';
+import Notification, { NotificationProps } from '@/app/components/ui/Notification';
 import { TournamentFormData, FormErrors } from './types';
+import { 
+  TrophyIcon, 
+  SaveIcon, 
+  RefreshCwIcon 
+} from '@/app/components/icons';
 
-// Impor komponen-komponen UI yang sudah dipecah
+// Impor komponen-komponen UI
 import { BasicInfoSection } from './components/BasicInfoSection';
 import { FormatDatesSection } from './components/FormatDatesSection';
 import { ThRequirementsSection } from './components/ThRequirementsSection';
-import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook i18n
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 interface CreateTournamentClientProps {
   userProfile: UserProfile;
 }
 
-// Helper untuk default tanggal
+// Helpers
 const getLocalDateTimeString = (dateObj: Date): string => {
   const tzOffset = dateObj.getTimezoneOffset() * 60000;
-  const localISOTime = new Date(dateObj.getTime() - tzOffset)
-    .toISOString()
-    .slice(0, 16);
-  return localISOTime;
+  return new Date(dateObj.getTime() - tzOffset).toISOString().slice(0, 16);
 };
 
 const addHours = (date: Date, hours: number) => {
@@ -39,15 +39,14 @@ const addDays = (date: Date, days: number) => {
   return newDate;
 };
 
-/**
- * @component CreateTournamentClient
- * Form panitia yang fleksibel untuk membuat turnamen.
- */
 const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
   userProfile,
 }) => {
-  const { t } = useLanguage(); // [BARU] Init Hook
+  const { t, language } = useLanguage();
   const router = useRouter();
+
+  // [FIX] Menggunakan t.tournamentCreate secara langsung karena kita sudah tau interfacenya
+  const tc = t.tournamentCreate;
 
   const now = new Date();
   const defaultRegStarts = addHours(now, 1);
@@ -76,17 +75,12 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
-  const [notification, setNotification] = useState<NotificationProps | null>(
-    null,
-  );
+  const [notification, setNotification] = useState<NotificationProps | null>(null);
 
   const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >,
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value, type } = e.target;
-
     let finalValue: string | number | ('1v1' | '5v5') = value;
 
     if (type === 'number') {
@@ -97,68 +91,42 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
     if (name === 'format') {
       finalValue = value as '1v1' | '5v5';
       if (finalValue === '1v1') {
-        setFormData((prev) => ({
-          ...prev,
-          thRequirementType: 'any',
-        }));
+        setFormData((prev) => ({ ...prev, thRequirementType: 'any' }));
       }
     }
     
-    if (name === 'participantCount') {
-      finalValue = parseInt(value, 10);
-    }
-    
-    if (name === 'thRequirementType') {
-      finalValue = value as 'any' | 'uniform' | 'mixed';
-    }
+    if (name === 'participantCount') finalValue = parseInt(value, 10);
+    if (name === 'thRequirementType') finalValue = value as 'any' | 'uniform' | 'mixed';
 
     setFormData((prev) => ({ ...prev, [name]: finalValue }));
-
-    if (errors[name as keyof FormErrors]) {
-      setErrors((prev) => ({ ...prev, [name]: null }));
-    }
+    if (errors[name as keyof FormErrors]) setErrors((prev) => ({ ...prev, [name]: null }));
   };
 
-  const handleMixedThChange = (
-    index: number,
-    e: React.ChangeEvent<HTMLSelectElement>,
-  ) => {
+  const handleMixedThChange = (index: number, e: React.ChangeEvent<HTMLSelectElement>) => {
     const newThLevels = [...formData.thMixedLevels];
     newThLevels[index] = e.target.value === '' ? '' : parseInt(e.target.value, 10);
     setFormData((prev) => ({ ...prev, thMixedLevels: newThLevels }));
-    if (errors.thMixedLevels) {
-      setErrors((prev) => ({ ...prev, thMixedLevels: null }));
-    }
+    if (errors.thMixedLevels) setErrors((prev) => ({ ...prev, thMixedLevels: null }));
   };
 
-  // --- Validasi Form dengan i18n ---
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
     const {
-      title,
-      description,
-      rules,
-      prizePool,
-      registrationStartsAt,
-      registrationEndsAt,
-      tournamentStartsAt,
-      tournamentEndsAt,
-      thMinLevel,
-      thMaxLevel,
-      format,
-      thRequirementType,
-      thMixedLevels,
+      title, description, rules, prizePool,
+      registrationStartsAt, registrationEndsAt,
+      tournamentStartsAt, tournamentEndsAt,
+      thMinLevel, thMaxLevel, format, thRequirementType, thMixedLevels,
     } = formData;
 
-    if (!title.trim()) newErrors.title = t.tournamentCreate.errTitle; // [i18n]
-    if (!description.trim()) newErrors.description = t.tournamentCreate.errDesc; // [i18n]
-    if (!rules.trim()) newErrors.rules = t.tournamentCreate.errDesc; // [i18n] Reuse desc or add new key
-    if (!prizePool.trim()) newErrors.prizePool = t.tournamentCreate.errDesc; // [i18n] Reuse desc or add new key
+    if (!title.trim()) newErrors.title = tc.errTitle;
+    if (!description.trim()) newErrors.description = tc.errDesc;
+    if (!rules.trim()) newErrors.rules = tc.errDesc;
+    if (!prizePool.trim()) newErrors.prizePool = tc.errDesc;
 
-    if (!registrationStartsAt) newErrors.registrationStartsAt = t.tournamentCreate.errDates;
-    if (!registrationEndsAt) newErrors.registrationEndsAt = t.tournamentCreate.errDates;
-    if (!tournamentStartsAt) newErrors.tournamentStartsAt = t.tournamentCreate.errDates;
-    if (!tournamentEndsAt) newErrors.tournamentEndsAt = t.tournamentCreate.errDates;
+    if (!registrationStartsAt) newErrors.registrationStartsAt = tc.errDates;
+    if (!registrationEndsAt) newErrors.registrationEndsAt = tc.errDates;
+    if (!tournamentStartsAt) newErrors.tournamentStartsAt = tc.errDates;
+    if (!tournamentEndsAt) newErrors.tournamentEndsAt = tc.errDates;
 
     if (registrationStartsAt && registrationEndsAt && tournamentStartsAt && tournamentEndsAt) {
       const regEnds = new Date(registrationEndsAt);
@@ -166,28 +134,17 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
       const tournStarts = new Date(tournamentStartsAt);
       const tournEnds = new Date(tournamentEndsAt);
 
-      if (regEnds <= regStarts) {
-        newErrors.registrationEndsAt = t.tournamentCreate.errDates;
-      }
-      if (tournStarts <= regEnds) {
-        newErrors.tournamentStartsAt = t.tournamentCreate.errDates;
-      }
-      if (tournEnds <= tournStarts) {
-        newErrors.tournamentEndsAt = t.tournamentCreate.errDates;
-      }
+      if (regEnds <= regStarts) newErrors.registrationEndsAt = tc.errDates;
+      if (tournStarts <= regEnds) newErrors.tournamentStartsAt = tc.errDates;
+      if (tournEnds <= tournStarts) newErrors.tournamentEndsAt = tc.errDates;
     }
 
-    if (thMinLevel < 1 || thMinLevel > 17)
-      newErrors.thMinLevel = t.tournamentCreate.errTh;
-    if (thMaxLevel < 1 || thMaxLevel > 17)
-      newErrors.thMaxLevel = t.tournamentCreate.errTh;
-    if (thMaxLevel < thMinLevel)
-      newErrors.thMaxLevel = t.tournamentCreate.errTh;
+    if (thMinLevel < 1 || thMinLevel > 17) newErrors.thMinLevel = tc.errTh;
+    if (thMaxLevel < 1 || thMaxLevel > 17) newErrors.thMaxLevel = tc.errTh;
+    if (thMaxLevel < thMinLevel) newErrors.thMaxLevel = tc.errTh;
 
     if (format === '5v5' && thRequirementType === 'mixed') {
-      if (thMixedLevels.some((lvl) => lvl === '')) {
-        newErrors.thMixedLevels = t.tournamentCreate.errTh;
-      }
+      if (thMixedLevels.some((lvl) => lvl === '')) newErrors.thMixedLevels = tc.errTh;
     }
 
     setErrors(newErrors);
@@ -200,7 +157,7 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
 
     if (!validateForm()) {
       setNotification({
-        message: t.auth.fixFormErrors, // [i18n] Reuse auth error
+        message: t.auth.fixFormErrors,
         type: 'error',
         onClose: () => setNotification(null),
       });
@@ -209,10 +166,7 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
 
     setIsLoading(true);
 
-    type TournamentPayload = Omit<
-      Tournament,
-      'id' | 'createdAt' | 'participantCountCurrent' | 'status'
-    >;
+    type TournamentPayload = Omit<Tournament, 'id' | 'createdAt' | 'participantCountCurrent' | 'status'>;
 
     const thRequirement: ThRequirement = {
       type: formData.format === '1v1' ? 'any' : formData.thRequirementType,
@@ -225,9 +179,7 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
       if (formData.thRequirementType === 'uniform') {
         thRequirement.allowedLevels = [Number(formData.thUniformLevel)];
       } else if (formData.thRequirementType === 'mixed') {
-        thRequirement.allowedLevels = formData.thMixedLevels.map((lvl) =>
-          Number(lvl),
-        );
+        thRequirement.allowedLevels = formData.thMixedLevels.map((lvl) => Number(lvl));
       }
     }
 
@@ -236,9 +188,7 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
       description: formData.description,
       rules: formData.rules,
       prizePool: formData.prizePool,
-      bannerUrl:
-        formData.bannerUrl ||
-        'https://placehold.co/1200x400/374151/9CA3AF?text=Banner+Turnamen',
+      bannerUrl: formData.bannerUrl || 'https://placehold.co/1200x400/374151/9CA3AF?text=Banner+Turnamen',
       
       registrationStartsAt: new Date(formData.registrationStartsAt),
       registrationEndsAt: new Date(formData.registrationEndsAt),
@@ -269,7 +219,7 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
       }
 
       setNotification({
-        message: t.tournamentCreate.successTitle, // [i18n]
+        message: tc.successTitle,
         type: 'success',
         onClose: () => setNotification(null),
       });
@@ -289,57 +239,105 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
   };
 
   return (
-    <>
+    <div className="relative min-h-screen">
+      {/* Background Ambience */}
+      <div className="fixed top-0 left-0 w-full h-[500px] bg-gradient-to-b from-coc-blue/10 via-transparent to-transparent pointer-events-none z-0" />
+      <div className="fixed top-20 right-0 w-[300px] h-[300px] bg-coc-gold/5 blur-[100px] rounded-full pointer-events-none z-0" />
+
       {notification && <Notification notification={notification} />}
 
-      <form
-        onSubmit={handleSubmit}
-        className="card-stone p-6 md:p-8 space-y-6"
-        noValidate
-      >
-        {/* [BARU] Pass 't' ke sub-komponen agar mereka juga bisa translate */}
-        {/* Namun karena sub-komponen ini belum di-refactor untuk menerima 't', 
-            saya sarankan kita refactor sub-komponennya di langkah selanjutnya agar lebih bersih.
-            Untuk sekarang, komponen ini masih menggunakan teks label statis di dalamnya.
-        */}
-        <BasicInfoSection
-          formData={formData}
-          errors={errors}
-          handleChange={handleChange}
-          isLoading={isLoading}
-        />
+      {/* Main Content */}
+      <div className="relative z-10 max-w-4xl mx-auto">
+        
+        {/* Header - Bersih Tanpa Tombol Back */}
+        <header className="mb-8 flex items-center justify-center text-center">
+           <div>
+              <h1 className="text-3xl md:text-4xl font-clash text-white flex items-center justify-center gap-3">
+                 <TrophyIcon className="h-8 w-8 text-coc-gold" />
+                 {/* [FIX] Gunakan tc.pageTitle yang sesuai dengan interface */}
+                 {tc.pageTitle}
+              </h1>
+              <p className="text-gray-400 mt-1 font-sans">
+                 {tc.pageDesc}
+              </p>
+           </div>
+        </header>
 
-        <FormatDatesSection
-          formData={formData}
-          errors={errors}
-          handleChange={handleChange}
-          isLoading={isLoading}
-        />
+        {/* Form Container */}
+        <form
+          onSubmit={handleSubmit}
+          className="bg-black/40 backdrop-blur-md border border-white/5 rounded-3xl p-6 md:p-10 shadow-2xl space-y-10"
+          noValidate
+        >
+          
+          {/* Section 1: Basic Info */}
+          <div className="space-y-6">
+             <BasicInfoSection
+                formData={formData}
+                errors={errors}
+                handleChange={handleChange}
+                isLoading={isLoading}
+             />
+          </div>
 
-        <ThRequirementsSection
-          formData={formData}
-          errors={errors}
-          handleChange={handleChange}
-          handleMixedThChange={handleMixedThChange}
-          isLoading={isLoading}
-        />
+          <div className="border-t border-white/10" />
 
-        {/* Tombol Aksi */}
-        <div className="flex justify-end gap-4 pt-6 border-t border-coc-gold-dark/20">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => router.back()}
-            disabled={isLoading}
-          >
-            {t.tournamentCreate.btnBack} {/* [i18n] */}
-          </Button>
-          <Button type="submit" variant="primary" disabled={isLoading}>
-            {isLoading ? t.tournamentCreate.btnSubmitting : t.tournamentCreate.btnSubmit} {/* [i18n] */}
-          </Button>
-        </div>
-      </form>
-    </>
+          {/* Section 2: Format & Dates */}
+          <div className="space-y-6">
+             <FormatDatesSection
+                formData={formData}
+                errors={errors}
+                handleChange={handleChange}
+                isLoading={isLoading}
+             />
+          </div>
+
+          <div className="border-t border-white/10" />
+
+          {/* Section 3: TH Requirements */}
+          <div className="space-y-6">
+             <ThRequirementsSection
+                formData={formData}
+                errors={errors}
+                handleChange={handleChange}
+                handleMixedThChange={handleMixedThChange}
+                isLoading={isLoading}
+             />
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-4 pt-4 border-t border-white/10">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.back()}
+              disabled={isLoading}
+              className="border-white/10 hover:bg-white/5"
+            >
+              {t.common.cancel}
+            </Button>
+            <Button 
+              type="submit" 
+              variant="primary" 
+              disabled={isLoading}
+              className="shadow-lg shadow-coc-gold/10"
+            >
+              {isLoading ? (
+                 <>
+                   <RefreshCwIcon className="h-5 w-5 mr-2 animate-spin" />
+                   {tc.btnSubmitting}
+                 </>
+              ) : (
+                 <>
+                   <SaveIcon className="h-5 w-5 mr-2" />
+                   {language === 'id' ? 'Terbitkan' : 'Publish'}
+                 </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 };
 

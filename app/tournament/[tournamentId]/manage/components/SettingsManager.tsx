@@ -3,15 +3,11 @@
 import React, { useState } from 'react';
 import { Tournament, FirestoreDocument } from '@/lib/clashub.types';
 import { Button } from '@/app/components/ui/Button';
-import Notification, {
-  NotificationProps,
-} from '@/app/components/ui/Notification';
-import {
-  FormGroup,
-  getInputClasses,
-} from '@/app/knowledge-hub/components/form/PostFormGroup';
-import { Loader2Icon, ShieldIcon } from '@/app/components/icons';
-import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook i18n
+import Notification, { NotificationProps } from '@/app/components/ui/Notification';
+// Kita gunakan FormGroup dan style dari komponen shared turnamen yang sudah kita buat
+import { FormGroup, getInputClasses } from '@/app/tournament/create/components/TournamentFormShared';
+import { Loader2Icon, ShieldIcon, SaveIcon } from '@/app/components/icons';
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 interface SettingsManagerProps {
   tournament: FirestoreDocument<Tournament>;
@@ -22,12 +18,11 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
   tournament,
   onSettingsSaved,
 }) => {
-  const { t } = useLanguage(); // [BARU] Init Hook
+  const { t } = useLanguage();
   const [clanATag, setClanATag] = useState(tournament.panitiaClanA_Tag || '');
   const [clanBTag, setClanBTag] = useState(tournament.panitiaClanB_Tag || '');
   const [isLoading, setIsLoading] = useState(false);
-  const [notification, setNotification] =
-    useState<NotificationProps | null>(null);
+  const [notification, setNotification] = useState<NotificationProps | null>(null);
 
   const showNotification = (
     message: string,
@@ -41,14 +36,15 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
     setIsLoading(true);
     setNotification(null);
 
-    // Validasi dasar
-    if (!clanATag.startsWith('#') || !clanBTag.startsWith('#')) {
-      showNotification(t.tournamentManage.settings.errFormat, 'error'); // [i18n]
+    if ((clanATag && !clanATag.startsWith('#')) || (clanBTag && !clanBTag.startsWith('#'))) {
+      showNotification(t.tournamentManage.settings.errFormat, 'error');
       setIsLoading(false);
       return;
     }
-    if (clanATag === clanBTag) {
-      showNotification(t.tournamentManage.settings.errSame, 'error'); // [i18n]
+    
+    // Allow saving empty tags (resetting)
+    if (clanATag && clanBTag && clanATag === clanBTag) {
+      showNotification(t.tournamentManage.settings.errSame, 'error');
       setIsLoading(false);
       return;
     }
@@ -60,15 +56,15 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            panitiaClanA_Tag: clanATag,
-            panitiaClanB_Tag: clanBTag,
+            panitiaClanA_Tag: clanATag.toUpperCase(),
+            panitiaClanB_Tag: clanBTag.toUpperCase(),
           }),
         },
       );
 
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.error || t.tournamentManage.settings.errSave); // [i18n]
+        throw new Error(result.error || t.tournamentManage.settings.errSave);
       }
 
       showNotification(result.message || t.tournamentManage.toastSuccess, 'success');
@@ -81,22 +77,25 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
   };
 
   return (
-    <div className="space-y-6">
-      <Notification notification={notification ?? undefined} />
-      <h3 className="font-clash text-xl text-white">{t.tournamentManage.settings.title}</h3> {/* [i18n] */}
-      <p className="text-gray-400 font-sans -mt-4">
-        {t.tournamentManage.settings.desc} {/* [i18n] */}
-      </p>
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
+      {notification && <Notification notification={notification} />}
+      
+      <div>
+         <h3 className="font-clash text-2xl font-bold text-white flex items-center gap-2">
+            <ShieldIcon className="h-6 w-6 text-coc-gold" />
+            {t.tournamentManage.settings.title}
+         </h3>
+         <p className="text-gray-400 font-sans mt-2 leading-relaxed max-w-2xl">
+           {t.tournamentManage.settings.desc}
+         </p>
+      </div>
 
-      <form onSubmit={handleSubmit} className="max-w-lg space-y-4">
+      <form onSubmit={handleSubmit} className="max-w-xl space-y-6 p-6 bg-white/5 border border-white/5 rounded-2xl">
         <FormGroup
-          label={t.tournamentManage.settings.labelClanA} // [i18n]
+          label={t.tournamentManage.settings.labelClanA}
           htmlFor="clanATag"
-          error={
-            clanATag && !clanATag.startsWith('#')
-              ? t.tournamentManage.settings.errFormat // [i18n]
-              : undefined
-          }
+          error={clanATag && !clanATag.startsWith('#') ? t.tournamentManage.settings.errFormat : undefined}
+          helperText="Klan Host untuk Bracket Atas / Tim A"
         >
           <input
             type="text"
@@ -107,42 +106,51 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
             onChange={(e) => setClanATag(e.target.value.toUpperCase())}
             className={getInputClasses(
               clanATag ? !clanATag.startsWith('#') : false,
+              isLoading
             )}
             disabled={isLoading}
           />
         </FormGroup>
 
         <FormGroup
-          label={t.tournamentManage.settings.labelClanB} // [i18n]
+          label={t.tournamentManage.settings.labelClanB}
           htmlFor="clanBTag"
-          error={
-            clanBTag && !clanBTag.startsWith('#')
-              ? t.tournamentManage.settings.errFormat // [i18n]
-              : undefined
-          }
+          error={clanBTag && !clanBTag.startsWith('#') ? t.tournamentManage.settings.errFormat : undefined}
+          helperText="Klan Host untuk Bracket Bawah / Tim B"
         >
           <input
             type="text"
             id="clanBTag"
             name="clanBTag"
-            placeholder="#2QYV0C9P0"
+            placeholder="#8GV0C2X1"
             value={clanBTag}
             onChange={(e) => setClanBTag(e.target.value.toUpperCase())}
             className={getInputClasses(
               clanBTag ? !clanBTag.startsWith('#') : false,
+              isLoading
             )}
             disabled={isLoading}
           />
         </FormGroup>
 
-        <div className="pt-2">
-          <Button type="submit" variant="primary" disabled={isLoading}>
+        <div className="pt-4 border-t border-white/10">
+          <Button 
+            type="submit" 
+            variant="primary" 
+            disabled={isLoading}
+            className="w-full shadow-lg shadow-coc-gold/10 font-bold"
+          >
             {isLoading ? (
-              <Loader2Icon className="h-5 w-5 animate-spin mr-2" />
+              <>
+                <Loader2Icon className="h-5 w-5 animate-spin mr-2" />
+                {t.tournamentManage.settings.btnSaving}
+              </>
             ) : (
-              <ShieldIcon className="h-5 w-5 mr-2" />
+              <>
+                <SaveIcon className="h-5 w-5 mr-2" />
+                {t.tournamentManage.settings.btnSave}
+              </>
             )}
-            {isLoading ? t.tournamentManage.settings.btnSaving : t.tournamentManage.settings.btnSave} {/* [i18n] */}
           </Button>
         </div>
       </form>

@@ -1,10 +1,7 @@
-// File: app/tournament/create/page.tsx
-// Deskripsi: Halaman Server Component untuk membuat turnamen baru.
-
 import { redirect } from 'next/navigation';
 import { getSessionUser } from '@/lib/server-auth';
 import { getUserProfile } from '@/lib/firestore';
-import { UserProfile } from '@/lib/clashub.types'; // [PERBAIKAN] Gunakan clashub.types
+import { UserProfile } from '@/lib/clashub.types';
 import { Metadata } from 'next';
 import CreateTournamentClient from './CreateTournamentClient';
 
@@ -16,14 +13,14 @@ export const metadata: Metadata = {
 };
 
 const CreateTournamentPage = async () => {
-  // 1. Cek Sesi Pengguna (Auth Guard)
+  // 1. Cek Sesi Pengguna
   const sessionUser = await getSessionUser();
 
   if (!sessionUser) {
     return redirect('/auth?callbackUrl=/tournament/create');
   }
 
-  // 2. Ambil UserProfile LENGKAP dari Firestore
+  // 2. Ambil UserProfile
   const userProfileData = await getUserProfile(sessionUser.uid);
 
   // 3. Validasi Profil
@@ -31,18 +28,11 @@ const CreateTournamentPage = async () => {
     return redirect('/profile/edit?error=Profile_required_to_create_tournament');
   }
   
-  // [OPSIONAL] Validasi Role (misal hanya Admin/Organizer)
-  // if (userProfileData.role !== 'Admin') { ... }
-
-  // 4. Serialisasi data untuk Client Component
+  // 4. Serialisasi data
   const userProfile = JSON.parse(JSON.stringify(userProfileData)) as UserProfile;
 
   return (
-    <main className="container mx-auto max-w-5xl px-4 py-8">
-      {/* [PERBAIKAN] 
-        Hapus teks judul hardcoded di sini. 
-        Kita pindahkan ke dalam CreateTournamentClient agar bisa menggunakan i18n (useLanguage).
-      */}
+    <main className="container mx-auto max-w-5xl px-4 py-8 mt-4 md:mt-8">
       <CreateTournamentClient userProfile={userProfile} />
     </main>
   );

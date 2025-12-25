@@ -8,7 +8,6 @@ import { useAuth } from '@/app/context/AuthContext';
 import { useLanguage } from '@/lib/hooks/useLanguage';
 import { NotificationProps } from '@/app/components/ui/Notification';
 
-// Definisi Tipe Data Form
 export interface PostFormData {
   title: string;
   content: string;
@@ -20,7 +19,6 @@ export interface PostFormData {
   baseLinkUrl: string;
 }
 
-// Opsi kategori yang tersedia
 export const CATEGORY_OPTIONS: PostCategory[] = POST_CATEGORIES.filter(
   (c) => c !== 'Semua Diskusi'
 ) as PostCategory[];
@@ -98,7 +96,7 @@ export const usePostForm = ({ initialData }: UsePostFormProps) => {
       setFormData((prev) => ({
         ...prev,
         [id]: newCategory,
-        // Reset field yang tidak relevan
+        // Reset field yang tidak relevan agar tidak tersimpan kotoran
         troopLink: newCategory === 'Strategi Serangan' ? prev.troopLink : '',
         videoUrl: newCategory === 'Strategi Serangan' ? prev.videoUrl : '',
         baseImageUrl: newCategory === 'Base Building' ? prev.baseImageUrl : '',
@@ -141,7 +139,7 @@ export const usePostForm = ({ initialData }: UsePostFormProps) => {
     setFormError(null);
 
     try {
-      // Auto Image Logic
+      // Auto Image Logic (Thumbnails)
       let autoImageUrl: string | null = null;
       if (isStrategyPost && formData.videoUrl.trim()) {
         const videoIdRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)(\w+)/i;
@@ -168,6 +166,9 @@ export const usePostForm = ({ initialData }: UsePostFormProps) => {
         videoUrl: isStrategyPost ? formData.videoUrl.trim() || null : null,
         baseImageUrl: isBaseBuildingPost ? formData.baseImageUrl.trim() || null : null,
         baseLinkUrl: isBaseBuildingPost ? formData.baseLinkUrl.trim() || null : null,
+        authorId: currentUser.uid,
+        authorName: currentUser.displayName || 'Anonymous',
+        authorAvatarUrl: currentUser.photoURL || '/images/placeholder-avatar.png'
       };
 
       let postId: string;

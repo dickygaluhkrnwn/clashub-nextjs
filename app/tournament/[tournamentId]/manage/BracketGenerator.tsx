@@ -13,12 +13,13 @@ import Notification, {
 import {
   Loader2Icon,
   AlertTriangleIcon,
-} from '@/app/components/icons/ui-feedback';
-import { PlayIcon } from '@/app/components/icons/ui-actions';
-import { XIcon } from '@/app/components/icons/ui-general';
-import { TrophyIcon } from '@/app/components/icons/clash';
+  PlayIcon,
+  XIcon,
+  TrophyIcon,
+  CheckIcon
+} from '@/app/components/icons';
 import AlertDialog from '@/app/components/ui/AlertDialog';
-import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook i18n
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 // Helper untuk mendapatkan power of 2 terdekat
 function getNextPowerOfTwo(n: number): number {
@@ -48,7 +49,7 @@ const BracketGenerator: React.FC<BracketGeneratorProps> = ({
   onBracketGenerated,
   onTournamentCancelled,
 }) => {
-  const { t, language } = useLanguage(); // [BARU] Init Hook
+  const { t, language } = useLanguage();
   const locale = language === 'id' ? 'id-ID' : 'en-US';
 
   const [isLoading, setIsLoading] = useState(false);
@@ -77,7 +78,7 @@ const BracketGenerator: React.FC<BracketGeneratorProps> = ({
         const result = await response.json();
         if (!response.ok) {
           throw new Error(
-            result.error || t.clanEsports.toastFetchError, // [i18n]
+            result.error || t.clanEsports.toastFetchError,
           );
         }
         setTeams(result || []);
@@ -113,7 +114,7 @@ const BracketGenerator: React.FC<BracketGeneratorProps> = ({
     if (isActionLoading || !isIdeal) return;
 
     setIsLoading(true);
-    showNotification(t.tournamentManage.bracketGen.toastGenerating, 'info'); // [i18n]
+    showNotification(t.tournamentManage.bracketGen.toastGenerating, 'info');
 
     try {
       const response = await fetch(
@@ -139,7 +140,7 @@ const BracketGenerator: React.FC<BracketGeneratorProps> = ({
     if (isActionLoading || !isUnderQuota) return;
 
     setIsLoading(true);
-    showNotification(t.tournamentManage.bracketGen.toastStarting.replace('{count}', approvedCount.toString()), 'info'); // [i18n]
+    showNotification(t.tournamentManage.bracketGen.toastStarting.replace('{count}', approvedCount.toString()), 'info');
 
     try {
       const response = await fetch(
@@ -165,7 +166,7 @@ const BracketGenerator: React.FC<BracketGeneratorProps> = ({
     if (isActionLoading) return;
 
     setIsLoading(true);
-    showNotification(t.tournamentManage.bracketGen.toastCancelling, 'info'); // [i18n]
+    showNotification(t.tournamentManage.bracketGen.toastCancelling, 'info');
 
     try {
       const response = await fetch(
@@ -191,16 +192,16 @@ const BracketGenerator: React.FC<BracketGeneratorProps> = ({
     const bracketSize = getNextPowerOfTwo(approvedCount);
     setModalState({
       type: 'startUnderQuota',
-      title: t.tournamentManage.bracketGen.modalStartTitle, // [i18n]
-      message: t.tournamentManage.bracketGen.modalStartDesc.replace('{size}', bracketSize.toString()), // [i18n]
+      title: t.tournamentManage.bracketGen.modalStartTitle,
+      message: t.tournamentManage.bracketGen.modalStartDesc.replace('{size}', bracketSize.toString()),
     });
   };
 
   const openCancelModal = () => {
     setModalState({
       type: 'cancel',
-      title: t.tournamentManage.bracketGen.modalCancelTitle, // [i18n]
-      message: t.tournamentManage.bracketGen.modalCancelDesc, // [i18n]
+      title: t.tournamentManage.bracketGen.modalCancelTitle,
+      message: t.tournamentManage.bracketGen.modalCancelDesc,
     });
   };
 
@@ -217,60 +218,68 @@ const BracketGenerator: React.FC<BracketGeneratorProps> = ({
 
   if (isFetchingTeams) {
     return (
-      <div className="flex justify-center items-center h-40">
-        <Loader2Icon className="h-8 w-8 animate-spin text-coc-gold" />
+      <div className="flex justify-center items-center h-60 bg-white/5 rounded-2xl border border-white/5">
+        <div className="text-center">
+           <Loader2Icon className="h-10 w-10 animate-spin text-coc-gold mx-auto mb-3" />
+           <p className="text-gray-400 text-sm">Memeriksa status pendaftaran...</p>
+        </div>
       </div>
     );
   }
 
+  // --- 1. Status: Bracket Sudah Ada / Selesai / Batal ---
   if (isOngoing || isCompleted || isCancelled) {
-    let statusText = t.tournamentManage.bracketGen.statusBracketCreated; // [i18n]
-    let statusColor = 'text-coc-green';
+    let statusText = t.tournamentManage.bracketGen.statusBracketCreated;
+    let statusColor = 'text-coc-green bg-coc-green/10 border-coc-green/20';
+    let StatusIcon = CheckIcon;
 
     if (isCompleted) {
-      statusText = t.tournamentManage.bracketGen.statusCompleted; // [i18n]
-      statusColor = 'text-gray-400';
+      statusText = t.tournamentManage.bracketGen.statusCompleted;
+      statusColor = 'text-purple-400 bg-purple-500/10 border-purple-500/20';
+      StatusIcon = TrophyIcon;
     } else if (isCancelled) {
-      statusText = t.tournamentManage.bracketGen.statusCancelled; // [i18n]
-      statusColor = 'text-coc-red';
+      statusText = t.tournamentManage.bracketGen.statusCancelled;
+      statusColor = 'text-coc-red bg-coc-red/10 border-coc-red/20';
+      StatusIcon = XIcon;
     }
 
     return (
-      <div>
-        <h3 className="font-clash text-xl text-white mb-4">{t.tournamentManage.tabBracket}</h3>
-        <p className="text-gray-400 font-sans mb-4">
-          {t.tournament.filterStatusLabel}:{' '}
-          <span className={`font-bold ${statusColor}`}>{statusText}</span>
-        </p>
+      <div className="space-y-6 animate-in fade-in">
+        <div className={`p-6 rounded-2xl border ${statusColor.split(' ')[2]} ${statusColor.split(' ')[1]} flex items-center gap-4`}>
+           <div className={`p-3 rounded-full ${statusColor.split(' ')[1].replace('10', '20')}`}>
+              <StatusIcon className={`h-8 w-8 ${statusColor.split(' ')[0]}`} />
+           </div>
+           <div>
+              <h3 className={`text-xl font-bold font-clash ${statusColor.split(' ')[0]}`}>{statusText}</h3>
+              <p className="text-gray-300 text-sm mt-1">Bracket turnamen telah dikelola sistem.</p>
+           </div>
+        </div>
       </div>
     );
   }
 
+  // --- 2. Status: Pendaftaran Masih Buka / Draft ---
   if (isScheduled || isRegistrationOpen) {
     return (
-      <div className="card-stone p-5 rounded-lg border border-coc-gold-dark/30 text-center">
-        <AlertTriangleIcon className="h-10 w-10 text-coc-yellow/70 mx-auto mb-3" />
-        <h3 className="font-clash text-xl text-white">
-          {t.tournamentManage.bracketGen.statusRegNotClosed} {/* [i18n] */}
+      <div className="flex flex-col items-center justify-center p-12 bg-white/5 rounded-2xl border border-white/5 border-dashed text-center animate-in fade-in">
+        <div className="w-20 h-20 bg-yellow-500/10 rounded-full flex items-center justify-center mb-6">
+           <AlertTriangleIcon className="h-10 w-10 text-yellow-500" />
+        </div>
+        <h3 className="font-clash text-2xl text-white mb-2">
+          {t.tournamentManage.bracketGen.statusRegNotClosed}
         </h3>
-        <p className="text-gray-400 font-sans mt-2">
-          {t.tournamentManage.bracketGen.descRegNotClosed}{' '}
-          <span className="font-bold text-coc-yellow">
-            {tournament.status === 'scheduled'
-              ? t.tournament.cardStatusDraft
-              : t.tournament.cardStatusRegistering}
-          </span>
-          .
+        <p className="text-gray-400 font-sans max-w-lg mx-auto mb-4">
+          {t.tournamentManage.bracketGen.descRegNotClosed}
         </p>
-        <p className="text-gray-400 font-sans mt-1">
-          {t.tournamentManage.bracketGen.descRegNotClosedAuto.replace('{date}', new Date(tournament.registrationEndsAt).toLocaleString(locale))} {/* [i18n] */}
-        </p>
+        <div className="inline-block px-4 py-2 bg-black/40 rounded-lg border border-white/10 text-sm font-mono text-gray-300">
+           Tutup pada: {new Date(tournament.registrationEndsAt).toLocaleString(locale)}
+        </div>
       </div>
     );
   }
 
   return (
-    <>
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
       <Notification notification={notification ?? undefined} />
 
       <AlertDialog
@@ -282,104 +291,117 @@ const BracketGenerator: React.FC<BracketGeneratorProps> = ({
         isConfirmLoading={isActionLoading}
         confirmText={
           modalState?.type === 'startUnderQuota'
-            ? t.tournamentManage.bracketGen.modalStartConfirm // [i18n]
-            : t.tournamentManage.bracketGen.modalCancelConfirm // [i18n]
+            ? t.tournamentManage.bracketGen.modalStartConfirm
+            : t.tournamentManage.bracketGen.modalCancelConfirm
         }
         type={modalState?.type === 'cancel' ? 'danger' : 'info'}
       />
 
+      {/* --- 3. Kondisi Ideal: Siap Generate --- */}
       {isIdeal && (
-        <div className="card-stone p-6 rounded-lg border border-coc-gold/50 text-center bg-coc-gold/10">
-          <TrophyIcon className="h-12 w-12 text-coc-gold mx-auto mb-4" />
-          <h3 className="font-clash text-2xl text-white">
-            {t.tournamentManage.bracketGen.titleReady} {/* [i18n] */}
+        <div className="bg-coc-gold/5 border border-coc-gold/20 p-8 rounded-2xl text-center shadow-lg relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-coc-gold/10 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/2" />
+          
+          <TrophyIcon className="h-16 w-16 text-coc-gold mx-auto mb-4 drop-shadow-md" />
+          <h3 className="font-clash text-3xl text-white mb-2">
+            {t.tournamentManage.bracketGen.titleReady}
           </h3>
-          <p className="text-gray-300 font-sans mt-2 max-w-md mx-auto">
-            {t.tournamentManage.bracketGen.descReady.replace('{count}', approvedCount.toString())} {/* [i18n] */}
+          <p className="text-gray-300 font-sans text-lg mb-6">
+            {t.tournamentManage.bracketGen.descReady.replace('{count}', approvedCount.toString())}
           </p>
-          <p className="text-sm text-coc-yellow/80 font-sans mt-3">
-            <span className="font-bold">{t.tournamentManage.bracketGen.attention}</span> {/* [i18n] */}
-          </p>
+          
           <Button
             variant="primary"
             size="lg"
-            className="mt-6"
+            className="w-full sm:w-auto px-8 py-6 text-lg font-bold shadow-xl shadow-coc-gold/20"
             onClick={handleGenerateBracket}
             disabled={isActionLoading}
           >
-            {isActionLoading && (
-              <Loader2Icon className="h-5 w-5 animate-spin mr-2" />
+            {isActionLoading ? (
+              <Loader2Icon className="h-6 w-6 animate-spin mr-2" />
+            ) : (
+               <TrophyIcon className="h-6 w-6 mr-2" />
             )}
-            {isActionLoading ? t.tournamentManage.bracketGen.btnGenerating : t.tournamentManage.bracketGen.btnGenerate} {/* [i18n] */}
+            {isActionLoading ? t.tournamentManage.bracketGen.btnGenerating : t.tournamentManage.bracketGen.btnGenerate}
           </Button>
+          
+          <p className="text-xs text-yellow-500/80 mt-4 font-bold uppercase tracking-wider">
+            {t.tournamentManage.bracketGen.attention}
+          </p>
         </div>
       )}
 
+      {/* --- 4. Kondisi Under Quota --- */}
       {isUnderQuota && (
-        <div className="card-stone p-5 rounded-lg border border-coc-red/50 text-center bg-coc-red/10">
-          <AlertTriangleIcon className="h-10 w-10 text-coc-red/70 mx-auto mb-3" />
-          <h3 className="font-clash text-xl text-white">
-            {t.tournamentManage.bracketGen.titleUnderQuota} {/* [i18n] */}
+        <div className="bg-red-500/5 border border-red-500/20 p-8 rounded-2xl text-center shadow-lg relative overflow-hidden">
+          <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+             <AlertTriangleIcon className="h-8 w-8 text-red-500" />
+          </div>
+          
+          <h3 className="font-clash text-2xl text-white mb-2">
+            {t.tournamentManage.bracketGen.titleUnderQuota}
           </h3>
-          <p className="text-gray-400 font-sans mt-2">
-            {t.tournamentManage.bracketGen.descUnderQuota} {/* [i18n] */}
-          </p>
-          <p className="font-clash text-2xl text-white mt-2">
-            {approvedCount} / {tournament.participantCount}
-            <span className="text-sm text-gray-400 font-sans ml-2">
-              ({t.tournamentManage.partApproved})
-            </span>
-          </p>
-          <p className="text-gray-300 font-sans mt-4 max-w-md mx-auto">
-            {t.tournamentManage.bracketGen.descOptions} {/* [i18n] */}
+          
+          <div className="my-6">
+             <span className="text-5xl font-clash text-white font-bold">{approvedCount}</span>
+             <span className="text-xl text-gray-500 font-clash"> / {tournament.participantCount}</span>
+             <p className="text-sm text-coc-green font-bold uppercase tracking-wider mt-1">{t.tournamentManage.partApproved}</p>
+          </div>
+
+          <p className="text-gray-300 font-sans mb-8 max-w-lg mx-auto">
+            {t.tournamentManage.bracketGen.descOptions}
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mt-6">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
               variant="primary"
+              size="lg"
+              className="w-full sm:w-auto"
               disabled={isActionLoading}
               onClick={openStartModal}
             >
               <PlayIcon className="h-5 w-5 mr-2" />
-              {t.tournamentManage.bracketGen.btnStartUnderQuota.replace('{count}', approvedCount.toString())} {/* [i18n] */}
+              {t.tournamentManage.bracketGen.btnStartUnderQuota.replace('{count}', approvedCount.toString())}
             </Button>
 
             <Button
               variant="danger"
+              size="lg"
+              className="w-full sm:w-auto bg-red-500/10 hover:bg-red-500/20 text-red-500 border-red-500/30"
               disabled={isActionLoading}
               onClick={openCancelModal}
             >
               <XIcon className="h-5 w-5 mr-2" />
-              {t.tournamentManage.bracketGen.btnCancelTournament} {/* [i18n] */}
+              {t.tournamentManage.bracketGen.btnCancelTournament}
             </Button>
           </div>
         </div>
       )}
 
+      {/* --- 5. Kondisi Kosong --- */}
       {isEmpty && (
-        <div className="card-stone p-5 rounded-lg border border-coc-gold-dark/30 text-center">
-          <AlertTriangleIcon className="h-10 w-10 text-gray-500 mx-auto mb-3" />
-          <h3 className="font-clash text-xl text-white">
-            {t.tournamentManage.bracketGen.titleEmpty} {/* [i18n] */}
+        <div className="bg-white/5 border border-white/5 p-10 rounded-2xl text-center">
+          <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
+             <XIcon className="h-8 w-8 text-gray-500" />
+          </div>
+          <h3 className="font-clash text-2xl text-white mb-2">
+            {t.tournamentManage.bracketGen.titleEmpty}
           </h3>
-          <p className="text-gray-400 font-sans mt-2">
-            {t.tournamentManage.bracketGen.descEmpty} {/* [i18n] */}
-          </p>
-          <p className="font-clash text-2xl text-white mt-2">
-            0 / {tournament.participantCount}
+          <p className="text-gray-400 font-sans mb-8">
+            {t.tournamentManage.bracketGen.descEmpty}
           </p>
           <Button
             variant="danger"
-            className="mt-6"
-            disabled={isActionLoading}
             onClick={openCancelModal}
+            disabled={isActionLoading}
+            className="w-full sm:w-auto"
           >
             <XIcon className="h-5 w-5 mr-2" />
-            {t.tournamentManage.bracketGen.btnCancelTournament} {/* [i18n] */}
+            {t.tournamentManage.bracketGen.btnCancelTournament}
           </Button>
         </div>
       )}
-    </>
+    </div>
   );
 };
 

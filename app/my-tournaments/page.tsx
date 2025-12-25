@@ -1,7 +1,3 @@
-// File: app/my-tournaments/page.tsx
-// Deskripsi: [BARU - FASE 4] Halaman "Hub" untuk panitia turnamen.
-// Menampilkan daftar turnamen yang dikelola oleh pengguna saat ini.
-
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getSessionUser } from '@/lib/server-auth';
@@ -10,14 +6,10 @@ import { COLLECTIONS } from '@/lib/firestore-collections';
 import { Tournament, FirestoreDocument } from '@/lib/clashub.types';
 import { docToDataAdmin } from '@/lib/firestore-admin/utils';
 import { Button } from '@/app/components/ui/Button';
-import { PlusIcon, InfoIcon, TrophyIcon } from '@/app/components/icons'; // Impor Ikon
+import { PlusIcon, InfoIcon, TrophyIcon, EditIcon, SettingsIcon } from '@/app/components/icons'; 
 import { Query } from 'firebase-admin/firestore';
 
 // --- [Komponen Internal] Kartu Turnamen untuk Manajemen ---
-// Adaptasi dari TournamentCard di app/components/cards.tsx
-// Perbedaan utama: Link mengarah ke /manage
-// --------------------------------------------------------
-
 type ManagementCardProps = {
   tournament: FirestoreDocument<Tournament>;
 };
@@ -35,33 +27,40 @@ const ManagementTournamentCard = ({ tournament }: ManagementCardProps) => {
       case 'registration_open':
         return {
           text: 'Pendaftaran Dibuka',
-          styles: 'border-coc-green bg-coc-green/10',
-          badgeStyles: 'bg-coc-green text-coc-stone-dark',
+          styles: 'border-l-4 border-coc-green hover:shadow-coc-green/10',
+          badgeStyles: 'bg-coc-green/10 text-coc-green border-coc-green/20',
         };
       case 'registration_closed':
         return {
           text: 'Pendaftaran Ditutup',
-          styles: 'border-coc-blue bg-coc-blue/10',
-          badgeStyles: 'bg-coc-blue text-white',
+          styles: 'border-l-4 border-coc-blue hover:shadow-coc-blue/10',
+          badgeStyles: 'bg-coc-blue/10 text-coc-blue border-coc-blue/20',
         };
       case 'ongoing':
         return {
           text: 'Sedang Berlangsung',
-          styles: 'border-coc-red bg-coc-red/10 animate-pulse',
-          badgeStyles: 'bg-coc-red text-white',
+          styles: 'border-l-4 border-coc-red hover:shadow-coc-red/10',
+          badgeStyles: 'bg-coc-red/10 text-coc-red border-coc-red/20 animate-pulse',
         };
       case 'completed':
         return {
           text: 'Selesai',
-          styles: 'border-gray-500 bg-gray-500/10 opacity-70',
-          badgeStyles: 'bg-gray-500 text-white',
+          styles: 'border-l-4 border-purple-500 hover:shadow-purple-500/10 opacity-80',
+          badgeStyles: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
         };
+      case 'cancelled':
+        return {
+           text: 'Dibatalkan',
+           styles: 'border-l-4 border-red-700 hover:shadow-red-900/10 opacity-60',
+           badgeStyles: 'bg-red-900/20 text-red-400 border-red-700/30',
+        }
       case 'draft':
+      case 'scheduled':
       default:
         return {
-          text: 'Draft',
-          styles: 'border-gray-400 bg-gray-400/10 opacity-80',
-          badgeStyles: 'bg-gray-400 text-coc-stone-dark',
+          text: 'Draft / Terjadwal',
+          styles: 'border-l-4 border-gray-500 hover:shadow-gray-500/10',
+          badgeStyles: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
         };
     }
   };
@@ -75,7 +74,6 @@ const ManagementTournamentCard = ({ tournament }: ManagementCardProps) => {
       return `Seragam TH ${req.allowedLevels[0]}`;
     }
     if (req.type === 'mixed') {
-      // Mengurutkan dan menghitung TH unik
       const counts: { [key: number]: number } = {};
       req.allowedLevels.forEach((th) => (counts[th] = (counts[th] || 0) + 1));
       return Object.keys(counts)
@@ -92,32 +90,43 @@ const ManagementTournamentCard = ({ tournament }: ManagementCardProps) => {
 
   return (
     <div
-      className={`card-stone flex flex-col sm:flex-row justify-between items-center p-6 gap-4 border-l-4 ${statusInfo.styles} transition-shadow hover:shadow-xl rounded-lg`}
+      className={`bg-black/40 backdrop-blur-md border border-white/5 p-6 rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:bg-black/50 group ${statusInfo.styles}`}
     >
-      <div className="flex-grow w-full sm:w-auto">
-        <h4 className="font-clash text-xl text-white leading-snug">
-          {title}
-        </h4>
-        <div className="text-sm text-gray-300 space-y-1 mt-2 font-sans">
-          <p>
-            Syarat:{' '}
-            <span className="font-bold text-white">{thReqText}</span>
-          </p>
-          <p>
-            Hadiah: <span className="font-bold text-coc-gold">{prizePool}</span>
-          </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+        {/* Info Utama */}
+        <div className="flex-grow space-y-2">
+          <div className="flex items-center gap-3 flex-wrap">
+             <span className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full border ${statusInfo.badgeStyles}`}>
+                {statusInfo.text}
+             </span>
+             <span className="text-xs font-mono text-gray-500">ID: {id}</span>
+          </div>
+          
+          <h4 className="font-clash text-2xl font-bold text-white group-hover:text-coc-gold transition-colors">
+            {title}
+          </h4>
+          
+          <div className="flex flex-wrap gap-4 text-sm text-gray-400 font-sans">
+            <div className="flex items-center gap-1.5">
+               <div className="w-1.5 h-1.5 rounded-full bg-coc-blue" />
+               <span>Syarat: <span className="text-gray-300 font-semibold">{thReqText}</span></span>
+            </div>
+            <div className="flex items-center gap-1.5">
+               <div className="w-1.5 h-1.5 rounded-full bg-coc-gold" />
+               <span>Hadiah: <span className="text-coc-gold font-semibold">{prizePool}</span></span>
+            </div>
+          </div>
         </div>
-      </div>
-      <div className="flex flex-col items-stretch sm:items-end gap-3 w-full sm:w-auto mt-4 sm:mt-0">
-        <span
-          className={`px-3 py-1 text-xs font-bold rounded-full text-center font-sans ${statusInfo.badgeStyles}`}
-        >
-          {statusInfo.text}
-        </span>
-        {/* PENTING: Link mengarah ke halaman /manage */}
-        <Button href={`/tournament/${id}/manage`} variant="secondary" className="w-full sm:w-auto">
-          Kelola Turnamen
-        </Button>
+
+        {/* Actions */}
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+          <Button href={`/tournament/${id}`} variant="outline" size="sm" className="w-full sm:w-auto border-white/10 hover:bg-white/5">
+             <InfoIcon className="h-4 w-4 mr-2" /> Detail
+          </Button>
+          <Button href={`/tournament/${id}/manage`} variant="primary" size="sm" className="w-full sm:w-auto shadow-lg shadow-coc-gold/10">
+             <SettingsIcon className="h-4 w-4 mr-2" /> Kelola
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -129,7 +138,7 @@ async function getManagedTournaments(
 ): Promise<FirestoreDocument<Tournament>[]> {
   const tournamentsRef = adminFirestore.collection(
     COLLECTIONS.TOURNAMENTS,
-  ) as unknown as Query<Tournament>; // <--- [PERBAIKAN] Tambahkan 'as unknown' di sini
+  ) as unknown as Query<Tournament>;
 
   // Query 1: Dimana user adalah organizer
   const organizerQuery = tournamentsRef.where('organizerUid', '==', userId);
@@ -148,91 +157,93 @@ async function getManagedTournaments(
 
     const tournamentsMap = new Map<string, FirestoreDocument<Tournament>>();
 
-    // Tambahkan hasil organizer
     organizerSnap.docs.forEach((doc) => {
       const data = docToDataAdmin<Tournament>(doc);
-      if (data) {
-        tournamentsMap.set(doc.id, data);
-      }
+      if (data) tournamentsMap.set(doc.id, data);
     });
 
-    // Tambahkan hasil panitia (Map akan otomatis menangani duplikat)
     committeeSnap.docs.forEach((doc) => {
       const data = docToDataAdmin<Tournament>(doc);
-      if (data) {
-        tournamentsMap.set(doc.id, data);
-      }
+      if (data) tournamentsMap.set(doc.id, data);
     });
 
-    // Konversi Map kembali ke array dan urutkan
     const combinedList = Array.from(tournamentsMap.values());
     
-    // [PERBAIKAN UTAMA] Ganti 'startsAt' menjadi 'tournamentStartsAt'
-    // Menggunakan .getTime() agar aman secara tipe data TypeScript
+    // Sort by start date (newest first)
     combinedList.sort((a, b) => {
         const timeA = a.tournamentStartsAt ? a.tournamentStartsAt.getTime() : 0;
         const timeB = b.tournamentStartsAt ? b.tournamentStartsAt.getTime() : 0;
-        return timeB - timeA; // Urutkan terbaru (descending)
+        return timeB - timeA; 
     });
 
     return combinedList;
   } catch (error) {
-    console.error('Firestore Error [getManagedTournaments - Admin]:', error);
-    return []; // Kembalikan array kosong jika terjadi error
+    console.error('Firestore Error [getManagedTournaments]:', error);
+    return [];
   }
 }
 
 // --- [Halaman Utama] ---
 export default async function MyTournamentsPage() {
-  // 1. Ambil sesi user
   const sessionUser = await getSessionUser();
   if (!sessionUser) {
-    redirect('/auth'); // Wajib login untuk melihat halaman ini
+    redirect('/auth');
   }
 
-  // 2. Fetch turnamen yang dikelola user
   const tournaments = await getManagedTournaments(sessionUser.uid);
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Header Halaman */}
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
-        <div className="flex items-center gap-3">
-          <TrophyIcon className="h-8 w-8 text-coc-gold" />
-          <h1 className="font-clash text-3xl text-white">
-            Manajemen Turnamen
-          </h1>
-        </div>
-        <Button href="/tournament/create" variant="primary" size="md">
-          <PlusIcon className="h-5 w-5 mr-2" />
-          Buat Turnamen Baru
-        </Button>
-      </div>
+    <div className="min-h-screen bg-coc-dark text-white font-clash relative overflow-x-hidden">
+       {/* Background Ambience */}
+       <div className="fixed top-0 left-0 w-full h-[500px] bg-gradient-to-b from-coc-blue/10 via-transparent to-transparent pointer-events-none z-0" />
+       
+       <div className="relative z-10 container mx-auto px-4 py-8 md:py-12 max-w-5xl">
+          
+          {/* Header */}
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-10">
+             <div className="text-center md:text-left">
+                <h1 className="text-3xl md:text-4xl font-bold text-white mb-2 flex items-center justify-center md:justify-start gap-3">
+                   <TrophyIcon className="h-8 w-8 text-coc-gold" />
+                   Manajemen Turnamen
+                </h1>
+                <p className="text-gray-400 font-sans max-w-md">
+                   Kelola turnamen yang Anda buat atau panitiai di sini.
+                </p>
+             </div>
+             
+             <Button href="/tournament/create" variant="primary" size="lg" className="shadow-xl shadow-coc-gold/20">
+                <PlusIcon className="h-5 w-5 mr-2" />
+                Buat Turnamen Baru
+             </Button>
+          </div>
 
-      {/* Konten Halaman */}
-      {tournaments.length === 0 ? (
-        // Tampilan Empty State
-        <div className="card-stone flex flex-col items-center justify-center gap-4 p-10 text-center rounded-lg">
-          <InfoIcon className="h-12 w-12 text-coc-gold/50" />
-          <h3 className="font-clash text-xl text-white">
-            Anda Belum Mengelola Turnamen
-          </h3>
-          <p className="text-gray-400 max-w-md">
-            Anda dapat membuat turnamen baru atau meminta organizer lain untuk
-            menambahkan Anda sebagai panitia.
-          </p>
-        </div>
-      ) : (
-        // Daftar Turnamen
-        <div className="grid grid-cols-1 gap-6">
-          {tournaments.map((tournament) => (
-            <ManagementTournamentCard
-              key={tournament.id}
-              tournament={tournament}
-            />
-          ))}
-        </div>
-      )}
+          {/* Konten */}
+          {tournaments.length === 0 ? (
+            <div className="bg-black/40 backdrop-blur-md border border-white/5 rounded-3xl p-12 text-center flex flex-col items-center justify-center shadow-2xl">
+               <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mb-6">
+                  <InfoIcon className="h-12 w-12 text-gray-600" />
+               </div>
+               <h3 className="text-2xl font-bold text-white mb-3">
+                  Belum Ada Turnamen
+               </h3>
+               <p className="text-gray-400 max-w-lg mb-8 font-sans leading-relaxed">
+                  Anda belum mengelola turnamen apapun saat ini. Mulailah dengan membuat turnamen baru untuk komunitas Anda!
+               </p>
+               <Button href="/tournament/create" variant="outline" className="border-coc-gold/30 text-coc-gold hover:bg-coc-gold/10">
+                  Mulai Buat Turnamen
+               </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-6">
+               {tournaments.map((tournament) => (
+                  <ManagementTournamentCard
+                     key={tournament.id}
+                     tournament={tournament}
+                  />
+               ))}
+            </div>
+          )}
+       </div>
     </div>
   );
 }

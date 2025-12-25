@@ -11,18 +11,13 @@ import {
   EditIcon,
   TrashIcon,
   RefreshCwIcon,
-  // HeartIcon, // [HAPUS] Hapus import HeartIcon untuk menghindari error jika tidak ada
+  ThumbsUpIcon, // Menggunakan ThumbsUpIcon yang sudah ada di library ikon utama
+  SaveIcon,
+  CheckIcon
 } from '@/app/components/icons';
 import { ServerUser } from '@/lib/server-auth';
 import { useAuth } from '@/app/context/AuthContext';
 import { useLanguage } from '@/lib/hooks/useLanguage';
-
-// [FIX] Definisikan Icon Heart secara lokal/inline agar aman
-const HeartIcon = ({ className, fill }: { className?: string; fill?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill={fill || "none"} viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
-  </svg>
-);
 
 // Definisikan props untuk komponen ini
 interface PostActionButtonsProps {
@@ -43,15 +38,12 @@ const PostActionButtons: React.FC<PostActionButtonsProps> = ({
   sessionUser,
 }) => {
   const router = useRouter();
-  const { t, language } = useLanguage(); // Hook bahasa
+  const { t } = useLanguage(); 
   
-  const [notification, setNotification] = useState<NotificationProps | null>(
-    null,
-  );
-  const [confirmation, setConfirmation] = useState<ConfirmationProps | null>(
-    null,
-  );
+  const [notification, setNotification] = useState<NotificationProps | null>(null);
+  const [confirmation, setConfirmation] = useState<ConfirmationProps | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
 
   // --- Hooks untuk Fitur Like ---
   const { userProfile, loading: authLoading } = useAuth();
@@ -70,6 +62,14 @@ const PostActionButtons: React.FC<PostActionButtonsProps> = ({
     type: NotificationProps['type'],
   ) => {
     setNotification({ message, type, onClose: () => setNotification(null) });
+  };
+
+  // Handler Share Link
+  const handleShare = () => {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
   };
 
   // Handler untuk menampilkan konfirmasi sebelum menghapus
@@ -165,58 +165,61 @@ const PostActionButtons: React.FC<PostActionButtonsProps> = ({
       {notification && <Notification notification={notification} />}
       {confirmation && <Notification confirmation={confirmation} />}
 
-      <div className="flex justify-between items-center gap-4 pt-4 border-t border-coc-gold-dark/20">
+      <div className="flex flex-wrap justify-between items-center gap-4">
         
-        {/* Tombol Like (Sisi Kiri) */}
-        <div>
+        {/* Group Kiri: Social Actions (Like & Share) */}
+        <div className="flex gap-3">
           <Button
-            variant={isLiked ? 'primary' : 'secondary'}
+            variant={isLiked ? 'primary' : 'outline'}
             size="sm"
             onClick={handleLike}
             disabled={isLiking || authLoading || !sessionUser}
-            className={`flex items-center gap-2 ${
+            className={`flex items-center gap-2 border transition-all duration-300 ${
               isLiked
-                ? 'bg-coc-red/90 border-coc-red text-white hover:bg-coc-red'
-                : ''
+                ? 'bg-coc-gold/10 text-coc-gold border-coc-gold/30 shadow-lg shadow-coc-gold/10 hover:bg-coc-gold/20'
+                : 'text-gray-400 border-white/10 hover:text-white hover:bg-white/5'
             }`}
           >
             {isLiking ? (
               <RefreshCwIcon className="h-4 w-4 animate-spin" />
             ) : (
-              <HeartIcon
-                className="h-4 w-4"
-                fill={isLiked ? 'currentColor' : 'none'}
+              <ThumbsUpIcon
+                className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`}
               />
             )}
-            {/* Gunakan variabel bahasa untuk 'Suka' / 'Likes' */}
-            <span>{likes.length} {t.knowledgeHub.detail.meta.likes}</span>
+            <span className="font-bold">{likes.length}</span> 
+            <span className="hidden sm:inline">{t.knowledgeHub.detail.meta.likes}</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleShare}
+            className="border-white/10 text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+          >
+            {isCopied ? <CheckIcon className="mr-2 h-4 w-4 text-green-400" /> : <SaveIcon className="mr-2 h-4 w-4" />}
+            {isCopied ? 'Link Copied!' : t.knowledgeHub.detail.actions.share}
           </Button>
         </div>
 
-        {/* Tombol Aksi Penulis (Sisi Kanan) */}
+        {/* Group Kanan: Author Actions (Edit & Delete) */}
         {isAuthor && (
-          <div className="flex justify-end gap-4">
-            {/* Tombol Edit */}
+          <div className="flex gap-3">
             <Button
               href={`/knowledge-hub/create?postId=${postId}`}
               variant="secondary"
               size="sm"
-              className={
-                isDeleting
-                  ? 'opacity-50 cursor-not-allowed pointer-events-none'
-                  : ''
-              }
+              className="border-coc-blue/30 text-coc-blue hover:bg-coc-blue/10 transition-colors"
             >
-              <EditIcon className="h-4 w-4 mr-2" /> {t.knowledgeHub.detail.actions.edit}
+              <EditIcon className="mr-2 h-4 w-4" /> {t.knowledgeHub.detail.actions.edit}
             </Button>
 
-            {/* Tombol Hapus */}
             <Button
               onClick={confirmDelete}
               variant="secondary"
               size="sm"
               disabled={isDeleting}
-              className="bg-coc-red/70 border-coc-red text-white hover:bg-coc-red"
+              className="bg-coc-red/10 border-coc-red/30 text-coc-red hover:bg-coc-red/20 transition-colors"
             >
               {isDeleting ? (
                 <RefreshCwIcon className="h-4 w-4 mr-2 animate-spin" />

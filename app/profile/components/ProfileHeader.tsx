@@ -6,8 +6,9 @@ import {
   AlertTriangleIcon,
   ShieldIcon,
   ExternalLinkIcon,
+  EditIcon
 } from '@/app/components/icons';
-import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 interface ProfileHeaderProps {
   isVerified: boolean;
@@ -18,7 +19,7 @@ interface ProfileHeaderProps {
 
 /**
  * Komponen Header untuk halaman profil.
- * Menampilkan status verifikasi dan tombol aksi (Edit, Link CoC).
+ * Desain: Glassmorphism Card dengan layout responsif.
  */
 export const ProfileHeader = ({
   isVerified,
@@ -26,62 +27,72 @@ export const ProfileHeader = ({
   inGameName,
   cocProfileUrl,
 }: ProfileHeaderProps) => {
-  const { t } = useLanguage(); // [BARU]
+  const { t } = useLanguage();
 
   return (
-    <header className="flex justify-between items-center flex-wrap gap-4 mb-6 card-stone p-6 rounded-lg">
-      {/* Status Verifikasi */}
-      <div
-        className={`flex items-center gap-3 p-2 rounded ${
-          isVerified ? 'bg-coc-green/10' : 'bg-coc-red/10'
-        }`}
-      >
-        {isVerified ? (
-          <ShieldIcon className="h-6 w-6 text-coc-green flex-shrink-0" />
-        ) : (
-          <AlertTriangleIcon className="h-6 w-6 text-coc-red flex-shrink-0" />
-        )}
-        <p className="text-sm font-sans font-semibold text-white">
+    <header className="flex flex-col md:flex-row justify-between items-center gap-4 bg-black/40 backdrop-blur-md border border-white/5 p-6 rounded-2xl shadow-lg relative overflow-hidden group">
+      {/* Background Gradient Accent */}
+      <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-coc-gold to-transparent opacity-50" />
+      
+      {/* Status Verifikasi & Nama */}
+      <div className="flex items-center gap-4 w-full md:w-auto">
+        <div
+          className={`flex items-center justify-center p-3 rounded-full flex-shrink-0 ${
+            isVerified 
+              ? 'bg-coc-green/10 text-coc-green ring-1 ring-coc-green/30' 
+              : 'bg-coc-red/10 text-coc-red ring-1 ring-coc-red/30'
+          }`}
+        >
           {isVerified ? (
-            <>
-              {/* [TERJEMAHAN] */}
-              <span className="font-bold">{t.profileHeader.verified}</span>
-              {inGameName && inGameName !== displayName
-                ? ` (${inGameName})`
-                : ''}
-            </>
+            <ShieldIcon className="h-6 w-6" />
           ) : (
-            <>
-              {/* [TERJEMAHAN] */}
-              <span className="font-bold">{t.profileHeader.unverified}</span>.
-            </>
+            <AlertTriangleIcon className="h-6 w-6" />
           )}
-        </p>
+        </div>
+        
+        <div className="flex flex-col">
+          <h1 className="text-white font-clash text-xl md:text-2xl leading-none mb-1 break-all">
+            {displayName}
+          </h1>
+          <p className="text-sm font-medium text-gray-400 flex items-center flex-wrap gap-1">
+            {isVerified ? (
+              <>
+                <span className="text-coc-green font-bold">{t.profileHeader.verified}</span>
+                {inGameName && inGameName !== displayName && (
+                  <span className="text-gray-500">• {inGameName}</span>
+                )}
+              </>
+            ) : (
+              <span className="text-coc-red font-bold">{t.profileHeader.unverified}</span>
+            )}
+          </p>
+        </div>
       </div>
 
       {/* Tombol Aksi */}
-      <div className="flex gap-4 flex-wrap">
+      <div className="flex gap-3 w-full md:w-auto mt-2 md:mt-0">
         {/* Tombol Lihat Profil CoC (jika terverifikasi) */}
         {cocProfileUrl && (
           <Button
             href={cocProfileUrl}
             target="_blank"
-            variant="secondary"
+            variant="outline"
             size="sm"
-            className="flex-shrink-0"
+            className="flex-1 md:flex-none border-white/10 hover:border-coc-blue/50 hover:bg-coc-blue/10 text-coc-blue"
           >
-            <ExternalLinkIcon className="h-4 w-4 mr-2" /> {t.profileHeader.viewCocProfile}
+            <ExternalLinkIcon className="h-4 w-4 mr-2" /> 
+            {t.profileHeader.viewCocProfile}
           </Button>
         )}
+        
         <Button
           href="/profile/edit"
-          variant="primary" // Ubah jadi primary untuk edit
+          variant="primary"
           size="sm"
-          className="flex-shrink-0"
+          className="flex-1 md:flex-none shadow-lg shadow-coc-gold/10"
         >
-          {isVerified
-            ? t.profileHeader.editVerify
-            : t.profileHeader.editStartVerify}
+          <EditIcon className="h-4 w-4 mr-2" />
+          {isVerified ? t.profileHeader.editVerify : t.profileHeader.editStartVerify}
         </Button>
       </div>
     </header>

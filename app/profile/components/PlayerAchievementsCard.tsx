@@ -1,121 +1,100 @@
 'use client';
 
 import React from 'react';
-// [MODIFIKASI 6.5] Impor UserProfile
 import { CocPlayer, UserProfile } from '@/lib/types';
-import { TrophyIcon } from '@/app/components/icons'; // Menggunakan ikon Trofi
-import { formatNumber } from '@/lib/th-utils'; // Util format angka
-import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
+import { TrophyIcon } from '@/app/components/icons';
+import { formatNumber } from '@/lib/th-utils';
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 interface PlayerAchievementsCardProps {
-  // [MODIFIKASI 6.5] Tambahkan userProfile
-  userProfile: UserProfile; // Data cache dari Firebase
+  userProfile: UserProfile;
   fullPlayerData?: CocPlayer | null;
   isLoading?: boolean;
   error?: string | null;
 }
 
-// [FASE 5] Daftar pencapaian yang ingin kita tampilkan.
-// Kita tidak menampilkan SEMUA, hanya yang relevan.
-// "War Hero" (Bintang War) sengaja di-skip karena sudah ada di GameStatusCard.
+// Daftar pencapaian yang relevan untuk ditampilkan
 const RELEVANT_ACHIEVEMENTS: Set<string> = new Set([
-  'Friend in Need', // Donasi
-  'Gold Grab', // Rampasan Gold
-  'Elixir Escapade', // Rampasan Elixir
-  'Heroic Heist', // Rampasan Dark Elixir
-  'Conqueror', // Serangan Menang
-  'Unbreakable', // Defense Menang
-  'Games Champion', // Poin Clan Games
-  'War League Legend', // Bintang CWL
-  'Aggressive Approach', // Rampasan Capital
+  'Friend in Need',       // Donasi
+  'Gold Grab',            // Rampasan Gold
+  'Elixir Escapade',      // Rampasan Elixir
+  'Heroic Heist',         // Rampasan Dark Elixir
+  'Conqueror',            // Serangan Menang
+  'Unbreakable',          // Defense Menang
+  'Games Champion',       // Poin Clan Games
+  'War League Legend',    // Bintang CWL
+  'Aggressive Approach',  // Rampasan Capital
   'Most Valuable Clanmate', // Mata Uang Capital
 ]);
 
 /**
- * Komponen Card untuk menampilkan "Pencapaian" di halaman profil.
+ * Komponen Card "Pencapaian".
+ * Desain: Glassmorphism Grid.
  */
 export const PlayerAchievementsCard = ({
-  // [MODIFIKASI 6.5] Destructure userProfile
   userProfile,
   fullPlayerData,
   isLoading,
   error,
 }: PlayerAchievementsCardProps) => {
-  const { t } = useLanguage(); // [BARU]
-  // --- [MODIFIKASI FASE 6.5] ---
-  // Logika Penggabungan Data:
-  // 1. Coba 'fullPlayerData.achievements' (live)
-  // 2. Fallback ke 'userProfile.cachedAchievements' (cache)
-  const achievementsData =
-    fullPlayerData?.achievements ?? userProfile?.cachedAchievements ?? [];
-  // --- [AKHIR MODIFIKASI] ---
+  const { t } = useLanguage();
 
-  // Filter hanya achievements yang relevan dan dari Home Village
-  const filteredAchievements =
-    achievementsData?.filter(
-      (ach) =>
-        ach.village === 'home' && RELEVANT_ACHIEVEMENTS.has(ach.name),
-    ) ?? [];
+  // Logika Data: Live > Cache > Empty Array
+  const achievementsData = fullPlayerData?.achievements ?? userProfile?.cachedAchievements ?? [];
 
-  // --- [MODIFIKASI FASE 6.5] Logika Tampilan ---
-  // Tampilkan loading HANYA jika data live sedang loading
-  // DAN kita tidak punya data cache untuk ditampilkan.
-  const showLoading =
-    isLoading && !fullPlayerData && !userProfile.cachedAchievements;
-  // --- [AKHIR MODIFIKASI] ---
+  const filteredAchievements = achievementsData.filter(
+    (ach) => ach.village === 'home' && RELEVANT_ACHIEVEMENTS.has(ach.name)
+  );
+
+  // Loading state: Hanya jika sedang fetch live DAN tidak ada cache
+  const showLoading = isLoading && !fullPlayerData && !userProfile.cachedAchievements;
 
   return (
-    <div className="card-stone p-6 rounded-lg">
-      <h2 className="mb-6 flex items-center gap-2 font-clash text-2xl text-white">
-        {/* [TERJEMAHAN] */}
-        <TrophyIcon className="h-6 w-6 text-coc-gold" /> {t.profileAchievements.title}
+    <div className="bg-black/40 backdrop-blur-md border border-white/5 rounded-2xl p-6 shadow-lg relative overflow-hidden">
+      {/* Decorative Glow */}
+      <div className="absolute top-0 right-0 w-40 h-40 bg-coc-gold/5 rounded-full blur-3xl pointer-events-none" />
+
+      <h2 className="mb-6 flex items-center gap-2 font-clash text-lg text-white relative z-10">
+        <TrophyIcon className="h-5 w-5 text-coc-gold" /> {t.profileAchievements.title}
       </h2>
 
-      {/* --- Handle Loading [MODIFIKASI 6.5] --- */}
-      {showLoading && (
-        <p className="text-sm text-gray-400 font-sans text-center">
-          {/* [TERJEMAHAN] */}
-          {t.profileAchievements.loading}
-        </p>
-      )}
-
-      {/* --- Handle Error --- */}
+      {/* Error Message */}
       {error && !isLoading && (
-        <p className="text-sm text-red-400 font-sans text-center">
-          {/* [TERJEMAHAN] */}
+        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-200 rounded-xl text-sm text-center">
           {t.profileAchievements.error.replace('{error}', error)}
-        </p>
-      )}
-
-      {/* --- Tampilkan Data [MODIFIKASI 6.5] --- */}
-      {!showLoading && !error && (
-        <div className="space-y-6">
-          {filteredAchievements.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-              {filteredAchievements.map((ach) => (
-                <div
-                  key={ach.name}
-                  className="bg-coc-stone/50 p-3 rounded-lg border border-coc-gold-dark/30 text-center"
-                >
-                  {/* Gunakan formatNumber dari th-utils */}
-                  <h4 className="text-xl text-coc-gold font-clash">
-                    {formatNumber(ach.value)}
-                  </h4>
-                  <p className="text-xs uppercase text-gray-400 font-sans truncate">
-                    {ach.name}
-                  </p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            // Tampilkan jika fetch selesai tapi tidak ada data
-            <p className="text-sm text-gray-400 font-sans text-center">
-              {/* [TERJEMAHAN] */}
-              {t.profileAchievements.empty}
-            </p>
-          )}
         </div>
       )}
+
+      {/* Content */}
+      <div className="relative z-10">
+        {showLoading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="bg-white/5 rounded-xl p-4 h-24 animate-pulse" />
+            ))}
+          </div>
+        ) : filteredAchievements.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
+            {filteredAchievements.map((ach) => (
+              <div
+                key={ach.name}
+                className="bg-white/5 border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center text-center hover:bg-white/10 hover:border-coc-gold/20 transition-all duration-300 group"
+              >
+                <h4 className="text-xl font-bold font-clash text-coc-gold mb-1 group-hover:scale-110 transition-transform">
+                  {formatNumber(ach.value)}
+                </h4>
+                <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold line-clamp-2">
+                  {ach.name}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500 bg-white/5 rounded-xl border border-white/5">
+            <p className="text-sm">{t.profileAchievements.empty}</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import React from 'react'; 
-import { redirect } from 'next/navigation';
+import { redirect, notFound } from 'next/navigation';
 import { getSessionUser } from '@/lib/server-auth';
 import { getTournamentByIdAdmin } from '@/lib/firestore-admin/tournaments';
 import { Tournament, FirestoreDocument } from '@/lib/clashub.types';
@@ -15,32 +15,28 @@ export default async function ManageTournamentPage({
   // 1. Ambil Sesi User
   const sessionUser = await getSessionUser();
   if (!sessionUser) {
-    redirect('/auth'); // Wajib login
+    redirect(`/auth?callbackUrl=/tournament/${tournamentId}/manage`);
   }
 
   // 2. Ambil Data Turnamen
   const tournamentData = await getTournamentByIdAdmin(tournamentId);
   
-  // Serialisasi data untuk Client Component (menghindari warning date object)
-  const tournament = tournamentData ? JSON.parse(JSON.stringify(tournamentData)) as FirestoreDocument<Tournament> : null;
-
-  // 3. Cek Keberadaan Data
-  if (!tournament) {
-    // Kirim state error 'not_found' ke client
-    return <ManageTournamentClient error="not_found" />;
+  if (!tournamentData) {
+    notFound();
   }
 
-  // 4. Validasi Keamanan
-  // Hanya bisa diakses oleh organizerUid ATAU committeeUids
+  const tournament = JSON.parse(JSON.stringify(tournamentData)) as FirestoreDocument<Tournament>;
+
+  // 3. Validasi Keamanan (Organizer / Committee)
   const isOrganizer = tournament.organizerUid === sessionUser.uid;
   const isCommittee = tournament.committeeUids?.includes(sessionUser.uid) || false;
 
   if (!isOrganizer && !isCommittee) {
-    // Kirim state error 'access_denied' ke client
+    // Jika user bukan panitia, redirect atau tampilkan error state
     return <ManageTournamentClient error="access_denied" />;
   }
 
-  // 5. Render Client Component (Sukses)
+  // 4. Render Client Component
   return (
     <ManageTournamentClient tournament={tournament} isOrganizer={isOrganizer} />
   );

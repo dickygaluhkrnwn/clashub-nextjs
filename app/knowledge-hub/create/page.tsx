@@ -5,7 +5,9 @@ import { getPostById } from '@/lib/firestore';
 import { Post } from '@/lib/types';
 import CreatePostClient from './CreatePostClient';
 
-// Metadata tetap bahasa Inggris untuk SEO global
+// Force dynamic agar tidak di-cache statis (penting untuk auth check)
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: "Clashub | Create New Post",
   description: "Create a new guide, strategy, or discussion for the Clash of Clans community Knowledge Hub.",
@@ -32,7 +34,6 @@ const CreatePostPage = async ({ searchParams }: CreatePostPageProps) => {
 
   const postIdToEdit = searchParams.postId;
   let postData: (Post & { id: string }) | null = null;
-  let isEditMode = false;
 
   // 2. Cek Mode Edit dan Ambil Data
   if (postIdToEdit) {
@@ -41,11 +42,10 @@ const CreatePostPage = async ({ searchParams }: CreatePostPageProps) => {
     if (result) {
       // Validasi: Pastikan pengguna yang login adalah penulis postingan
       if (result.authorId !== sessionUser.uid) {
-        // Jika bukan penulis, alihkan ke halaman detail atau tampilkan error
+        // Jika bukan penulis, alihkan ke halaman detail dengan error
         redirect(`/knowledge-hub/${postIdToEdit}?error=unauthorized`);
       }
       postData = result;
-      isEditMode = true;
     } else {
       // Jika postId ada tapi tidak ditemukan di DB
       redirect('/knowledge-hub?error=postNotFound');
@@ -53,10 +53,10 @@ const CreatePostPage = async ({ searchParams }: CreatePostPageProps) => {
   }
 
   // 3. Render Client Component
+  // Kita melakukan serialisasi JSON untuk memastikan tidak ada warning "Date object" dari Next.js
   return (
     <CreatePostClient 
-      initialData={postData} 
-      isEditMode={isEditMode} 
+      initialData={postData ? JSON.parse(JSON.stringify(postData)) : null} 
     />
   );
 };

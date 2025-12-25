@@ -1,102 +1,86 @@
 'use client';
 
 import React from 'react';
-// [MODIFIKASI 6.4] Impor UserProfile
 import { CocPlayer, UserProfile } from '@/lib/types';
-import { BookOpenIcon } from '@/app/components/icons'; // Menggunakan ikon "Buku" untuk Spells
-import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
+import { BookOpenIcon } from '@/app/components/icons';
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 interface PlayerSpellsCardProps {
-  // [MODIFIKASI 6.4] Tambahkan userProfile
-  userProfile: UserProfile; // Data cache dari Firebase
+  userProfile: UserProfile;
   fullPlayerData?: CocPlayer | null;
   isLoading?: boolean;
   error?: string | null;
 }
 
 /**
- * Komponen Card untuk menampilkan "Spell (Home Village)" di halaman profil.
+ * Komponen Card "Spell (Home Village)".
+ * Desain: Glassmorphism Grid.
  */
 export const PlayerSpellsCard = ({
-  // [MODIFIKASI 6.4] Destructure userProfile
   userProfile,
   fullPlayerData,
   isLoading,
   error,
 }: PlayerSpellsCardProps) => {
-  const { t } = useLanguage(); // [BARU]
-  // --- [MODIFIKASI FASE 6.4] ---
-  // Logika Penggabungan Data:
-  // 1. Coba 'fullPlayerData.spells' (live)
-  // 2. Fallback ke 'userProfile.cachedSpells' (cache)
-  const spellsData =
-    fullPlayerData?.spells ?? userProfile?.cachedSpells ?? [];
-  // --- [AKHIR MODIFIKASI] ---
+  const { t } = useLanguage();
 
-  // Hanya ambil spells untuk Home Village dan yang sudah di-unlock (level > 1)
-  const homeSpells =
-    spellsData.filter(
-      (s) => s.village === 'home' && s.level > 1,
-    ) ?? [];
+  // Logika Data: Live > Cache
+  const spellsData = fullPlayerData?.spells ?? userProfile?.cachedSpells ?? [];
 
-  // --- [MODIFIKASI FASE 6.4] Logika Tampilan ---
-  // Tampilkan loading HANYA jika data live sedang loading
-  // DAN kita tidak punya data cache untuk ditampilkan.
-  const showLoading =
-    isLoading && !fullPlayerData && !userProfile.cachedSpells;
-  // --- [AKHIR MODIFIKASI] ---
+  // Filter Spell Home Village & Level > 1
+  const homeSpells = spellsData.filter(
+    (s) => s.village === 'home' && s.level >= 1
+  );
+
+  const showLoading = isLoading && !fullPlayerData && !userProfile.cachedSpells;
 
   return (
-    <div className="card-stone p-6 rounded-lg">
-      <h2 className="mb-6 flex items-center gap-2 font-clash text-2xl text-white">
-        {/* [TERJEMAHAN] */}
-        <BookOpenIcon className="h-6 w-6 text-coc-gold" /> {t.profileArmy.spellsTitle}
+    <div className="bg-black/40 backdrop-blur-md border border-white/5 rounded-2xl p-6 shadow-lg relative overflow-hidden">
+      {/* Ambient Cyan Glow for Spells */}
+      <div className="absolute -bottom-10 right-10 w-40 h-40 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+
+      <h2 className="mb-6 flex items-center gap-2 font-clash text-lg text-white relative z-10">
+        <BookOpenIcon className="h-5 w-5 text-coc-gold" /> {t.profileArmy.spellsTitle}
       </h2>
 
-      {/* --- Handle Loading [MODIFIKASI 6.4] --- */}
-      {showLoading && (
-        <p className="text-sm text-gray-400 font-sans text-center">
-          {/* [TERJEMAHAN] */}
-          {t.profileArmy.spellsLoading}
-        </p>
-      )}
-
-      {/* --- Handle Error --- */}
       {error && !isLoading && (
-        <p className="text-sm text-red-400 font-sans text-center">
-          {/* [TERJEMAHAN] */}
+        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-200 rounded-xl text-sm text-center">
           {t.profileArmy.spellsError.replace('{error}', error)}
-        </p>
-      )}
-
-      {/* --- Tampilkan Data [MODIFIKASI 6.4] --- */}
-      {!showLoading && !error && (
-        <div className="space-y-6">
-          {homeSpells.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-              {homeSpells.map((spell) => (
-                <div
-                  key={spell.name}
-                  className="bg-coc-stone/50 p-3 rounded-lg border border-coc-gold-dark/30 text-center"
-                >
-                  <h4 className="text-xl text-coc-gold font-clash">
-                    Lv {spell.level}
-                  </h4>
-                  <p className="text-xs uppercase text-gray-400 font-sans truncate">
-                    {spell.name}
-                  </p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            // Tampilkan jika fetch selesai tapi tidak ada spell
-            <p className="text-sm text-gray-400 font-sans text-center">
-              {/* [TERJEMAHAN] */}
-              {t.profileArmy.spellsEmpty}
-            </p>
-          )}
         </div>
       )}
+
+      <div className="relative z-10">
+        {showLoading ? (
+          <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="bg-white/5 rounded-xl h-20 animate-pulse" />
+            ))}
+          </div>
+        ) : homeSpells.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            {homeSpells.map((spell) => (
+              <div
+                key={spell.name}
+                className="bg-white/5 border border-white/5 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:bg-white/10 hover:border-cyan-500/30 transition-all duration-300 group"
+              >
+                <div className="text-2xl mb-1 group-hover:-translate-y-1 transition-transform duration-300">
+                  🧪 {/* Bisa diganti Icon specific spell jika ada asset */}
+                </div>
+                <h4 className="text-xs font-bold text-white mb-1 truncate w-full px-1">
+                  {spell.name}
+                </h4>
+                <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                  Lv {spell.level}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500 bg-white/5 rounded-xl border border-white/5">
+            <p className="text-sm">{t.profileArmy.spellsEmpty}</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -1,14 +1,10 @@
 'use client';
 
 import React from 'react';
-import {
-  FormGroup,
-  getInputClasses,
-} from '@/app/knowledge-hub/components/form/PostFormGroup';
-// Gunakan import dari barrel file icons agar lebih aman
 import { LinkIcon } from '@/app/components/icons'; 
 import { TournamentFormData, FormErrors } from '../types';
-import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook i18n
+import { useLanguage } from '@/lib/hooks/useLanguage';
+import { FormGroup, getInputClasses } from './TournamentFormShared'; // Import dari file shared lokal
 
 interface BasicInfoSectionProps {
   formData: TournamentFormData;
@@ -16,35 +12,30 @@ interface BasicInfoSectionProps {
   handleChange: (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >,
+    >
   ) => void;
   isLoading: boolean;
 }
 
-/**
- * @component BasicInfoSection
- * Komponen "dumb" terpisah untuk field info dasar turnamen.
- * (Banner, Judul, Hadiah, Deskripsi, Aturan)
- */
 export const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
   formData,
   errors,
   handleChange,
   isLoading,
 }) => {
-  const { t } = useLanguage(); // [BARU] Init Hook
+  const { t } = useLanguage();
 
   return (
-    <>
-      {/* Input Banner URL */}
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+      {/* Banner URL */}
       <FormGroup
-        label={t.tournamentCreate.labelBanner} // [i18n]
+        label={t.tournamentCreate.labelBanner}
         htmlFor="bannerUrl"
         error={errors.bannerUrl}
       >
         <div className="relative">
-          <span className="absolute inset-y-0 left-0 flex items-center pl-3.5">
-            <LinkIcon className="h-4 w-4 text-gray-400" />
+          <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
+            <LinkIcon className="h-4 w-4 text-gray-500" />
           </span>
           <input
             type="url"
@@ -52,21 +43,20 @@ export const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
             name="bannerUrl"
             value={formData.bannerUrl}
             onChange={handleChange}
-            className={`${getInputClasses(!!errors.bannerUrl)} !pl-10`}
-            placeholder={t.tournamentCreate.placeholderBanner} // [i18n]
+            className={`${getInputClasses(!!errors.bannerUrl, isLoading)} pl-10`}
+            placeholder={t.tournamentCreate.placeholderBanner}
             disabled={isLoading}
           />
         </div>
         <p className="text-xs text-gray-500 font-sans mt-2">
-          {/* [i18n] Menggunakan instruksi Imgur yang sudah ada di modul Banners */}
           {t.clanBanners.alertImgDesc}
         </p>
       </FormGroup>
 
-      {/* Info Utama */}
+      {/* Grid: Title & Prize */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <FormGroup
-          label={t.tournamentCreate.labelTitle} // [i18n]
+          label={t.tournamentCreate.labelTitle}
           htmlFor="title"
           error={errors.title}
         >
@@ -76,13 +66,14 @@ export const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
             name="title"
             value={formData.title}
             onChange={handleChange}
-            className={getInputClasses(!!errors.title)}
-            placeholder={t.tournamentCreate.placeholderTitle} // [i18n]
+            className={getInputClasses(!!errors.title, isLoading)}
+            placeholder={t.tournamentCreate.placeholderTitle}
             disabled={isLoading}
           />
         </FormGroup>
+        
         <FormGroup
-          label={t.tournamentCreate.labelPrize} // [i18n]
+          label={t.tournamentCreate.labelPrize}
           htmlFor="prizePool"
           error={errors.prizePool}
         >
@@ -92,16 +83,16 @@ export const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
             name="prizePool"
             value={formData.prizePool}
             onChange={handleChange}
-            className={getInputClasses(!!errors.prizePool)}
-            placeholder={t.tournamentCreate.placeholderPrize} // [i18n]
+            className={getInputClasses(!!errors.prizePool, isLoading)}
+            placeholder={t.tournamentCreate.placeholderPrize}
             disabled={isLoading}
           />
         </FormGroup>
       </div>
 
-      {/* Deskripsi & Aturan */}
+      {/* Deskripsi */}
       <FormGroup
-        label={t.tournamentCreate.labelDesc} // [i18n]
+        label={t.tournamentCreate.labelDesc}
         htmlFor="description"
         error={errors.description}
       >
@@ -111,28 +102,29 @@ export const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
           rows={3}
           value={formData.description}
           onChange={handleChange}
-          className={getInputClasses(!!errors.description)}
-          placeholder={t.tournamentCreate.placeholderDesc} // [i18n]
+          className={`${getInputClasses(!!errors.description, isLoading)} resize-y min-h-[80px]`}
+          placeholder={t.tournamentCreate.placeholderDesc}
           disabled={isLoading}
         />
       </FormGroup>
 
+      {/* Aturan */}
       <FormGroup
-        label={t.tournamentCreate.labelRules} // [i18n]
+        label={t.tournamentCreate.labelRules}
         htmlFor="rules"
         error={errors.rules}
       >
         <textarea
           id="rules"
           name="rules"
-          rows={6}
+          rows={5}
           value={formData.rules}
           onChange={handleChange}
-          className={getInputClasses(!!errors.rules)}
-          placeholder={t.tournamentCreate.placeholderRules} // [i18n]
+          className={`${getInputClasses(!!errors.rules, isLoading)} resize-y min-h-[120px]`}
+          placeholder={t.tournamentCreate.placeholderRules}
           disabled={isLoading}
         />
       </FormGroup>
-    </>
+    </div>
   );
 };

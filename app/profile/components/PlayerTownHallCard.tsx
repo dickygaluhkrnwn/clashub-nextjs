@@ -2,10 +2,10 @@
 
 import React from 'react';
 import Image from 'next/image';
-import { HomeIcon, StarIcon } from '@/app/components/icons'; // Menggunakan HomeIcon untuk TH
+import { HomeIcon, StarIcon } from '@/app/components/icons';
 import { UserProfile, CocPlayer } from '@/lib/types';
 import { getThImage, formatNumber } from '@/lib/th-utils';
-import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 interface PlayerTownHallCardProps {
   userProfile: UserProfile;
@@ -18,44 +18,37 @@ export const PlayerTownHallCard = ({
   fullPlayerData,
   isLoading,
 }: PlayerTownHallCardProps) => {
-  const { t } = useLanguage(); // [BARU]
-  // --- 1. Logika Penggabungan Data (Live vs Cache) ---
+  const { t } = useLanguage();
   
-  // Ambil TH Level
+  // Logika Data
   const liveTh = fullPlayerData?.townHallLevel;
   const cachedTh = userProfile.thLevel;
-  // Prioritaskan live, lalu cache, fallback ke 1 jika tidak ada data
   const thLevel = liveTh ?? (cachedTh && cachedTh > 0 ? cachedTh : 1);
   
-  // Ambil URL Gambar TH
   const thImage = getThImage(thLevel);
-
-  // Ambil XP Level (Live atau Cache)
   const expLevel = fullPlayerData?.expLevel ?? userProfile?.expLevel ?? 0;
 
-  // Cek loading state
-  // Tampilkan loading HANYA jika data live sedang ditarik DAN tidak ada data cache
+  // Loading state yang cerdas: Hanya jika tidak ada data sama sekali
   const showLoading = isLoading && !fullPlayerData && !userProfile.thLevel;
 
   return (
-    <div className="card-stone p-6 rounded-lg flex flex-col items-center text-center h-full relative overflow-hidden">
-      {/* Efek visual latar belakang */}
-      <div className="absolute top-0 right-0 w-32 h-32 bg-coc-gold/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+    <div className="bg-black/40 backdrop-blur-md border border-white/5 rounded-2xl p-6 flex flex-col items-center text-center h-full relative overflow-hidden group shadow-lg hover:border-coc-gold/30 transition-all duration-300 hover:-translate-y-1">
+      {/* Ambient Gold Glow */}
+      <div className="absolute -top-10 -right-10 w-40 h-40 bg-coc-gold/10 rounded-full blur-3xl pointer-events-none group-hover:bg-coc-gold/20 transition-colors duration-500" />
 
-      <h2 className="mb-6 flex items-center gap-2 font-clash text-xl text-white self-start z-10">
-        {/* [TERJEMAHAN] */}
+      <h2 className="mb-4 flex items-center gap-2 font-clash text-lg text-white self-start z-10">
         <HomeIcon className="h-5 w-5 text-coc-gold" /> {t.profileCards.townHall}
       </h2>
 
       {showLoading ? (
-        <div className="flex flex-col items-center justify-center flex-grow gap-4 py-4 w-full">
-          <div className="w-24 h-24 rounded-lg bg-white/5 animate-pulse" />
+        <div className="flex flex-col items-center justify-center flex-grow gap-4 w-full py-2">
+          <div className="w-24 h-24 rounded-xl bg-white/5 animate-pulse" />
           <div className="h-8 w-1/2 bg-white/5 rounded mx-auto animate-pulse" />
         </div>
       ) : (
-        <div className="flex flex-col items-center gap-6 w-full z-10">
-          {/* Gambar Town Hall Besar */}
-          <div className="relative w-36 h-36 filter drop-shadow-2xl transition-transform hover:scale-105 duration-300">
+        <div className="flex flex-col items-center gap-4 w-full z-10 flex-grow justify-center">
+          {/* Gambar Town Hall */}
+          <div className="relative w-32 h-32 md:w-36 md:h-36 drop-shadow-2xl transition-transform group-hover:scale-105 duration-500 ease-out">
             <Image
               src={thImage}
               alt={`Town Hall Level ${thLevel}`}
@@ -66,26 +59,24 @@ export const PlayerTownHallCard = ({
             />
           </div>
 
-          {/* Grid Statistik (TH & XP) */}
-          <div className="grid grid-cols-2 gap-4 w-full">
+          {/* Grid Stats Mini */}
+          <div className="grid grid-cols-2 gap-3 w-full">
             {/* Level TH */}
-            <div className="bg-coc-stone/50 p-3 rounded-lg border border-coc-gold-dark/30 flex flex-col items-center justify-center">
-              <span className="text-[10px] uppercase text-gray-400 font-sans mb-1 tracking-wider">
-                {/* [TERJEMAHAN] */}
+            <div className="bg-white/5 border border-white/5 rounded-xl p-2 flex flex-col items-center justify-center hover:bg-white/10 transition-colors">
+              <span className="text-[10px] uppercase text-gray-500 font-bold tracking-widest mb-0.5">
                 {t.profileCards.thLevel}
               </span>
-              <span className="text-3xl font-clash text-white leading-none">
+              <span className="text-2xl font-clash text-coc-gold leading-none">
                 {thLevel}
               </span>
             </div>
 
             {/* XP Level */}
-            <div className="bg-coc-stone/50 p-3 rounded-lg border border-coc-gold-dark/30 flex flex-col items-center justify-center">
-              <span className="text-[10px] uppercase text-gray-400 font-sans mb-1 tracking-wider flex items-center gap-1">
-                {/* [TERJEMAHAN] */}
-                <StarIcon className="h-3 w-3 text-coc-blue-light" /> {t.profileCards.xpLevel}
+            <div className="bg-white/5 border border-white/5 rounded-xl p-2 flex flex-col items-center justify-center hover:bg-white/10 transition-colors">
+              <span className="text-[10px] uppercase text-gray-500 font-bold tracking-widest mb-0.5 flex items-center gap-1">
+                {t.profileCards.xpLevel}
               </span>
-              <span className="text-3xl font-clash text-coc-blue-light leading-none">
+              <span className="text-2xl font-clash text-blue-400 leading-none">
                 {formatNumber(expLevel)}
               </span>
             </div>

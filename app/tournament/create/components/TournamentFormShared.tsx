@@ -1,10 +1,6 @@
 import React, { ReactNode } from 'react';
 import { AlertTriangleIcon } from '@/app/components/icons';
 
-// =========================================================================
-// INLINE COMPONENT: FormGroup (Standardized Input Wrapper)
-// =========================================================================
-
 interface FormGroupProps {
   children: ReactNode;
   error?: string | null;
@@ -14,10 +10,10 @@ interface FormGroupProps {
 }
 
 /**
- * Komponen pembungkus field form dengan label & error style baru.
+ * FormGroup khusus Turnamen dengan style Glass-Stone.
  */
 export const FormGroup: React.FC<FormGroupProps> = ({ children, error, label, htmlFor, helperText }) => (
-  <div className="space-y-1.5 mt-5 first:mt-0">
+  <div className="space-y-1.5 w-full">
     <label
       htmlFor={htmlFor}
       className="block text-xs font-bold uppercase tracking-wider text-coc-gold"
@@ -26,12 +22,12 @@ export const FormGroup: React.FC<FormGroupProps> = ({ children, error, label, ht
     </label>
     {children}
     {helperText && (
-      <div className="text-xs text-gray-500 font-sans mt-1">
+      <div className="text-xs text-gray-500 font-sans mt-1 leading-relaxed">
         {helperText}
       </div>
     )}
     {error && (
-      <div id={`${htmlFor}-error`} className="flex items-center gap-1.5 text-xs text-red-400 mt-1.5 font-sans animate-in fade-in slide-in-from-top-1">
+      <div className="flex items-center gap-1.5 text-xs text-red-400 mt-1.5 font-sans animate-in fade-in slide-in-from-top-1">
         <AlertTriangleIcon className="h-3 w-3 flex-shrink-0" />
         <span>{error}</span>
       </div>
@@ -39,9 +35,8 @@ export const FormGroup: React.FC<FormGroupProps> = ({ children, error, label, ht
   </div>
 );
 
-// --- Glass Input Styles ---
 /**
- * Kelas CSS Tailwind untuk input/textarea/select bergaya Glass-Stone.
+ * Style input/select/textarea Glass-Stone yang konsisten.
  */
 export const getInputClasses = (hasError: boolean, disabled: boolean = false) =>
   `w-full rounded-xl px-4 py-3 text-white placeholder-gray-500 transition-all duration-200 font-sans
@@ -52,5 +47,3 @@ export const getInputClasses = (hasError: boolean, disabled: boolean = false) =>
    focus:ring-2 focus:ring-coc-gold/50 focus:border-coc-gold focus:outline-none
    ${hasError ? 'border-red-500 focus:border-red-500 focus:ring-red-500/30' : ''}
   `;
-
-export default FormGroup;

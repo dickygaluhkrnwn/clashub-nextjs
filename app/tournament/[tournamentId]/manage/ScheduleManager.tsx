@@ -19,10 +19,11 @@ import {
   ShieldIcon,
   TrophyIcon,
   CheckCircleIcon,
+  ClockIcon
 } from '@/app/components/icons';
 import Image from 'next/image';
 import { Input } from '@/app/components/ui/Input';
-import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook i18n
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 interface ScheduleManagerProps {
   tournament: FirestoreDocument<Tournament>;
@@ -33,7 +34,7 @@ type FullMatchData = FirestoreDocument<TournamentMatch> & {
   team2: FirestoreDocument<TournamentTeam> | null;
 };
 
-// Helper untuk memformat Date ke string datetime-local (YYYY-MM-DDTHH:MM)
+// Helper Format Date for Input
 const formatDateForInput = (date: Date): string => {
   const pad = (num: number) => num.toString().padStart(2, '0');
   const year = date.getFullYear();
@@ -44,13 +45,13 @@ const formatDateForInput = (date: Date): string => {
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 };
 
-// Komponen Baris untuk setiap match
+// Komponen Baris Match
 const MatchRow: React.FC<{
   match: FullMatchData;
   tournamentId: string;
   onAction: (message: string, type: 'success' | 'error' | 'info') => void;
   onRefresh: () => void;
-  t: any; // [BARU] Props translation
+  t: any;
 }> = ({ match, tournamentId, onAction, onRefresh, t }) => {
   const [schedule, setSchedule] = useState<string>(
     match.scheduledTime ? formatDateForInput(new Date(match.scheduledTime)) : '',
@@ -62,7 +63,7 @@ const MatchRow: React.FC<{
     if (!schedule || match.status !== 'pending') return;
 
     setIsScheduleLoading(true);
-    onAction(t.tournamentManage.schedule.toastSaving.replace('{id}', match.matchId), 'info'); // [i18n]
+    // onAction(t.tournamentManage.schedule.toastSaving.replace('{id}', match.matchId), 'info'); // Optional toast
 
     try {
       const response = await fetch(
@@ -87,7 +88,7 @@ const MatchRow: React.FC<{
 
   const handleReportWinner = async (winnerTeamId: string) => {
     setIsReporting(true);
-    onAction(t.tournamentManage.schedule.toastReporting.replace('{id}', match.matchId), 'info'); // [i18n]
+    // onAction(t.tournamentManage.schedule.toastReporting.replace('{id}', match.matchId), 'info');
 
     try {
       const response = await fetch(
@@ -110,32 +111,35 @@ const MatchRow: React.FC<{
     }
   };
 
-  // Tampilkan Tim 1
-  const TeamDisplay: React.FC<{ team: FirestoreDocument<TournamentTeam> | null }> = ({
-    team,
+  const TeamDisplay: React.FC<{ team: FirestoreDocument<TournamentTeam> | null; isWinner?: boolean }> = ({
+    team, isWinner
   }) => {
     if (!team) {
       return (
-        <div className="flex items-center gap-2 flex-1">
-          <ShieldIcon className="h-8 w-8 text-gray-600" />
-          <p className="text-sm font-semibold text-gray-500 italic">
-            {t.tournamentManage.schedule.byeTbd} {/* [i18n] */}
+        <div className="flex items-center gap-3 flex-1 min-w-0 opacity-50">
+          <div className="w-8 h-8 rounded-md bg-white/5 flex items-center justify-center border border-white/10">
+             <ShieldIcon className="h-4 w-4 text-gray-500" />
+          </div>
+          <p className="text-sm font-semibold text-gray-500 italic truncate">
+            {t.tournamentManage.schedule.byeTbd}
           </p>
         </div>
       );
     }
     return (
-      <div className="flex items-center gap-2 flex-1">
-        <Image
-          src={team.originClanBadgeUrl}
-          alt="Badge"
-          width={32}
-          height={32}
-          className="rounded-md object-cover"
-        />
-        <p className="text-sm font-semibold text-white truncate">
+      <div className={`flex items-center gap-3 flex-1 min-w-0 ${isWinner ? 'opacity-100' : 'opacity-80 hover:opacity-100'}`}>
+        <div className="relative w-8 h-8 flex-shrink-0">
+           <Image
+            src={team.originClanBadgeUrl || '/images/clan-badge-placeholder.png'}
+            alt="Badge"
+            fill
+            className="object-contain drop-shadow-md"
+           />
+        </div>
+        <p className={`text-sm font-bold truncate ${isWinner ? 'text-coc-gold' : 'text-white'}`}>
           {team.teamName}
         </p>
+        {isWinner && <TrophyIcon className="h-4 w-4 text-coc-gold" />}
       </div>
     );
   };
@@ -151,117 +155,115 @@ const MatchRow: React.FC<{
         : null;
 
   return (
-    <li className="flex flex-col md:flex-row items-center p-4 gap-3 bg-coc-dark/40">
-      {/* Info Match (Tim vs Tim) */}
-      <div className="w-full flex-grow flex items-center gap-2">
-        <span className="text-xs font-mono text-gray-400 p-1 bg-coc-stone-dark rounded-md">
-          {match.matchId}
-        </span>
-        <TeamDisplay team={match.team1} />
-        <span className="text-sm font-bold text-coc-gold/80 mx-2">VS</span>
-        <TeamDisplay team={match.team2} />
+    <div className="rounded-xl bg-black/20 border border-white/5 p-4 hover:border-white/10 transition-colors">
+      {/* Match Header */}
+      <div className="flex items-center justify-between mb-4">
+         <span className="text-[10px] font-bold font-mono text-gray-500 uppercase tracking-wider bg-white/5 px-2 py-1 rounded">
+            Match #{match.matchId}
+         </span>
+         <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded ${
+            match.status === 'completed' ? 'bg-coc-green/10 text-coc-green border border-coc-green/20' :
+            match.status === 'live' ? 'bg-coc-red/10 text-coc-red border border-coc-red/20 animate-pulse' :
+            match.status === 'scheduled' ? 'bg-coc-blue/10 text-coc-blue border border-coc-blue/20' :
+            'bg-gray-500/10 text-gray-400 border border-gray-500/20'
+         }`}>
+            {match.status}
+         </span>
       </div>
 
-      {/* Logika Aksi */}
-      <div className="w-full md:w-auto flex-shrink-0 flex items-center gap-2 justify-end" style={{minWidth: '220px'}}>
+      {/* Teams VS */}
+      <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4 bg-white/5 rounded-lg p-3">
+        <TeamDisplay team={match.team1} isWinner={winnerId === team1Id} />
         
-        {/* 1. Status: PENDING (Set Jadwal) */}
+        <div className="flex items-center gap-2 justify-center md:px-4">
+           <div className="h-px w-8 bg-white/10 hidden md:block" />
+           <span className="text-xs font-bold text-gray-600">VS</span>
+           <div className="h-px w-8 bg-white/10 hidden md:block" />
+        </div>
+
+        <TeamDisplay team={match.team2} isWinner={winnerId === team2Id} />
+      </div>
+
+      {/* Actions / Status Details */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2 border-t border-white/5">
+        
+        {/* Case 1: Pending -> Set Schedule */}
         {match.status === 'pending' && (
-          <>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <ClockIcon className="h-4 w-4 text-gray-500" />
             <Input
               type="datetime-local"
               value={schedule}
               onChange={(e) => setSchedule(e.target.value)}
-              className="bg-coc-dark/70 h-9 text-xs w-full md:w-auto"
+              className="bg-black/40 border-white/10 h-9 text-xs w-full sm:w-48"
               disabled={isScheduleLoading}
             />
             <Button
               variant="primary"
               size="sm"
-              className="!p-2 h-9 w-9"
+              className="h-9 px-3 bg-coc-blue hover:bg-coc-blue/80"
               onClick={handleSaveSchedule}
               disabled={isScheduleLoading || !schedule}
+              title={t.tournamentManage.schedule.btnSaveSchedule || "Save"}
             >
-              {isScheduleLoading ? (
-                <Loader2Icon className="h-4 w-4 animate-spin" />
-              ) : (
-                <SaveIcon className="h-4 w-4" />
-              )}
+              {isScheduleLoading ? <Loader2Icon className="h-4 w-4 animate-spin" /> : <SaveIcon className="h-4 w-4" />}
             </Button>
-          </>
+          </div>
         )}
 
-        {/* 2. Status: SCHEDULED atau LIVE (Tombol Lapor Pemenang) */}
-        {(match.status === 'scheduled' || match.status === 'live') &&
-          match.team1 &&
-          match.team2 && (
-            <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-              <Button
-                variant="secondary"
-                size="sm"
-                className="text-xs justify-center"
-                onClick={() => handleReportWinner(match.team1!.id)}
-                disabled={isReporting}
-              >
-                {isReporting ? (
-                  <Loader2Icon className="h-4 w-4 animate-spin" />
-                ) : (
-                  <TrophyIcon className="h-4 w-4 text-coc-gold" />
-                )}
-                <span className="ml-2 truncate">
-                  {t.tournamentManage.schedule.setWinner.replace('{team}', match.team1.teamName)} {/* [i18n] */}
-                </span>
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="text-xs justify-center"
-                onClick={() => handleReportWinner(match.team2!.id)}
-                disabled={isReporting}
-              >
-                {isReporting ? (
-                  <Loader2Icon className="h-4 w-4 animate-spin" />
-                ) : (
-                  <TrophyIcon className="h-4 w-4 text-coc-gold" />
-                )}
-                <span className="ml-2 truncate">
-                  {t.tournamentManage.schedule.setWinner.replace('{team}', match.team2.teamName)} {/* [i18n] */}
-                </span>
-              </Button>
-            </div>
-          )}
-        
-        {/* 3. Status: COMPLETED atau REPORTED (Tampilkan Pemenang) */}
+        {/* Case 2: Scheduled/Live -> Report Winner */}
+        {(match.status === 'scheduled' || match.status === 'live') && match.team1 && match.team2 && (
+          <div className="flex flex-wrap gap-2 w-full justify-end">
+            <span className="text-xs text-gray-500 font-bold uppercase self-center mr-2 hidden sm:block">
+               {t.tournamentManage.schedule.setWinnerLabel || "Set Winner:"}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 sm:flex-none border-white/10 hover:bg-coc-gold/10 hover:border-coc-gold/30 hover:text-coc-gold transition-colors text-xs"
+              onClick={() => handleReportWinner(match.team1!.id)}
+              disabled={isReporting}
+            >
+              {isReporting ? <Loader2Icon className="h-3 w-3 animate-spin mr-1" /> : <TrophyIcon className="h-3 w-3 mr-1" />}
+              {match.team1.teamName}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 sm:flex-none border-white/10 hover:bg-coc-gold/10 hover:border-coc-gold/30 hover:text-coc-gold transition-colors text-xs"
+              onClick={() => handleReportWinner(match.team2!.id)}
+              disabled={isReporting}
+            >
+              {isReporting ? <Loader2Icon className="h-3 w-3 animate-spin mr-1" /> : <TrophyIcon className="h-3 w-3 mr-1" />}
+              {match.team2.teamName}
+            </Button>
+          </div>
+        )}
+
+        {/* Case 3: Completed -> Show Result */}
         {(match.status === 'completed' || match.status === 'reported') && (
-           <div className="flex items-center gap-2 text-green-400">
-             <CheckCircleIcon className="h-5 w-5" />
-             <p className="text-sm font-semibold">
-               {t.tournamentManage.schedule.winnerLabel.replace('{team}', winnerName || 'N/A')} {/* [i18n] */}
-             </p>
+           <div className="flex items-center gap-2 text-coc-green bg-coc-green/5 px-3 py-1.5 rounded-lg border border-coc-green/10 w-full justify-center sm:w-auto">
+              <CheckCircleIcon className="h-4 w-4" />
+              <span className="text-sm font-bold">
+                 {t.tournamentManage.schedule.winnerLabel.replace('{team}', winnerName || 'N/A')}
+              </span>
            </div>
         )}
-
-        {/* 4. Fallback */}
-        {match.status !== 'pending' &&
-          !(match.status === 'scheduled' || match.status === 'live') &&
-          !(match.status === 'completed' || match.status === 'reported') &&
-          (
-          <div className="text-right">
-             <p className="text-sm font-semibold text-gray-400 capitalize">
-               {t.tournamentManage.schedule.statusLabel.replace('{status}', match.status)} {/* [i18n] */}
-             </p>
-           </div>
-          )
-        }
         
+        {/* Default Message if nothing to do */}
+        {match.status !== 'pending' && 
+         !(match.status === 'scheduled' || match.status === 'live') && 
+         !(match.status === 'completed' || match.status === 'reported') && (
+           <span className="text-xs text-gray-500 italic">No actions available</span>
+        )}
+
       </div>
-    </li>
+    </div>
   );
 };
 
-// Komponen Utama
 const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tournament }) => {
-  const { t } = useLanguage(); // [BARU] Init Hook
+  const { t } = useLanguage();
   const [matches, setMatches] = useState<FullMatchData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [notification, setNotification] =
@@ -309,51 +311,59 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tournament }) => {
     tournament.status === 'registration_open' ||
     tournament.status === 'registration_closed'
   ) {
-    return null;
+    return null; // Komponen ini hanya muncul saat bracket sudah ada
   }
 
   return (
-    <div className="space-y-6 mt-8 pt-6 border-t border-coc-gold-dark/30">
+    <div className="space-y-6 pt-6 border-t border-white/10 animate-in fade-in slide-in-from-bottom-2">
       <Notification notification={notification ?? undefined} />
 
-      <div className="flex items-center gap-3">
-        <CalendarCheck2Icon className="h-6 w-6 text-coc-gold" />
-        <h3 className="font-clash text-xl text-white">
-          {t.tournamentManage.schedule.title} {/* [i18n] */}
-        </h3>
+      <div className="flex items-center gap-3 mb-6">
+        <div className="p-2 bg-coc-gold/10 rounded-lg">
+           <CalendarCheck2Icon className="h-6 w-6 text-coc-gold" />
+        </div>
+        <div>
+           <h3 className="font-clash text-xl text-white">
+             {t.tournamentManage.schedule.title}
+           </h3>
+           <p className="text-sm text-gray-400 font-sans">Atur jadwal dan laporkan hasil pertandingan.</p>
+        </div>
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center items-center h-40">
-          <Loader2Icon className="h-8 w-8 animate-spin text-coc-gold" />
+        <div className="flex justify-center items-center h-40 bg-white/5 rounded-2xl border border-white/5">
+           <div className="text-center">
+              <Loader2Icon className="h-8 w-8 animate-spin text-coc-gold mx-auto mb-2" />
+              <p className="text-gray-400 text-sm">Memuat jadwal pertandingan...</p>
+           </div>
         </div>
       ) : matches.length === 0 ? (
-        <div className="card-stone flex flex-col items-center justify-center gap-4 p-10 text-center rounded-lg border border-coc-gold-dark/20">
-          <InfoIcon className="h-12 w-12 text-coc-gold/50" />
+        <div className="flex flex-col items-center justify-center gap-4 p-10 text-center bg-white/5 rounded-2xl border border-white/5 border-dashed">
+          <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-2">
+             <InfoIcon className="h-8 w-8 text-gray-500" />
+          </div>
           <h3 className="font-clash text-xl text-white">
-            {t.tournamentManage.schedule.emptyTitle} {/* [i18n] */}
+            {t.tournamentManage.schedule.emptyTitle}
           </h3>
-          <p className="text-gray-400 max-w-md">
-            {t.tournamentManage.schedule.emptyDesc} {/* [i18n] */}
+          <p className="text-gray-400 max-w-md text-sm">
+            {t.tournamentManage.schedule.emptyDesc}
           </p>
-          <Button variant="secondary" size="sm" onClick={fetchMatches} className="mt-3">
-            {t.tournamentManage.schedule.btnRetry} {/* [i18n] */}
+          <Button variant="secondary" size="sm" onClick={fetchMatches} className="mt-2">
+            {t.tournamentManage.schedule.btnRetry}
           </Button>
         </div>
       ) : (
-        <div className="card-stone rounded-lg overflow-hidden border border-coc-gold-dark/30">
-          <ul className="divide-y divide-coc-gold-dark/30">
-            {matches.map((match) => (
-              <MatchRow
-                key={match.id}
-                match={match}
-                tournamentId={tournament.id}
-                onAction={showNotification}
-                onRefresh={fetchMatches}
-                t={t} // [BARU]
-              />
-            ))}
-          </ul>
+        <div className="grid gap-4">
+          {matches.map((match) => (
+            <MatchRow
+              key={match.id}
+              match={match}
+              tournamentId={tournament.id}
+              onAction={showNotification}
+              onRefresh={fetchMatches}
+              t={t}
+            />
+          ))}
         </div>
       )}
     </div>
