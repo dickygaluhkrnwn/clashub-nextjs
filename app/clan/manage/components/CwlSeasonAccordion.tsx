@@ -30,7 +30,7 @@ const CwlSeasonAccordion: React.FC<CwlSeasonAccordionProps> = ({
 
   const rounds = archive.rounds || [];
   
-  // [FIX] Casting 'any' untuk properti 'league' yang mungkin belum ada di definisi tipe CwlArchive
+  // Casting 'any' untuk properti 'league' yang mungkin belum ada di definisi tipe CwlArchive
   const leagueName = (archive as any).league || 'Unknown League';
 
   return (
@@ -70,14 +70,28 @@ const CwlSeasonAccordion: React.FC<CwlSeasonAccordionProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {rounds.map((round, index) => (
-                  <CwlWarRow
-                    key={round.clan?.tag || index}
-                    round={round}
-                    ourClanTag={ourClanTag}
-                    roundNumber={index + 1}
-                  />
-                ))}
+                {rounds.map((round, index) => {
+                  // [PERBAIKAN UTAMA] Cek apakah data 'round' valid sebelum dirender
+                  if (!round) return null;
+
+                  return (
+                    <CwlWarRow
+                      key={round.clan?.tag || index}
+                      round={round}
+                      ourClanTag={ourClanTag}
+                      roundNumber={index + 1}
+                    />
+                  );
+                })}
+                
+                {/* Fallback jika data kosong */}
+                {rounds.length === 0 && (
+                    <tr>
+                        <td colSpan={5} className="p-4 text-center text-gray-500 italic">
+                            No round data available
+                        </td>
+                    </tr>
+                )}
               </tbody>
             </table>
           </div>
