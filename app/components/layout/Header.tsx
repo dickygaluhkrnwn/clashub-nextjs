@@ -25,9 +25,9 @@ import { UserProfile, Notification } from '@/lib/clashub.types';
 import { ServerUser } from '@/lib/server-auth';
 import { useNotifications } from '@/lib/hooks/useNotifications';
 import { getManagedTournamentsForUserClient } from '@/lib/firestore/tournaments';
-import { usePWA } from '@/lib/hooks/usePWA'; // [BARU] Import hook PWA
+import { usePWA } from '@/lib/hooks/usePWA';
 
-// [BARU] Icon Download sederhana untuk tombol install
+// Icon Download sederhana untuk tombol install
 const DownloadIcon = ({ className }: { className?: string }) => (
   <svg 
     xmlns="http://www.w3.org/2000/svg" 
@@ -45,7 +45,7 @@ const DownloadIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-// Mapping Nav Items dengan Icon (Hanya digunakan untuk Desktop sekarang)
+// Mapping Nav Items dengan Icon
 const navItems = [
   { name: 'Home', href: '/', icon: HomeIcon },
   { name: 'Team Hub', href: '/clan-hub', icon: ShieldIcon },
@@ -53,7 +53,7 @@ const navItems = [
   { name: 'Knowledge Hub', href: '/knowledge-hub', icon: BookOpenIcon },
 ];
 
-// Komponen menu dropdown profil pengguna (Desktop)
+// Komponen menu dropdown profil pengguna
 const UserProfileDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
@@ -61,6 +61,9 @@ const UserProfileDropdown = () => {
 
   const { currentUser, userProfile, loading: authLoading } = useAuth();
   const [isTournamentManager, setIsTournamentManager] = useState(false);
+  
+  // [BARU] Panggil hook PWA di dalam dropdown juga agar tersedia untuk mobile
+  const { isInstallable, installApp } = usePWA();
 
   const handleLogout = async () => {
     try {
@@ -192,6 +195,24 @@ const UserProfileDropdown = () => {
               </li>
             )}
 
+            {/* [BARU] Menu Install App untuk Mobile (muncul jika belum terinstall) */}
+            {isInstallable && (
+              <li>
+                <button
+                  onClick={() => {
+                    installApp();
+                    setIsOpen(false);
+                  }}
+                  className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-coc-gold hover:bg-white/5 hover:text-white rounded-xl transition-colors group"
+                >
+                  <div className="p-1.5 rounded-lg bg-black/30 group-hover:bg-coc-gold/20 text-coc-gold/80 group-hover:text-coc-gold transition-colors">
+                    <DownloadIcon className="h-4 w-4" />
+                  </div>
+                  <span>Install App</span>
+                </button>
+              </li>
+            )}
+
             <div className="my-1 border-t border-white/5"></div>
 
             <li>
@@ -212,7 +233,7 @@ const UserProfileDropdown = () => {
   );
 };
 
-// Komponen Lonceng Notifikasi
+// Komponen Lonceng Notifikasi (Tetap sama)
 const NotificationBell = () => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -298,7 +319,7 @@ const NotificationBell = () => {
                   className={`w-full text-left flex items-start gap-4 p-4 transition-all ${
                     notif.read
                       ? 'bg-transparent hover:bg-white/5 opacity-60 hover:opacity-100'
-                      : 'bg-coc-gold/5 hover:bg-coc-gold/10 border-l-2 border-coc-gold pl-[14px]' // Compensate padding for border
+                      : 'bg-coc-gold/5 hover:bg-coc-gold/10 border-l-2 border-coc-gold pl-[14px]'
                   }`}
                 >
                   <div className="flex-shrink-0 mt-1">
@@ -334,7 +355,7 @@ const NotificationBell = () => {
 const Header = () => {
   const pathname = usePathname();
   const { currentUser, loading: authLoading } = useAuth();
-  const { isInstallable, installApp } = usePWA(); // [BARU] Hook PWA digunakan
+  const { isInstallable, installApp } = usePWA();
 
   return (
     <>
@@ -378,7 +399,6 @@ const Header = () => {
                       }
                     `}
               >
-                {/* Icon kecil di sebelah teks menu */}
                 <item.icon className={`h-4 w-4 ${pathname === item.href ? 'text-coc-gold' : 'text-gray-500 group-hover:text-gray-300'}`} />
                 {item.name}
               </Link>
@@ -388,7 +408,7 @@ const Header = () => {
           {/* User Actions */}
           <div className="flex items-center gap-2 md:gap-4">
             
-            {/* [BARU] Tombol Install App (PWA) */}
+            {/* [DESKTOP] Tombol Install App (PWA) - Hanya tampil di sm ke atas */}
             {isInstallable && (
                 <Button 
                     onClick={installApp} 
@@ -408,7 +428,7 @@ const Header = () => {
                 <ThemeToggle />
             </div>
 
-            {/* Notification & Search (Visible on Mobile too) */}
+            {/* Notification & Search */}
             <div className="flex items-center gap-1 md:gap-2">
                 <button className="p-2 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-white/5 focus:outline-none">
                   <SearchIcon className="h-5 w-5" />
