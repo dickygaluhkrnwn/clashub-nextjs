@@ -10,10 +10,10 @@ import {
   LogOutIcon,
   UserCircleIcon,
   ShieldIcon,
-  CheckCircleIcon,
   TrophyIcon,
   HomeIcon,
-  BookOpenIcon
+  BookOpenIcon,
+  CheckCircleIcon
 } from '@/app/components/icons';
 import ThemeToggle from '@/app/components/ui/ThemeToggle';
 import LanguageSwitcher from '@/app/components/ui/LanguageSwitcher';
@@ -27,7 +27,7 @@ import { useNotifications } from '@/lib/hooks/useNotifications';
 import { getManagedTournamentsForUserClient } from '@/lib/firestore/tournaments';
 import { usePWA } from '@/lib/hooks/usePWA'; // [BARU] Import hook PWA
 
-// Icon Download sederhana untuk tombol install
+// [BARU] Icon Download sederhana untuk tombol install
 const DownloadIcon = ({ className }: { className?: string }) => (
   <svg 
     xmlns="http://www.w3.org/2000/svg" 
@@ -334,7 +334,7 @@ const NotificationBell = () => {
 const Header = () => {
   const pathname = usePathname();
   const { currentUser, loading: authLoading } = useAuth();
-  const { isInstallable, installApp } = usePWA(); // [BARU] Hook PWA
+  const { isInstallable, installApp } = usePWA(); // [BARU] Hook PWA digunakan
 
   return (
     <>
@@ -394,10 +394,11 @@ const Header = () => {
                     onClick={installApp} 
                     variant="ghost" 
                     size="sm" 
-                    className="hidden sm:flex bg-coc-gold/10 text-coc-gold border border-coc-gold/20 hover:bg-coc-gold/20 mr-2"
+                    className="hidden sm:flex items-center gap-2 bg-coc-gold/10 text-coc-gold border border-coc-gold/20 hover:bg-coc-gold/20 mr-2"
                 >
-                    <DownloadIcon className="h-4 w-4 mr-2" />
-                    Install App
+                    <DownloadIcon className="h-4 w-4" />
+                    <span className="hidden lg:inline">Install App</span>
+                    <span className="lg:hidden">Install</span>
                 </Button>
             )}
 

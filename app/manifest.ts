@@ -17,14 +17,16 @@ export default function manifest(): MetadataRoute.Manifest {
         type: 'image/x-icon',
       },
       {
-        src: '/images/logoClashub.png', // Pastikan file ini ada (192x192)
+        src: '/icon-192.png', // [UPDATE] Sesuai path file kamu
         sizes: '192x192',
         type: 'image/png',
+        purpose: 'maskable'
       },
       {
-        src: '/images/logoClashub.png', // Pastikan file ini ada (512x512)
+        src: '/icon-512.png', // [UPDATE] Sesuai path file kamu
         sizes: '512x512',
         type: 'image/png',
+        purpose: 'maskable'
       },
     ],
   };

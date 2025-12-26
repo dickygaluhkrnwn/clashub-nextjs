@@ -29,7 +29,7 @@ const clashFontRegular = localFont({
 });
 // --- Akhir Konfigurasi Font Clash ---
 
-// Metadata untuk SEO & PWA
+// Metadata untuk SEO
 export const metadata: Metadata = {
   title: "Clashub | E-sports Community",
   description: "Pusat Strategi & Komunitas E-sports Clash of Clans",
@@ -49,7 +49,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#0a0a0a', // [BARU] Menyesuaikan warna bar browser
+  themeColor: '#0a0a0a', // [BARU] Menyesuaikan warna bar browser dengan tema gelap
 };
 
 // Ubah RootLayout menjadi async Server Component (Tetap)
