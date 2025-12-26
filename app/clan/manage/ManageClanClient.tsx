@@ -1,11 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/Button';
-// Import Tipe Data
 import { ManagedClan, UserProfile } from '@/lib/clashub.types';
-// Import Ikon
 import {
   UserCircleIcon,
   AlertTriangleIcon,
@@ -25,11 +23,9 @@ import {
   IconSparkle,
   MenuIcon
 } from '@/app/components/icons';
-// Import Komponen UI
 import Notification, {
   NotificationProps,
 } from '@/app/components/ui/Notification';
-// --- Komponen Tab Konten ---
 import ClanManagementHeader from './components/ClanManagementHeader';
 import SummaryTabContent from './components/SummaryTabContent';
 import MemberTabContent from './components/MemberTabContent';
@@ -41,7 +37,6 @@ import RaidTabContent from './components/RaidTabContent';
 import EsportsTabContent from './components/EsportsTabContent';
 import PromotionTabContent from './components/PromotionTabContent';
 import GeminiAssistantModal from './components/GeminiAssistantTab';
-// Import useLanguage
 import { useLanguage } from '@/lib/hooks/useLanguage';
 
 interface ManageClanClientProps {
@@ -62,7 +57,6 @@ type ActiveTab =
   | 'promotion'
   | 'settings';
 
-// --- FUNGSI UTAMA CLIENT ---
 const ManageClanClient = ({
   clan,
   serverError,
@@ -71,19 +65,21 @@ const ManageClanClient = ({
   const { t } = useLanguage();
   const router = useRouter();
 
-  // State
   const [activeTab, setActiveTab] = useState<ActiveTab>('summary');
   const [notification, setNotification] = useState<NotificationProps | null>(null);
-  // Sidebar state mainly for desktop collapse if needed, but we use persistent sidebar for desktop now
-  // and horizontal scroll for mobile
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  
+  // State untuk mounted check (hydration fix)
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-  // Cek Peran Pengguna
   const isManager = profile?.role === 'Leader' || profile?.role === 'Co-Leader';
 
-  // DAFTAR TAB DINAMIS
   const MEMBER_TABS: { tabName: ActiveTab; icon: React.ReactNode; label: string }[] =
     [
       { tabName: 'summary', icon: <InfoIcon />, label: t.clanManage.tabSummary },
@@ -129,7 +125,7 @@ const ManageClanClient = ({
     setNotification({ message, type, onClose: () => setNotification(null) });
   };
 
-  // Handler untuk Keluar Klan
+  // Handler untuk Keluar Klan (Normal)
   const handleConfirmLeave = async () => {
     if (!clan || !profile || profile.role === 'Leader') {
       showNotification(
@@ -164,6 +160,44 @@ const ManageClanClient = ({
     }
   };
 
+  // Handler untuk Force Unlink (Saat data rusak)
+  const handleForceUnlink = async () => {
+    if (!profile?.clanId) {
+        showNotification("Tidak dapat menemukan ID Clan di profil Anda.", 'error');
+        return;
+    }
+    
+    if (!confirm("PERINGATAN: Tindakan ini akan memaksa akun Anda keluar dari klan yang hilang/rusak. Lanjutkan?")) {
+        return;
+    }
+
+    setIsLeaving(true);
+    try {
+        const response = await fetch(`/api/clan/manage/leave`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ clanId: profile.clanId, force: true }),
+        });
+
+        if (response.ok) {
+            alert("Berhasil diputuskan. Mengarahkan ke profil...");
+            window.location.href = '/profile';
+        } else {
+            const res = await response.json();
+            if (res.message?.includes('not found') || res.message?.includes('tidak ditemukan')) {
+                 alert("Klan tidak ditemukan, namun mencoba membersihkan profil...");
+                 window.location.href = '/profile';
+            } else {
+                throw new Error(res.message || "Gagal memproses.");
+            }
+        }
+    } catch (err) {
+        alert("Gagal: " + (err as Error).message);
+    } finally {
+        setIsLeaving(false);
+    }
+  };
+
   // --- TAMPILAN ERROR / AKSES DITOLAK ---
   if (serverError) {
     return (
@@ -176,12 +210,26 @@ const ManageClanClient = ({
           <h2 className="text-2xl text-white font-clash mb-4">
             {t.clanManage.accessDenied}
           </h2>
-          <p className="text-gray-300 mb-8 font-sans leading-relaxed">
+          <p className="text-gray-300 mb-6 font-sans leading-relaxed">
             {serverError}
           </p>
-          <Button href="/profile" variant="primary" className="w-full justify-center">
-            {t.clanManage.backToProfile}
-          </Button>
+          
+          <div className="space-y-3">
+              <Button href="/profile" variant="primary" className="w-full justify-center">
+                {t.clanManage.backToProfile}
+              </Button>
+              
+              {/* Tombol Darurat */}
+              {profile?.clanId && (
+                  <button 
+                    onClick={handleForceUnlink}
+                    disabled={isLeaving}
+                    className="text-xs text-red-400 hover:text-red-300 underline underline-offset-4 decoration-red-500/30 hover:decoration-red-500 transition-all"
+                  >
+                    {isLeaving ? "Memproses..." : "Data Rusak? Klik untuk Paksa Keluar (Force Unlink)"}
+                  </button>
+              )}
+          </div>
         </div>
       </main>
     );
@@ -199,11 +247,6 @@ const ManageClanClient = ({
       </main>
     );
   }
-
-  // Gabungkan daftar tab berdasarkan peran
-  const visibleTabs = isManager
-    ? [...MEMBER_TABS, ...MANAGER_TABS]
-    : MEMBER_TABS;
 
   // Utility: Tombol Menu (Sidebar & Mobile Pill)
   const MenuButton = ({ tabName, icon, label, mobile = false }: { tabName: ActiveTab; icon: React.ReactNode; label: string, mobile?: boolean }) => {
@@ -255,7 +298,10 @@ const ManageClanClient = ({
     );
   };
 
-  // Render Konten Tab Sesuai Pilihan
+  const visibleTabs = isManager
+    ? [...MEMBER_TABS, ...MANAGER_TABS]
+    : MEMBER_TABS;
+
   const renderContent = () => {
     const forbiddenTabs: ActiveTab[] = ['requests', 'settings', 'promotion'];
     
@@ -307,6 +353,9 @@ const ManageClanClient = ({
         return null;
     }
   };
+
+  // Jangan render konten utama jika belum mounted untuk menghindari hydration mismatch
+  if (!mounted) return null;
 
   return (
     <main className="min-h-screen bg-coc-dark text-white selection:bg-coc-gold/30 pb-20">
@@ -382,9 +431,7 @@ const ManageClanClient = ({
           {/* --- CONTENT AREA --- */}
           <section className="flex-grow min-w-0">
             <div className="bg-black/20 backdrop-blur-md border border-white/5 rounded-2xl p-4 md:p-6 lg:p-8 min-h-[600px] shadow-2xl relative overflow-hidden">
-              {/* Background Decoration */}
               <div className="absolute top-0 right-0 w-96 h-96 bg-coc-gold/5 rounded-full blur-[100px] -z-10 pointer-events-none transform translate-x-1/2 -translate-y-1/2"></div>
-              
               {renderContent()}
             </div>
           </section>
@@ -396,22 +443,18 @@ const ManageClanClient = ({
       {isLeaveModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="w-full max-w-md bg-[#1a1a1a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden relative">
-            
             <div className="p-6 text-center">
               <div className="w-16 h-16 bg-coc-red/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-coc-red/30">
                 <LogOutIcon className="h-8 w-8 text-coc-red" />
               </div>
-              
               <h3 className="text-xl font-clash text-white mb-2">
                 {t.clanManage.leaveTitle}
               </h3>
-              
               <p className="text-gray-400 text-sm mb-6 leading-relaxed">
                 {t.clanManage.leaveConfirm} <span className="text-white font-semibold">{clan.name}</span>?
                 <br />
                 <span className="text-coc-red/80 mt-2 block">{t.clanManage.leaveImportant}</span>
               </p>
-
               <div className="flex gap-3">
                 <Button
                   variant="secondary"
@@ -449,9 +492,10 @@ const ManageClanClient = ({
               <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
             </span>
           </button>
-
+          
           <GeminiAssistantModal
             clanId={clan.id}
+            clanName={clan.name}
             isOpen={isAiModalOpen}
             onClose={() => setIsAiModalOpen(false)}
           />
