@@ -258,6 +258,8 @@ export interface ClanPromotionsSection {
 }
 
 export interface ClanBannersSection {
+  tabTitle: string; // [FIX] Added property
+  tabDesc: string; // [FIX] Added property
   btnAdd: string;
   formTitle: string;
   formDesc: string;

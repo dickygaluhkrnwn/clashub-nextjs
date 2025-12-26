@@ -9,6 +9,7 @@ export const common: CommonSection = {
   edit: 'Ubah',
   delete: 'Hapus',
   searchPlaceholder: 'Cari...',
+  search: 'Cari', // [BARU] Terjemahan untuk 'search'
   viewAll: 'Lihat Semua',
   back: 'Kembali',
   next: 'Lanjut',

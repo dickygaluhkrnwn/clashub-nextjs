@@ -8,32 +8,22 @@ import { ManagedClan, UserProfile } from '@/lib/clashub.types';
 // Import Ikon
 import {
   UserCircleIcon,
-  ShieldIcon,
   AlertTriangleIcon,
-  CogsIcon,
-  ClockIcon,
   InfoIcon,
   TrophyIcon,
   UserIcon,
   XIcon,
   GlobeIcon,
   RefreshCwIcon,
-  ArrowRightIcon,
   MailOpenIcon,
-  ThumbsUpIcon,
-  ThumbsDownIcon,
-  TrashIcon,
   SettingsIcon,
-  CheckIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
   SwordsIcon,
   BookOpenIcon,
   CalendarCheck2Icon,
   CoinsIcon,
-  MenuIcon,
   LogOutIcon,
-  IconSparkle, 
+  IconSparkle,
+  MenuIcon
 } from '@/app/components/icons';
 // Import Komponen UI
 import Notification, {
@@ -51,7 +41,7 @@ import RaidTabContent from './components/RaidTabContent';
 import EsportsTabContent from './components/EsportsTabContent';
 import PromotionTabContent from './components/PromotionTabContent';
 import GeminiAssistantModal from './components/GeminiAssistantTab';
-// [BARU] Import useLanguage
+// Import useLanguage
 import { useLanguage } from '@/lib/hooks/useLanguage';
 
 interface ManageClanClientProps {
@@ -68,8 +58,8 @@ type ActiveTab =
   | 'war-history'
   | 'cwl-history'
   | 'raid'
-  | 'esports' 
-  | 'promotion' 
+  | 'esports'
+  | 'promotion'
   | 'settings';
 
 // --- FUNGSI UTAMA CLIENT ---
@@ -78,22 +68,22 @@ const ManageClanClient = ({
   serverError,
   profile,
 }: ManageClanClientProps) => {
-  const { t } = useLanguage(); // [BARU] Init Hook
+  const { t } = useLanguage();
   const router = useRouter();
 
   // State
   const [activeTab, setActiveTab] = useState<ActiveTab>('summary');
-  const [notification, setNotification] =
-    useState<NotificationProps | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [notification, setNotification] = useState<NotificationProps | null>(null);
+  // Sidebar state mainly for desktop collapse if needed, but we use persistent sidebar for desktop now
+  // and horizontal scroll for mobile
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
-  const [isLeaving, setIsLeaving] = useState(false); 
+  const [isLeaving, setIsLeaving] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
 
   // Cek Peran Pengguna
   const isManager = profile?.role === 'Leader' || profile?.role === 'Co-Leader';
 
-  // [BARU] DAFTAR TAB DINAMIS (Di dalam komponen agar akses 't')
+  // DAFTAR TAB DINAMIS
   const MEMBER_TABS: { tabName: ActiveTab; icon: React.ReactNode; label: string }[] =
     [
       { tabName: 'summary', icon: <InfoIcon />, label: t.clanManage.tabSummary },
@@ -143,14 +133,14 @@ const ManageClanClient = ({
   const handleConfirmLeave = async () => {
     if (!clan || !profile || profile.role === 'Leader') {
       showNotification(
-        t.clanManage.leaderLeaveError, // [TERJEMAHAN]
+        t.clanManage.leaderLeaveError,
         'error',
       );
       return;
     }
 
     setIsLeaving(true);
-    showNotification(t.clanManage.processing, 'info'); // [TERJEMAHAN]
+    showNotification(t.clanManage.processing, 'info');
 
     try {
       const response = await fetch(`/api/clan/manage/leave`, {
@@ -164,7 +154,7 @@ const ManageClanClient = ({
         throw new Error(result.message || t.clanManage.leaveError);
       }
 
-      showNotification(t.clanManage.leaveSuccess, 'success'); // [TERJEMAHAN]
+      showNotification(t.clanManage.leaveSuccess, 'success');
       setIsLeaveModalOpen(false);
       router.push('/profile');
     } catch (err) {
@@ -177,136 +167,120 @@ const ManageClanClient = ({
   // --- TAMPILAN ERROR / AKSES DITOLAK ---
   if (serverError) {
     return (
-      <main className="container mx-auto p-4 md:p-8 mt-10 min-h-[60vh]">
+      <main className="min-h-screen bg-coc-dark flex items-center justify-center p-4">
         <Notification notification={notification ?? undefined} />
-        <div className="flex justify-center items-center">
-          <div className="card-stone p-8 max-w-lg text-center rounded-lg border-2 border-coc-red/50 bg-coc-red/10">
-            <AlertTriangleIcon className="h-12 w-12 text-coc-red mx-auto mb-4" />
-            <h2 className="text-2xl text-coc-red font-clash mb-4">
-              {t.clanManage.accessDenied} {/* [TERJEMAHAN] */}
-            </h2>
-            <p className="text-gray-300 mb-6 font-sans">
-               {/* Jika error dari server spesifik, tampilkan, jika tidak gunakan generic */}
-               {/* Kita bisa combine: t.clanManage.accessDeniedDesc + " (" + serverError + ")" */}
-               {serverError} 
-            </p>
-            <Button href="/profile" variant="primary">
-              {t.clanManage.backToProfile} {/* [TERJEMAHAN] */}
-            </Button>
+        <div className="max-w-lg w-full bg-black/30 backdrop-blur-xl border border-coc-red/30 rounded-xl p-8 text-center shadow-2xl">
+          <div className="bg-coc-red/20 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 border border-coc-red/50">
+            <AlertTriangleIcon className="h-10 w-10 text-coc-red" />
           </div>
+          <h2 className="text-2xl text-white font-clash mb-4">
+            {t.clanManage.accessDenied}
+          </h2>
+          <p className="text-gray-300 mb-8 font-sans leading-relaxed">
+            {serverError}
+          </p>
+          <Button href="/profile" variant="primary" className="w-full justify-center">
+            {t.clanManage.backToProfile}
+          </Button>
         </div>
       </main>
     );
   }
 
-  // --- PERBAIKAN RUNTIME ERROR (PENYEBAB LOGOUT) ---
+  // --- LOADING STATE ---
   if (!clan || !profile) {
     return (
-      <main className="container mx-auto p-4 md:p-8 mt-10 min-h-[60vh]">
-        <div className="flex justify-center items-center h-full flex-col">
-          <RefreshCwIcon className="h-12 w-12 text-coc-gold animate-spin mb-3" />
-          <p className="text-lg font-clash text-white">{t.clanManage.loadingUserData}</p> {/* [TERJEMAHAN] */}
-          <p className="text-sm text-gray-400 font-sans mt-1">
-            {t.clanManage.reloginNote} {/* [TERJEMAHAN] */}
-          </p>
-        </div>
+      <main className="min-h-screen bg-coc-dark flex flex-col items-center justify-center p-4">
+        <RefreshCwIcon className="h-12 w-12 text-coc-gold animate-spin mb-4" />
+        <p className="text-lg font-clash text-white tracking-wide">{t.clanManage.loadingUserData}</p>
+        <p className="text-sm text-gray-500 font-sans mt-2">
+          {t.clanManage.reloginNote}
+        </p>
       </main>
     );
   }
 
-  // Utility: Tombol Menu Sidebar
-  const MenuButton: React.FC<{
-    tabName: ActiveTab;
-    icon: React.ReactNode;
-    label: string;
-  }> = ({ tabName, icon, label }) => {
-    const isManagerTab = [
-      'requests',
-      'settings',
-      'promotion',
-    ].includes(tabName);
-    if (!isManager && isManagerTab) {
-      return null;
+  // Gabungkan daftar tab berdasarkan peran
+  const visibleTabs = isManager
+    ? [...MEMBER_TABS, ...MANAGER_TABS]
+    : MEMBER_TABS;
+
+  // Utility: Tombol Menu (Sidebar & Mobile Pill)
+  const MenuButton = ({ tabName, icon, label, mobile = false }: { tabName: ActiveTab; icon: React.ReactNode; label: string, mobile?: boolean }) => {
+    const isActive = activeTab === tabName;
+    
+    // Style untuk Mobile (Horizontal Pill)
+    if (mobile) {
+      return (
+        <button
+          onClick={() => setActiveTab(tabName)}
+          className={`
+            flex items-center px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200
+            ${isActive 
+              ? 'bg-coc-gold text-black shadow-lg shadow-coc-gold/20 scale-105' 
+              : 'bg-white/5 text-gray-400 border border-white/5 hover:bg-white/10 hover:text-white'
+            }
+          `}
+        >
+          <span className={`mr-2 ${isActive ? 'text-black' : 'text-gray-400'}`}>
+             {React.cloneElement(icon as React.ReactElement, { className: "w-4 h-4" })}
+          </span>
+          {label}
+        </button>
+      );
     }
 
-    if (!isManager && isManagerTab && activeTab === tabName) {
-      setActiveTab('summary');
-    }
-
+    // Style untuk Desktop (Sidebar Item)
     return (
       <button
         onClick={() => setActiveTab(tabName)}
-        className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-md transition-colors duration-150 group relative ${
-          activeTab === tabName
-            ? 'bg-coc-dark/90 text-coc-gold font-semibold shadow-inner'
-            : 'text-gray-300 hover:bg-coc-dark/60 hover:text-white'
-        }`}
+        className={`
+          w-full flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group relative overflow-hidden
+          ${isActive
+            ? 'bg-coc-gold/10 text-coc-gold border border-coc-gold/20 shadow-[0_0_15px_rgba(255,215,0,0.1)]'
+            : 'text-gray-400 hover:bg-white/5 hover:text-white border border-transparent'
+          }
+        `}
       >
-        {React.cloneElement(icon as React.ReactElement, {
-          className: `h-5 w-5 mr-3 flex-shrink-0 transition-colors duration-150 ${
-            activeTab === tabName
-              ? 'text-coc-gold'
-              : 'text-gray-400 group-hover:text-gray-300'
-          }`,
-        })}
-        <span>{label}</span>
+        {/* Active Indicator Bar */}
+        {isActive && (
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-coc-gold rounded-r-full" />
+        )}
+        
+        <span className={`flex-shrink-0 mr-3 transition-colors ${isActive ? 'text-coc-gold' : 'text-gray-500 group-hover:text-gray-300'}`}>
+          {React.cloneElement(icon as React.ReactElement, { className: "w-5 h-5" })}
+        </span>
+        <span className="truncate">{label}</span>
       </button>
     );
   };
 
   // Render Konten Tab Sesuai Pilihan
   const renderContent = () => {
-    const forbiddenTabs: ActiveTab[] = [
-      'requests',
-      'settings',
-      'promotion',
-    ];
+    const forbiddenTabs: ActiveTab[] = ['requests', 'settings', 'promotion'];
+    
     if (!isManager && forbiddenTabs.includes(activeTab)) {
       return (
-        <div className="p-8 text-center bg-coc-red/10 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
-          <AlertTriangleIcon className="h-12 w-12 text-coc-red mb-3" />
-          <p className="text-xl font-clash text-coc-red">{t.clanManage.tabAccessDenied}</p>
-          <p className="text-sm text-gray-400 font-sans mt-1">
-            {t.clanManage.tabAccessDeniedDesc}
-          </p>
-          <Button
-            onClick={() => setActiveTab('summary')}
-            variant="secondary"
-            className="mt-4"
-          >
+        <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-8 bg-coc-red/5 border border-coc-red/20 rounded-2xl backdrop-blur-sm">
+          <div className="bg-coc-red/10 p-4 rounded-full mb-4">
+            <AlertTriangleIcon className="h-12 w-12 text-coc-red" />
+          </div>
+          <h3 className="text-xl font-clash text-white mb-2">{t.clanManage.tabAccessDenied}</h3>
+          <p className="text-gray-400 max-w-md mb-6">{t.clanManage.tabAccessDeniedDesc}</p>
+          <Button onClick={() => setActiveTab('summary')} variant="secondary">
             {t.clanManage.backToSummary}
           </Button>
         </div>
       );
     }
 
-    // Komponen anak akan memanggil SWR hooks mereka sendiri.
     switch (activeTab) {
       case 'summary':
-        return (
-          <SummaryTabContent
-            clan={clan}
-            isManager={isManager}
-            onAction={showNotification}
-          />
-        );
+        return <SummaryTabContent clan={clan} isManager={isManager} onAction={showNotification} />;
       case 'members':
-        return (
-          <MemberTabContent
-            clan={clan}
-            userProfile={profile} 
-            onAction={showNotification}
-            isManager={isManager}
-          />
-        );
+        return <MemberTabContent clan={clan} userProfile={profile} onAction={showNotification} isManager={isManager} />;
       case 'requests':
-        return (
-          <RequestTabContent
-            clan={clan}
-            userProfile={profile}
-            onAction={showNotification}
-          />
-        );
+        return <RequestTabContent clan={clan} userProfile={profile} onAction={showNotification} />;
       case 'active-war':
         return <ActiveWarTabContent clan={clan} />;
       case 'war-history':
@@ -321,193 +295,168 @@ const ManageClanClient = ({
         return <PromotionTabContent clan={clan} onAction={showNotification} />;
       case 'settings':
         return (
-          <div className="p-8 text-center bg-coc-stone/40 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
-            <SettingsIcon className="h-12 w-12 text-coc-gold/50 mb-3" />
-            <p className="text-lg font-clash text-white">{t.clanManage.settingsTitle}</p>
-            <p className="text-sm text-gray-400 font-sans mt-1">
-              {t.clanManage.settingsDesc}
-            </p>
+          <div className="flex flex-col items-center justify-center min-h-[400px] bg-white/5 rounded-2xl border border-white/5 backdrop-blur-sm p-8 text-center">
+            <div className="bg-coc-gold/10 p-4 rounded-full mb-4">
+              <SettingsIcon className="h-12 w-12 text-coc-gold" />
+            </div>
+            <h3 className="text-xl font-clash text-white mb-2">{t.clanManage.settingsTitle}</h3>
+            <p className="text-gray-400 max-w-md">{t.clanManage.settingsDesc}</p>
           </div>
         );
       default:
-        setActiveTab('summary');
         return null;
     }
   };
 
-  // Gabungkan daftar tab berdasarkan peran
-  const visibleTabs = isManager
-    ? [...MEMBER_TABS, ...MANAGER_TABS]
-    : MEMBER_TABS;
-
   return (
-    <main className="container mx-auto p-4 md:p-8 mt-10">
+    <main className="min-h-screen bg-coc-dark text-white selection:bg-coc-gold/30 pb-20">
       <Notification notification={notification ?? undefined} />
 
-      <div className="space-y-8">
-        {/* Header Klan (Tetap di Atas) */}
-        {/* NOTE: ClanManagementHeader juga harus diupdate nanti */}
-        <ClanManagementHeader clan={clan} profile={profile} />
-
-        {/* Tombol Toggle Sidebar (untuk mobile/tablet) */}
-        <div className="lg:hidden mb-4">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="flex items-center"
-          >
-            {isSidebarOpen ? (
-              <XIcon className="h-5 w-5 mr-2" />
-            ) : (
-              <MenuIcon className="h-5 w-5 mr-2" />
-            )}
-            {isSidebarOpen ? t.clanManage.closeMenu : t.clanManage.openMenu}
-          </Button>
+      <div className="container mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-10">
+        
+        {/* Header Section */}
+        <div className="mb-8">
+          <ClanManagementHeader clan={clan} profile={profile} />
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Sidebar Navigasi */}
-          <nav
-            className={`lg:w-56 flex-shrink-0 ${
-              isSidebarOpen ? 'block' : 'hidden'
-            } lg:block transition-all duration-300 ease-in-out`}
-          >
-            <div className="space-y-2 sticky top-20 bg-coc-dark/70 p-4 rounded-lg border border-coc-gold-dark/30 backdrop-blur-sm">
+        <div className="flex flex-col lg:flex-row gap-8">
+          
+          {/* --- MOBILE NAVIGATION (Unified Control) --- */}
+          <div className="lg:hidden sticky top-[72px] z-30 -mx-4 px-4 bg-coc-dark/80 backdrop-blur-lg border-b border-white/5 py-3 overflow-x-auto no-scrollbar mask-gradient-right">
+            <div className="flex gap-3 min-w-max">
               {visibleTabs.map((tab) => (
-                <MenuButton
-                  key={tab.tabName}
-                  tabName={tab.tabName}
-                  icon={tab.icon}
-                  label={tab.label}
-                />
+                <MenuButton key={tab.tabName} {...tab} mobile />
               ))}
-
-              {/* Link Profil Klan */}
-              <div className="pt-2 my-2 border-t border-coc-gold-dark/30"></div>
-              <Button
-                href={`/clan/internal/${clan.id}`}
-                variant="ghost" 
-                className="w-full flex items-center justify-start px-4 py-3 text-sm font-medium rounded-md transition-colors duration-150 group text-gray-300 hover:bg-coc-dark/60 hover:text-white"
-              >
-                <UserCircleIcon className="h-5 w-5 mr-3 flex-shrink-0 text-gray-400 group-hover:text-gray-300" />
-                <span>{t.clanManage.viewClanProfile}</span>
-              </Button>
-
-              {/* Tombol Keluar Klan */}
-              {profile.role !== 'Leader' && (
-                <>
-                  <div className="pt-2 my-2 border-t border-coc-gold-dark/30"></div>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => setIsLeaveModalOpen(true)} 
-                    className="w-full flex items-center justify-start px-4 text-sm font-medium"
-                  >
-                    <LogOutIcon className="h-5 w-5 mr-3 flex-shrink-0" />
-                    <span>{t.clanManage.leaveClan}</span>
-                  </Button>
-                </>
-              )}
             </div>
-          </nav>
+          </div>
 
-          {/* Konten Utama */}
-          <section className="flex-grow card-stone p-6 min-h-[70vh] rounded-lg">
-            {renderContent()}
+          {/* --- DESKTOP SIDEBAR --- */}
+          <aside className="hidden lg:block w-72 flex-shrink-0">
+            <div className="sticky top-24 bg-black/20 backdrop-blur-xl border border-white/5 rounded-2xl p-4 shadow-xl">
+              <div className="space-y-1">
+                <p className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                  Main Menu
+                </p>
+                {visibleTabs.filter(t => !MANAGER_TABS.includes(t)).map((tab) => (
+                  <MenuButton key={tab.tabName} {...tab} />
+                ))}
+              </div>
+
+              {isManager && (
+                <div className="mt-6 space-y-1">
+                  <p className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                    Management
+                  </p>
+                  {visibleTabs.filter(t => MANAGER_TABS.some(m => m.tabName === t.tabName)).map((tab) => (
+                    <MenuButton key={tab.tabName} {...tab} />
+                  ))}
+                </div>
+              )}
+
+              <div className="my-4 border-t border-white/5 mx-2"></div>
+
+              <div className="space-y-1">
+                <Button
+                  href={`/clan/internal/${clan.id}`}
+                  variant="ghost"
+                  className="w-full justify-start text-gray-400 hover:text-white hover:bg-white/5"
+                >
+                  <UserCircleIcon className="h-5 w-5 mr-3" />
+                  {t.clanManage.viewClanProfile}
+                </Button>
+
+                {profile.role !== 'Leader' && (
+                  <Button
+                    onClick={() => setIsLeaveModalOpen(true)}
+                    variant="ghost"
+                    className="w-full justify-start text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                  >
+                    <LogOutIcon className="h-5 w-5 mr-3" />
+                    {t.clanManage.leaveClan}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </aside>
+
+          {/* --- CONTENT AREA --- */}
+          <section className="flex-grow min-w-0">
+            <div className="bg-black/20 backdrop-blur-md border border-white/5 rounded-2xl p-4 md:p-6 lg:p-8 min-h-[600px] shadow-2xl relative overflow-hidden">
+              {/* Background Decoration */}
+              <div className="absolute top-0 right-0 w-96 h-96 bg-coc-gold/5 rounded-full blur-[100px] -z-10 pointer-events-none transform translate-x-1/2 -translate-y-1/2"></div>
+              
+              {renderContent()}
+            </div>
           </section>
+
         </div>
       </div>
 
-      {/* Modal Konfirmasi Keluar */}
+      {/* --- LEAVE MODAL --- */}
       {isLeaveModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="relative w-full max-w-md rounded-xl card-stone shadow-xl border-2 border-coc-red/50">
-            {/* Tombol Close Modal */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="absolute top-2 right-2 text-gray-400 hover:text-white"
-              onClick={() => setIsLeaveModalOpen(false)}
-              disabled={isLeaving}
-            >
-              <XIcon className="h-5 w-5" />
-            </Button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-[#1a1a1a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden relative">
+            
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-coc-red/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-coc-red/30">
+                <LogOutIcon className="h-8 w-8 text-coc-red" />
+              </div>
+              
+              <h3 className="text-xl font-clash text-white mb-2">
+                {t.clanManage.leaveTitle}
+              </h3>
+              
+              <p className="text-gray-400 text-sm mb-6 leading-relaxed">
+                {t.clanManage.leaveConfirm} <span className="text-white font-semibold">{clan.name}</span>?
+                <br />
+                <span className="text-coc-red/80 mt-2 block">{t.clanManage.leaveImportant}</span>
+              </p>
 
-            <div className="flex flex-col items-center p-6 pt-10">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-coc-red/20 border-2 border-coc-red">
-                <AlertTriangleIcon
-                  className="h-10 w-10 text-coc-red"
-                  aria-hidden="true"
-                />
+              <div className="flex gap-3">
+                <Button
+                  variant="secondary"
+                  className="flex-1"
+                  onClick={() => setIsLeaveModalOpen(false)}
+                  disabled={isLeaving}
+                >
+                  {t.clanManage.cancel}
+                </Button>
+                <Button
+                  variant="danger"
+                  className="flex-1"
+                  onClick={handleConfirmLeave}
+                  disabled={isLeaving}
+                >
+                  {isLeaving ? <RefreshCwIcon className="animate-spin h-4 w-4" /> : t.clanManage.confirmLeave}
+                </Button>
               </div>
-              <div className="mt-4 text-center">
-                <h3 className="text-2xl font-clash text-white">{t.clanManage.leaveTitle}</h3>
-                <div className="mt-2">
-                  <p className="text-sm text-gray-300">
-                    {t.clanManage.leaveConfirm}{' '}
-                    <strong className="font-bold text-white">
-                      {clan.name}
-                    </strong>{' '}
-                    ?
-                  </p>
-                  <p className="mt-3 text-base font-bold text-coc-yellow/80">
-                    {t.clanManage.leaveImportant}
-                  </p>
-                  <p className="text-sm text-gray-300 bg-coc-stone-dark/30 p-3 rounded-md">
-                    {t.clanManage.leaveNote}
-                  </p>
-                </div>
-              </div>
-            </div>
-            {/* Tombol Aksi Modal */}
-            <div className="flex justify-between gap-3 bg-coc-stone-dark/40 px-6 py-4 rounded-b-xl">
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full"
-                onClick={() => setIsLeaveModalOpen(false)}
-                disabled={isLeaving}
-              >
-                {t.clanManage.cancel}
-              </Button>
-              <Button
-                type="button"
-                variant="danger"
-                className="w-full"
-                onClick={handleConfirmLeave}
-                disabled={isLeaving}
-              >
-                {isLeaving ? (
-                  <RefreshCwIcon className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <LogOutIcon className="h-4 w-4 mr-2" />
-                )}
-                {isLeaving ? t.clanManage.processing : t.clanManage.confirmLeave}
-              </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Tombol Floating & Modal AI */}
+      {/* --- AI ASSISTANT FAB --- */}
       {isManager && (
-        <Button
-          variant="primary"
-          size="lg" 
-          className="fixed z-40 bottom-6 right-6 rounded-full shadow-lg p-4 h-16 w-16" 
-          onClick={() => setIsAiModalOpen(true)}
-          aria-label="Buka Asisten AI"
-        >
-          <IconSparkle className="h-8 w-8" />
-        </Button>
-      )}
+        <>
+          <button
+            onClick={() => setIsAiModalOpen(true)}
+            className="fixed z-40 bottom-6 right-6 h-14 w-14 rounded-full bg-gradient-to-br from-coc-gold to-orange-500 text-black shadow-lg shadow-orange-500/20 flex items-center justify-center transition-transform hover:scale-110 active:scale-95 group"
+            aria-label="Gemini Assistant"
+          >
+            <IconSparkle className="h-7 w-7 transition-transform group-hover:rotate-12" />
+            <span className="absolute -top-1 -right-1 flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+            </span>
+          </button>
 
-      <GeminiAssistantModal
-        clanId={clan.id}
-        isOpen={isAiModalOpen}
-        onClose={() => setIsAiModalOpen(false)}
-      />
+          <GeminiAssistantModal
+            clanId={clan.id}
+            isOpen={isAiModalOpen}
+            onClose={() => setIsAiModalOpen(false)}
+          />
+        </>
+      )}
     </main>
   );
 };

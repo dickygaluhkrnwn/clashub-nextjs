@@ -260,6 +260,8 @@ export const clanPromotions: ManagementTypes.ClanPromotionsSection = {
 };
 
 export const clanBanners: ManagementTypes.ClanBannersSection = {
+  tabTitle: 'Banner Promosi Klan', // [FIX] Added property
+  tabDesc: 'Kelola banner promosi untuk merekrut anggota baru dan memamerkan pencapaian klan Anda.', // [FIX] Added property
   btnAdd: 'Buat Promosi Baru',
   formTitle: 'Tambah Banner Promosi',
   formDesc: 'Banner yang Anda tambahkan akan muncul di carousel halaman Clan Hub dan mengarahkan pengguna ke profil klan Anda.',

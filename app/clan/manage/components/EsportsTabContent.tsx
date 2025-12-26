@@ -23,7 +23,7 @@ import { NotificationProps } from '@/app/components/ui/Notification';
 import CreateTeamModal from './EsportsCreateModal';
 import TeamCard from './EsportsTeamCard';
 import EditTeamModal from './EsportsEditModal';
-import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 interface EsportsTabContentProps {
   clan: ManagedClan;
@@ -34,7 +34,7 @@ const EsportsTabContent: React.FC<EsportsTabContentProps> = ({
   clan,
   onAction,
 }) => {
-  const { t } = useLanguage(); // [BARU]
+  const { t } = useLanguage();
   const { userProfile, currentUser } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -75,7 +75,7 @@ const EsportsTabContent: React.FC<EsportsTabContentProps> = ({
       },
       (error) => {
         console.error('Gagal mengambil data E-Sports:', error);
-        onAction(t.clanEsports.toastFetchError, 'error'); // [i18n]
+        onAction(t.clanEsports.toastFetchError, 'error');
         setIsLoadingTeams(false);
       }
     );
@@ -93,7 +93,7 @@ const EsportsTabContent: React.FC<EsportsTabContentProps> = ({
     }
 
     if (!teamName || memberUids.length !== 5) {
-      throw new Error(t.clanEsports.valNameEmpty); // [i18n] reuse or simple check
+      throw new Error(t.clanEsports.valNameEmpty);
     }
 
     const token = await currentUser.getIdToken();
@@ -128,10 +128,10 @@ const EsportsTabContent: React.FC<EsportsTabContentProps> = ({
 
   if (isLoadingTeams || isLoadingMembers) {
     return (
-      <div className="flex justify-center items-center h-60">
-        <Loader2Icon className="h-10 w-10 text-coc-gold animate-spin" />
-        <p className="ml-3 text-lg font-clash text-gray-300">
-          {t.clanEsports.loadingTeams} {/* [i18n] */}
+      <div className="flex flex-col justify-center items-center h-[400px]">
+        <Loader2Icon className="h-10 w-10 text-coc-gold animate-spin mb-4" />
+        <p className="text-gray-400 font-medium animate-pulse">
+          {t.clanEsports.loadingTeams}
         </p>
       </div>
     );
@@ -139,55 +139,80 @@ const EsportsTabContent: React.FC<EsportsTabContentProps> = ({
 
   if (isMembersError) {
     return (
-      <div className="p-8 text-center bg-coc-red/10 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
-        <AlertTriangleIcon className="h-12 w-12 text-coc-red mb-3" />
-        <p className="text-xl font-clash text-coc-red">{t.clanEsports.errorMembersTitle}</p> {/* [i18n] */}
+      <div className="flex flex-col items-center justify-center min-h-[300px] text-center p-8 bg-coc-red/5 border border-coc-red/20 rounded-2xl backdrop-blur-sm">
+        <div className="bg-coc-red/10 p-4 rounded-full mb-4">
+            <AlertTriangleIcon className="h-10 w-10 text-coc-red" />
+        </div>
+        <p className="text-xl font-clash text-white mb-2">{t.clanEsports.errorMembersTitle}</p>
         <p className="text-sm text-gray-400 font-sans mt-1">
-          {t.clanEsports.errorMembersDesc} {/* [i18n] */}
+          {t.clanEsports.errorMembersDesc}
         </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center space-x-3">
-          <TrophyIcon className="h-8 w-8 text-coc-gold" />
-          <h2 className="text-2xl font-clash text-white">
-            {t.clanEsports.tabTitle} {/* [i18n] */}
-          </h2>
+    <div className="space-y-6 animate-fade-in">
+      
+      {/* Header Banner */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gradient-to-r from-coc-gold/10 to-transparent p-6 rounded-2xl border border-coc-gold/20 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-coc-gold/10 rounded-full blur-[80px] pointer-events-none -translate-y-1/2 translate-x-1/2" />
+        
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="p-2 bg-coc-gold/20 rounded-lg border border-coc-gold/30">
+                <TrophyIcon className="h-6 w-6 text-coc-gold" />
+            </div>
+            <h2 className="text-2xl font-clash text-white tracking-wide">
+                {t.clanEsports.tabTitle}
+            </h2>
+          </div>
+          <p className="text-gray-400 font-medium text-sm ml-1 max-w-lg">
+            {t.clanEsports.tabDesc}
+          </p>
         </div>
+
         {isManager && (
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setIsModalOpen(true)}
-          >
-            <PlusIcon className="h-4 w-4 mr-2" />
-            {t.clanEsports.createTeam} {/* [i18n] */}
-          </Button>
+            <div className="relative z-10">
+                <Button
+                    variant="primary"
+                    size="md"
+                    onClick={() => setIsModalOpen(true)}
+                    className="shadow-lg shadow-coc-gold/10 hover:shadow-coc-gold/20"
+                >
+                    <PlusIcon className="h-4 w-4 mr-2" />
+                    {t.clanEsports.createTeam}
+                </Button>
+            </div>
         )}
       </div>
 
-      <p className="text-gray-300 font-sans text-sm">
-        {t.clanEsports.tabDesc} {/* [i18n] */}
-      </p>
-
       {/* Daftar Tim yang Ada */}
-      <div className="space-y-4">
+      <div>
         {esportsTeams.length === 0 ? (
-          <div className="p-8 text-center bg-coc-stone/30 rounded-lg min-h-[200px] flex flex-col justify-center items-center">
-            <UsersIcon className="h-12 w-12 text-coc-gold/50 mb-3" />
-            <p className="text-lg font-clash text-white">{t.clanEsports.noTeamsTitle}</p> {/* [i18n] */}
-            <p className="text-sm text-gray-400 font-sans mt-1">
+          <div className="flex flex-col items-center justify-center min-h-[300px] text-center p-8 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-sm border-dashed">
+            <div className="bg-white/5 p-6 rounded-full mb-6">
+                <UsersIcon className="h-12 w-12 text-gray-500 opacity-50" />
+            </div>
+            <h3 className="text-xl font-clash text-white mb-2">{t.clanEsports.noTeamsTitle}</h3>
+            <p className="text-sm text-gray-400 max-w-md mx-auto">
               {isManager
-                ? t.clanEsports.noTeamsDescManager // [i18n]
-                : t.clanEsports.noTeamsDescMember} // [i18n]
+                ? t.clanEsports.noTeamsDescManager
+                : t.clanEsports.noTeamsDescMember}
             </p>
+            {isManager && (
+                <Button
+                    variant="secondary"
+                    className="mt-6 bg-white/5 border border-white/10 hover:bg-white/10"
+                    onClick={() => setIsModalOpen(true)}
+                >
+                    <PlusIcon className="h-4 w-4 mr-2" />
+                    Create First Team
+                </Button>
+            )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {esportsTeams.map((team) => (
               <TeamCard
                 key={team.id}

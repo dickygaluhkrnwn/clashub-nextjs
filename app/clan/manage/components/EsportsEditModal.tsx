@@ -18,11 +18,8 @@ import {
   CrownIcon,
 } from '@/app/components/icons';
 import { NotificationProps } from '@/app/components/ui/Notification';
-import AlertDialog from '@/app/components/ui/AlertDialog'; // [PERBAIKAN] Impor AlertDialog
+import AlertDialog from '@/app/components/ui/AlertDialog';
 
-// =========================================================================
-// KOMPONEN MODAL: EditTeamModal
-// =========================================================================
 interface EditTeamModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -53,29 +50,23 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // [PERBAIKAN] State untuk modal peringatan
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [alertInfo, setAlertInfo] = useState({ title: '', message: '' });
 
-  // [EDIT] Kita tambahkan useEffect untuk sinkronisasi jika props berubah saat modal terbuka
   useEffect(() => {
     if (isOpen) {
       setTeamName(teamToEdit.teamName);
       setSelectedUids([...teamToEdit.memberUids]);
       setSelectedLeaderUid(teamToEdit.teamLeaderUid);
       setIsSubmitting(false);
-      // [PERBAIKAN] Reset state alert
       setIsAlertOpen(false);
       setAlertInfo({ title: '', message: '' });
     }
   }, [isOpen, teamToEdit]);
 
-  // Buat Set (HashSet) untuk mengecek UID anggota yang sudah ada di tim lain
-  // [EDIT] Kita harus mengecualikan anggota tim ini sendiri
   const membersInOtherTeams = useMemo(() => {
     const uids = new Set<string>();
     allTeams.forEach((team) => {
-      // Hanya tambahkan UID dari tim LAIN
       if (team.id !== teamToEdit.id) {
         team.memberUids.forEach((uid) => uids.add(uid));
       }
@@ -83,24 +74,19 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
     return uids;
   }, [allTeams, teamToEdit.id]);
 
-  // [BARU] Dapatkan profil lengkap dari anggota yang dipilih (untuk dropdown leader)
   const selectedMembers = useMemo(() => {
     return availableMembers.filter((m) => selectedUids.includes(m.uid));
   }, [selectedUids, availableMembers]);
 
-  // Handler untuk memilih/membatalkan anggota
   const handleMemberToggle = (uid: string) => {
     let newSelectedUids = [...selectedUids];
 
     if (newSelectedUids.includes(uid)) {
-      // Batalkan pilihan
       newSelectedUids = newSelectedUids.filter((id) => id !== uid);
-      // Jika leader yang dibatalkan, reset pilihan leader
       if (uid === selectedLeaderUid) {
         setSelectedLeaderUid('');
       }
     } else {
-      // Tambah pilihan
       if (newSelectedUids.length >= 5) {
         onAction('Anda hanya dapat memilih 5 anggota.', 'error');
         return;
@@ -110,7 +96,6 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
     setSelectedUids(newSelectedUids);
   };
 
-  // Handler untuk submit form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (teamName.trim() === '') {
@@ -121,12 +106,10 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
       onAction('Anda harus memilih tepat 5 anggota.', 'error');
       return;
     }
-    // [BARU] Validasi leader tim
     if (selectedLeaderUid === '') {
       onAction('Anda harus memilih seorang Leader Tim.', 'error');
       return;
     }
-    // [BARU] Validasi token
     if (!currentUser) {
       onAction('Autentikasi gagal. Silakan login ulang.', 'error');
       return;
@@ -136,7 +119,6 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
     try {
       const token = await currentUser.getIdToken();
 
-      // [EDIT] Panggil API PUT
       const response = await fetch(
         `/api/clan/manage/${clanId}/esports/${teamToEdit.id}`,
         {
@@ -147,8 +129,8 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
           },
           body: JSON.stringify({
             teamName: teamName.trim(),
-            teamLeaderUid: selectedLeaderUid, // <-- [BARU] Kirim leader baru
-            memberUids: selectedUids, // Kirim sebagai array, API akan konversi ke tuple
+            teamLeaderUid: selectedLeaderUid,
+            memberUids: selectedUids,
           }),
         }
       );
@@ -158,7 +140,6 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
         throw new Error(result.message || 'Gagal memperbarui tim.');
       }
 
-      // [PERBAIKAN] Tampilkan modal peringatan (AlertDialog) alih-alih onAction
       setAlertInfo({
         title: 'Tim Berhasil Diperbarui!',
         message:
@@ -166,7 +147,6 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
           '\n\nPERHATIAN: Jika Anda mengubah Leader Tim, harap promosikan leader baru menjadi Co-Leader di dalam game.',
       });
       setIsAlertOpen(true);
-      // Kita tidak memanggil onClose() di sini lagi.
     } catch (error) {
       console.error('Error updating team:', error);
       onAction((error as Error).message, 'error');
@@ -178,47 +158,46 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    // [PERBAIKAN] Bungkus dengan React.Fragment agar bisa merender 2 modal
     <>
       <AlertDialog
         isOpen={isAlertOpen}
         onClose={() => {
           setIsAlertOpen(false);
-          onClose(); // [PERBAIKAN] Tutup modal UTAMA setelah AlertDialog ditutup
+          onClose();
         }}
         title={alertInfo.title}
         message={alertInfo.message}
       />
 
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-        <div className="relative w-full max-w-lg rounded-xl card-stone shadow-xl border-2 border-coc-gold/50">
-          <form onSubmit={handleSubmit}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+        <div className="relative w-full max-w-lg bg-[#1a1a1a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+          <form onSubmit={handleSubmit} className="flex flex-col h-full">
             {/* Header Modal */}
-            <div className="flex justify-between items-center p-4 border-b border-coc-gold-dark/30">
-              <h3 className="text-xl font-clash text-coc-gold flex items-center">
-                <EditIcon className="h-6 w-6 mr-3" />
+            <div className="flex justify-between items-center p-5 border-b border-white/5 bg-white/[0.02]">
+              <h3 className="text-xl font-clash text-white flex items-center gap-3">
+                <div className="p-2 bg-coc-gold/10 rounded-lg border border-coc-gold/20">
+                    <EditIcon className="h-5 w-5 text-coc-gold" />
+                </div>
                 Edit Tim E-Sports
               </h3>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="!p-1"
+                className="text-gray-400 hover:text-white"
                 onClick={onClose}
                 disabled={isSubmitting}
               >
-                <XIcon className="h-5 w-5" />
+                <XIcon className="h-6 w-6" />
               </Button>
             </div>
 
-            {/* Body Modal */}
-            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+            {/* Body Modal (Scrollable) */}
+            <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-grow">
+              
               {/* Input Nama Tim */}
-              <div>
-                <label
-                  htmlFor="teamName"
-                  className="block text-sm font-medium text-gray-300 font-sans mb-1"
-                >
+              <div className="space-y-2">
+                <label htmlFor="teamName" className="block text-sm font-bold text-gray-300">
                   Nama Tim
                 </label>
                 <input
@@ -227,136 +206,116 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
                   value={teamName}
                   onChange={(e) => setTeamName(e.target.value)}
                   placeholder="Misal: Tim Elit War"
-                  className="input-base" // Kelas dari globals.css
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-coc-gold/50 transition-colors"
                   disabled={isSubmitting}
                 />
               </div>
 
               {/* Pemilih Anggota */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 font-sans mb-1">
-                  Pilih Anggota ({selectedUids.length}/5)
-                </label>
-                <p className="text-xs text-gray-400 font-sans mb-2">
-                  Pilih 5 anggota terverifikasi. Anggota yang sudah ada di tim
-                  lain akan dinonaktifkan.
+              <div className="space-y-2">
+                <div className="flex justify-between items-end">
+                    <label className="block text-sm font-bold text-gray-300">
+                    Pilih Anggota ({selectedUids.length}/5)
+                    </label>
+                    <span className="text-xs text-coc-gold/70">Max 5</span>
+                </div>
+                <p className="text-xs text-gray-500 mb-2">
+                  Pilih 5 anggota terverifikasi. Anggota di tim lain dinonaktifkan.
                 </p>
-                <div className="space-y-2 max-h-60 overflow-y-auto pr-2 rounded-lg bg-coc-stone-dark/30 p-3">
+                
+                <div className="bg-black/20 border border-white/5 rounded-xl overflow-hidden max-h-[250px] overflow-y-auto custom-scrollbar">
                   {availableMembers.length === 0 ? (
-                    <p className="text-sm text-gray-400 text-center py-4">
-                      Tidak ada anggota terverifikasi yang tersedia.
-                    </p>
+                    <div className="p-8 text-center">
+                        <p className="text-gray-500 text-sm">Tidak ada anggota terverifikasi.</p>
+                    </div>
                   ) : (
-                    availableMembers.map((member) => {
-                      const isSelected = selectedUids.includes(member.uid);
-                      // [EDIT] Cek apakah UID ada di tim lain (kecuali tim ini)
-                      const isInOtherTeam =
-                        membersInOtherTeams.has(member.uid) &&
-                        !teamToEdit.memberUids.includes(member.uid);
-                      const isDisabled =
-                        (isInOtherTeam && !isSelected) ||
-                        (selectedUids.length >= 5 && !isSelected) ||
-                        isSubmitting;
+                    <div className="divide-y divide-white/5">
+                        {availableMembers.map((member) => {
+                        const isSelected = selectedUids.includes(member.uid);
+                        const isInOtherTeam = membersInOtherTeams.has(member.uid) && !teamToEdit.memberUids.includes(member.uid);
+                        const isDisabled = (isInOtherTeam && !isSelected) || (selectedUids.length >= 5 && !isSelected) || isSubmitting;
 
-                      return (
-                        <button
-                          type="button"
-                          key={member.uid}
-                          onClick={() => handleMemberToggle(member.uid)}
-                          disabled={isDisabled}
-                          className={`w-full flex items-center space-x-3 p-2 rounded-md transition-colors ${
-                            isSelected
-                              ? 'bg-coc-gold/20 border border-coc-gold'
-                              : 'bg-coc-dark/50 hover:bg-coc-dark/80'
-                          } ${
-                            isDisabled
-                              ? 'opacity-50 cursor-not-allowed'
-                              : 'cursor-pointer'
-                          }`}
-                        >
-                          <div
-                            className={`w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center ${
-                              isSelected
-                                ? 'bg-coc-gold border-coc-gold'
-                                : 'border-gray-400'
-                            } ${
-                              isInOtherTeam && !isSelected
-                                ? 'bg-gray-600 border-gray-500'
-                                : ''
-                            }`}
-                          >
-                            {isSelected && (
-                              <CheckIcon className="h-4 w-4 text-coc-dark" />
-                            )}
-                            {isInOtherTeam && !isSelected && (
-                              <XIcon className="h-4 w-4 text-gray-400" />
-                            )}
-                          </div>
-                          <Image
-                            src={getThImage(member.thLevel)}
-                            alt={`TH${member.thLevel}`}
-                            width={28}
-                            height={28}
-                            className="h-7 w-auto"
-                          />
-                          <div className="text-left">
-                            <p
-                              className={`font-sans font-medium ${
-                                isSelected ? 'text-white' : 'text-gray-200'
-                              }`}
+                        return (
+                            <button
+                            type="button"
+                            key={member.uid}
+                            onClick={() => handleMemberToggle(member.uid)}
+                            disabled={isDisabled}
+                            className={`w-full flex items-center justify-between p-3 transition-all ${
+                                isSelected ? 'bg-coc-gold/10' : 'hover:bg-white/5'
+                            } ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                             >
-                              {member.displayName}
-                            </p>
-                            {isInOtherTeam && (
-                              <p className="text-xs text-coc-yellow/80">
-                                (Sudah di tim lain)
-                              </p>
+                            <div className="flex items-center gap-3">
+                                <div className="relative">
+                                    <Image 
+                                        src={getThImage(member.thLevel)} 
+                                        alt={`TH${member.thLevel}`} 
+                                        width={32} 
+                                        height={32} 
+                                        className="drop-shadow-md"
+                                    />
+                                    <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-[#1a1a1a] flex items-center justify-center ${isSelected ? 'bg-coc-gold' : 'bg-gray-600'}`}>
+                                        {isSelected && <CheckIcon className="w-2.5 h-2.5 text-black" />}
+                                    </div>
+                                </div>
+                                <div className="text-left">
+                                    <p className={`text-sm font-medium ${isSelected ? 'text-white' : 'text-gray-300'}`}>
+                                        {member.displayName}
+                                    </p>
+                                    <p className="text-[10px] text-gray-500 font-mono">TH {member.thLevel}</p>
+                                </div>
+                            </div>
+                            
+                            {isInOtherTeam && !isSelected && (
+                                <span className="text-[10px] text-red-400 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">
+                                    In Team
+                                </span>
                             )}
-                          </div>
-                        </button>
-                      );
-                    })
+                            </button>
+                        );
+                        })}
+                    </div>
                   )}
                 </div>
               </div>
 
-              {/* [BARU] Pemilih Leader Tim */}
-              <div>
-                <label
-                  htmlFor="teamLeader"
-                  className="block text-sm font-medium text-gray-300 font-sans mb-1"
-                >
-                  <CrownIcon className="h-4 w-4 mr-1.5 inline-block" />
+              {/* Pemilih Leader Tim */}
+              <div className="space-y-2">
+                <label htmlFor="teamLeader" className="block text-sm font-bold text-gray-300 flex items-center gap-2">
+                  <CrownIcon className="h-4 w-4 text-coc-gold" />
                   Pilih Leader Tim
                 </label>
-                <select
-                  id="teamLeader"
-                  value={selectedLeaderUid}
-                  onChange={(e) => setSelectedLeaderUid(e.target.value)}
-                  className="input-base"
-                  disabled={isSubmitting || selectedUids.length !== 5}
-                >
-                  <option value="" disabled>
-                    {selectedUids.length !== 5
-                      ? 'Pilih 5 anggota dulu'
-                      : 'Pilih seorang leader...'}
-                  </option>
-                  {selectedMembers.map((member) => (
-                    <option key={member.uid} value={member.uid}>
-                      {member.displayName} (TH{member.thLevel})
+                <div className="relative">
+                    <select
+                    id="teamLeader"
+                    value={selectedLeaderUid}
+                    onChange={(e) => setSelectedLeaderUid(e.target.value)}
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white appearance-none focus:outline-none focus:border-coc-gold/50 cursor-pointer disabled:opacity-50"
+                    disabled={isSubmitting || selectedUids.length !== 5}
+                    >
+                    <option value="" disabled>
+                        {selectedUids.length !== 5
+                        ? 'Pilih 5 anggota dulu'
+                        : 'Pilih seorang leader...'}
                     </option>
-                  ))}
-                </select>
+                    {selectedMembers.map((member) => (
+                        <option key={member.uid} value={member.uid} className="bg-[#1a1a1a]">
+                        {member.displayName} (TH{member.thLevel})
+                        </option>
+                    ))}
+                    </select>
+                </div>
               </div>
             </div>
 
             {/* Footer Modal */}
-            <div className="flex justify-end gap-3 bg-coc-stone-dark/40 px-6 py-4 rounded-b-xl">
+            <div className="p-5 border-t border-white/5 bg-white/[0.02] flex justify-end gap-3">
               <Button
                 type="button"
                 variant="secondary"
                 onClick={onClose}
                 disabled={isSubmitting}
+                className="bg-white/5 hover:bg-white/10 border-white/10 text-gray-300"
               >
                 Batal
               </Button>
@@ -367,13 +326,14 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
                   isSubmitting ||
                   teamName.trim() === '' ||
                   selectedUids.length !== 5 ||
-                  selectedLeaderUid === '' // <-- [BARU] Validasi tombol
+                  selectedLeaderUid === ''
                 }
+                className="shadow-lg shadow-coc-gold/10"
               >
                 {isSubmitting ? (
-                  <Loader2Icon className="h-5 w-5 animate-spin mr-2" />
+                  <Loader2Icon className="h-4 w-4 animate-spin mr-2" />
                 ) : (
-                  <CheckIcon className="h-5 w-5 mr-2" />
+                  <CheckIcon className="h-4 w-4 mr-2" />
                 )}
                 {isSubmitting ? 'Memperbarui...' : 'Simpan Perubahan'}
               </Button>

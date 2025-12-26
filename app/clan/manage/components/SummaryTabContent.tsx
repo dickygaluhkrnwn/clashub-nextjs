@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation'; 
-import { ManagedClan, CocCurrentWar, CocRaidLog } from '@/lib/types';
+import { useRouter } from 'next/navigation';
+import { ManagedClan, CocCurrentWar, CocRaidLog } from '@/lib/clashub.types'; // Pastikan path import tipe benar
 import { Button } from '@/app/components/ui/Button';
 import {
   RefreshCwIcon,
@@ -16,6 +16,7 @@ import {
   StarIcon,
   ShieldIcon,
   ArrowRightIcon,
+  AlertTriangleIcon
 } from '@/app/components/icons';
 import TopPerformersCard from './TopPerformersCard';
 import { formatNumber } from '@/lib/th-utils';
@@ -26,7 +27,7 @@ import {
   useManagedClanWarLog,
   useManagedClanCWL,
 } from '@/lib/hooks/useManagedClan';
-import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook i18n
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 interface SummaryTabContentProps {
   clan: ManagedClan;
@@ -38,13 +39,13 @@ interface SummaryTabContentProps {
 }
 
 // ======================================================================================================
-// Helper Component: War Status Display
+// Helper Component: War Status Display (Glass Style)
 // ======================================================================================================
 
 interface WarStatusProps {
-  war: CocCurrentWar; 
+  war: CocCurrentWar;
   clanTag: string;
-  t: any; // [BARU] Pass 't' helper
+  t: any;
 }
 
 const WarStatusDisplay: React.FC<WarStatusProps> = ({ war, clanTag, t }) => {
@@ -53,27 +54,32 @@ const WarStatusDisplay: React.FC<WarStatusProps> = ({ war, clanTag, t }) => {
 
   if (!ourClan || !enemyClan || war.state === 'notInWar') {
     return (
-      <p className="text-gray-400 mt-3">
-        {t.clanManage.warNotInActive}
-      </p>
+      <div className="flex flex-col items-center justify-center h-full min-h-[150px] text-center p-4">
+        <ShieldIcon className="h-10 w-10 text-gray-600 mb-3 opacity-50" />
+        <p className="text-gray-400 font-medium">{t.clanManage.warNotInActive}</p>
+      </div>
     );
   }
 
   const attacksUsed = ourClan.attacks || 0;
   const totalMembers = war.teamSize || ourClan.members?.length || 0;
-  const totalAttacks = totalMembers * (war.attacksPerMember || 2);
+  const totalAttacks = totalMembers * (war.attacksPerMember || 1); // Fallback ke 1 jika null, biasanya 1 atau 2
+  const progress = totalAttacks > 0 ? (attacksUsed / totalAttacks) * 100 : 0;
 
   let stateText = '';
-  let stateClass = '';
+  let stateColor = 'text-gray-400';
+  let badgeColor = 'bg-gray-500/20 text-gray-300 border-gray-500/30';
 
   switch (war.state) {
     case 'inWar':
       stateText = t.clanManage.warInProgress;
-      stateClass = 'text-coc-red';
+      stateColor = 'text-coc-red';
+      badgeColor = 'bg-coc-red/20 text-coc-red border-coc-red/30 animate-pulse';
       break;
     case 'preparation':
       stateText = t.clanManage.warPreparation;
-      stateClass = 'text-coc-blue';
+      stateColor = 'text-coc-blue';
+      badgeColor = 'bg-coc-blue/20 text-coc-blue border-coc-blue/30';
       break;
     case 'warEnded':
       let result = war.result;
@@ -83,141 +89,136 @@ const WarStatusDisplay: React.FC<WarStatusProps> = ({ war, clanTag, t }) => {
         else result = 'tie';
       }
       
-      // [i18n] Terjemahkan hasil perang
       let resultLabel = '';
-      if (result === 'win') resultLabel = t.clanWar.resultWin.toUpperCase();
-      else if (result === 'lose') resultLabel = t.clanWar.resultLose.toUpperCase();
-      else resultLabel = t.clanWar.resultDraw.toUpperCase();
+      if (result === 'win') resultLabel = t.clanWar.resultWin;
+      else if (result === 'lose') resultLabel = t.clanWar.resultLose;
+      else resultLabel = t.clanWar.resultDraw;
 
       stateText = `${t.clanManage.warEnded} (${resultLabel})`;
-      
-      stateClass =
-        result === 'win'
-          ? 'text-coc-green'
-          : result === 'lose'
-          ? 'text-coc-red'
-          : 'text-coc-gold';
+      stateColor = result === 'win' ? 'text-coc-green' : result === 'lose' ? 'text-coc-red' : 'text-coc-gold';
+      badgeColor = result === 'win' ? 'bg-coc-green/20 text-coc-green border-coc-green/30' : 'bg-white/10 text-gray-300 border-white/20';
       break;
-    default:
-      stateText = 'N/A';
-      stateClass = 'text-gray-400';
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center border-b border-coc-gold/30 pb-2">
-        <h4 className="text-lg font-clash text-white flex items-center gap-2">
-          <SwordsIcon className={`h-5 w-5 ${stateClass}`} /> {enemyClan.name}
-        </h4>
-        <span className={`text-sm font-semibold ${stateClass} uppercase`}>
+    <div className="flex flex-col h-full justify-between">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-4">
+        <div className={`px-2 py-1 rounded text-xs font-bold border uppercase tracking-wider ${badgeColor}`}>
           {stateText}
-        </span>
+        </div>
+        <div className="text-xs text-gray-400 font-mono">
+          {war.teamSize} vs {war.teamSize}
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 text-center">
-        {/* Klan Kita */}
-        <div className="bg-coc-stone/20 p-3 rounded-lg border border-coc-gold/30">
-          <p className="text-md font-clash text-coc-green">{ourClan.name}</p>
-          <p className="text-xl font-bold text-white flex items-center justify-center gap-1">
-            <StarIcon className="h-5 w-5 text-coc-gold" /> {ourClan.stars}
-          </p>
-          <p className="text-xs text-gray-400 mt-1">
-            {ourClan.destructionPercentage.toFixed(2)}% | {attacksUsed}/
-            {totalAttacks} {t.clanManage.attacks}
+      {/* VS Section */}
+      <div className="flex items-center justify-between gap-2 mb-4 relative">
+        {/* Our Clan */}
+        <div className="flex-1 text-center bg-black/20 rounded-lg p-2 border border-coc-green/20">
+          <p className="text-xs text-coc-green font-bold truncate mb-1">{ourClan.name}</p>
+          <div className="flex items-center justify-center gap-1">
+            <StarIcon className="h-4 w-4 text-coc-gold" />
+            <span className="text-lg font-clash text-white">{ourClan.stars}</span>
+          </div>
+          <p className="text-[10px] text-gray-400 mt-1">
+            {ourClan.destructionPercentage.toFixed(1)}%
           </p>
         </div>
 
-        {/* Klan Lawan */}
-        <div className="bg-coc-stone/20 p-3 rounded-lg border border-coc-red/30">
-          <p className="text-md font-clash text-coc-red">{enemyClan.name}</p>
-          <p className="text-xl font-bold text-white flex items-center justify-center gap-1">
-            <StarIcon className="h-5 w-5 text-coc-gold" /> {enemyClan.stars}
+        <div className="font-clash text-coc-gold text-lg px-1 italic">VS</div>
+
+        {/* Enemy Clan */}
+        <div className="flex-1 text-center bg-black/20 rounded-lg p-2 border border-coc-red/20">
+          <p className="text-xs text-coc-red font-bold truncate mb-1">{enemyClan.name}</p>
+          <div className="flex items-center justify-center gap-1">
+            <StarIcon className="h-4 w-4 text-coc-gold" />
+            <span className="text-lg font-clash text-white">{enemyClan.stars}</span>
+          </div>
+          <p className="text-[10px] text-gray-400 mt-1">
+            {enemyClan.destructionPercentage.toFixed(1)}%
           </p>
-          <p className="text-xs text-gray-400 mt-1">
-            {enemyClan.destructionPercentage.toFixed(2)}%
-          </p>
+        </div>
+      </div>
+
+      {/* Attack Progress */}
+      <div className="mb-4">
+        <div className="flex justify-between text-xs text-gray-400 mb-1">
+          <span>{t.clanManage.attacks}</span>
+          <span>{attacksUsed} / {totalAttacks}</span>
+        </div>
+        <div className="w-full bg-black/40 rounded-full h-2 overflow-hidden border border-white/5">
+          <div 
+            className="bg-coc-gold h-full rounded-full transition-all duration-1000 ease-out" 
+            style={{ width: `${progress}%` }} 
+          />
         </div>
       </div>
 
       <Button
         href="/clan/manage?tab=active-war"
-        variant="secondary"
+        variant="outline"
         size="sm"
-        className="w-full mt-2"
+        className="w-full text-xs"
       >
-        {t.clanManage.viewWarDetails} <ArrowRightIcon className="w-4 h-4 ml-2" />
+        {t.clanManage.viewWarDetails} <ArrowRightIcon className="w-3 h-3 ml-2" />
       </Button>
     </div>
   );
 };
 
 // ======================================================================================================
-// Helper Component: Raid Summary Display
+// Helper Component: Raid Summary Display (Glass Style)
 // ======================================================================================================
 
 interface RaidSummaryProps {
   raid: CocRaidLog;
-  t: any; // [BARU] Pass 't' helper
-  locale: string; // [BARU] Locale
+  t: any;
+  locale: string;
 }
 
 const RaidSummaryDisplay: React.FC<RaidSummaryProps> = ({ raid, t, locale }) => {
-  // [i18n] Format tanggal dinamis
-  const startDate = new Date(raid.startTime).toLocaleDateString(locale, {
-    day: 'numeric',
-    month: 'short',
-  });
-  const endDate = new Date(raid.endTime).toLocaleDateString(locale, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+  const startDate = new Date(raid.startTime).toLocaleDateString(locale, { day: 'numeric', month: 'short' });
+  const endDate = new Date(raid.endTime).toLocaleDateString(locale, { day: 'numeric', month: 'short' });
 
   return (
-    <div className="card-stone p-6 space-y-4 border border-coc-gold/30">
-      <h3 className="text-xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2">
-        <HomeIcon className="h-5 w-5 text-coc-blue" /> {t.clanManage.raidSummaryTitle}
-      </h3>
-
-      <p className="text-sm text-gray-300 font-sans">
-        {t.clanManage.raidPeriod}: <span className="font-semibold">{startDate} - {endDate}</span>
-      </p>
-
-      <div className="grid grid-cols-2 gap-4 text-center">
-        <div className="bg-coc-stone/20 p-3 rounded-lg">
-          <p className="text-xs text-gray-400">{t.clanManage.raidTotalLoot}</p>
-          <p className="text-xl font-bold text-coc-gold mt-1">
-            {formatNumber(raid.capitalTotalLoot)}
-          </p>
-        </div>
-        <div className="bg-coc-stone/20 p-3 rounded-lg">
-          <p className="text-xs text-gray-400">{t.clanManage.raidMedals}</p>
-          <p className="text-xl font-bold text-coc-gold mt-1">
-            {formatNumber(raid.offensiveReward || 0)}
-          </p>
-        </div>
+    <div className="flex flex-col h-full justify-between">
+      <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-2">
+        <h4 className="text-sm font-bold text-white flex items-center gap-2">
+          <CoinsIcon className="h-4 w-4 text-purple-400" />
+          Raid Weekend
+        </h4>
+        <span className="text-xs text-gray-400 bg-white/5 px-2 py-0.5 rounded">
+          {startDate} - {endDate}
+        </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 text-center">
-        <div className="bg-coc-stone/20 p-3 rounded-lg">
-          <p className="text-xs text-gray-400">{t.clanManage.raidAttacks}</p>
-          <p className="text-xl font-bold text-white mt-1">{raid.totalAttacks}</p>
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="bg-black/20 p-3 rounded-xl border border-white/5 text-center">
+          <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">{t.clanManage.raidTotalLoot}</p>
+          <p className="text-lg font-clash text-coc-gold">{formatNumber(raid.capitalTotalLoot)}</p>
         </div>
-        <div className="bg-coc-stone/20 p-3 rounded-lg">
-          <p className="text-xs text-gray-400">{t.clanManage.raidDestroyed}</p>
-          <p className="text-xl font-bold text-white mt-1">
-            {raid.enemyDistrictsDestroyed || 0}
-          </p>
+        <div className="bg-black/20 p-3 rounded-xl border border-white/5 text-center">
+          <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">{t.clanManage.raidMedals}</p>
+          <p className="text-lg font-clash text-purple-400">~{formatNumber(raid.offensiveReward || 0)}</p>
+        </div>
+        <div className="bg-black/20 p-3 rounded-xl border border-white/5 text-center">
+          <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">{t.clanManage.raidAttacks}</p>
+          <p className="text-lg font-clash text-white">{raid.totalAttacks}</p>
+        </div>
+        <div className="bg-black/20 p-3 rounded-xl border border-white/5 text-center">
+          <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">{t.clanManage.raidDestroyed}</p>
+          <p className="text-lg font-clash text-coc-red">{raid.enemyDistrictsDestroyed || 0}</p>
         </div>
       </div>
 
       <Button
         href="/clan/manage?tab=raid"
-        variant="secondary"
+        variant="outline"
         size="sm"
-        className="w-full mt-2"
+        className="w-full text-xs"
       >
-        {t.clanManage.viewRaidHistory} <ArrowRightIcon className="w-4 h-4 ml-2" />
+        {t.clanManage.viewRaidHistory} <ArrowRightIcon className="w-3 h-3 ml-2" />
       </Button>
     </div>
   );
@@ -232,24 +233,24 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
   isManager,
   onAction,
 }) => {
-  const { t, language } = useLanguage(); // [BARU] Init Hook
-  const locale = language === 'id' ? 'id-ID' : 'en-US'; // [i18n] Tentukan locale format
-  const router = useRouter(); 
+  const { t, language } = useLanguage();
+  const locale = language === 'id' ? 'id-ID' : 'en-US';
+  const router = useRouter();
 
   const {
-    clanCache, 
+    clanCache,
     isLoading: isLoadingBasic,
-    mutateCache: mutateBasic, 
+    mutateCache: mutateBasic,
   } = useManagedClanCache(clan.id);
   const {
-    warData, 
+    warData,
     isLoading: isLoadingWar,
-    mutateWar: mutateWar, 
+    mutateWar: mutateWar,
   } = useManagedClanWar(clan.id);
   const {
     currentRaid,
     isLoading: isLoadingRaid,
-    mutateRaid: mutateRaid, 
+    mutateRaid: mutateRaid,
   } = useManagedClanRaid(clan.id);
 
   const { mutateWarLog } = useManagedClanWarLog(clan.id);
@@ -257,24 +258,16 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
 
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // REFAKTOR: Fungsi Refresh UI (untuk Anggota)
   const handleRefreshUI = () => {
     onAction(t.clanManage.msgReloading, 'info');
-    mutateBasic();
-    mutateWar();
-    mutateRaid();
-    mutateWarLog();
-    mutateCWL();
-    router.refresh(); 
+    Promise.all([mutateBasic(), mutateWar(), mutateRaid(), mutateWarLog(), mutateCWL()]).then(() => {
+        router.refresh();
+    });
   };
 
-  // REFAKTOR: Fungsi Sync Manual (untuk Manager)
   const handleSyncManual = async () => {
     if (!isManager) {
-      onAction(
-        t.clanManage.msgOnlyManager,
-        'warning'
-      );
+      onAction(t.clanManage.msgOnlyManager, 'warning');
       return;
     }
     setIsSyncing(true);
@@ -282,17 +275,17 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
 
     try {
       const basicRes = await fetch(`/api/clan/manage/${clan.id}/sync/basic`, { method: 'POST' });
-      const basicData = await basicRes.json(); 
+      const basicData = await basicRes.json();
 
-      await fetch(`/api/clan/manage/${clan.id}/sync/war`, { method: 'POST' });
-      await fetch(`/api/clan/manage/${clan.id}/sync/raid`, { method: 'POST' });
-      await fetch(`/api/clan/manage/${clan.id}/sync/warlog`, { method: 'POST' });
-      await fetch(`/api/clan/manage/${clan.id}/sync/cwl`, { method: 'POST' });
+      await Promise.all([
+        fetch(`/api/clan/manage/${clan.id}/sync/war`, { method: 'POST' }),
+        fetch(`/api/clan/manage/${clan.id}/sync/raid`, { method: 'POST' }),
+        fetch(`/api/clan/manage/${clan.id}/sync/warlog`, { method: 'POST' }),
+        fetch(`/api/clan/manage/${clan.id}/sync/cwl`, { method: 'POST' }),
+      ]);
 
-      onAction(
-        t.clanManage.msgBackendDone,
-        'info'
-      );
+      onAction(t.clanManage.msgBackendDone, 'info');
+      
       await Promise.all([
         mutateBasic(),
         mutateWar(),
@@ -303,47 +296,30 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
 
       if (basicData.data?.ownerUpdated) {
         onAction(t.clanManage.msgOwnerUpdated, 'success');
-        router.refresh(); 
+        router.refresh();
       } else {
         onAction(t.clanManage.msgSyncSuccess, 'success');
       }
 
     } catch (err) {
-      const errorMessage =
-        (err as Error).message || t.clanManage.msgSyncError;
+      const errorMessage = (err as Error).message || t.clanManage.msgSyncError;
       onAction(errorMessage, 'error');
     } finally {
       setIsSyncing(false);
     }
   };
 
+  // Loading Skeleton sederhana jika data belum ada sama sekali
   const isLoading = isLoadingBasic || isLoadingWar || isLoadingRaid;
-  if (isLoading && !isSyncing) {
-    return (
-      <div className="flex justify-center items-center min-h-[40vh]">
-        <RefreshCwIcon className="h-10 w-10 text-coc-gold animate-spin" />
-      </div>
-    );
-  }
-
-  // [i18n] Format tanggal update terakhir
-  const lastSyncedDate = clanCache?.lastUpdated
-    ? new Date(clanCache.lastUpdated)
-    : new Date(0);
-  const isCacheStale =
-    !clanCache || lastSyncedDate.getTime() < Date.now() - 3600000;
-  const lastSyncTime = clanCache?.lastUpdated
-    ? new Date(clanCache.lastUpdated).toLocaleString(locale)
-    : t.clanManage.never;
+  
+  // Data processing
+  const lastSyncedDate = clanCache?.lastUpdated ? new Date(clanCache.lastUpdated) : new Date(0);
+  const isCacheStale = !clanCache || lastSyncedDate.getTime() < Date.now() - 3600000;
+  const lastSyncTime = clanCache?.lastUpdated ? new Date(clanCache.lastUpdated).toLocaleString(locale) : t.clanManage.never;
 
   const topPerformers = clanCache?.topPerformers;
-  const currentWar = warData; 
-
-  const isWarActive =
-    currentWar &&
-    currentWar.state !== 'notInWar' &&
-    currentWar.state !== 'warEnded';
-
+  const currentWar = warData;
+  const isWarActive = currentWar && currentWar.state !== 'notInWar' && currentWar.state !== 'warEnded';
   const isRaidDataAvailable = !!currentRaid && currentRaid.state === 'ended';
 
   const PROMOTION_LIMIT = 3;
@@ -356,152 +332,169 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
   const looterValue = (topRaidLooterData?.value as number) || 0;
 
   return (
-    <div className="space-y-8">
-      {/* Bagian 1: Kontrol Sinkronisasi, Info Internal & War/Raid Ringkasan */}
+    <div className="space-y-8 animate-fade-in">
+      
+      {/* --- DASHBOARD GRID UTAMA --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Kolom 1: Sinkronisasi & Info Internal */}
-        <div className="card-stone p-6 space-y-4 border border-coc-gold/30">
-          <h3 className="text-xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2">
-            <ClockIcon className="h-5 w-5" /> {t.clanManage.syncControlTitle}
-          </h3>
-          <p className="text-sm text-gray-300 font-sans">
-            {t.clanManage.syncControlDesc} {t.clanPublicProfile.lastUpdated} {lastSyncTime}.
-          </p>
-          {isManager ? ( // Tombol untuk Manager
-            <Button
-              onClick={handleSyncManual} 
-              variant={isCacheStale ? 'primary' : 'secondary'}
-              disabled={isSyncing}
-              className={`w-full ${isSyncing ? 'animate-pulse' : ''}`}
-            >
-              <RefreshCwIcon
-                className={`inline h-5 w-5 mr-2 ${
-                  isSyncing ? 'animate-spin' : ''
-                }`}
-              />
-              {isSyncing
-                ? t.clanManage.syncing
-                : isCacheStale
-                ? t.clanManage.syncManualStale
-                : t.clanManage.syncManualNow}
-            </Button>
-          ) : (
-            // Tombol untuk Anggota
-            <Button
-              onClick={handleRefreshUI} 
-              variant="tertiary"
-              disabled={isSyncing}
-              className={`w-full ${isSyncing ? 'animate-pulse' : ''}`}
-            >
-              <RefreshCwIcon
-                className={`inline h-5 w-5 mr-2 ${
-                  isSyncing ? 'animate-spin' : ''
-                }`}
-              />
-              {t.clanManage.reloadCache}
-            </Button>
-          )}
-          <p className="text-sm text-gray-400 pt-2">
-            <span className="font-bold">{t.clanManage.internalId}:</span> {clan.id}
-          </p>
-          <p className="text-sm text-gray-400">
-            <span className="font-bold">{t.clanManage.ownerUid}:</span> {clan.ownerUid}
-          </p>
+        
+        {/* Card 1: Sync & Control Center */}
+        <div className="bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-md rounded-2xl border border-white/10 p-6 shadow-xl flex flex-col justify-between">
+          <div>
+            <h3 className="text-lg font-clash text-white border-b border-white/5 pb-3 mb-3 flex items-center gap-2">
+              <ClockIcon className="h-5 w-5 text-coc-gold" /> 
+              {t.clanManage.syncControlTitle}
+            </h3>
+            <p className="text-sm text-gray-400 mb-4 leading-relaxed">
+              {t.clanManage.syncControlDesc}
+              <br />
+              <span className="text-white/60 text-xs mt-1 block">
+                {t.clanPublicProfile.lastUpdated}: {lastSyncTime}
+              </span>
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            {isManager ? (
+              <Button
+                onClick={handleSyncManual}
+                variant={isCacheStale ? 'primary' : 'secondary'}
+                disabled={isSyncing}
+                className="w-full justify-center"
+              >
+                <RefreshCwIcon className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+                {isSyncing ? t.clanManage.syncing : isCacheStale ? t.clanManage.syncManualStale : t.clanManage.syncManualNow}
+              </Button>
+            ) : (
+              <Button
+                onClick={handleRefreshUI}
+                variant="tertiary"
+                disabled={isSyncing}
+                className="w-full justify-center"
+              >
+                <RefreshCwIcon className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+                {t.clanManage.reloadCache}
+              </Button>
+            )}
+            
+            <div className="text-[10px] text-gray-600 bg-black/20 p-2 rounded text-center border border-white/5 font-mono">
+              ID: {clan.id}
+            </div>
+          </div>
         </div>
 
-        {/* Kolom 2: War Aktif */}
-        <div className="card-stone p-6 space-y-4 border border-coc-gold/30">
-          <h3 className="text-xl font-clash text-coc-gold-dark border-b border-coc-gold-dark/30 pb-2 flex items-center gap-2">
+        {/* Card 2: War Status */}
+        <div className="bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-md rounded-2xl border border-white/10 p-6 shadow-xl relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-coc-red/10 rounded-full blur-[50px] -z-10 group-hover:bg-coc-red/20 transition-all duration-500 pointer-events-none" />
+          
+          <h3 className="text-lg font-clash text-white border-b border-white/5 pb-3 mb-3 flex items-center gap-2">
             <SwordsIcon className="h-5 w-5 text-coc-red" /> {t.clanManage.activeWarTitle}
           </h3>
-          {isWarActive && currentWar ? (
-            <WarStatusDisplay war={currentWar} clanTag={clan.tag} t={t} />
+          
+          {isLoadingWar ? (
+             <div className="h-40 flex items-center justify-center">
+               <RefreshCwIcon className="animate-spin h-6 w-6 text-gray-500" />
+             </div>
           ) : (
-            <div className="text-center p-4 bg-coc-stone/20 rounded-lg">
-              <ShieldIcon className="h-8 w-8 text-coc-green/50 mx-auto" />
-              <p className="text-white font-clash mt-2">{t.clanManage.clanSafe}</p>
-              <p className="text-xs text-gray-400">
-                {t.clanManage.clanSafeDesc}
-              </p>
+             <WarStatusDisplay war={currentWar!} clanTag={clan.tag} t={t} />
+          )}
+        </div>
+
+        {/* Card 3: Raid Summary */}
+        <div className="bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-md rounded-2xl border border-white/10 p-6 shadow-xl relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-[50px] -z-10 group-hover:bg-purple-500/20 transition-all duration-500 pointer-events-none" />
+
+          <h3 className="text-lg font-clash text-white border-b border-white/5 pb-3 mb-3 flex items-center gap-2">
+            <HomeIcon className="h-5 w-5 text-purple-400" /> {t.clanManage.raidTitle}
+          </h3>
+
+          {isLoadingRaid ? (
+             <div className="h-40 flex items-center justify-center">
+               <RefreshCwIcon className="animate-spin h-6 w-6 text-gray-500" />
+             </div>
+          ) : isRaidDataAvailable && currentRaid ? (
+            <RaidSummaryDisplay raid={currentRaid} t={t} locale={locale} />
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-center py-4">
+              <HomeIcon className="h-10 w-10 text-gray-600 mb-3 opacity-50" />
+              <p className="text-sm text-gray-400 mb-4">{t.clanManage.raidNoData}</p>
+              <Button href="/clan/manage?tab=raid" variant="secondary" size="sm">
+                {t.clanManage.viewRaidArchive}
+              </Button>
             </div>
           )}
         </div>
 
-        {/* Kolom 3: Raid Terbaru */}
-        {isRaidDataAvailable && currentRaid ? (
-          <RaidSummaryDisplay raid={currentRaid} t={t} locale={locale} />
+      </div>
+
+      {/* --- SECTION 2: TOP PERFORMERS --- */}
+      <div>
+        <h2 className="text-2xl font-clash text-white mb-6 flex items-center gap-3">
+          <div className="p-2 bg-coc-gold/10 rounded-lg border border-coc-gold/20">
+            <TrophyIcon className="h-6 w-6 text-coc-gold" />
+          </div>
+          {t.clanManage.performanceTitle}
+        </h2>
+
+        {isLoadingBasic ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-48 bg-white/5 rounded-2xl animate-pulse" />
+            ))}
+          </div>
+        ) : topPerformers ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            
+            {/* Promosi (Green Theme) */}
+            <TopPerformersCard
+              title={t.clanManage.promotionsTitle}
+              icon={<ArrowUpIcon className="h-5 w-5 text-coc-green" />}
+              className="bg-coc-green/5 border-coc-green/20 text-white hover:border-coc-green/40"
+              value={promotions.length}
+              description={t.clanManage.promotionsDesc.replace('{count}', PROMOTION_LIMIT.toString())}
+              isPlayerList={true}
+              players={promotions}
+            />
+
+            {/* Demosi (Red Theme) */}
+            <TopPerformersCard
+              title={t.clanManage.demotionsTitle}
+              icon={<ArrowDownIcon className="h-5 w-5 text-coc-red" />}
+              className="bg-coc-red/5 border-coc-red/20 text-white hover:border-coc-red/40"
+              value={demotions.length}
+              description={t.clanManage.demotionsDesc.replace('{count}', DEMOTION_LIMIT.toString())}
+              isPlayerList={true}
+              players={demotions}
+            />
+
+            {/* Top Donator (Gold Theme) */}
+            <TopPerformersCard
+              title={t.clanManage.topDonator}
+              icon={<CoinsIcon className="h-5 w-5 text-coc-gold" />}
+              className="bg-coc-gold/5 border-coc-gold/20 text-white hover:border-coc-gold/40"
+              value={topDonatorData?.name || 'N/A'}
+              description={`${t.clanManage.totalDonations}: ${formatNumber(donatorValue)}`}
+              isPlayerList={false}
+              players={topDonatorData ? [topDonatorData] : []}
+            />
+
+            {/* Top Looter (Blue Theme) */}
+            <TopPerformersCard
+              title={t.clanManage.topLooter}
+              icon={<HomeIcon className="h-5 w-5 text-coc-blue" />}
+              className="bg-coc-blue/5 border-coc-blue/20 text-white hover:border-coc-blue/40"
+              value={topRaidLooterData?.name || 'N/A'}
+              description={`${t.clanManage.totalLoot}: ${formatNumber(looterValue)}`}
+              isPlayerList={false}
+              players={topRaidLooterData ? [topRaidLooterData] : []}
+            />
+          </div>
         ) : (
-          <div className="card-stone p-6 space-y-4 border border-coc-gold/30 flex flex-col justify-center items-center">
-            <HomeIcon className="h-8 w-8 text-coc-blue/50" />
-            <h3 className="text-xl font-clash text-coc-gold-dark">
-              {t.clanManage.raidTitle}
-            </h3>
-            <p className="text-sm text-gray-400 text-center">
-              {t.clanManage.raidNoData}
-            </p>
-            <Button href="/clan/manage?tab=raid" variant="tertiary" size="sm">
-              {t.clanManage.viewRaidArchive}
-            </Button>
+          <div className="text-center p-10 bg-white/5 rounded-2xl border border-white/5 border-dashed">
+            <AlertTriangleIcon className="h-10 w-10 text-gray-500 mx-auto mb-3" />
+            <p className="text-gray-400">{t.clanManage.noPerformanceData}</p>
           </div>
         )}
       </div>
-
-      {/* Bagian 2: Top Performers (Berupa kartu) */}
-      <h2 className="text-2xl font-clash text-white border-b border-coc-gold-dark/50 pb-2 flex items-center gap-3">
-        <TrophyIcon className="h-6 w-6 text-coc-gold" /> {t.clanManage.performanceTitle}
-      </h2>
-
-      {isLoadingBasic ? (
-        <p className="text-sm text-gray-400">{t.clanManage.loadingPerformance}</p>
-      ) : topPerformers ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Kartu 1: Promosi */}
-          <TopPerformersCard
-            title={t.clanManage.promotionsTitle}
-            icon={<ArrowUpIcon className="h-6 w-6 text-coc-green" />}
-            className="bg-coc-green/10 border border-coc-green/30 text-coc-green"
-            value={promotions.length}
-            description={t.clanManage.promotionsDesc.replace('{count}', PROMOTION_LIMIT.toString())}
-            isPlayerList={true}
-            players={promotions}
-          />
-
-          {/* Kartu 2: Demosi */}
-          <TopPerformersCard
-            title={t.clanManage.demotionsTitle}
-            icon={<ArrowDownIcon className="h-6 w-6 text-coc-red" />}
-            className="bg-coc-red/10 border border-coc-red/30 text-coc-red"
-            value={demotions.length}
-            description={t.clanManage.demotionsDesc.replace('{count}', DEMOTION_LIMIT.toString())}
-            isPlayerList={true}
-            players={demotions}
-          />
-
-          {/* Kartu 3: Top Donator */}
-          <TopPerformersCard
-            title={t.clanManage.topDonator}
-            icon={<CoinsIcon className="h-6 w-6 text-coc-gold" />}
-            className="bg-coc-gold/10 border border-coc-gold/30 text-coc-gold"
-            value={topDonatorData?.name || 'N/A'}
-            description={`${t.clanManage.totalDonations}: ${formatNumber(donatorValue)}`}
-            isPlayerList={false}
-            players={topDonatorData ? [topDonatorData] : []}
-          />
-
-          {/* Kartu 4: Top Raid Looter */}
-          <TopPerformersCard
-            title={t.clanManage.topLooter}
-            icon={<HomeIcon className="h-6 w-6 text-coc-blue" />}
-            className="bg-coc-blue/10 border border-coc-blue/30 text-coc-blue"
-            value={topRaidLooterData?.name || 'N/A'}
-            description={`${t.clanManage.totalLoot}: ${formatNumber(looterValue)}`}
-            isPlayerList={false}
-            players={topRaidLooterData ? [topRaidLooterData] : []}
-          />
-        </div>
-      ) : (
-        <p className="text-sm text-gray-400">{t.clanManage.noPerformanceData}</p>
-      )}
     </div>
   );
 };

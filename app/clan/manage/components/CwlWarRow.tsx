@@ -2,10 +2,10 @@
 
 import React, { useState, Fragment } from 'react';
 import Image from 'next/image';
-import { CocWarLog, CocWarClanInfo } from '@/lib/types';
-import { StarIcon, ChevronDownIcon, ChevronUpIcon } from '@/app/components/icons';
+import { CocWarLog, CocWarClanInfo } from '@/lib/clashub.types';
+import { StarIcon, ChevronDownIcon, ChevronUpIcon, ShieldIcon } from '@/app/components/icons';
 import CwlWarPlayerRow from './CwlWarPlayerRow';
-import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook i18n
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 interface CwlWarRowProps {
   round: CocWarLog;
@@ -18,7 +18,7 @@ const CwlWarRow: React.FC<CwlWarRowProps> = ({
   ourClanTag,
   roundNumber,
 }) => {
-  const { t } = useLanguage(); // [BARU] Init Language
+  const { t } = useLanguage();
   const [isRowOpen, setIsRowOpen] = useState(false);
 
   let ourClanInfo: CocWarClanInfo | undefined;
@@ -26,11 +26,11 @@ const CwlWarRow: React.FC<CwlWarRowProps> = ({
 
   if (!round.clan || !round.opponent) {
     return (
-      <tr className="bg-coc-stone/10">
-        <td className="px-3 py-3 text-center text-sm text-gray-400 font-clash">
+      <tr className="bg-white/5">
+        <td className="px-4 py-3 text-center text-gray-500 font-mono">
           {roundNumber}
         </td>
-        <td colSpan={4} className="px-3 py-3 text-left text-sm text-gray-500 italic">
+        <td colSpan={4} className="px-4 py-3 text-left text-gray-500 italic">
           {t.common.error} (Missing data)
         </td>
       </tr>
@@ -45,24 +45,36 @@ const CwlWarRow: React.FC<CwlWarRowProps> = ({
     opponentClanInfo = round.clan;
   }
 
-  // [i18n] Tentukan hasil perang dengan teks terjemahan
   let resultText = t.clanWar.resultDraw;
-  let resultColor = 'text-coc-gold';
+  let resultColor = 'text-gray-400';
+  let resultBadge = 'bg-gray-500/10 border-gray-500/20';
 
   if (round.result) {
     if (round.result === 'win') {
       resultText = t.clanWar.resultWin;
       resultColor = 'text-coc-green';
+      resultBadge = 'bg-coc-green/10 border-coc-green/20';
     } else if (round.result === 'lose') {
       resultText = t.clanWar.resultLose;
       resultColor = 'text-coc-red';
+      resultBadge = 'bg-coc-red/10 border-coc-red/20';
+    } else {
+        resultText = t.clanWar.resultDraw;
+        resultColor = 'text-coc-gold';
+        resultBadge = 'bg-coc-gold/10 border-coc-gold/20';
     }
   } else if (ourClanInfo.stars > opponentClanInfo.stars) {
     resultText = t.clanWar.resultWin;
     resultColor = 'text-coc-green';
+    resultBadge = 'bg-coc-green/10 border-coc-green/20';
   } else if (ourClanInfo.stars < opponentClanInfo.stars) {
     resultText = t.clanWar.resultLose;
     resultColor = 'text-coc-red';
+    resultBadge = 'bg-coc-red/10 border-coc-red/20';
+  } else {
+    resultText = t.clanWar.resultDraw;
+    resultColor = 'text-coc-gold';
+    resultBadge = 'bg-coc-gold/10 border-coc-gold/20';
   }
 
   const ourMembers = [...(ourClanInfo.members || [])].sort(
@@ -76,78 +88,82 @@ const CwlWarRow: React.FC<CwlWarRowProps> = ({
     <Fragment>
       {/* Baris Ringkasan */}
       <tr
-        className="hover:bg-coc-stone/20 transition-colors cursor-pointer"
+        className={`transition-colors cursor-pointer group ${isRowOpen ? 'bg-white/5' : 'hover:bg-white/[0.02]'}`}
         onClick={() => setIsRowOpen(!isRowOpen)}
       >
-        <td className="px-3 py-3 text-center text-sm text-white font-clash">
-          <div className="flex items-center justify-center gap-1">
-            {isRowOpen ? (
-              <ChevronUpIcon className="h-3 w-3" />
-            ) : (
-              <ChevronDownIcon className="h-3 w-3" />
-            )}
-            {roundNumber}
+        <td className="px-4 py-4 text-center">
+            <span className="font-mono text-gray-500 group-hover:text-white transition-colors">#{roundNumber}</span>
+        </td>
+        
+        <td className="px-4 py-4">
+          <div className="flex items-center gap-3">
+            <div className="relative w-8 h-8 flex-shrink-0">
+                <Image
+                src={opponentClanInfo.badgeUrls?.small || '/images/clan-badge-placeholder.png'}
+                alt={opponentClanInfo.name}
+                width={32}
+                height={32}
+                className="drop-shadow-md"
+                />
+            </div>
+            <div>
+                <p className="font-clash text-white tracking-wide">{opponentClanInfo.name}</p>
+                <p className="text-[10px] text-gray-500 font-mono">Lvl {opponentClanInfo.clanLevel}</p>
+            </div>
           </div>
         </td>
-        <td className="px-3 py-3 whitespace-nowrap text-sm">
-          <div className="flex items-center gap-2">
-            <Image
-              src={opponentClanInfo.badgeUrls.small}
-              alt={opponentClanInfo.name}
-              width={28}
-              height={28}
-              className="rounded"
-            />
-            <span className="text-white font-semibold">{opponentClanInfo.name}</span>
-          </div>
-        </td>
-        <td className={`px-3 py-3 text-center text-sm font-semibold ${resultColor}`}>
-          {resultText}
-        </td>
-        <td className="px-3 py-3 text-center text-sm text-white font-clash">
-          <div className="flex items-center justify-center gap-4">
-            <span className="text-coc-green">
-              {ourClanInfo.stars} <StarIcon className="inline h-4 w-4" />
+
+        <td className="px-4 py-4 text-center">
+            <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider border ${resultBadge} ${resultColor}`}>
+                {resultText}
             </span>
-            <span>vs</span>
-            <span className="text-coc-red">
-              {opponentClanInfo.stars} <StarIcon className="inline h-4 w-4" />
+        </td>
+
+        <td className="px-4 py-4 text-center hidden md:table-cell">
+          <div className="flex items-center justify-center gap-2 font-mono text-sm">
+            <span className={resultColor === 'text-coc-green' ? 'text-coc-green font-bold' : 'text-gray-300'}>
+              {ourClanInfo.stars}
+            </span>
+            <span className="text-gray-600 text-xs">vs</span>
+            <span className={resultColor === 'text-coc-red' ? 'text-coc-red font-bold' : 'text-gray-300'}>
+              {opponentClanInfo.stars}
             </span>
           </div>
         </td>
-        <td className="px-3 py-3 text-center text-xs text-gray-400">
-          {ourClanInfo.destructionPercentage.toFixed(2)}% vs{' '}
-          {opponentClanInfo.destructionPercentage.toFixed(2)}%
+
+        <td className="px-4 py-4 text-center hidden md:table-cell">
+            <div className="flex flex-col items-center gap-1">
+                <div className="w-24 h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5">
+                    <div className="h-full bg-coc-blue" style={{ width: `${ourClanInfo.destructionPercentage}%` }} />
+                </div>
+                <span className="text-[10px] text-gray-500">{ourClanInfo.destructionPercentage.toFixed(1)}%</span>
+            </div>
         </td>
       </tr>
 
       {/* Baris Rincian */}
       {isRowOpen && (
-        <tr className="bg-coc-dark/30">
-          <td colSpan={5} className="p-0">
-            <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <tr>
+          <td colSpan={5} className="p-0 border-b border-white/5 bg-black/20 inset-shadow-y">
+            <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-top-2 duration-200">
               {/* Tabel Klan Kita */}
-              <div>
-                <h4 className="text-sm font-clash text-white mb-2">
-                  {ourClanInfo.name}
-                </h4>
-                <div className="overflow-hidden rounded-md border border-coc-gold-dark/20">
+              <div className="bg-[#151515] border border-white/5 rounded-xl overflow-hidden">
+                <div className="px-4 py-3 border-b border-white/5 bg-white/[0.02] flex items-center gap-2">
+                    <ShieldIcon className="h-4 w-4 text-coc-blue" />
+                    <h4 className="text-sm font-clash text-white tracking-wide">
+                    {ourClanInfo.name} <span className="text-gray-500 font-sans text-xs ml-1">(Us)</span>
+                    </h4>
+                </div>
+                <div className="overflow-x-auto">
                   <table className="min-w-full text-xs">
-                    <thead className="bg-coc-stone/50">
+                    <thead className="bg-black/40 text-gray-500">
                       <tr>
-                        <th className="px-2 py-1 text-center font-clash text-coc-gold uppercase">#</th>
-                        <th className="px-2 py-1 text-left font-clash text-coc-gold uppercase">
-                          {t.clanMembers.colPlayer}
-                        </th>
-                        <th className="px-2 py-1 text-center font-clash text-coc-gold uppercase">
-                          {t.clanWar.colAttacks}
-                        </th>
-                        <th className="px-2 py-1 text-center font-clash text-coc-gold uppercase">
-                          Defense
-                        </th>
+                        <th className="px-3 py-2 text-center w-8">#</th>
+                        <th className="px-3 py-2 text-left">{t.clanMembers.colPlayer}</th>
+                        <th className="px-3 py-2 text-center">{t.clanWar.colAttacks} / Def</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-coc-gold-dark/10">
+                    <tbody className="divide-y divide-white/5">
                       {ourMembers.map((member) => (
                         <CwlWarPlayerRow
                           key={member.tag}
@@ -159,28 +175,25 @@ const CwlWarRow: React.FC<CwlWarRowProps> = ({
                   </table>
                 </div>
               </div>
+
               {/* Tabel Klan Lawan */}
-              <div>
-                <h4 className="text-sm font-clash text-white mb-2">
-                  {opponentClanInfo.name}
-                </h4>
-                <div className="overflow-hidden rounded-md border border-coc-gold-dark/20">
+              <div className="bg-[#151515] border border-white/5 rounded-xl overflow-hidden">
+                <div className="px-4 py-3 border-b border-white/5 bg-white/[0.02] flex items-center gap-2">
+                    <ShieldIcon className="h-4 w-4 text-coc-red" />
+                    <h4 className="text-sm font-clash text-white tracking-wide">
+                    {opponentClanInfo.name} <span className="text-gray-500 font-sans text-xs ml-1">(Enemy)</span>
+                    </h4>
+                </div>
+                <div className="overflow-x-auto">
                   <table className="min-w-full text-xs">
-                    <thead className="bg-coc-stone/50">
+                    <thead className="bg-black/40 text-gray-500">
                       <tr>
-                        <th className="px-2 py-1 text-center font-clash text-coc-gold uppercase">#</th>
-                        <th className="px-2 py-1 text-left font-clash text-coc-gold uppercase">
-                          {t.clanMembers.colPlayer}
-                        </th>
-                        <th className="px-2 py-1 text-center font-clash text-coc-gold uppercase">
-                          {t.clanWar.colAttacks}
-                        </th>
-                        <th className="px-2 py-1 text-center font-clash text-coc-gold uppercase">
-                          Defense
-                        </th>
+                        <th className="px-3 py-2 text-center w-8">#</th>
+                        <th className="px-3 py-2 text-left">{t.clanMembers.colPlayer}</th>
+                        <th className="px-3 py-2 text-center">{t.clanWar.colAttacks} / Def</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-coc-gold-dark/10">
+                    <tbody className="divide-y divide-white/5">
                       {opponentMembers.map((member) => (
                         <CwlWarPlayerRow
                           key={member.tag}

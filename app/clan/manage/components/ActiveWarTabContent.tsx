@@ -1,351 +1,332 @@
-'use client'; 
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useManagedClanWar } from '@/lib/hooks/useManagedClan';
 import {
-    ManagedClan, 
-    CocWarLog, 
-    CocWarMember, 
-    CocCurrentWar 
-} from '@/lib/types';
+  ManagedClan,
+  CocWarLog,
+  CocWarMember,
+  CocCurrentWar,
+  CocWarAttack,
+  WarArchive // [FIX] Ditambahkan agar tidak error "Cannot find name 'WarArchive'"
+} from '@/lib/clashub.types';
 import {
-    SwordsIcon, AlertTriangleIcon, TrophyIcon, ShieldIcon, StarIcon,
-    RefreshCwIcon, Loader2Icon 
+  SwordsIcon,
+  AlertTriangleIcon,
+  TrophyIcon,
+  ShieldIcon,
+  StarIcon,
+  RefreshCwIcon,
+  Loader2Icon,
+  ArrowRightIcon,
+  ClockIcon
 } from '@/app/components/icons';
 import { getThImage } from '@/lib/th-utils';
 import { Button } from '@/app/components/ui/Button';
-import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook i18n
+import { useLanguage } from '@/lib/hooks/useLanguage';
+import WarDetailModal from './WarDetailModal';
 
 // Helper untuk format sisa waktu
-// [MODIFIKASI] Menambahkan parameter 't' untuk terjemahan
 const formatWarTime = (war: CocWarLog | CocCurrentWar, t: any): { text: string; isEnded: boolean } => {
-    const endTimeStr = war.endTime;
-    const endTime = endTimeStr ? (typeof endTimeStr === 'string' ? new Date(endTimeStr.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2}).*/, '$1-$2-$3T$4:$5:$6Z')) : new Date(endTimeStr)) : null;
-    
-    if (!endTime || isNaN(endTime.getTime())) {
-        return { text: 'N/A', isEnded: false };
-    }
-    
-    const timeRemainingMs = endTime.getTime() - Date.now();
-    
-    if (timeRemainingMs <= 0) {
-        return { text: t.clanWar.statusEnded, isEnded: true }; // [i18n]
-    }
-    
-    const totalSeconds = Math.floor(timeRemainingMs / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    
-    // [i18n] Format: "Sisa Waktu: ... " atau "War Ends In: ..."
-    return { text: `${t.dashboard.warEnds} ${hours}h ${minutes}m ${seconds}s`, isEnded: false };
+  const endTimeStr = war.endTime;
+  const endTime = endTimeStr ? (typeof endTimeStr === 'string' ? new Date(endTimeStr.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2}).*/, '$1-$2-$3T$4:$5:$6Z')) : new Date(endTimeStr)) : null;
+  
+  if (!endTime || isNaN(endTime.getTime())) {
+    return { text: 'N/A', isEnded: false };
+  }
+  
+  const timeRemainingMs = endTime.getTime() - Date.now();
+  
+  if (timeRemainingMs <= 0) {
+    return { text: t.clanWar.statusEnded, isEnded: true };
+  }
+  
+  const totalSeconds = Math.floor(timeRemainingMs / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  
+  return { text: `${hours}h ${minutes}m ${seconds}s`, isEnded: false };
 };
 
+// Visual Bar Persentase
+const DestructionBar = ({ percentage, colorClass }: { percentage: number, colorClass: string }) => (
+  <div className="w-full h-2 bg-black/50 rounded-full overflow-hidden border border-white/10 mt-1 shadow-inner relative">
+    <div 
+      className={`h-full ${colorClass} transition-all duration-1000 ease-out relative`} 
+      style={{ width: `${percentage}%` }}
+    >
+        <div className="absolute right-0 top-0 bottom-0 w-[1px] bg-white/50 shadow-[0_0_10px_white]" />
+    </div>
+  </div>
+);
 
 interface ActiveWarTabContentProps {
-    clan: ManagedClan;
+  clan: ManagedClan;
 }
-
-// ======================================================================================================
-// Helper: War Member Row
-// ======================================================================================================
-
-interface WarMemberRowProps {
-    member: CocWarMember;
-    isOurClan: boolean;
-    clanTag: string;
-    isCwl: boolean;
-    t: any; // [BARU] Props translation
-}
-
-const WarMemberRow: React.FC<WarMemberRowProps> = ({ member, isOurClan, clanTag, isCwl, t }) => {
-    const bestAttackReceived = member.bestOpponentAttack;
-    const attacksDone = member.attacks?.length || 0;
-    const maxAttacks = isCwl ? 1 : 2;
-    let defenseStatus = t.clanWar.colResult; // Placeholder text default
-    let defenseStars = 0;
-    let defenseDestruction = 0;
-
-    if (bestAttackReceived) {
-        defenseStars = bestAttackReceived.stars;
-        defenseDestruction = bestAttackReceived.destructionPercentage;
-        if (defenseStars === 3) {
-            defenseStatus = '3 Stars'; // Bisa di-i18n jika perlu detail
-        } else {
-            defenseStatus = `${defenseStars} Stars`;
-        }
-    }
-
-    let attackSummary = '-';
-    if (isOurClan && attacksDone > 0) {
-        // [i18n] Gunakan format ringkas agar tabel tidak terlalu lebar
-        attackSummary = `${attacksDone} / ${maxAttacks}`; 
-    } else if (!isOurClan && bestAttackReceived) {
-        attackSummary = `${bestAttackReceived.stars}⭐ (${bestAttackReceived.destructionPercentage.toFixed(0)}%)`;
-    }
-
-    const starColorClass = defenseStars === 3 ? 'text-coc-red' : defenseStars > 0 ? 'text-coc-gold' : 'text-gray-500';
-
-    return (
-        <tr key={member.tag} className="hover:bg-coc-stone/20 transition-colors">
-            {/* Posisi Peta */}
-            <td className="px-3 py-2 text-center text-sm font-clash text-white">{member.mapPosition}</td>
-
-            {/* Pemain */}
-            <td className="px-3 py-2 whitespace-nowrap text-sm font-semibold text-white">
-                <div className="flex items-center space-x-3">
-                    <div className="relative w-8 h-8 flex-shrink-0">
-                        <Image
-                            src={getThImage(member.townhallLevel)}
-                            alt={`TH ${member.townhallLevel}`}
-                            width={28}
-                            height={28}
-                            className="rounded-full"
-                        />
-                    </div>
-                    <div>
-                        <p className="font-clash text-base truncate max-w-[150px]">{member.name}</p>
-                        <p className="text-gray-500 text-xs font-mono">{member.tag}</p>
-                    </div>
-                </div>
-            </td>
-
-            {/* Serangan Dilakukan */}
-            <td className="px-3 py-2 text-center text-sm text-gray-300">
-                {isOurClan ? attackSummary : '-'}
-            </td>
-
-            {/* Pertahanan */}
-            <td className="px-3 py-2 text-center text-sm">
-                <div className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs border ${starColorClass} border-current`}>
-                    <StarIcon className="w-3 h-3" />
-                    <span>{defenseStars} ⭐</span>
-                </div>
-            </td>
-
-            {/* Detail Pertahanan */}
-            <td className="px-3 py-2 text-center text-xs text-gray-400">
-                {defenseDestruction.toFixed(2)}%
-            </td>
-
-            {/* Aksi */}
-            <td className="px-3 py-2 text-center w-[120px]">
-                {isOurClan && member.attacks && member.attacks.length > 0 ? (
-                    <Button size="sm" variant="secondary" className="text-xs">
-                         {/* [i18n] View Details */}
-                        {t.clanWar.viewDetails}
-                    </Button>
-                ) : (
-                    <span className="text-gray-600">-</span>
-                )}
-            </td>
-        </tr>
-    );
-};
 
 // ======================================================================================================
 // Main Component: ActiveWarTabContent
 // ======================================================================================================
 
 const ActiveWarTabContent: React.FC<ActiveWarTabContentProps> = ({
-    clan 
+  clan 
 }) => {
-    const { t } = useLanguage(); // [BARU] Init Language
+  const { t } = useLanguage();
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
-    const {
-        warData: currentWar,
-        isError: error,
-        isLoading,
-        mutateWar: refreshWar
-    } = useManagedClanWar(clan.id);
+  const {
+    warData: currentWar,
+    isError: error,
+    isLoading,
+    mutateWar: refreshWar
+  } = useManagedClanWar(clan.id);
 
-    const [timeInfo, setTimeInfo] = useState({ text: 'N/A', isEnded: true });
-    const isCwl = !!currentWar?.warTag;
+  const [timeInfo, setTimeInfo] = useState({ text: 'Loading...', isEnded: true });
+  const isCwl = !!currentWar?.warTag;
 
-    // --- Effect untuk update waktu tersisa ---
-    useEffect(() => {
-        if (!currentWar) {
-            setTimeInfo({ text: 'N/A', isEnded: true });
-            return;
-        }
-        // [PERBAIKAN] Pass 't' ke helper function
-        setTimeInfo(formatWarTime(currentWar, t));
-        const timer = setInterval(() => {
-            if (currentWar) {
-                setTimeInfo(formatWarTime(currentWar, t));
-            }
-        }, 1000);
-        return () => clearInterval(timer);
-    }, [currentWar, t]);
-    
-
-    // --- TAMPILAN LOADING ---
-    if (isLoading) {
-        return (
-            <div className="p-8 text-center bg-coc-stone/40 rounded-lg min-h-[300px] flex flex-col justify-center items-center space-y-4">
-                <Loader2Icon className="h-12 w-12 text-coc-green/50 mb-3 animate-spin" />
-                <p className="text-lg font-clash text-white">{t.common.loading}</p>
-            </div>
-        );
-    }
-    
-    // --- TAMPILAN ERROR ---
-    if (error) {
-        return (
-            <div className="p-8 text-center bg-coc-stone/40 rounded-lg min-h-[300px] flex flex-col justify-center items-center space-y-4">
-                <AlertTriangleIcon className="h-12 w-12 text-coc-red mb-3" />
-                <p className="text-lg font-clash text-white">{t.common.error}</p>
-                <p className="text-sm text-gray-400 font-sans max-w-md mx-auto">
-                    {(error as Error).message || 'Unknown error'}
-                </p>
-                <Button onClick={() => refreshWar()} variant="secondary" size="sm">
-                    <RefreshCwIcon className='h-4 w-4 mr-2'/> {t.clanManage.reloadCache}
-                </Button>
-            </div>
-        );
-    }
-
-    // --- TAMPILAN TIDAK ADA WAR ---
+  // --- Effect untuk update waktu tersisa ---
+  useEffect(() => {
     if (!currentWar) {
-        return (
-            <div className="p-8 text-center bg-coc-stone/40 rounded-lg min-h-[300px] flex flex-col justify-center items-center space-y-4">
-                <AlertTriangleIcon className="h-12 w-12 text-coc-green/50 mb-3" />
-                <p className="text-lg font-clash text-white">{t.clanWar.noActiveWar}</p>
-                <p className="text-sm text-gray-400 font-sans max-w-md mx-auto">
-                   {t.clanManage.clanSafeDesc}
-                </p>
-                <Button onClick={() => refreshWar()} variant="secondary" size="sm">
-                    <RefreshCwIcon className='h-4 w-4 mr-2'/> {t.clanManage.reloadCache}
+      setTimeInfo({ text: 'N/A', isEnded: true });
+      return;
+    }
+    setTimeInfo(formatWarTime(currentWar, t));
+    const timer = setInterval(() => {
+      if (currentWar) {
+        setTimeInfo(formatWarTime(currentWar, t));
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [currentWar, t]);
+  
+
+  // --- TAMPILAN LOADING ---
+  if (isLoading) {
+    return (
+      <div className="flex flex-col justify-center items-center min-h-[400px]">
+        <Loader2Icon className="h-10 w-10 text-coc-gold animate-spin mb-4" />
+        <p className="text-gray-400 font-medium animate-pulse">{t.common.loading}</p>
+      </div>
+    );
+  }
+  
+  // --- TAMPILAN ERROR ---
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[300px] text-center p-8 bg-coc-red/5 border border-coc-red/20 rounded-2xl backdrop-blur-sm">
+        <AlertTriangleIcon className="h-12 w-12 text-coc-red mb-3" />
+        <p className="text-xl font-clash text-white">{t.common.error}</p>
+        <p className="text-sm text-gray-400 font-sans mt-1 max-w-md mx-auto mb-4">
+          {(error as Error).message || 'Unknown error'}
+        </p>
+        <Button onClick={() => refreshWar()} variant="secondary" size="sm">
+          <RefreshCwIcon className='h-4 w-4 mr-2'/> {t.clanManage.reloadCache}
+        </Button>
+      </div>
+    );
+  }
+
+  // --- TAMPILAN TIDAK ADA WAR ---
+  if (!currentWar || currentWar.state === 'notInWar') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-8 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-sm border-dashed">
+        <div className="bg-white/5 p-6 rounded-full mb-6">
+            <ShieldIcon className="h-16 w-16 text-coc-green/50 opacity-80" />
+        </div>
+        <h2 className="text-2xl font-clash text-white mb-2">{t.clanWar.noActiveWar}</h2>
+        <p className="text-gray-400 max-w-md mb-8 leading-relaxed">
+           {t.clanManage.clanSafeDesc}
+        </p>
+        <Button onClick={() => refreshWar()} variant="secondary" className="bg-white/5 hover:bg-white/10 border border-white/10">
+          <RefreshCwIcon className='h-4 w-4 mr-2'/> {t.clanManage.reloadCache}
+        </Button>
+      </div>
+    );
+  }
+
+  // --- TAMPILAN JIKA WAR DITEMUKAN ---
+  const ourClan = currentWar.clan.tag === clan.tag ? currentWar.clan : currentWar.opponent;
+  const opponentClan = currentWar.opponent.tag !== clan.tag ? currentWar.opponent : currentWar.clan;
+
+  let statusText = '';
+  let statusBadgeClass = '';
+  let containerBorderClass = '';
+
+  if (currentWar.state === 'preparation') {
+    statusText = t.clanWar.statusPrep;
+    statusBadgeClass = 'bg-coc-blue/20 text-coc-blue border-coc-blue/30';
+    containerBorderClass = 'border-coc-blue/30 shadow-[0_0_30px_rgba(0,0,255,0.1)]';
+  } else if (currentWar.state === 'inWar') {
+    statusText = t.clanWar.statusBattle;
+    statusBadgeClass = 'bg-coc-red/20 text-coc-red border-coc-red/30 animate-pulse';
+    containerBorderClass = 'border-coc-red/30 shadow-[0_0_30px_rgba(255,0,0,0.1)]';
+  } else if (currentWar.state === 'warEnded') {
+    statusText = t.clanWar.statusEnded;
+    statusBadgeClass = 'bg-coc-gold/20 text-coc-gold border-coc-gold/30';
+    containerBorderClass = 'border-coc-gold/30';
+  }
+
+  // Hitung Quick Stats
+  const attacksUsed = ourClan.attacks || 0;
+  const maxAttacks = (currentWar.teamSize || ourClan.members.length) * (currentWar.attacksPerMember || (isCwl ? 1 : 2));
+  const attackPercentage = Math.round((attacksUsed / maxAttacks) * 100) || 0;
+
+  return (
+    <div className="space-y-6 animate-fade-in pb-10">
+      
+      {/* --- WAR DASHBOARD CARD --- */}
+      <div className={`relative overflow-hidden rounded-3xl border bg-[#151515] ${containerBorderClass}`}>
+        
+        {/* Background Ambience */}
+        <div className="absolute inset-0 pointer-events-none">
+            <div className={`absolute -top-24 -left-24 w-96 h-96 ${currentWar.state === 'inWar' ? 'bg-coc-red/10' : 'bg-coc-blue/10'} rounded-full blur-[100px]`} />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-white/5 rounded-full blur-[120px] opacity-20" />
+        </div>
+
+        {/* --- HEADER SECTION --- */}
+        <div className="relative z-10 border-b border-white/10 bg-white/[0.02] px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="flex items-center gap-3">
+                <span className={`px-3 py-1 rounded text-xs font-bold uppercase tracking-widest border ${statusBadgeClass}`}>
+                    {statusText}
+                </span>
+                <span className="text-gray-500 text-xs font-mono uppercase tracking-wider">
+                    {currentWar.teamSize} vs {currentWar.teamSize} • {isCwl ? 'CWL' : 'Classic'}
+                </span>
+            </div>
+
+            <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 text-gray-300 bg-black/30 px-3 py-1.5 rounded-full border border-white/5">
+                    <ClockIcon className={`h-4 w-4 ${timeInfo.isEnded ? 'text-gray-500' : 'text-coc-gold'}`} />
+                    <span className="font-mono text-sm font-bold">{timeInfo.text}</span>
+                </div>
+                <Button onClick={() => refreshWar()} variant="ghost" size="sm" className="h-8 w-8 p-0 text-gray-400 hover:text-white rounded-full hover:bg-white/10">
+                    <RefreshCwIcon className='h-4 w-4'/>
                 </Button>
             </div>
-        );
-    }
+        </div>
 
-    // --- TAMPILAN JIKA WAR DITEMUKAN ---
-    const ourClan = currentWar.clan.tag === clan.tag ? currentWar.clan : currentWar.opponent;
-    const opponentClan = currentWar.opponent.tag !== clan.tag ? currentWar.opponent : currentWar.clan;
-
-    let headerClass = '';
-    let statusText = '';
-    let borderClass = 'border-coc-red/50 bg-coc-red/10';
-
-    if (currentWar.state === 'preparation') {
-        statusText = t.clanWar.statusPrep; // [i18n]
-        headerClass = 'text-coc-blue';
-        borderClass = 'border-coc-blue/50 bg-coc-blue/10';
-    } else if (currentWar.state === 'inWar') {
-        statusText = t.clanWar.statusBattle; // [i18n]
-        headerClass = 'text-coc-red';
-        borderClass = 'border-coc-red/50 bg-coc-red/10';
-    } else if (currentWar.state === 'warEnded') {
-        statusText = t.clanWar.statusEnded; // [i18n]
-    }
-
-    return (
-        <div className="space-y-6">
-
-            {/* War Header Info */}
-            <div className={`card-stone p-6 border-4 ${borderClass} rounded-lg`}>
-                {/* [PERBAIKAN UTAMA] Tambahkan 'md:flex-nowrap' untuk mencegah wrapping layout di desktop */}
-                <div className="flex justify-between items-start flex-wrap md:flex-nowrap gap-4">
-                    <div>
-                        <h2 className={`text-3xl font-clash ${headerClass} flex items-center gap-3`}>
-                            <SwordsIcon className="h-8 w-8" />
-                            {ourClan.name} vs {opponentClan.name}
-                        </h2>
-                        
-                        <p className="text-gray-300 mt-1">
-                            Status: <span className={`font-semibold capitalize ${headerClass}`}>{statusText}</span> | Tipe: {isCwl ? 'CWL' : 'Classic War'} ({ourClan.members.length} vs {opponentClan.members.length})
-                        </p>
+        {/* --- SCOREBOARD SECTION --- */}
+        <div className="relative z-10 px-6 py-8 md:py-12 flex flex-col md:flex-row items-center justify-between gap-8 md:gap-12">
+            
+            {/* Our Clan */}
+            <div className="flex-1 w-full text-center md:text-left flex flex-col md:items-start items-center">
+                <div className="flex items-center gap-3 mb-2">
+                    <div className="p-3 bg-coc-blue/10 rounded-xl border border-coc-blue/30 shadow-[0_0_20px_rgba(0,0,255,0.15)]">
+                        <ShieldIcon className="h-8 w-8 md:h-10 md:w-10 text-coc-blue" />
                     </div>
-                        
-                    <div className="text-right flex flex-col gap-2 shrink-0">
-                        <p className={`text-lg font-clash ${timeInfo.isEnded ? headerClass : 'text-white'}`}>
-                            {timeInfo.text}
-                        </p>
-                        <Button onClick={() => refreshWar()} variant="secondary" size="sm">
-                            <RefreshCwIcon className='h-3 w-3 mr-1'/> {t.clanManage.reloadCache}
-                        </Button>
+                    <div className="text-left">
+                        <h2 className="text-2xl md:text-4xl font-clash text-white tracking-wide truncate max-w-[200px] md:max-w-xs leading-none">
+                            {ourClan.name}
+                        </h2>
+                        <span className="text-[10px] md:text-xs text-coc-blue font-bold tracking-[0.2em] uppercase">Level {ourClan.clanLevel}</span>
                     </div>
                 </div>
-
-                {/* Skor Ringkasan */}
-                <div className="mt-4 grid grid-cols-2 gap-4 text-center border-t border-coc-gold/30 pt-4">
-                    {/* Skor Kita */}
-                    <div className="p-3 rounded-lg bg-coc-stone/20 border border-coc-gold/30">
-                        <p className="text-xs text-gray-400 font-clash uppercase">{t.dashboard.myStars} / {t.dashboard.destruction}</p>
-                        <p className="text-3xl font-bold text-coc-gold flex items-center justify-center gap-1 mt-1">
-                            <StarIcon className="h-7 w-7 text-coc-gold" /> {ourClan.stars}
-                            <span className="text-lg text-gray-300 ml-2">({ourClan.destructionPercentage.toFixed(2)}%)</span>
-                        </p>
+                
+                {/* Stats */}
+                <div className="w-full max-w-[280px] mt-4 bg-black/20 p-4 rounded-2xl border border-white/5 backdrop-blur-sm">
+                    <div className="flex justify-between items-end mb-2">
+                        <div className="flex items-center gap-2">
+                            <StarIcon className="h-6 w-6 fill-coc-gold text-coc-gold drop-shadow-md" />
+                            <span className="text-3xl md:text-4xl font-bold text-white">{ourClan.stars}</span>
+                        </div>
+                        <span className="text-sm font-mono text-gray-400 mb-1">{ourClan.destructionPercentage.toFixed(2)}%</span>
                     </div>
-                    {/* Skor Lawan */}
-                    <div className="p-3 rounded-lg bg-coc-stone/20 border border-coc-red/30">
-                        <p className="text-xs text-gray-400 font-clash uppercase">{t.dashboard.enemyStars} / {t.dashboard.destruction}</p>
-                        <p className="text-3xl font-bold text-coc-red flex items-center justify-center gap-1 mt-1">
-                            <StarIcon className="h-7 w-7 text-coc-red" /> {opponentClan.stars}
-                            <span className="text-lg text-gray-300 ml-2">({opponentClan.destructionPercentage.toFixed(2)}%)</span>
-                        </p>
+                    <DestructionBar percentage={ourClan.destructionPercentage} colorClass="bg-coc-blue shadow-[0_0_15px_#2B60DE]" />
+                    <div className="mt-3 flex justify-between text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+                        <span>Attacks: {attacksUsed}/{maxAttacks}</span>
+                        <span>{attackPercentage}% Done</span>
                     </div>
                 </div>
             </div>
 
-            {/* Detail Anggota War */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* VS Badge */}
+            <div className="shrink-0 relative">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-white/5 rounded-full blur-[40px]" />
+                <div className="relative z-10 bg-black/60 border border-white/20 p-4 rounded-full backdrop-blur-md shadow-2xl">
+                    <SwordsIcon className="h-8 w-8 md:h-12 md:w-12 text-coc-gold animate-pulse-slow" />
+                </div>
+            </div>
 
-                {/* Kolom Klan Kita */}
-                <div className="space-y-4">
-                    <h3 className="text-xl font-clash text-white border-b border-coc-gold-dark/50 pb-2 flex items-center gap-2">
-                        <ShieldIcon className="h-6 w-6 text-coc-gold" /> {t.clanWar.colTeamSize} {ourClan.name}
-                    </h3>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-coc-gold-dark/20 text-xs">
-                            <thead className="bg-coc-stone/70 sticky top-0">
-                                <tr>
-                                    <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider w-10">#</th>
-                                    <th className="px-3 py-2 text-left font-clash text-coc-gold uppercase tracking-wider">{t.clanMembers.colPlayer}</th>
-                                    <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">{t.clanWar.colAttacks}</th>
-                                    <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider" colSpan={2}>{t.clanWar.colStars}</th>
-                                    <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider w-[120px]">{t.clanMembers.colActions}</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-coc-gold-dark/10">
-                                {ourClan.members.map((member: CocWarMember) => (
-                                    <WarMemberRow key={member.tag} member={member} isOurClan={true} clanTag={clan.tag} isCwl={isCwl} t={t}/>
-                                ))}
-                            </tbody>
-                        </table>
+            {/* Opponent Clan */}
+            <div className="flex-1 w-full text-center md:text-right flex flex-col md:items-end items-center">
+                <div className="flex items-center gap-3 mb-2 flex-row-reverse">
+                    <div className="p-3 bg-coc-red/10 rounded-xl border border-coc-red/30 shadow-[0_0_20px_rgba(255,0,0,0.15)]">
+                        <ShieldIcon className="h-8 w-8 md:h-10 md:w-10 text-coc-red" />
+                    </div>
+                    <div className="text-right">
+                        <h2 className="text-2xl md:text-4xl font-clash text-white tracking-wide truncate max-w-[200px] md:max-w-xs leading-none">
+                            {opponentClan.name}
+                        </h2>
+                        <span className="text-[10px] md:text-xs text-coc-red font-bold tracking-[0.2em] uppercase">Level {opponentClan.clanLevel}</span>
                     </div>
                 </div>
 
-                {/* Kolom Klan Lawan */}
-                <div className="space-y-4">
-                    <h3 className="text-xl font-clash text-white border-b border-coc-red/50 pb-2 flex items-center gap-2">
-                        <TrophyIcon className="h-6 w-6 text-coc-red" /> {t.clanWar.colTeamSize} {opponentClan.name}
-                    </h3>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-coc-red/20 text-xs">
-                            <thead className="bg-coc-stone/70 sticky top-0">
-                                <tr>
-                                    <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider w-10">#</th>
-                                    <th className="px-3 py-2 text-left font-clash text-coc-gold uppercase tracking-wider">{t.clanMembers.colPlayer}</th>
-                                    <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider">{t.clanWar.colAttacks}</th>
-                                    <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider" colSpan={2}>{t.clanWar.colStars}</th>
-                                    <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider w-[120px]">{t.clanMembers.colActions}</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-coc-red/10">
-                                {opponentClan.members.map((member: CocWarMember) => (
-                                    <WarMemberRow key={member.tag} member={member} isOurClan={false} clanTag={clan.tag} isCwl={isCwl} t={t}/>
-                                ))}
-                            </tbody>
-                        </table>
+                {/* Stats */}
+                <div className="w-full max-w-[280px] mt-4 bg-black/20 p-4 rounded-2xl border border-white/5 backdrop-blur-sm">
+                    <div className="flex justify-between items-end mb-2 flex-row-reverse">
+                        <div className="flex items-center gap-2 flex-row-reverse">
+                            <StarIcon className="h-6 w-6 fill-coc-red text-coc-red drop-shadow-md" />
+                            <span className="text-3xl md:text-4xl font-bold text-white">{opponentClan.stars}</span>
+                        </div>
+                        <span className="text-sm font-mono text-gray-400 mb-1">{opponentClan.destructionPercentage.toFixed(2)}%</span>
+                    </div>
+                    <DestructionBar percentage={opponentClan.destructionPercentage} colorClass="bg-coc-red shadow-[0_0_15px_#FF0000]" />
+                    <div className="mt-3 flex justify-end text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+                        <span>Attacks: {opponentClan.attacks || 0}/{maxAttacks}</span>
                     </div>
                 </div>
             </div>
         </div>
-    );
+
+        {/* --- FOOTER ACTION --- */}
+        <div className="relative z-10 p-4 bg-black/40 border-t border-white/5 flex justify-center">
+            <Button 
+                onClick={() => setIsDetailModalOpen(true)}
+                variant="primary"
+                size="lg"
+                className="w-full md:w-auto px-8 py-6 text-lg font-bold shadow-[0_0_20px_rgba(255,215,0,0.2)] hover:shadow-[0_0_30px_rgba(255,215,0,0.4)] transition-all transform hover:-translate-y-1"
+            >
+                {t.clanManage.viewWarDetails} <ArrowRightIcon className="ml-2 h-5 w-5" />
+            </Button>
+        </div>
+      </div>
+
+      {/* --- QUICK STATS GRID --- */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+         <div className="bg-[#151515] p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center">
+            <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Total Attacks</p>
+            <p className="text-2xl font-clash text-white">{attacksUsed + (opponentClan.attacks || 0)}</p>
+         </div>
+         <div className="bg-[#151515] p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center">
+            <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Avg. Destruction</p>
+            <p className="text-2xl font-clash text-coc-gold">{((ourClan.destructionPercentage + opponentClan.destructionPercentage) / 2).toFixed(1)}%</p>
+         </div>
+         <div className="bg-[#151515] p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center">
+            <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">3-Star Attacks</p>
+            <p className="text-2xl font-clash text-coc-green">
+                {(ourClan.members.reduce((sum: number, m: CocWarMember) => sum + (m.attacks?.filter(a => a.stars === 3).length || 0), 0))}
+            </p>
+         </div>
+         <div className="bg-[#151515] p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center">
+            <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Defended Stars</p>
+            <p className="text-2xl font-clash text-coc-blue">
+                {(ourClan.members.reduce((sum: number, m: CocWarMember) => sum + (3 - (m.bestOpponentAttack?.stars || 0)), 0))}
+            </p>
+         </div>
+      </div>
+
+      {/* Detail Modal Pop-up */}
+      {isDetailModalOpen && (
+        <WarDetailModal 
+            clan={clan} 
+            warData={currentWar as unknown as WarArchive} // Casting sementara karena struktur mirip
+            onClose={() => setIsDetailModalOpen(false)} 
+        />
+      )}
+    </div>
+  );
 };
 
 export default ActiveWarTabContent;

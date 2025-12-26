@@ -4,10 +4,9 @@ import React, { useState, useMemo, useCallback } from 'react';
 import {
   ManagedClan,
   WarSummary,
-  WarResult,
   FirestoreDocument,
   WarArchive,
-} from '@/lib/types';
+} from '@/lib/clashub.types';
 import useSWR from 'swr';
 import { useManagedClanWarLog } from '@/lib/hooks/useManagedClan';
 import {
@@ -18,10 +17,14 @@ import {
   ArrowUpIcon,
   ArrowDownIcon,
   Loader2Icon,
+  TrophyIcon,
+  ShieldIcon,
+  SwordsIcon,
+  ArrowRightIcon
 } from '@/app/components/icons';
 import { Button } from '@/app/components/ui/Button';
 import WarDetailModal from './WarDetailModal';
-import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook i18n
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 // Helper fetcher sederhana untuk SWR
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -30,22 +33,23 @@ interface WarHistoryTabContentProps {
   clan: ManagedClan;
 }
 
-// Definisikan tipe untuk kolom yang dapat diurutkan
+// [FIX] Definisikan WarResult secara lokal jika tidak ada di library
+type WarResult = 'win' | 'lose' | 'tie' | 'unknown';
+
 type SortKey = keyof WarSummary | 'none';
 type SortDirection = 'asc' | 'desc';
 
 // ======================================================================================================
-// SUB-KOMPONEN: WarHistoryRow
+// SUB-KOMPONEN: WarHistoryCard
 // ======================================================================================================
-interface WarHistoryRowProps {
+interface WarHistoryCardProps {
   war: FirestoreDocument<WarSummary>;
   onViewDetails: (warId: string) => void;
-  t: any; // [BARU] Props translation
-  locale: string; // [BARU] Locale string
+  t: any;
+  locale: string;
 }
 
-const WarHistoryRow: React.FC<WarHistoryRowProps> = ({ war, onViewDetails, t, locale }) => {
-  // [i18n] Mapping hasil perang ke teks terjemahan
+const WarHistoryCard: React.FC<WarHistoryCardProps> = ({ war, onViewDetails, t, locale }) => {
   const getResultLabel = (result: string) => {
     switch (result) {
       case 'win': return t.clanWar.resultWin;
@@ -56,25 +60,31 @@ const WarHistoryRow: React.FC<WarHistoryRowProps> = ({ war, onViewDetails, t, lo
   };
 
   const resultLabel = getResultLabel(war.result);
+  
+  let cardBorderColor = 'border-white/10';
+  let resultTextColor = 'text-gray-400';
+  let resultBgColor = 'bg-gray-500/10';
 
-  const resultClass =
-    war.result === 'win'
-      ? 'bg-coc-green text-black'
-      : war.result === 'lose'
-      ? 'bg-coc-red text-white'
-      : war.result === 'tie'
-      ? 'bg-coc-blue text-white'
-      : 'bg-gray-600 text-white';
+  if (war.result === 'win') {
+    cardBorderColor = 'border-coc-green/30 hover:border-coc-green/50';
+    resultTextColor = 'text-coc-green';
+    resultBgColor = 'bg-coc-green/10';
+  } else if (war.result === 'lose') {
+    cardBorderColor = 'border-coc-red/30 hover:border-coc-red/50';
+    resultTextColor = 'text-coc-red';
+    resultBgColor = 'bg-coc-red/10';
+  } else if (war.result === 'tie') {
+     cardBorderColor = 'border-coc-gold/30 hover:border-coc-gold/50';
+     resultTextColor = 'text-coc-gold';
+     resultBgColor = 'bg-coc-gold/10';
+  }
 
-  const endTimeDate =
-    war.endTime instanceof Date ? war.endTime : new Date(war.endTime);
-
-  // [i18n] Format tanggal dinamis
+  const endTimeDate = war.endTime instanceof Date ? war.endTime : new Date(war.endTime);
   const formattedDate =
     endTimeDate.getTime() === 0 || isNaN(endTimeDate.getTime())
       ? 'Invalid Date'
       : endTimeDate.toLocaleDateString(locale, {
-          day: '2-digit',
+          day: 'numeric',
           month: 'short',
           year: 'numeric',
         });
@@ -82,72 +92,68 @@ const WarHistoryRow: React.FC<WarHistoryRowProps> = ({ war, onViewDetails, t, lo
   const hasDetails = war.hasDetails === true;
 
   return (
-    <tr className="hover:bg-coc-stone/20 transition-colors" key={war.id}>
-      {/* Kolom Hasil */}
-      <td className="px-3 py-3 whitespace-nowrap text-center">
-        <span
-          className={`inline-block font-bold text-xs px-3 py-1 rounded-full ${resultClass}`}
-        >
-          {resultLabel.toUpperCase()}
-        </span>
-      </td>
-
-      {/* Kolom Lawan */}
-      <td className="px-3 py-3 whitespace-nowrap text-sm font-semibold text-white">
-        {war.opponentName || t.clanWar.privateLog || 'Unknown'}
-      </td>
-
-      {/* Kolom Ukuran Tim */}
-      <td className="px-3 py-3 whitespace-nowrap text-center text-gray-300">
-        {war.teamSize} vs {war.teamSize}
-      </td>
-
-      {/* Kolom Bintang & Persen */}
-      <td className="px-3 py-3 whitespace-nowrap text-center text-sm">
-        <div className="flex items-center justify-center space-x-2">
-          <span className="text-coc-gold font-bold flex items-center">
-            {war.ourStars} <StarIcon className="h-4 w-4 ml-1 fill-coc-gold" />
-          </span>
-          <span className="text-gray-500">|</span>
-          <span className="text-coc-red font-bold flex items-center">
-            {war.opponentStars}{' '}
-            <StarIcon className="h-4 w-4 ml-1 fill-coc-red" />
-          </span>
+    <div 
+        className={`group relative flex flex-col md:flex-row items-center gap-4 p-5 rounded-2xl border bg-[#1a1a1a] transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${cardBorderColor}`}
+    >
+        {/* Result Badge (Mobile: Top Right, Desktop: Left) */}
+        <div className={`absolute top-4 right-4 md:static md:w-24 flex-shrink-0 flex flex-col items-center justify-center`}>
+            <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${resultBgColor} ${resultTextColor} ${cardBorderColor}`}>
+                {resultLabel}
+            </span>
+            <span className="text-[10px] text-gray-500 mt-1 font-mono hidden md:block">{formattedDate}</span>
         </div>
-        <span className="text-xs text-gray-400 block mt-0.5">
-          {(war.ourDestruction || 0).toFixed(2)}% vs{' '}
-          {(war.opponentDestruction || 0).toFixed(2)}%
-        </span>
-      </td>
 
-      {/* Kolom Tanggal Selesai */}
-      <td className="px-3 py-3 whitespace-nowrap text-center text-xs text-gray-400">
-        {formattedDate}
-      </td>
+        {/* VS Info */}
+        <div className="flex-grow w-full md:w-auto flex items-center justify-between gap-4 md:gap-8">
+            {/* Us */}
+            <div className="flex-1 text-center md:text-right">
+                <p className="text-sm md:text-base font-clash text-white truncate mb-1">Us</p>
+                <div className="flex items-center justify-center md:justify-end gap-1 text-coc-gold font-bold text-lg md:text-xl">
+                    {war.ourStars} <StarIcon className="w-4 h-4 md:w-5 md:h-5 fill-coc-gold" />
+                </div>
+                <p className="text-xs text-gray-500 font-mono">{(war.ourDestruction || 0).toFixed(1)}%</p>
+            </div>
 
-      {/* Kolom Aksi */}
-      <td className="px-3 py-3 whitespace-nowrap text-center w-[120px]">
-        <Button
-          size="sm"
-          variant="secondary"
-          disabled={!hasDetails}
-          title={
-            hasDetails
-              ? t.clanWar.viewDetails
-              : t.clanWar.noWarHistory // Fallback tooltip
-          }
-          className={`text-xs ${
-            !hasDetails
-              ? 'bg-gray-700 hover:bg-gray-700 text-gray-400 cursor-not-allowed'
-              : 'bg-coc-gold hover:bg-coc-gold-dark text-black'
-          }`}
-          onClick={hasDetails ? () => onViewDetails(war.id) : undefined}
-        >
-          {/* [i18n] Summary = Ringkasan (mengambil dari profile tabSummary) */}
-          {hasDetails ? t.clanWar.viewDetails : t.profile.tabSummary}
-        </Button>
-      </td>
-    </tr>
+            {/* VS Icon */}
+            <div className="flex flex-col items-center justify-center shrink-0 px-2">
+                <span className="text-xl font-clash text-gray-600 italic">VS</span>
+                <span className="text-[10px] text-gray-500 uppercase tracking-widest mt-1">{war.teamSize}v{war.teamSize}</span>
+            </div>
+
+            {/* Enemy */}
+            <div className="flex-1 text-center md:text-left">
+                <p className="text-sm md:text-base font-clash text-white truncate mb-1">{war.opponentName || 'Unknown'}</p>
+                <div className="flex items-center justify-center md:justify-start gap-1 text-coc-red font-bold text-lg md:text-xl">
+                    <StarIcon className="w-4 h-4 md:w-5 md:h-5 fill-coc-red" /> {war.opponentStars}
+                </div>
+                <p className="text-xs text-gray-500 font-mono">{(war.opponentDestruction || 0).toFixed(1)}%</p>
+            </div>
+        </div>
+
+        {/* Action Button */}
+        <div className="w-full md:w-auto flex justify-center md:justify-end mt-2 md:mt-0">
+            <Button
+                variant="secondary"
+                size="sm"
+                disabled={!hasDetails}
+                onClick={hasDetails ? () => onViewDetails(war.id) : undefined}
+                className={`w-full md:w-auto bg-white/5 border border-white/10 hover:bg-white/10 ${!hasDetails ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+                {hasDetails ? (
+                    <>
+                        {t.clanWar.viewDetails} <ArrowRightIcon className="w-4 h-4 ml-2" />
+                    </>
+                ) : (
+                    <span className="text-gray-500 italic text-xs">No Details</span>
+                )}
+            </Button>
+        </div>
+        
+        {/* Date for Mobile (Bottom Center) */}
+        <div className="md:hidden text-[10px] text-gray-600 font-mono mt-2">
+            {formattedDate}
+        </div>
+    </div>
   );
 };
 
@@ -158,9 +164,8 @@ const WarHistoryRow: React.FC<WarHistoryRowProps> = ({ war, onViewDetails, t, lo
 const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({
   clan,
 }) => {
-  const { t } = useLanguage(); // [BARU] Init Language Hook
+  const { t } = useLanguage();
   
-  // Deteksi locale sederhana
   const currentLocale = t.common.loading === 'Loading...' ? 'en-US' : 'id-ID';
 
   // --- Fetch Data ---
@@ -187,7 +192,6 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({
     }
   );
 
-  // State
   const [selectedWarData, setSelectedWarData] = useState<WarArchive | null>(null);
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({
     key: 'endTime',
@@ -204,11 +208,11 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({
     return map;
   }, [warArchives]);
 
-  // Merge & Sort Logic
   const mergedAndSortedHistory = useMemo(() => {
     if (!historySummaries) return [];
 
     const mergedData = [...historySummaries];
+    // [FIX] Menggunakan tipe WarResult yang didefinisikan lokal
     const resultOrder: Record<WarResult, number> = {
       win: 4,
       tie: 3,
@@ -253,7 +257,7 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({
       if (fullArchiveData) {
         setSelectedWarData(fullArchiveData);
       } else {
-        // [i18n] Fallback alert
+        // Fallback or fetch on demand if needed
         alert(t.common.loading); 
       }
     },
@@ -271,7 +275,6 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({
     }
   }, [refreshHistory, mutateWarArchives]);
 
-  // Helper Sortir
   const handleSort = useCallback((key: SortKey) => {
     setSort((prev) => ({
       key,
@@ -291,26 +294,16 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({
     [sort]
   );
 
-  const getHeaderClasses = useCallback(
-    (key: SortKey) =>
-      `px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider cursor-pointer transition-colors hover:text-white ${
-        sort.key === key ? 'text-white' : ''
-      }`,
-    [sort]
-  );
-
   const isLoading = isLoadingWarLog || isLoadingArchives;
   const isError = isErrorWarLog || isErrorArchives;
 
   // --- Render States ---
   if (isLoading) {
     return (
-      <div className="p-8 text-center bg-coc-stone/40 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
-        <Loader2Icon className="h-8 w-8 text-coc-gold animate-spin mb-3" />
-        <p className="text-lg font-clash text-white">{t.common.loading}</p>
-        <p className="text-sm text-gray-400 font-sans mt-1">
-          {t.clanManage.msgReloading}
-        </p>
+      <div className="flex flex-col justify-center items-center h-[400px]">
+        <Loader2Icon className="h-10 w-10 text-coc-gold animate-spin mb-4" />
+        <p className="text-gray-400 font-medium animate-pulse">{t.common.loading}</p>
+        <p className="text-xs text-gray-600 mt-2">{t.clanManage.msgReloading}</p>
       </div>
     );
   }
@@ -318,29 +311,13 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({
   if (isError) {
     const errorMessage = (isErrorWarLog || isErrorArchives)?.message;
     return (
-      <div className="p-8 text-center bg-coc-red/20 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
+      <div className="flex flex-col items-center justify-center min-h-[300px] text-center p-8 bg-coc-red/5 border border-coc-red/20 rounded-2xl backdrop-blur-sm">
         <AlertTriangleIcon className="h-12 w-12 text-coc-red mb-3" />
-        <p className="text-lg font-clash text-white">{t.common.error}</p>
-        <p className="text-sm text-gray-400 font-sans mt-1 max-w-md mx-auto">
+        <p className="text-xl font-clash text-white mb-2">{t.common.error}</p>
+        <p className="text-sm text-gray-400 font-sans mt-1 max-w-md mx-auto mb-4">
           {errorMessage || t.common.error}
         </p>
-        <Button onClick={handleFullRefresh} variant="secondary" size="sm" className="mt-4">
-          <RefreshCwIcon className="h-4 w-4 mr-2" /> {t.clanManage.reloadCache}
-        </Button>
-      </div>
-    );
-  }
-
-  if (!mergedAndSortedHistory || mergedAndSortedHistory.length === 0) {
-    return (
-      <div className="p-8 text-center bg-coc-stone/40 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
-        <BookOpenIcon className="h-12 w-12 text-coc-gold/50 mb-3" />
-        <p className="text-lg font-clash text-white">{t.clanWar.noWarHistory}</p>
-        <p className="text-sm text-gray-400 font-sans mt-1">
-           {/* Empty description fallback */}
-           War history will appear here once data is synced.
-        </p>
-        <Button onClick={handleFullRefresh} variant="secondary" size="sm" className="mt-4">
+        <Button onClick={handleFullRefresh} variant="secondary" size="sm">
           <RefreshCwIcon className="h-4 w-4 mr-2" /> {t.clanManage.reloadCache}
         </Button>
       </div>
@@ -348,84 +325,79 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center border-b border-coc-gold-dark/50 pb-3">
-        <h2 className="text-2xl font-clash text-white flex items-center gap-2">
-          <BookOpenIcon className="h-6 w-6 text-coc-gold" /> {t.clanWar.tabTitleHistory}
-        </h2>
-        <Button onClick={handleFullRefresh} variant="secondary" size="sm">
-          <RefreshCwIcon className="h-4 w-4 mr-2" /> {t.clanWar.updateLog}
-        </Button>
+    <div className="space-y-8 animate-fade-in pb-10">
+      
+      {/* --- HEADER --- */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gradient-to-r from-coc-red/10 to-transparent p-6 rounded-2xl border border-coc-red/20 relative overflow-hidden">
+         <div className="absolute top-0 right-0 w-64 h-64 bg-coc-red/10 rounded-full blur-[80px] pointer-events-none -translate-y-1/2 translate-x-1/2" />
+         
+         <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-1">
+                <div className="p-2 bg-coc-red/20 rounded-lg border border-coc-red/30">
+                    <BookOpenIcon className="h-6 w-6 text-coc-red" />
+                </div>
+                <h2 className="text-2xl font-clash text-white tracking-wide">
+                    {t.clanWar.tabTitleHistory}
+                </h2>
+            </div>
+            <p className="text-gray-400 text-sm ml-1 max-w-lg">
+                Archive of past Classic Wars.
+            </p>
+         </div>
+
+         <div className="relative z-10 flex gap-3">
+             {/* Sort Buttons (Desktop Only for simplicity, or add mobile dropdown) */}
+             <div className="hidden md:flex bg-black/30 rounded-lg p-1 border border-white/5">
+                <button 
+                    onClick={() => handleSort('endTime')}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${sort.key === 'endTime' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                >
+                    Date {getSortIcon('endTime')}
+                </button>
+                <button 
+                    onClick={() => handleSort('result')}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${sort.key === 'result' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                >
+                    Result {getSortIcon('result')}
+                </button>
+             </div>
+
+             <Button 
+                onClick={handleFullRefresh} 
+                variant="secondary" 
+                size="sm"
+                className="bg-black/40 border-white/10 hover:bg-white/10 backdrop-blur-md"
+             >
+                <RefreshCwIcon className="h-4 w-4 mr-2" /> {t.clanWar.updateLog}
+             </Button>
+         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-coc-gold-dark/20">
-        <table className="min-w-full divide-y divide-coc-gold-dark/20 text-xs">
-          <thead className="bg-coc-stone/70 sticky top-0">
-            <tr>
-              <th
-                className={getHeaderClasses('result') + ' w-20'}
-                onClick={() => handleSort('result')}
-              >
-                <div className="flex items-center justify-center">
-                  {t.clanWar.colResult} {getSortIcon('result')}
-                </div>
-              </th>
-
-              <th
-                className={getHeaderClasses('opponentName') + ' text-left'}
-                onClick={() => handleSort('opponentName')}
-              >
-                <div className="flex items-center justify-start">
-                  {t.clanWar.colEnemy} {getSortIcon('opponentName')}
-                </div>
-              </th>
-
-              <th
-                className={getHeaderClasses('teamSize') + ' w-20'}
-                onClick={() => handleSort('teamSize')}
-              >
-                <div className="flex items-center justify-center">
-                  {t.clanWar.colTeamSize} {getSortIcon('teamSize')}
-                </div>
-              </th>
-
-              <th
-                className={getHeaderClasses('ourStars')}
-                onClick={() => handleSort('ourStars')}
-              >
-                <div className="flex items-center justify-center">
-                  {t.clanWar.colStars} {getSortIcon('ourStars')}
-                </div>
-              </th>
-
-              <th
-                className={getHeaderClasses('endTime') + ' w-32'}
-                onClick={() => handleSort('endTime')}
-              >
-                <div className="flex items-center justify-center">
-                  {t.clanWar.colDate} {getSortIcon('endTime')}
-                </div>
-              </th>
-
-              <th className="px-3 py-2 text-center font-clash text-coc-gold uppercase tracking-wider w-24">
-                {t.clanMembers.colActions}
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-coc-gold-dark/10">
-            {mergedAndSortedHistory.map((war) => (
-              <WarHistoryRow
-                key={war.id}
-                war={war}
-                onViewDetails={handleViewDetails}
-                t={t}
-                locale={currentLocale}
-              />
-            ))}
-          </tbody>
-        </table>
+      {/* --- CONTENT LIST --- */}
+      <div className="space-y-4">
+        {!mergedAndSortedHistory || mergedAndSortedHistory.length === 0 ? (
+           <div className="text-center py-16 bg-white/5 rounded-2xl border border-white/5 border-dashed">
+             <ShieldIcon className="h-12 w-12 text-gray-600 mx-auto mb-3" />
+             <p className="text-gray-400 font-clash text-lg">{t.clanWar.noWarHistory}</p>
+             <p className="text-gray-500 text-sm mt-1">Data will appear after synchronization.</p>
+           </div>
+        ) : (
+           <div className="grid grid-cols-1 gap-4">
+              {mergedAndSortedHistory.map((war) => (
+                // [FIX] Menggunakan WarHistoryCard, bukan WarHistoryRow
+                <WarHistoryCard
+                  key={war.id}
+                  war={war}
+                  onViewDetails={handleViewDetails}
+                  t={t}
+                  locale={currentLocale}
+                />
+              ))}
+           </div>
+        )}
       </div>
 
+      {/* Detail Modal */}
       <WarDetailModal
         warData={selectedWarData}
         clan={clan}

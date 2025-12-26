@@ -4,9 +4,7 @@ import React, { useState, useCallback } from 'react';
 
 import {
   ManagedClan,
-  FirestoreDocument,
-  CwlArchive,
-} from '@/lib/types';
+} from '@/lib/clashub.types';
 import { useManagedClanCWL } from '@/lib/hooks/useManagedClan';
 
 import {
@@ -14,11 +12,12 @@ import {
   AlertTriangleIcon,
   RefreshCwIcon,
   CalendarCheck2Icon,
+  TrophyIcon,
 } from '@/app/components/icons';
 import { Button } from '@/app/components/ui/Button';
 
 import CwlSeasonAccordion from './CwlSeasonAccordion';
-import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook i18n
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 interface CwlHistoryTabContentProps {
   clan: ManagedClan;
@@ -29,7 +28,7 @@ interface CwlHistoryTabContentProps {
 // ======================================================================================================
 
 const CwlHistoryTabContent: React.FC<CwlHistoryTabContentProps> = ({ clan }) => {
-  const { t } = useLanguage(); // [BARU] Init Language Hook
+  const { t } = useLanguage();
 
   const {
     cwlData,
@@ -62,12 +61,9 @@ const CwlHistoryTabContent: React.FC<CwlHistoryTabContentProps> = ({ clan }) => 
   // --- TAMPILAN LOADING ---
   if (isLoading) {
     return (
-      <div className="p-8 text-center bg-coc-stone/40 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
-        <Loader2Icon className="h-8 w-8 text-coc-gold animate-spin mb-3" />
-        <p className="text-lg font-clash text-white">{t.common.loading}</p>
-        <p className="text-sm text-gray-400 font-sans mt-1">
-          {t.clanManage.loadingUserData}
-        </p>
+      <div className="flex flex-col justify-center items-center min-h-[400px]">
+        <Loader2Icon className="h-10 w-10 text-coc-gold animate-spin mb-4" />
+        <p className="text-gray-400 font-medium animate-pulse">{t.common.loading}</p>
       </div>
     );
   }
@@ -75,17 +71,18 @@ const CwlHistoryTabContent: React.FC<CwlHistoryTabContentProps> = ({ clan }) => 
   // --- TAMPILAN ERROR ---
   if (error) {
     return (
-      <div className="p-8 text-center bg-coc-red/20 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
-        <AlertTriangleIcon className="h-12 w-12 text-coc-red mb-3" />
-        <p className="text-lg font-clash text-white">{t.common.error}</p>
-        <p className="text-sm text-gray-400 font-sans mt-1 max-w-md mx-auto">
+      <div className="flex flex-col items-center justify-center min-h-[300px] text-center p-8 bg-coc-red/5 border border-coc-red/20 rounded-2xl backdrop-blur-sm">
+        <div className="bg-coc-red/10 p-4 rounded-full mb-4">
+            <AlertTriangleIcon className="h-10 w-10 text-coc-red" />
+        </div>
+        <p className="text-xl font-clash text-white mb-2">{t.common.error}</p>
+        <p className="text-sm text-gray-400 font-sans mt-1 max-w-md mx-auto mb-6">
           {error.message}
         </p>
         <Button
           onClick={handleFullRefresh}
           variant="secondary"
           size="sm"
-          className="mt-4"
           disabled={isSyncing}
         >
           {isSyncing ? (
@@ -102,19 +99,20 @@ const CwlHistoryTabContent: React.FC<CwlHistoryTabContentProps> = ({ clan }) => 
   // --- TAMPILAN EMPTY STATE ---
   if (!cwlData || cwlData.length === 0) {
     return (
-      <div className="p-8 text-center bg-coc-stone/40 rounded-lg min-h-[300px] flex flex-col justify-center items-center">
-        <CalendarCheck2Icon className="h-12 w-12 text-coc-gold/50 mb-3" />
-        <p className="text-lg font-clash text-white">{t.clanCwl.noCwlHistory}</p>
-        <p className="text-sm text-gray-400 font-sans mt-1">
-          {/* Fallback text atau kosongkan jika tidak perlu */}
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-8 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-sm border-dashed">
+        <div className="bg-white/5 p-6 rounded-full mb-6 relative group">
+            <div className="absolute inset-0 bg-coc-gold/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <CalendarCheck2Icon className="h-16 w-16 text-coc-gold/50 relative z-10" />
+        </div>
+        <h2 className="text-2xl font-clash text-white mb-2">{t.clanCwl.noCwlHistory}</h2>
+        <p className="text-gray-400 max-w-md mb-8 leading-relaxed">
           {t.common.noData}
         </p>
         <Button
           onClick={handleFullRefresh}
           variant="secondary"
-          size="sm"
-          className="mt-4"
           disabled={isSyncing}
+          className="bg-white/5 hover:bg-white/10 border border-white/10"
         >
           {isSyncing ? (
             <Loader2Icon className="h-4 w-4 mr-2 animate-spin" />
@@ -129,32 +127,42 @@ const CwlHistoryTabContent: React.FC<CwlHistoryTabContentProps> = ({ clan }) => 
 
   // --- TAMPILAN UTAMA ---
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
+      
       {/* Header CWL */}
-      <div className="flex justify-between items-center border-b border-coc-gold-dark/50 pb-3">
-        <div>
-          <h2 className="text-2xl font-clash text-white flex items-center gap-2">
-            <CalendarCheck2Icon className="h-6 w-6 text-coc-gold" />
-            {t.clanCwl.tabTitle}
-          </h2>
-          <p className="text-gray-400">
-            {/* Menggunakan format: "5 Season" */}
-            {cwlData.length} {t.clanCwl.seasonHeader}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gradient-to-r from-coc-blue/10 to-transparent p-6 rounded-2xl border border-coc-blue/20 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-coc-blue/10 rounded-full blur-[80px] pointer-events-none -translate-y-1/2 translate-x-1/2" />
+        
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="p-2 bg-coc-blue/20 rounded-lg border border-coc-blue/30">
+                <TrophyIcon className="h-6 w-6 text-coc-blue" />
+            </div>
+            <h2 className="text-2xl font-clash text-white tracking-wide">
+                {t.clanCwl.tabTitle}
+            </h2>
+          </div>
+          <p className="text-coc-blue/80 font-medium text-sm ml-1">
+            {cwlData.length} {t.clanCwl.seasonHeader} Archived
           </p>
         </div>
-        <Button 
-          onClick={handleFullRefresh} 
-          variant="secondary" 
-          size="sm"
-          disabled={isSyncing}
-        >
-          {isSyncing ? (
-            <Loader2Icon className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <RefreshCwIcon className="h-4 w-4 mr-2" />
-          )}
-          {isSyncing ? t.clanManage.syncing : t.clanManage.reloadCache}
-        </Button>
+
+        <div className="relative z-10">
+            <Button 
+                onClick={handleFullRefresh} 
+                variant="secondary" 
+                size="sm"
+                disabled={isSyncing}
+                className="bg-black/40 border-white/10 hover:bg-white/10 backdrop-blur-md shadow-lg"
+            >
+                {isSyncing ? (
+                <Loader2Icon className="h-4 w-4 mr-2 animate-spin text-coc-blue" />
+                ) : (
+                <RefreshCwIcon className="h-4 w-4 mr-2 text-coc-blue" />
+                )}
+                {isSyncing ? t.clanManage.syncing : t.clanManage.reloadCache}
+            </Button>
+        </div>
       </div>
 
       {/* Daftar Arsip Musim (Accordion) */}

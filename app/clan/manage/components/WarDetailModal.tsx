@@ -1,26 +1,28 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom'; // [PERBAIKAN UTAMA] Import Portal
 import {
   XIcon,
   StarIcon,
   ShieldIcon,
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  ArrowUpIcon,
-  ArrowDownIcon,
   TrophyIcon,
+  SwordsIcon,
+  ClockIcon,
+  CrosshairIcon,
+  ArrowRightIcon,
+  ArrowDownIcon
 } from '@/app/components/icons';
 import {
   WarArchive,
   CocWarMember,
   CocWarAttack,
   ManagedClan,
-} from '@/lib/types';
+} from '@/lib/clashub.types';
 import Image from 'next/image';
 import { getThImage } from '@/lib/th-utils';
 import { Button } from '@/app/components/ui/Button';
-import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook i18n
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 interface WarDetailModalProps {
   clan: ManagedClan;
@@ -29,185 +31,199 @@ interface WarDetailModalProps {
 }
 
 // =========================================================================
-// HELPER: Tampilan Detail Serangan (Nested Row)
+// HELPER: Visual Bar Persentase
 // =========================================================================
-
-interface AttackRowProps {
-  attack: CocWarAttack;
-  defenderDetails: { thLevel: number; mapPosition: number; name: string } | null;
-  t: any; // [BARU] Props translation
-}
-
-const AttackRow: React.FC<AttackRowProps> = ({ attack, defenderDetails, t }) => {
-  const starColor =
-    attack.stars === 3
-      ? 'text-coc-green'
-      : attack.stars === 2
-      ? 'text-coc-yellow'
-      : 'text-coc-red';
-
-  const thLevel = defenderDetails?.thLevel || 1;
-  const mapPosition = defenderDetails?.mapPosition || 'N/A';
-  const defenderName = defenderDetails?.name || t.common.noData; // [i18n]
-  const duration = attack.duration || 0;
-
-  return (
-    <div className="flex items-center text-xs p-2 border-b border-coc-stone-light/10 last:border-b-0 transition-all hover:bg-coc-stone-light/10">
-      {/* Target & TH Level */}
-      <div className="w-1/4 flex items-center gap-2 font-semibold text-white/90">
-        <Image
-          src={getThImage(thLevel)}
-          alt={`TH ${thLevel}`}
-          width={20}
-          height={20}
-          className="rounded-full flex-shrink-0"
-        />
-        <span className="hidden sm:inline">{t.clanWar.modalMapPosition.split(' ')[0]} {mapPosition}</span> ({defenderName})
-      </div>
-
-      {/* Hasil Serangan */}
-      <div className="w-1/4 text-center">
-        <div
-          className={`flex items-center justify-center font-bold ${starColor} gap-1`}
-        >
-          {attack.stars}{' '}
-          <StarIcon
-            className={`w-3 h-3 ${
-              starColor === 'text-coc-green'
-                ? 'fill-coc-green'
-                : starColor === 'text-coc-yellow'
-                ? 'fill-coc-yellow'
-                : 'fill-coc-red'
-            }`}
-          />
-        </div>
-      </div>
-
-      {/* Persen Kerusakan */}
-      <div className="w-1/4 text-center text-gray-300 font-mono">
-        {attack.destructionPercentage}%
-      </div>
-
-      {/* Durasi */}
-      <div className="w-1/4 text-right text-gray-400">
-        {Math.floor(duration / 60)}m {duration % 60}s
-      </div>
+const DestructionBar = ({ percentage, colorClass }: { percentage: number, colorClass: string }) => (
+  <div className="w-full h-2 bg-black/50 rounded-full overflow-hidden border border-white/10 mt-1 shadow-inner relative">
+    <div 
+      className={`h-full ${colorClass} transition-all duration-1000 ease-out relative`} 
+      style={{ width: `${percentage}%` }}
+    >
+        <div className="absolute right-0 top-0 bottom-0 w-[1px] bg-white/50 shadow-[0_0_10px_white]" />
     </div>
-  );
+  </div>
+);
+
+// =========================================================================
+// HELPER: Detail Serangan Individual
+// =========================================================================
+const AttackDetailItem = ({ attack, defenderName, thLevel, t }: { attack: CocWarAttack, defenderName: string, thLevel: number, t: any }) => {
+    const isThreeStar = attack.stars === 3;
+    return (
+        <div className="flex items-center justify-between p-2 rounded bg-black/40 border border-white/5 text-xs mb-1 last:mb-0">
+            <div className="flex items-center gap-2">
+                <div className="relative">
+                    <Image src={getThImage(thLevel)} width={20} height={20} alt="TH" className="opacity-90" />
+                </div>
+                <div className="flex flex-col">
+                    <span className="text-gray-300 font-bold truncate max-w-[80px]">{defenderName}</span>
+                    <span className="text-[9px] text-gray-500">{t.clanWar.colDestruction}: {attack.destructionPercentage}%</span>
+                </div>
+            </div>
+            <div className="flex items-center gap-1">
+                <span className={`font-bold ${isThreeStar ? 'text-coc-green' : 'text-coc-gold'}`}>{attack.stars}</span>
+                <StarIcon className={`w-3 h-3 ${isThreeStar ? 'fill-coc-green' : 'fill-coc-gold'}`} />
+            </div>
+        </div>
+    );
 };
 
 // =========================================================================
-// HELPER: Tampilan Baris Pemain War
+// COMPONENT: Kartu Base Pemain (War Map Node)
 // =========================================================================
-
-interface MemberRowProps {
+interface WarMapNodeProps {
   member: CocWarMember;
-  isClanMember: boolean;
-  opponentMembersMap: Map<string, CocWarMember>;
-  t: any; // [BARU] Props translation
+  isMyClan: boolean;
+  opponentRoster: Map<string, CocWarMember>;
+  t: any;
 }
 
-const MemberRow: React.FC<MemberRowProps> = ({
-  member,
-  isClanMember,
-  opponentMembersMap,
-  t,
-}) => {
-  const totalStars =
-    member.attacks?.reduce((sum, attack) => sum + (attack.stars || 0), 0) || 0;
-  const totalAttacks = member.attacks?.length || 0;
-  const thLevelImage = getThImage(member.townhallLevel);
-
-  const textColor = isClanMember ? 'text-white' : 'text-coc-yellow-light';
-  const bgClass = isClanMember
-    ? 'bg-coc-stone/30 hover:bg-coc-stone/40'
-    : 'bg-coc-stone-dark/30 hover:bg-coc-stone-dark/40';
-
+const WarMapNode: React.FC<WarMapNodeProps> = ({ member, isMyClan, opponentRoster, t }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const thImage = getThImage(member.townhallLevel);
 
-  const renderAttackRows = () =>
-    member.attacks!.map((attack, index) => {
-      const defender = opponentMembersMap.get(attack.defenderTag || '');
-      const defenderDetails = defender
-        ? {
-            thLevel: defender.townhallLevel,
-            mapPosition: defender.mapPosition,
-            name: defender.name,
-          }
-        : null;
+  // --- Analisis Serangan (Offense) ---
+  const myAttacks = member.attacks || [];
+  const attacksUsed = myAttacks.length;
+  const totalStarsGained = myAttacks.reduce((sum: number, atk: CocWarAttack) => sum + (atk.stars || 0), 0);
+  
+  // --- Analisis Pertahanan (Defense) ---
+  const bestDefense = useMemo(() => {
+    let bestStars = 0;
+    let bestDestruction = 0;
+    let isAttacked = false;
 
-      return (
-        <AttackRow
-          key={index}
-          attack={attack}
-          defenderDetails={defenderDetails}
-          t={t}
-        />
-      );
+    opponentRoster.forEach((opponent) => {
+        if (opponent.attacks) {
+            opponent.attacks.forEach((atk) => {
+                if (atk.defenderTag === member.tag) {
+                    isAttacked = true;
+                    if (atk.stars > bestStars || (atk.stars === bestStars && atk.destructionPercentage > bestDestruction)) {
+                        bestStars = atk.stars;
+                        bestDestruction = atk.destructionPercentage;
+                    }
+                }
+            });
+        }
     });
 
+    return isAttacked ? { stars: bestStars, destruction: bestDestruction } : null;
+  }, [member.tag, opponentRoster]);
+
+  const isThreeStarred = bestDefense?.stars === 3;
+  const isFresh = !bestDefense;
+
   return (
-    <div
-      className={`border-b border-coc-gold-dark/10 ${bgClass} transition-colors`}
+    <div 
+        className={`relative group transition-all duration-300 ${isExpanded ? 'z-20 scale-105' : 'z-10 hover:scale-[1.02]'}`}
+        onClick={() => setIsExpanded(!isExpanded)}
     >
-      {/* Baris Utama Pemain */}
-      <div
-        className={`flex items-center p-3 cursor-pointer ${
-          totalAttacks > 0 ? 'hover:bg-coc-gold/5' : ''
-        } ${isExpanded ? 'border-b border-coc-gold-dark/20' : ''}`}
-        onClick={() => totalAttacks > 0 && setIsExpanded(!isExpanded)}
-      >
-        {/* Posisi Peta / ID */}
-        <div className="w-1/12 text-center text-sm font-bold text-coc-gold/80 hidden sm:block">
-          {member.mapPosition}
-        </div>
+        {/* Connector Line (Visual) */}
+        <div className={`absolute top-1/2 w-4 h-[2px] bg-white/10 ${isMyClan ? '-right-4' : '-left-4'} hidden md:block`} />
 
-        {/* TH Level & Nama */}
-        <div className="w-4/12 flex items-center gap-2 flex-grow">
-          <Image
-            src={thLevelImage}
-            alt={`TH ${member.townhallLevel}`}
-            width={28}
-            height={28}
-            className="rounded-full flex-shrink-0"
-          />
-          <div className="flex flex-col text-left">
-            <span className={`font-semibold text-sm ${textColor}`}>
-              {member.name}
-            </span>
-            <span className="text-xs text-gray-500">{member.tag}</span>
-          </div>
-        </div>
+        <div className={`
+            relative overflow-hidden rounded-xl border-2 shadow-xl bg-[#151515] cursor-pointer
+            ${isThreeStarred 
+                ? 'border-coc-red/40 shadow-coc-red/10 grayscale-[0.3]' 
+                : isFresh 
+                    ? 'border-coc-gold/40 shadow-coc-gold/10' 
+                    : 'border-white/20' 
+            }
+        `}>
+            {/* Background Texture Overlay */}
+            <div className="absolute inset-0 bg-[url('/images/stone-texture.png')] opacity-10 pointer-events-none mix-blend-overlay" />
+            
+            {/* Header: Map Position & Name */}
+            <div className={`
+                flex items-center justify-between px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white
+                ${isMyClan ? 'bg-gradient-to-r from-coc-blue/80 to-transparent' : 'bg-gradient-to-l from-coc-red/80 to-transparent'}
+            `}>
+                <span className="drop-shadow-md">#{member.mapPosition} {member.name}</span>
+                <span className="font-mono text-[10px] opacity-70">{member.tag}</span>
+            </div>
 
-        {/* Total Bintang */}
-        <div className="w-2/12 text-center text-sm font-bold flex items-center justify-center gap-1">
-          <StarIcon className="w-4 h-4 fill-coc-gold" /> {totalStars}
-        </div>
+            <div className="p-3 flex items-center gap-4 relative">
+                {/* TH Image with Stars Overlay (Defense Status) */}
+                <div className="relative flex-shrink-0">
+                    <Image 
+                        src={thImage} 
+                        width={50} 
+                        height={50} 
+                        alt={`TH ${member.townhallLevel}`} 
+                        className={`drop-shadow-2xl ${isThreeStarred ? 'opacity-80 grayscale' : ''}`}
+                    />
+                    <div className="absolute -bottom-2 -right-2 bg-black/80 rounded-md border border-white/20 px-1 py-0.5 text-[10px] font-bold text-white shadow-lg">
+                        TH{member.townhallLevel}
+                    </div>
+                    
+                    {/* Stars Lost Indicator */}
+                    {bestDefense && (
+                        <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center pointer-events-none">
+                            <div className="flex gap-[-2px] drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">
+                                {[...Array(3)].map((_, i) => (
+                                    <StarIcon 
+                                        key={i} 
+                                        className={`w-4 h-4 ${i < bestDefense.stars ? 'fill-coc-gold text-coc-gold' : 'fill-gray-700 text-gray-800'}`} 
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
 
-        {/* Total Serangan */}
-        <div className="w-2/12 text-center text-sm text-gray-300">
-          {totalAttacks} {totalAttacks === 1 ? t.clanWar.colAttacks : t.clanWar.colAttacks} {/* [i18n] */}
-        </div>
+                {/* Offense Stats (Attacks Used) */}
+                <div className="flex-grow flex flex-col justify-center space-y-2">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1 text-[10px] text-gray-400 uppercase font-bold">
+                            <SwordsIcon className="w-3 h-3" />
+                            Attacks:
+                        </div>
+                        <div className="flex gap-1">
+                            {[...Array(2)].map((_, i) => (
+                                <div 
+                                    key={i} 
+                                    className={`w-2 h-2 rounded-full border border-white/20 ${i < attacksUsed ? (isMyClan ? 'bg-coc-green' : 'bg-coc-red') : 'bg-transparent'}`} 
+                                />
+                            ))}
+                        </div>
+                    </div>
+                    
+                    {attacksUsed > 0 && (
+                        <div className="flex items-center gap-1 bg-black/30 px-2 py-1 rounded border border-white/5">
+                            <StarIcon className="w-3 h-3 fill-coc-gold text-coc-gold" />
+                            <span className="text-sm font-bold text-white">{totalStarsGained}</span>
+                            <span className="text-[10px] text-gray-500 ml-1">stars gained</span>
+                        </div>
+                    )}
+                </div>
 
-        {/* Tanda Detail (Panah) */}
-        <div className="w-1/12 text-center text-gray-400">
-          {totalAttacks > 0 &&
-            (isExpanded ? (
-              <ArrowUpIcon className="h-4 w-4 mx-auto" />
-            ) : (
-              <ArrowDownIcon className="h-4 w-4 mx-auto" />
-            ))}
-        </div>
-      </div>
+                {/* Expand Indicator */}
+                {attacksUsed > 0 && (
+                    <div className={`absolute right-2 bottom-2 text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
+                         <ArrowDownIcon className="w-3 h-3" />
+                    </div>
+                )}
+            </div>
 
-      {/* Detail Serangan (Expanded Content) */}
-      {totalAttacks > 0 && isExpanded && (
-        <div className="p-2 pt-0 sm:p-4 sm:pt-0">
-          <div className="border border-coc-gold-dark/20 rounded-lg overflow-hidden bg-coc-stone-dark">
-            {renderAttackRows()}
-          </div>
+            {/* Expandable Details */}
+            {isExpanded && attacksUsed > 0 && (
+                <div className="px-3 pb-3 pt-1 bg-black/20 border-t border-white/5 animate-in slide-in-from-top-2">
+                    <div className="text-[10px] text-gray-500 mb-2 font-bold uppercase tracking-widest">Attack Log</div>
+                    {myAttacks.map((atk, idx) => {
+                        const defender = opponentRoster.get(atk.defenderTag || '');
+                        return (
+                            <AttackDetailItem 
+                                key={idx} 
+                                attack={atk} 
+                                defenderName={defender?.name || 'Unknown'} 
+                                thLevel={defender?.townhallLevel || 0}
+                                t={t}
+                            />
+                        );
+                    })}
+                </div>
+            )}
         </div>
-      )}
     </div>
   );
 };
@@ -221,203 +237,180 @@ const WarDetailModal: React.FC<WarDetailModalProps> = ({
   warData,
   onClose,
 }) => {
-  const { t, language } = useLanguage(); // [BARU] Init Hook
+  const { t, language } = useLanguage();
   const locale = language === 'id' ? 'id-ID' : 'en-US';
 
-  // 'isOpen' dikontrol oleh 'warData'
+  // [PERBAIKAN] State mounted untuk portal
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
   const isOpen = !!warData;
 
   const opponentMembersMap = useMemo(() => {
     const map = new Map<string, CocWarMember>();
     if (warData?.opponent.members) {
-      (warData.opponent.members as CocWarMember[])
-        .sort((a, b) => a.mapPosition - b.mapPosition)
-        .forEach((member) => {
-          if (member.tag) {
-            map.set(member.tag, member);
-          }
-        });
+      (warData.opponent.members as CocWarMember[]).forEach((member) => {
+        if (member.tag) map.set(member.tag, member);
+      });
+    }
+    return map;
+  }, [warData]);
+
+  const ourMembersMap = useMemo(() => {
+    const map = new Map<string, CocWarMember>();
+    if (warData?.clan.members) {
+      (warData.clan.members as CocWarMember[]).forEach((member) => {
+        if (member.tag) map.set(member.tag, member);
+      });
     }
     return map;
   }, [warData]);
 
   const ourMembers = useMemo(
-    () =>
-      warData?.clan.members?.sort(
-        (a: CocWarMember, b: CocWarMember) => a.mapPosition - b.mapPosition
-      ) || [],
+    () => warData?.clan.members?.sort((a: CocWarMember, b: CocWarMember) => a.mapPosition - b.mapPosition) || [],
     [warData]
   );
   const opponentMembers = useMemo(
-    () =>
-      warData?.opponent.members?.sort(
-        (a: CocWarMember, b: CocWarMember) => a.mapPosition - b.mapPosition
-      ) || [],
+    () => warData?.opponent.members?.sort((a: CocWarMember, b: CocWarMember) => a.mapPosition - b.mapPosition) || [],
     [warData]
   );
 
-  if (!isOpen || !warData) return null;
+  if (!isOpen || !warData || !mounted) return null;
 
-  const warEndTimeDate =
-    warData.warEndTime instanceof Date
-      ? warData.warEndTime
-      : new Date(warData.warEndTime);
-
-  // Helper untuk menerjemahkan hasil
-  const resultLabel = 
-    warData.result === 'win' ? t.clanWar.resultWin.toUpperCase()
-    : warData.result === 'lose' ? t.clanWar.resultLose.toUpperCase()
-    : t.clanWar.resultDraw.toUpperCase();
-
-  // Helper nama klan
+  const warEndTimeDate = warData.warEndTime instanceof Date ? warData.warEndTime : new Date(warData.warEndTime);
+  const resultLabel = warData.result === 'win' ? t.clanWar.resultWin : warData.result === 'lose' ? t.clanWar.resultLose : t.clanWar.resultDraw;
   const ourClanName = warData.clan.name;
   const oppClanName = warData.opponent.name;
 
-  return (
+  // [PERBAIKAN] Konten modal dipisah untuk Portal
+  const modalContent = (
     <div
-      className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm transition-opacity duration-300"
-      onKeyDown={(e) => e.key === 'Escape' && onClose()}
-      tabIndex={-1}
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-0 md:p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300"
       onClick={onClose}
     >
-      <div className="flex min-h-full items-center justify-center p-4 text-center">
+        {/* Container Utama: Full Screen di Mobile, Max Size di Desktop */}
         <div
-          className="w-full max-w-6xl transform overflow-hidden rounded-2xl bg-coc-stone p-6 text-left align-middle shadow-xl transition-all duration-300 border border-coc-gold-dark/50"
+          className="w-full h-full md:max-w-[1600px] md:h-[95vh] flex flex-col bg-[#050505] md:border border-white/10 md:rounded-3xl shadow-2xl overflow-hidden relative"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="space-y-6">
-            {/* Header Modal */}
-            <h3 className="text-2xl font-clash font-bold leading-6 text-white border-b border-coc-gold-dark/30 pb-3 mb-4 flex justify-between items-center">
-              {t.clanWar.modalTitle}: {ourClanName} vs{' '}
-              {oppClanName}
-              <Button
-                size="sm"
-                variant="tertiary"
-                className="inline-flex justify-center rounded-full text-white bg-coc-stone-light p-2 hover:bg-coc-red/70 focus:outline-none"
-                onClick={onClose}
-              >
-                <XIcon className="h-5 w-5" aria-hidden="true" />
-              </Button>
-            </h3>
-
-            <div className="space-y-6">
-              {/* War Summary Card */}
-              <div className="bg-coc-stone-dark/50 p-4 rounded-lg border border-coc-gold-dark/30">
-                <div className="flex justify-between items-center text-sm mb-3">
-                  <p className="text-gray-400 font-clash uppercase">
-                    {t.clanWar.colTeamSize}: {warData.teamSize}v{warData.teamSize}
-                  </p>
-                  <p className="text-gray-400 font-clash uppercase">
-                    {t.clanWar.colResult}:{' '}
-                    <span
-                      className={`font-bold ${
-                        warData.result === 'win'
-                          ? 'text-coc-green'
-                          : warData.result === 'lose'
-                          ? 'text-coc-red'
-                          : 'text-coc-blue'
-                      }`}
-                    >
-                      {resultLabel}
-                    </span>
-                  </p>
-                </div>
-
-                {/* Scoreboard */}
-                <div className="flex text-center border border-coc-gold-dark/50 rounded-lg divide-x divide-coc-gold-dark/50 overflow-hidden">
-                  {/* Klan Kita */}
-                  <div className="w-1/2 p-4 bg-coc-stone-light">
-                    <TrophyIcon className="h-6 w-6 text-coc-gold mx-auto mb-2" />
-                    <p className="text-white font-bold text-lg mb-1">
-                      {ourClanName}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {t.clanWar.colStars}:{' '}
-                      <span className="text-coc-gold">
-                        {warData.clan.stars}
-                      </span>{' '}
-                      | {t.clanWar.colDestruction}:{' '}
-                      <span className="text-white font-mono">
-                        {warData.clan.destructionPercentage.toFixed(2)}%
-                      </span>
-                    </p>
-                  </div>
-
-                  {/* Klan Lawan */}
-                  <div className="w-1/2 p-4 bg-coc-stone-dark">
-                    <ShieldIcon className="h-6 w-6 text-gray-500 mx-auto mb-2" />
-                    <p className="text-white font-bold text-lg mb-1">
-                      {oppClanName}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {t.clanWar.colStars}:{' '}
-                      <span className="text-coc-red">
-                        {warData.opponent.stars}
-                      </span>{' '}
-                      | {t.clanWar.colDestruction}:{' '}
-                      <span className="text-white font-mono">
-                        {warData.opponent.destructionPercentage.toFixed(2)}%
-                      </span>
-                    </p>
-                  </div>
-                </div>
-
-                <p className="mt-4 text-xs text-center text-gray-500">
-                  {t.clanWar.statusEnded}:{' '}
-                  {warEndTimeDate.toLocaleDateString(locale, {
-                    day: '2-digit',
-                    month: 'short',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </p>
-              </div>
-
-              {/* Player Detail Comparison */}
-              <div className="flex flex-col lg:flex-row gap-6">
-                {/* Tim Kita */}
-                <div className="lg:w-1/2 w-full border border-coc-gold/20 rounded-lg overflow-hidden bg-coc-stone-dark shadow-xl">
-                  <h4 className="font-clash text-lg text-white p-3 bg-coc-gold/10 flex items-center justify-center gap-2">
-                    <ArrowLeftIcon className="h-4 w-4" /> {ourClanName}
-                  </h4>
-                  <div className="divide-y divide-coc-gold-dark/10 max-h-[60vh] overflow-y-auto">
-                    {ourMembers.map((member: CocWarMember) => (
-                      <MemberRow
-                        key={member.tag}
-                        member={member}
-                        isClanMember={true}
-                        opponentMembersMap={opponentMembersMap}
-                        t={t}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Tim Lawan */}
-                <div className="lg:w-1/2 w-full border border-coc-red/20 rounded-lg overflow-hidden bg-coc-stone-dark shadow-xl">
-                  <h4 className="font-clash text-lg text-white p-3 bg-coc-red/10 flex items-center justify-center gap-2">
-                    {oppClanName} <ArrowRightIcon className="h-4 w-4" />
-                  </h4>
-                  <div className="divide-y divide-coc-gold-dark/10 max-h-[60vh] overflow-y-auto">
-                    {opponentMembers.map((member: CocWarMember) => (
-                      <MemberRow
-                        key={member.tag}
-                        member={member}
-                        isClanMember={false}
-                        opponentMembersMap={opponentMembersMap}
-                        t={t}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
+            {/* --- Background Ambience --- */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                <div className={`absolute -top-1/4 -left-1/4 w-[800px] h-[800px] ${warData.result === 'win' ? 'bg-coc-blue/10' : 'bg-coc-red/10'} rounded-full blur-[150px] opacity-20`} />
+                <div className="absolute -bottom-1/4 -right-1/4 w-[800px] h-[800px] bg-coc-red/10 rounded-full blur-[150px] opacity-20" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[1px] bg-gradient-to-r from-transparent via-white/5 to-transparent" />
             </div>
-          </div>
+
+            {/* --- HEADER (Fixed Top) --- */}
+            <div className="flex-shrink-0 relative z-20 bg-[#0f0f0f]/90 backdrop-blur-md border-b border-white/10 shadow-xl">
+                {/* Top Bar */}
+                <div className="flex justify-between items-center px-4 py-2 border-b border-white/5">
+                    <span className="text-[10px] md:text-xs font-mono text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                        <SwordsIcon className="w-3 h-3" />
+                        {warData.teamSize}v{warData.teamSize} • {warEndTimeDate.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </span>
+                    <Button size="sm" variant="ghost" onClick={onClose} className="text-gray-400 hover:text-white h-8 w-8 p-0 rounded-full hover:bg-white/10">
+                        <XIcon className="h-5 w-5" />
+                    </Button>
+                </div>
+
+                {/* Score Display (Compact Responsive) */}
+                <div className="flex items-center justify-between px-4 py-4 md:px-12 md:py-6">
+                    {/* Left Side (Us) */}
+                    <div className="flex flex-col items-start w-[40%]">
+                        <div className="flex items-center gap-2 md:gap-3 mb-1">
+                            <h2 className="text-lg md:text-3xl font-clash text-white tracking-wide truncate max-w-[120px] md:max-w-xs leading-none">{ourClanName}</h2>
+                            <p className="hidden md:block text-xs text-coc-blue font-bold tracking-wider px-1.5 py-0.5 bg-coc-blue/10 rounded border border-coc-blue/20">LVL {warData.clan.clanLevel}</p>
+                        </div>
+                        <div className="w-full max-w-[200px]">
+                            <div className="flex items-baseline gap-2">
+                                <span className="text-2xl md:text-5xl font-clash text-white">{warData.clan.stars}</span>
+                                <span className="text-xs md:text-sm text-gray-400 font-mono">{warData.clan.destructionPercentage.toFixed(2)}%</span>
+                            </div>
+                            <DestructionBar percentage={warData.clan.destructionPercentage} colorClass="bg-coc-blue shadow-[0_0_10px_#2B60DE]" />
+                        </div>
+                    </div>
+
+                    {/* Center (VS) */}
+                    <div className="flex flex-col items-center justify-center w-[20%]">
+                        <div className="relative mb-1">
+                            <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-4xl md:text-8xl font-clash text-white/5 italic">VS</span>
+                            <div className={`text-xl md:text-3xl font-bold uppercase tracking-widest ${
+                                warData.result === 'win' ? 'text-coc-green' : warData.result === 'lose' ? 'text-coc-red' : 'text-coc-gold'
+                            }`}>
+                                {resultLabel}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Side (Enemy) */}
+                    <div className="flex flex-col items-end w-[40%] text-right">
+                        <div className="flex items-center gap-2 md:gap-3 mb-1 flex-row-reverse">
+                            <h2 className="text-lg md:text-3xl font-clash text-white tracking-wide truncate max-w-[120px] md:max-w-xs leading-none">{oppClanName}</h2>
+                            <p className="hidden md:block text-xs text-coc-red font-bold tracking-wider px-1.5 py-0.5 bg-coc-red/10 rounded border border-coc-red/20">LVL {warData.opponent.clanLevel}</p>
+                        </div>
+                        <div className="w-full max-w-[200px] flex flex-col items-end">
+                            <div className="flex items-baseline gap-2 flex-row-reverse">
+                                <span className="text-2xl md:text-5xl font-clash text-white">{warData.opponent.stars}</span>
+                                <span className="text-xs md:text-sm text-gray-400 font-mono">{warData.opponent.destructionPercentage.toFixed(2)}%</span>
+                            </div>
+                            <DestructionBar percentage={warData.opponent.destructionPercentage} colorClass="bg-coc-red shadow-[0_0_10px_#FF0000]" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* --- BATTLEFIELD MAP (Scrollable Content) --- */}
+            <div className="flex-grow overflow-y-auto custom-scrollbar bg-[#0a0a0a] relative">
+                {/* Center Divider Line */}
+                <div className="absolute left-1/2 top-0 bottom-0 w-[1px] bg-gradient-to-b from-white/20 via-white/5 to-transparent -translate-x-1/2 z-0 hidden md:block" />
+                
+                <div className="grid grid-cols-2 min-h-full">
+                    {/* Left Territory (Us) */}
+                    <div className="flex flex-col p-2 md:p-6 gap-3 md:gap-4 relative z-10 border-r border-white/5 md:border-none">
+                        <div className="sticky top-0 z-30 bg-[#0a0a0a]/95 backdrop-blur border-b border-white/5 py-2 mb-2 text-center md:text-left shadow-lg">
+                            <h3 className="text-coc-blue font-clash text-sm md:text-lg tracking-wider flex items-center justify-center md:justify-start gap-2">
+                                <ShieldIcon className="w-4 h-4" /> OUR TERRITORY
+                            </h3>
+                        </div>
+                        {ourMembers.map((member) => (
+                            <WarMapNode 
+                                key={member.tag} 
+                                member={member} 
+                                isMyClan={true} 
+                                opponentRoster={opponentMembersMap} 
+                                t={t}
+                            />
+                        ))}
+                    </div>
+
+                    {/* Right Territory (Enemy) */}
+                    <div className="flex flex-col p-2 md:p-6 gap-3 md:gap-4 relative z-10">
+                        <div className="sticky top-0 z-30 bg-[#0a0a0a]/95 backdrop-blur border-b border-white/5 py-2 mb-2 text-center md:text-right shadow-lg">
+                            <h3 className="text-coc-red font-clash text-sm md:text-lg tracking-wider flex items-center justify-center md:justify-end gap-2">
+                                ENEMY TERRITORY <CrosshairIcon className="w-4 h-4" />
+                            </h3>
+                        </div>
+                        {opponentMembers.map((member) => (
+                            <WarMapNode 
+                                key={member.tag} 
+                                member={member} 
+                                isMyClan={false} 
+                                opponentRoster={ourMembersMap} 
+                                t={t}
+                            />
+                        ))}
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
     </div>
   );
+
+  // Render menggunakan Portal
+  return createPortal(modalContent, document.body);
 };
 
 export default WarDetailModal;

@@ -53,7 +53,7 @@ export const clanManage: ManagementTypes.ClanManageSection = {
   activeWarTitle: 'Active War',
   clanSafe: 'Clan is Safe',
   clanSafeDesc: 'No active Classic War or CWL.',
-  raidTitle: 'Capital Raid',
+  raidTitle: 'Clan Capital',
   raidNoData: 'Latest Capital Raid data unavailable, or currently in progress.',
   viewRaidArchive: 'View Raid Archive',
   performanceTitle: 'Top Performance (From Aggregator)',
@@ -260,6 +260,8 @@ export const clanPromotions: ManagementTypes.ClanPromotionsSection = {
 };
 
 export const clanBanners: ManagementTypes.ClanBannersSection = {
+  tabTitle: 'Clan Promotion Banners', // [FIX] Added property
+  tabDesc: 'Manage promotional banners to recruit new members and show off your clan achievements.', // [FIX] Added property
   btnAdd: 'Create New Promotion',
   formTitle: 'Add Promotion Banner',
   formDesc: 'The banner you add will appear in the Clan Hub carousel and direct users to your clan profile.',

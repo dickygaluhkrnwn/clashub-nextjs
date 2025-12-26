@@ -17,26 +17,25 @@ import {
   BarChart2Icon,
   PieChartIcon,
   ThumbsUpIcon,
+  AlertTriangleIcon
 } from '@/app/components/icons';
-import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU] Hook i18n
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 interface PromotionAnalyticsProps {
   promotions: FirestoreDocument<Promotion>[];
 }
 
-// Warna untuk Pie Chart
 const PIE_COLORS = [
-  '#FFD700', // Emas (TH 16)
-  '#DAA520', // Emas Gelap (TH 15)
-  '#B8860B', // Emas Sangat Gelap (TH 14)
-  '#F4A460', // Oranye (TH 13)
-  '#CD853F', // Coklat (TH 12)
-  '#D2691E', // Coklat Tua (TH 11)
-  '#A9A9A9', // Abu-abu (TH Lainnya)
-  '#696969', // Abu-abu Gelap (Unknown)
+  '#FFD700', // Gold (TH 16)
+  '#DAA520', // Dark Gold (TH 15)
+  '#B8860B', // Darker Gold (TH 14)
+  '#F4A460', // Orange (TH 13)
+  '#CD853F', // Brown (TH 12)
+  '#D2691E', // Chocolate (TH 11)
+  '#A9A9A9', // Grey (Others)
+  '#696969', // Dark Grey (Unknown)
 ];
 
-// Helper untuk mengurutkan data TH
 const sortTHData = (
   a: { name: string; klik: number },
   b: { name: string; klik: number },
@@ -49,7 +48,7 @@ const sortTHData = (
 export const PromotionAnalytics: React.FC<PromotionAnalyticsProps> = ({
   promotions,
 }) => {
-  const { t } = useLanguage(); // [BARU] Init Hook
+  const { t } = useLanguage();
 
   // --- Agregasi Data ---
   const {
@@ -60,11 +59,9 @@ export const PromotionAnalytics: React.FC<PromotionAnalyticsProps> = ({
     let totalKlik = 0;
     const thMap = new Map<string, number>();
 
-    // 1. Hitung total klik dan performa per banner
     const performaBanner = promotions.map((p) => {
       totalKlik += p.totalClicks || 0;
 
-      // 2. Agregasi data TH dari SETIAP promosi
       if (p.clicksByTH) {
         for (const [th, count] of Object.entries(p.clicksByTH)) {
           const key = `TH ${th === 'unknown' ? '?' : th}`;
@@ -73,15 +70,15 @@ export const PromotionAnalytics: React.FC<PromotionAnalyticsProps> = ({
       }
 
       return {
-        name: p.title.length > 20 ? `${p.title.substring(0, 20)}...` : p.title,
+        name: p.title.length > 15 ? `${p.title.substring(0, 15)}...` : p.title,
+        fullTitle: p.title,
         klik: p.totalClicks || 0,
       };
-    }).sort((a, b) => b.klik - a.klik); // Urutkan banner terpopuler
+    }).sort((a, b) => b.klik - a.klik);
 
-    // 3. Konversi map Demografi TH ke array
     const demografiTH = Array.from(thMap, ([name, klik]) => ({ name, klik }))
-      .filter((d) => d.klik > 0) // Hanya tampilkan yang ada klik
-      .sort(sortTHData); // Urutkan berdasarkan level TH
+      .filter((d) => d.klik > 0)
+      .sort(sortTHData);
 
     return {
       totalKlikSeluruhPromosi: totalKlik,
@@ -89,134 +86,167 @@ export const PromotionAnalytics: React.FC<PromotionAnalyticsProps> = ({
       dataDemografiTH: demografiTH,
     };
   }, [promotions]);
-  // --- Akhir Agregasi Data ---
 
-  // Jika tidak ada data promosi sama sekali
+  // Empty State
   if (promotions.length === 0) {
     return (
-      <div className="card-stone p-6 text-center">
-        <h3 className="text-xl font-clash text-coc-gold mb-2">
+      <div className="flex flex-col items-center justify-center p-8 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-sm border-dashed min-h-[200px]">
+        <div className="bg-coc-gold/10 p-4 rounded-full mb-3">
+            <AlertTriangleIcon className="h-8 w-8 text-coc-gold/50" />
+        </div>
+        <h3 className="text-lg font-clash text-white mb-1">
           {t.clanBanners.analyticsTitle}
         </h3>
-        <p className="text-gray-400 font-sans">
+        <p className="text-sm text-gray-400 font-sans text-center max-w-sm">
           {t.clanBanners.analyticsNoData}
         </p>
       </div>
     );
   }
 
-  // Render Dashboard
   return (
-    <div className="mb-8">
-      <h2 className="text-2xl font-clash text-coc-gold mb-4">
-        {t.clanBanners.analyticsTitle}
-      </h2>
+    <div className="mb-10 space-y-6">
+      <div className="flex items-center gap-3 mb-2">
+        <div className="p-2 bg-coc-gold/10 rounded-lg border border-coc-gold/20">
+            <BarChart2Icon className="h-6 w-6 text-coc-gold" />
+        </div>
+        <h2 className="text-2xl font-clash text-white">
+            {t.clanBanners.analyticsTitle}
+        </h2>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
         {/* Kartu 1: Total Klik */}
-        <div className="card-stone p-6 flex flex-col justify-between h-[350px] lg:h-[300px]">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <ThumbsUpIcon className="h-5 w-5 text-coc-gold" />
-              <h3 className="text-lg font-clash text-coc-gold-light">
-                {t.clanBanners.statTotalClicks}
-              </h3>
+        <div className="bg-gradient-to-br from-[#1a1a1a] to-transparent border border-white/10 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-coc-gold/5 rounded-full blur-[50px] -z-10 group-hover:bg-coc-gold/10 transition-colors" />
+          
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-white/5 rounded-full">
+                <ThumbsUpIcon className="h-5 w-5 text-coc-gold" />
             </div>
-            <p className="text-5xl font-clash text-white">
-              {totalKlikSeluruhPromosi}
+            <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider">
+              {t.clanBanners.statTotalClicks}
+            </h3>
+          </div>
+          
+          <div className="mt-2">
+            <p className="text-6xl font-clash text-white drop-shadow-md">
+                {totalKlikSeluruhPromosi}
             </p>
-            <p className="font-sans text-gray-400">
-              {t.clanBanners.statTotalClicksDesc}
+            <p className="text-sm text-coc-gold/80 font-medium mt-2">
+                {t.clanBanners.statTotalClicksDesc}
             </p>
           </div>
-          <div className="font-sans text-sm text-gray-500 mt-4">
-            {t.clanBanners.statTotalClicksNote}
+          
+          <div className="mt-8 pt-4 border-t border-white/5">
+            <p className="text-xs text-gray-500 font-sans italic">
+                {t.clanBanners.statTotalClicksNote}
+            </p>
           </div>
         </div>
 
         {/* Kartu 2: Performa Banner (Bar Chart) */}
-        <div className="card-stone p-6 h-[300px]">
-          <div className="flex items-center gap-3 mb-4">
-            <BarChart2Icon className="h-5 w-5 text-coc-gold" />
-            <h3 className="text-lg font-clash text-coc-gold-light">
+        <div className="bg-[#1a1a1a]/80 backdrop-blur-sm border border-white/10 rounded-2xl p-6 shadow-xl flex flex-col h-[350px]">
+          <div className="flex items-center gap-2 mb-6">
+            <BarChart2Icon className="h-4 w-4 text-gray-400" />
+            <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider">
               {t.clanBanners.chartPerformance}
             </h3>
           </div>
-          {dataPerformaBanner.length > 0 ? (
-            <ResponsiveContainer width="100%" height="80%">
-              <BarChart data={dataPerformaBanner} layout="vertical">
-                <XAxis type="number" hide />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  stroke="#E0E0E0"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  width={100}
-                />
-                <Tooltip
-                  cursor={{ fill: 'rgba(255, 215, 0, 0.1)' }}
-                  contentStyle={{
-                    backgroundColor: '#262626',
-                    borderColor: '#B8860B',
-                    borderRadius: '8px',
-                  }}
-                />
-                <Bar dataKey="klik" fill="#FFD700" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <p className="text-gray-500 text-center pt-10">
-              {t.clanBanners.chartNoData}
-            </p>
-          )}
+          
+          <div className="flex-grow w-full">
+            {dataPerformaBanner.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={dataPerformaBanner} layout="vertical" margin={{ top: 0, right: 30, left: 0, bottom: 0 }}>
+                    <XAxis type="number" hide />
+                    <YAxis
+                        type="category"
+                        dataKey="name"
+                        stroke="#9CA3AF"
+                        fontSize={10}
+                        tickLine={false}
+                        axisLine={false}
+                        width={80}
+                        interval={0}
+                    />
+                    <Tooltip
+                        cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
+                        contentStyle={{
+                            backgroundColor: '#1a1a1a',
+                            borderColor: 'rgba(255, 215, 0, 0.3)',
+                            borderRadius: '8px',
+                            color: '#fff',
+                            fontSize: '12px'
+                        }}
+                        itemStyle={{ color: '#FFD700' }}
+                        formatter={(value: number) => [`${value} Clicks`, 'Total']}
+                    />
+                    <Bar dataKey="klik" fill="#FFD700" radius={[0, 4, 4, 0]} barSize={20} />
+                </BarChart>
+                </ResponsiveContainer>
+            ) : (
+                <div className="flex items-center justify-center h-full text-gray-500 text-xs italic">
+                    {t.clanBanners.chartNoData}
+                </div>
+            )}
+          </div>
         </div>
 
         {/* Kartu 3: Demografi TH (Pie Chart) */}
-        <div className="card-stone p-6 h-[300px]">
-          <div className="flex items-center gap-3 mb-4">
-            <PieChartIcon className="h-5 w-5 text-coc-gold" />
-            <h3 className="text-lg font-clash text-coc-gold-light">
+        <div className="bg-[#1a1a1a]/80 backdrop-blur-sm border border-white/10 rounded-2xl p-6 shadow-xl flex flex-col h-[350px]">
+          <div className="flex items-center gap-2 mb-6">
+            <PieChartIcon className="h-4 w-4 text-gray-400" />
+            <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider">
               {t.clanBanners.chartDemographics}
             </h3>
           </div>
-          {dataDemografiTH.length > 0 ? (
-            <ResponsiveContainer width="100%" height="80%">
-              <PieChart>
-                <Pie
-                  data={dataDemografiTH}
-                  dataKey="klik"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  fill="#8884d8"
-                  label={(entry) => `${entry.name} (${entry.value})`}
-                  labelLine={false}
-                  fontSize={12}
-                >
-                  {dataDemografiTH.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={PIE_COLORS[index % PIE_COLORS.length]}
+          
+          <div className="flex-grow w-full relative">
+            {dataDemografiTH.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                    <Pie
+                        data={dataDemografiTH}
+                        dataKey="klik"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        stroke="none"
+                    >
+                        {dataDemografiTH.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                        ))}
+                    </Pie>
+                    <Tooltip
+                        contentStyle={{
+                            backgroundColor: '#1a1a1a',
+                            borderColor: 'rgba(255, 215, 0, 0.3)',
+                            borderRadius: '8px',
+                            color: '#fff',
+                            fontSize: '12px'
+                        }}
                     />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#262626',
-                    borderColor: '#B8860B',
-                    borderRadius: '8px',
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : (
-            <p className="text-gray-500 text-center pt-10">
-              {t.clanBanners.chartNoData}
-            </p>
-          )}
+                </PieChart>
+                </ResponsiveContainer>
+            ) : (
+                <div className="flex items-center justify-center h-full text-gray-500 text-xs italic">
+                    {t.clanBanners.chartNoData}
+                </div>
+            )}
+            
+            {/* Center Text Overlay */}
+            {dataDemografiTH.length > 0 && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <span className="text-2xl font-clash text-white/20">TH</span>
+                </div>
+            )}
+          </div>
         </div>
+
       </div>
     </div>
   );

@@ -7,6 +7,7 @@ export interface CommonSection {
   edit: string;
   delete: string;
   searchPlaceholder: string;
+  search: string; // [BARU] Menambahkan properti search
   viewAll: string;
   back: string;
   next: string;

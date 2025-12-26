@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Image from 'next/image';
-import { CocWarMember } from '@/lib/types';
+import { CocWarMember } from '@/lib/clashub.types';
 import { getThImage } from '@/lib/th-utils';
 import { StarIcon } from '@/app/components/icons';
 
@@ -13,76 +13,75 @@ interface CwlWarPlayerRowProps {
 
 const CwlWarPlayerRow: React.FC<CwlWarPlayerRowProps> = ({ member, isCwl }) => {
   const bestAttackReceived = member.bestOpponentAttack;
-  // const maxAttacks = isCwl ? 1 : 2; // CWL selalu 1
   let defenseStars = 0;
-  let defenseDestruction = 0;
+  // let defenseDestruction = 0; // Unused for now
 
   if (bestAttackReceived) {
     defenseStars = bestAttackReceived.stars;
-    defenseDestruction = bestAttackReceived.destructionPercentage;
+    // defenseDestruction = bestAttackReceived.destructionPercentage;
   }
 
   const starColorClass =
     defenseStars === 3
-      ? 'text-coc-red'
+      ? 'text-coc-red border-coc-red/30 bg-coc-red/10'
       : defenseStars > 0
-      ? 'text-coc-gold'
-      : 'text-gray-500';
+      ? 'text-coc-gold border-coc-gold/30 bg-coc-gold/10'
+      : 'text-gray-500 border-white/10 bg-white/5';
 
   // Tampilkan bintang serangan
   const attacksDisplay =
     member.attacks?.map((att, index) => (
-      <span
-        key={index}
-        className={`font-bold ${
-          att.stars === 3 ? 'text-coc-gold' : 'text-white'
-        }`}
-      >
-        {att.stars}★
-      </span>
-    )) || <span className="text-gray-500">-</span>;
+        <div key={index} className="flex flex-col items-center">
+            <span className={`font-bold text-sm ${att.stars === 3 ? 'text-coc-green' : att.stars === 2 ? 'text-coc-gold' : 'text-gray-400'}`}>
+                {att.stars}★
+            </span>
+            <span className="text-[9px] text-gray-500">{att.destructionPercentage}%</span>
+        </div>
+    )) || <span className="text-gray-600 text-[10px] italic">No Atk</span>;
 
   return (
-    <tr key={member.tag} className="hover:bg-coc-stone/20 transition-colors">
+    <tr className="hover:bg-white/5 transition-colors group">
       {/* Posisi Peta */}
-      <td className="px-2 py-2 text-center text-xs font-clash text-white">
-        {member.mapPosition}
+      <td className="px-3 py-3 text-center text-xs font-mono text-gray-500 group-hover:text-gray-300">
+        #{member.mapPosition}
       </td>
+      
       {/* Pemain */}
-      <td className="px-2 py-2 whitespace-nowrap text-xs">
-        <div className="flex items-center space-x-2">
-          <div className="relative w-6 h-6 flex-shrink-0">
+      <td className="px-3 py-3 whitespace-nowrap">
+        <div className="flex items-center gap-3">
+          <div className="relative w-7 h-7 flex-shrink-0">
             <Image
               src={getThImage(member.townhallLevel)}
               alt={`TH ${member.townhallLevel}`}
-              width={24}
-              height={24}
-              className="rounded-full"
+              width={28}
+              height={28}
+              className="drop-shadow-md"
             />
+            <div className="absolute -bottom-1 -right-1 bg-black/90 text-[8px] text-white px-1 rounded border border-white/20">
+                {member.townhallLevel}
+            </div>
           </div>
-          <div>
-            <p className="font-clash text-sm truncate max-w-[120px] text-white">
+          <div className="flex flex-col">
+            <span className="font-medium text-xs md:text-sm text-gray-200 group-hover:text-white truncate max-w-[100px] md:max-w-[140px]">
               {member.name}
-            </p>
+            </span>
+            <span className="text-[9px] text-gray-500 font-mono">{member.tag}</span>
           </div>
         </div>
       </td>
-      {/* Serangan Dilakukan */}
-      <td className="px-2 py-2 text-center text-xs text-gray-300">
-        <div className="flex items-center justify-center gap-1.5">
-          {attacksDisplay}
-        </div>
-      </td>
-      {/* Pertahanan */}
-      <td className="px-2 py-2 text-center text-xs">
-        <div
-          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs border ${starColorClass} border-current`}
-        >
-          <StarIcon className="w-2.5 h-2.5" />
-          <span>
-            {defenseStars}★ ({defenseDestruction.toFixed(0)}%)
-          </span>
-        </div>
+
+      {/* Serangan / Pertahanan Info */}
+      <td className="px-3 py-3 text-center">
+         <div className="flex items-center justify-center gap-3">
+            {/* Attack Info */}
+            <div>{attacksDisplay}</div>
+            
+            {/* Defense Info (Tiny pill) */}
+            <div className={`px-1.5 py-0.5 rounded border text-[9px] font-bold flex items-center gap-0.5 ${starColorClass}`}>
+                <StarIcon className="w-2 h-2" />
+                <span>{defenseStars}</span>
+            </div>
+         </div>
       </td>
     </tr>
   );

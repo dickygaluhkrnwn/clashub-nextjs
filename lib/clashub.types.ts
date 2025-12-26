@@ -7,20 +7,35 @@
 // =========================================================================
 
 // Impor tipe CoC dari file 'coc.types.ts' untuk di-ekspor ulang secara spesifik
-// Tipe CoC lainnya diimpor langsung oleh file di dalam /lib/types/
 import {
   CocCurrentWar,
   CocIconUrls,
+  CocRaidLog,
+  CocWarMember,
+  CocWarAttack,
+  CocWarLogEntry,
+  CocWarLog,
+  CocWarClanInfo,
+  CocRaidMember // [FIX] Ditambahkan untuk mengatasi error di RaidTabContent
 } from './coc.types';
 
 // [BARU FASE 16.1] Ekspor tipe yang diimpor agar bisa digunakan file lain
-export type { CocCurrentWar, CocIconUrls } from './coc.types';
+export type { 
+  CocCurrentWar, 
+  CocIconUrls, 
+  CocRaidLog, 
+  CocWarMember,
+  CocWarAttack,
+  CocWarLogEntry,
+  CocWarLog,
+  CocWarClanInfo,
+  CocRaidMember // [FIX] Exported
+} from './coc.types';
 
 // =========================================================================
 // 1. EKSPOR ULANG TIPE INTERNAL CLASHUB
 // =========================================================================
 
-// [REFACFOR FASE 0] Ekspor ulang semua tipe yang baru dipecah
 export * from './types/user.types';
 export * from './types/clan.types';
 export * from './types/tournament.types';

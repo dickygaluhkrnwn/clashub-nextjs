@@ -2,20 +2,12 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import {
-  ClanApiCache,
-  UserProfile,
-} from '@/lib/types';
+import { ClanApiCache, UserProfile } from '@/lib/clashub.types';
 import { Button } from '@/app/components/ui/Button';
-import {
-  TrashIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
-} from '@/app/components/icons';
+import { TrashIcon, ChevronDownIcon, ChevronUpIcon } from '@/app/components/icons';
 import { getThImage, formatNumber } from '@/lib/th-utils';
-import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
-// Tipe RosterMember (Salinan dari MemberTabContent)
 export type RosterMember = ClanApiCache['members'][number] & {
   uid?: string;
   clashubRole: UserProfile['role'];
@@ -27,38 +19,24 @@ interface MemberTableRowProps {
   userProfile: UserProfile;
   isManager: boolean;
   isLeader: boolean;
-  onRoleChange: (
-    memberUid: string,
-    newClashubRole: UserProfile['role']
-  ) => void;
+  onRoleChange: (memberUid: string, newClashubRole: UserProfile['role']) => void;
   onKick: (memberUid: string) => void;
   availableClashubRoles: UserProfile['role'][];
 }
 
-/**
- * Helper function visual untuk status partisipasi
- * (Warna tetap hardcoded berdasarkan value string dari backend)
- */
-const getParticipationStatusClass = (
-  status: ClanApiCache['members'][number]['participationStatus']
-) => {
+const getParticipationStatusClass = (status: ClanApiCache['members'][number]['participationStatus']) => {
   switch (status) {
     case 'Promosi':
-      return 'text-coc-gold bg-coc-gold/20 font-bold border-coc-gold';
+      return 'text-coc-green bg-coc-green/10 border-coc-green/30';
     case 'Demosi':
-      return 'text-coc-red bg-coc-red/20 font-bold border-coc-red';
+      return 'text-coc-red bg-coc-red/10 border-coc-red/30';
     case 'Leader/Co-Leader':
-      return 'text-coc-blue bg-coc-blue/20 border-coc-blue';
-    case 'Aman':
+      return 'text-coc-gold bg-coc-gold/10 border-coc-gold/30';
     default:
-      return 'text-coc-green bg-coc-green/20 border-coc-green';
+      return 'text-gray-400 bg-white/5 border-white/10';
   }
 };
 
-/**
- * @component MemberTableRow
- * Komponen ini me-render satu baris (<tr>) untuk tabel anggota.
- */
 export const MemberTableRow: React.FC<MemberTableRowProps> = ({
   member,
   userProfile,
@@ -68,185 +46,140 @@ export const MemberTableRow: React.FC<MemberTableRowProps> = ({
   onKick,
   availableClashubRoles,
 }) => {
-  const { t } = useLanguage(); // [BARU] Hook i18n
+  const { t } = useLanguage();
   const [openRoleDropdown, setOpenRoleDropdown] = useState<string | null>(null);
 
-  // --- Logika Otorisasi ---
-  const canModify =
-    member.clashubRole !== 'Leader' && member.uid !== userProfile.uid;
-  
-  const isCoLeaderModifyingCoLeader =
-    userProfile.role === 'Co-Leader' && member.clashubRole === 'Co-Leader';
-
-  const isActionDisabled =
-    !isManager || !canModify || isCoLeaderModifyingCoLeader || !member.uid;
+  const canModify = member.clashubRole !== 'Leader' && member.uid !== userProfile.uid;
+  const isCoLeaderModifyingCoLeader = userProfile.role === 'Co-Leader' && member.clashubRole === 'Co-Leader';
+  const isActionDisabled = !isManager || !canModify || isCoLeaderModifyingCoLeader || !member.uid;
 
   const thImageUrl = getThImage(member.townHallLevel);
 
   return (
-    <tr className="hover:bg-coc-stone/20 transition-colors">
-      {/* Kolom 1: Pemain */}
-      <td className="px-3 py-3 whitespace-nowrap text-sm font-semibold text-white">
-        <div className="flex items-center space-x-3">
-          <div className="relative w-8 h-8 flex-shrink-0">
+    <tr className="hover:bg-white/5 transition-colors group">
+      
+      {/* Player Info */}
+      <td className="px-4 py-3 whitespace-nowrap">
+        <div className="flex items-center gap-3">
+          <div className="relative w-9 h-9 flex-shrink-0 transition-transform group-hover:scale-110">
             <Image
               src={thImageUrl}
               alt={`TH ${member.townHallLevel}`}
-              width={32}
-              height={32}
-              className="rounded-full"
+              width={36}
+              height={36}
+              className="drop-shadow-lg"
             />
+            <div className="absolute -bottom-1 -right-1 bg-black/90 text-[9px] text-white px-1 rounded border border-white/20">
+               {member.townHallLevel}
+            </div>
           </div>
-          <div>
-            <p className="font-clash text-base truncate max-w-[150px]">
-              {member.name}
-            </p>
-            <p className="text-gray-500 block text-xs font-mono">
-              {member.tag}
-            </p>
-            <p className="text-gray-400 block text-xs font-sans capitalize">
-              {member.role} CoC {/* Role CoC (in-game) tetap string asli */}
-            </p>
+          <div className="flex flex-col">
+            <span className="font-medium text-white text-sm tracking-wide">{member.name}</span>
+            <span className="text-[10px] text-gray-500 font-mono">{member.tag}</span>
+            <span className="text-[10px] text-coc-gold/70 uppercase font-bold">{member.role}</span>
           </div>
         </div>
       </td>
 
-      {/* Kolom 2: XP / Donasi */}
-      <td className="px-3 py-3 whitespace-nowrap text-center text-gray-300">
-        <p>
-          XP:{' '}
-          <span className="font-bold text-white">
-            {formatNumber(member.expLevel)}
-          </span>
-        </p>
-        <p className="text-xs">
-          D+: {formatNumber(member.donations)} | D-:{' '}
-          {formatNumber(member.donationsReceived)}
-        </p>
+      {/* Donations */}
+      <td className="px-4 py-3 text-center whitespace-nowrap">
+        <div className="flex flex-col items-center">
+           <span className="text-white font-mono text-xs">{formatNumber(member.donations)}</span>
+           <span className="text-[10px] text-gray-500">Rec: {formatNumber(member.donationsReceived)}</span>
+        </div>
       </td>
 
-      {/* Kolom 3: Trofi */}
-      <td className="px-3 py-3 whitespace-nowrap text-center text-sm text-gray-300 font-semibold">
+      {/* Trophies */}
+      <td className="px-4 py-3 text-center whitespace-nowrap text-sm text-coc-gold font-medium">
         {formatNumber(member.trophies || 0)} 🏆
       </td>
 
-      {/* Kolom 4: Partisipasi CW */}
-      <td className="px-3 py-3 text-center text-gray-300 text-xs font-semibold">
-        <span className="text-coc-green">S-{member.warSuccessCount}</span> /{' '}
-        <span className="text-coc-red">F-{member.warFailCount}</span>
-      </td>
-
-      {/* Kolom 5: Partisipasi CWL */}
-      <td className="px-3 py-3 text-center text-gray-300 text-xs font-semibold">
-        <span className="text-coc-green">S-{member.cwlSuccessCount}</span> /{' '}
-        <span className="text-coc-red">F-{member.cwlFailCount}</span>
-      </td>
-
-      {/* Kolom 6: Status Partisipasi */}
-      <td className="px-3 py-3 whitespace-nowrap text-center">
-        <div
-          className={`inline-flex flex-col items-center justify-center rounded-lg px-2.5 py-1 text-xs border ${getParticipationStatusClass(
-            member.participationStatus
-          )}`}
-        >
-          <span className="font-bold">{member.participationStatus}</span>
-          <span
-            className="text-[10px] opacity-80 mt-0.5 max-w-[100px] truncate"
-            title={member.statusKeterangan || 'N/A'}
-          >
-            {member.statusKeterangan}
-          </span>
+      {/* CW Stats */}
+      <td className="px-4 py-3 text-center whitespace-nowrap">
+        <div className="inline-flex items-center gap-1 bg-black/30 px-2 py-1 rounded border border-white/5">
+           <span className="text-coc-green font-bold text-xs">{member.warSuccessCount}</span>
+           <span className="text-gray-600 text-[10px]">/</span>
+           <span className="text-coc-red font-bold text-xs">{member.warFailCount}</span>
         </div>
       </td>
 
-      {/* Kolom 7: Role Clashub / Aksi */}
-      <td className="px-3 py-3 whitespace-nowrap text-center space-y-1 w-[180px]">
-        <span
-          className={
-            member.isVerified
-              ? 'text-coc-green block mb-1 font-mono'
-              : 'text-coc-red block mb-1 font-mono'
-          }
-        >
-          {member.isVerified ? t.profileSidebar.verified.toUpperCase() : t.profileSidebar.unverified.toUpperCase()}
-        </span>
+      {/* CWL Stats */}
+      <td className="px-4 py-3 text-center whitespace-nowrap">
+        <div className="inline-flex items-center gap-1 bg-black/30 px-2 py-1 rounded border border-white/5">
+           <span className="text-blue-400 font-bold text-xs">{member.cwlSuccessCount}</span>
+           <span className="text-gray-600 text-[10px]">/</span>
+           <span className="text-red-400 font-bold text-xs">{member.cwlFailCount}</span>
+        </div>
+      </td>
 
-        {member.uid ? (
-          <div className="flex flex-col space-y-1 items-center">
-            {isManager ? ( // TAMPILAN MANAGER (Aksi penuh)
-              <>
-                {/* Dropdown Role */}
-                <div className="relative inline-block text-left w-full">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    onClick={() =>
-                      setOpenRoleDropdown(
-                        openRoleDropdown === member.uid ? null : member.uid!
-                      )
-                    }
-                    disabled={isActionDisabled}
-                    className="w-full justify-center text-sm font-semibold"
-                  >
-                    {member.clashubRole}
-                    {openRoleDropdown === member.uid ? (
-                      <ChevronUpIcon className="h-3 w-3 ml-1" />
-                    ) : (
-                      <ChevronDownIcon className="h-3 w-3 ml-1" />
-                    )}
-                  </Button>
-
-                  {openRoleDropdown === member.uid && (
-                    <div className="absolute right-0 z-10 w-32 mt-1 origin-top-right rounded-md bg-coc-stone/90 shadow-lg ring-1 ring-coc-gold-dark/50 focus:outline-none">
-                      <div className="py-1">
-                        {availableClashubRoles.map((role) => (
-                          <a
-                            key={role}
-                            href="#"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              onRoleChange(member.uid!, role);
-                              setOpenRoleDropdown(null);
-                            }}
-                            className={`block px-4 py-2 text-xs text-white hover:bg-coc-gold-dark/30 ${
-                              member.clashubRole === role
-                                ? 'bg-coc-gold-dark/50 font-bold'
-                                : ''
-                            }`}
-                          >
-                            {role}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Tombol Kick */}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => onKick(member.uid!)}
-                  disabled={isActionDisabled}
-                  className="w-full justify-center bg-coc-red/20 text-coc-red hover:bg-coc-red/30 border border-coc-red/30"
-                >
-                  <TrashIcon className="h-3 w-3 mr-1" /> {t.clanMembers.actionKick}
-                </Button>
-              </>
-            ) : (
-              // TAMPILAN ANGGOTA BIASA (Hanya menampilkan role)
-              <span className="text-sm font-semibold text-coc-gold-light p-2 bg-coc-stone/30 rounded w-full">
-                {member.clashubRole}
-              </span>
-            )}
-          </div>
-        ) : (
-          <span className="text-gray-600 italic text-xs">
-             No Account
-          </span>
+      {/* Status */}
+      <td className="px-4 py-3 text-center whitespace-nowrap">
+        <div className={`inline-flex items-center px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider border ${getParticipationStatusClass(member.participationStatus)}`}>
+          {member.participationStatus}
+        </div>
+        {member.statusKeterangan && (
+           <p className="text-[9px] text-gray-500 mt-1 max-w-[100px] truncate mx-auto" title={member.statusKeterangan}>
+              {member.statusKeterangan}
+           </p>
         )}
+      </td>
+
+      {/* Actions */}
+      <td className="px-4 py-3 text-center whitespace-nowrap">
+        <div className="flex flex-col items-center gap-1">
+           <span className={`text-[9px] uppercase font-bold tracking-wider mb-1 ${member.isVerified ? 'text-coc-green' : 'text-gray-600'}`}>
+              {member.isVerified ? 'Verified' : 'Unverified'}
+           </span>
+
+           {isManager && member.uid ? (
+              <div className="flex items-center gap-2 relative">
+                 {/* Role Dropdown */}
+                 <div className="relative">
+                    <Button
+                       size="sm"
+                       variant="secondary"
+                       className="h-7 text-xs px-2 min-w-[90px] justify-between bg-white/5 border border-white/10 hover:bg-white/10"
+                       disabled={isActionDisabled}
+                       onClick={() => setOpenRoleDropdown(openRoleDropdown === member.uid ? null : member.uid!)}
+                    >
+                       <span className="truncate max-w-[60px]">{member.clashubRole}</span>
+                       <ChevronDownIcon className="w-3 h-3 ml-1 opacity-50" />
+                    </Button>
+
+                    {openRoleDropdown === member.uid && (
+                       <div className="absolute right-0 top-8 z-50 w-32 bg-[#1a1a1a] border border-white/10 rounded-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                          {availableClashubRoles.map(role => (
+                             <button
+                                key={role}
+                                onClick={() => {
+                                   onRoleChange(member.uid!, role);
+                                   setOpenRoleDropdown(null);
+                                }}
+                                className={`w-full text-left px-3 py-2 text-xs hover:bg-white/10 transition-colors ${member.clashubRole === role ? 'text-coc-gold font-bold bg-white/5' : 'text-gray-300'}`}
+                             >
+                                {role}
+                             </button>
+                          ))}
+                       </div>
+                    )}
+                 </div>
+
+                 <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0 text-gray-500 hover:text-coc-red hover:bg-coc-red/10"
+                    disabled={isActionDisabled}
+                    onClick={() => onKick(member.uid!)}
+                 >
+                    <TrashIcon className="w-4 h-4" />
+                 </Button>
+              </div>
+           ) : (
+              <span className="text-gray-500 text-xs italic opacity-50">
+                 {member.uid ? member.clashubRole : 'No Account'}
+              </span>
+           )}
+        </div>
       </td>
     </tr>
   );

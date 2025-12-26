@@ -15,12 +15,15 @@ import {
   AlertTriangleIcon,
   ThumbsUpIcon,
   UploadIcon,
-  PlusIcon, 
-  XIcon, 
+  PlusIcon,
+  XIcon,
+  GlobeIcon,
+  BarChart2Icon,
+  UserIcon
 } from '@/app/components/icons';
 import { NotificationProps } from '@/app/components/ui/Notification';
 import PromotionAnalytics from './PromotionAnalytics';
-import { useLanguage } from '@/lib/hooks/useLanguage'; // [BARU]
+import { useLanguage } from '@/lib/hooks/useLanguage';
 
 interface PromotionTabContentProps {
   clan: ManagedClan;
@@ -36,11 +39,9 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
   clan,
   onAction,
 }) => {
-  const { t } = useLanguage(); // [BARU]
+  const { t } = useLanguage();
   
-  const [promotions, setPromotions] = useState<FirestoreDocument<Promotion>[]>(
-    [],
-  );
+  const [promotions, setPromotions] = useState<FirestoreDocument<Promotion>[]>([]);
   const [isLoadingList, setIsLoadingList] = useState(true);
   const [formData, setFormData] = useState<NewPromotionData>({
     imageUrl: '',
@@ -49,7 +50,6 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
-
   const [showAddForm, setShowAddForm] = useState(false);
 
   const fetchPromotions = async () => {
@@ -57,7 +57,7 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
     try {
       const response = await fetch(`/api/clan/manage/${clan.id}/promotions`);
       if (!response.ok) {
-        throw new Error(t.clanBanners.loadingList + ' (Failed)'); // [i18n] Fallback
+        throw new Error(t.clanBanners.loadingList + ' (Failed)');
       }
       const data = (await response.json()) as FirestoreDocument<Promotion>[];
       setPromotions(data);
@@ -83,16 +83,16 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.imageUrl || !formData.title || !formData.description) {
-      onAction(t.clanBanners.valAllFields, 'error'); // [i18n]
+      onAction(t.clanBanners.valAllFields, 'error');
       return;
     }
     if (!formData.imageUrl.startsWith('https://i.imgur.com/')) {
-      onAction(t.clanBanners.valImgUrl, 'error'); // [i18n]
+      onAction(t.clanBanners.valImgUrl, 'error');
       return;
     }
 
     setIsSubmitting(true);
-    onAction(t.clanBanners.btnSubmitting, 'info'); // [i18n]
+    onAction(t.clanBanners.btnSubmitting, 'info');
 
     try {
       const response = await fetch(
@@ -109,7 +109,7 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
         throw new Error(result.message || t.common.error);
       }
 
-      onAction(t.clanBanners.toastAdded, 'success'); // [i18n]
+      onAction(t.clanBanners.toastAdded, 'success');
       setFormData({ imageUrl: '', title: '', description: '' });
       await fetchPromotions();
       setShowAddForm(false);
@@ -123,8 +123,10 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
   const handleDelete = async (promotionId: string) => {
     if (isDeletingId) return;
 
+    if (!confirm('Are you sure you want to delete this promotion?')) return;
+
     setIsDeletingId(promotionId);
-    onAction(t.common.delete + '...', 'info'); // [i18n]
+    onAction(t.common.delete + '...', 'info');
 
     try {
       const response = await fetch(
@@ -139,7 +141,7 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
         throw new Error(result.message || t.common.error);
       }
 
-      onAction(t.clanBanners.toastDeleted, 'success'); // [i18n]
+      onAction(t.clanBanners.toastDeleted, 'success');
       setPromotions((prev) => prev.filter((p) => p.id !== promotionId));
     } catch (err) {
       onAction((err as Error).message, 'error');
@@ -149,226 +151,302 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
   };
 
   return (
-    <div className="mx-auto">
-      {/* --- BAGIAN ANALITIK --- */}
+    <div className="space-y-8 animate-fade-in pb-10">
+      
+      {/* --- HEADER BANNER --- */}
+      <div className="bg-gradient-to-r from-coc-gold/10 to-transparent p-6 rounded-2xl border border-coc-gold/20 relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-coc-gold/10 rounded-full blur-[80px] pointer-events-none -translate-y-1/2 translate-x-1/2" />
+        
+        <div className="relative z-10">
+            <h2 className="text-2xl font-clash text-white tracking-wide flex items-center gap-2">
+                <GlobeIcon className="h-6 w-6 text-coc-gold" />
+                {t.clanBanners.tabTitle}
+            </h2>
+            <p className="text-gray-400 text-sm mt-1 max-w-xl">
+                {t.clanBanners.tabDesc}
+            </p>
+        </div>
+
+        <div className="relative z-10">
+            {!showAddForm && (
+                <Button
+                    variant="primary"
+                    onClick={() => setShowAddForm(true)}
+                    disabled={isLoadingList}
+                    className="shadow-lg shadow-coc-gold/10 transition-transform hover:scale-105"
+                >
+                    <PlusIcon className="h-5 w-5 mr-2" />
+                    {t.clanBanners.btnAdd}
+                </Button>
+            )}
+        </div>
+      </div>
+
+      {/* --- ANALYTICS SECTION --- */}
       <PromotionAnalytics promotions={promotions} />
 
-      {/* --- BAGIAN FORM --- */}
-      <div className="mt-8 max-w-2xl">
-        {!showAddForm ? (
-          <Button
-            variant="primary"
-            onClick={() => setShowAddForm(true)}
-            className="w-full sm:w-auto"
-            disabled={isLoadingList}
-          >
-            <PlusIcon className="h-5 w-5 mr-2" />
-            {t.clanBanners.btnAdd} {/* [i18n] */}
-          </Button>
-        ) : (
-          <div className="card-stone p-6 relative">
-            <div className="flex justify-between items-start mb-2">
-              <h2 className="text-2xl font-clash text-coc-gold">
-                {t.clanBanners.formTitle} {/* [i18n] */}
-              </h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowAddForm(false)}
-                className="text-gray-400 hover:text-white"
-                aria-label="Tutup form"
-              >
-                <XIcon className="h-5 w-5" />
-              </Button>
-            </div>
-            <p className="text-gray-400 font-sans mb-6">
-              {t.clanBanners.formDesc} {/* [i18n] */}
-            </p>
+      {/* --- DIVIDER & TITLE --- */}
+      <div className="flex items-center justify-between border-b border-white/5 pb-4">
+        <div className="flex items-center gap-2">
+           <BarChart2Icon className="h-5 w-5 text-gray-400" />
+           <h3 className="text-lg font-clash text-white">
+               {t.clanBanners.listTitle} <span className="text-gray-500 font-sans ml-2 text-sm">({promotions.length})</span>
+           </h3>
+        </div>
+        {isLoadingList && <RefreshCwIcon className="h-4 w-4 text-coc-gold animate-spin" />}
+      </div>
 
-            {/* Peringatan Imgur */}
-            <div className="mb-6 p-4 rounded-lg bg-coc-yellow/10 border border-coc-yellow/30 flex items-start gap-3">
-              <AlertTriangleIcon className="h-6 w-6 text-coc-yellow flex-shrink-0 mt-0.5" />
-              <div className="font-sans">
-                <h4 className="font-bold text-coc-yellow">
-                  {t.clanBanners.alertImgTitle} {/* [i18n] */}
-                </h4>
-                <p className="text-sm text-gray-300">
-                  {t.clanBanners.alertImgDesc} {/* [i18n] */}
+      {/* --- FORM SECTION (Panel) --- */}
+      {showAddForm && (
+        <div className="bg-[#151515] border border-coc-gold/30 rounded-2xl p-6 md:p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative animate-in slide-in-from-top-4 mb-8">
+            <div className="absolute -top-px left-8 right-8 h-px bg-gradient-to-r from-transparent via-coc-gold/50 to-transparent" />
+            
+            <div className="flex justify-between items-start mb-6">
+                <div>
+                    <h2 className="text-xl font-clash text-white flex items-center gap-2">
+                        <UploadIcon className="h-5 w-5 text-coc-gold" />
+                        {t.clanBanners.formTitle}
+                    </h2>
+                    <p className="text-gray-400 text-sm mt-1">
+                        {t.clanBanners.formDesc}
+                    </p>
+                </div>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAddForm(false)}
+                    className="text-gray-400 hover:text-white hover:bg-white/5"
+                >
+                    <XIcon className="h-5 w-5" />
+                </Button>
+            </div>
+
+            {/* Imgur Warning */}
+            <div className="mb-6 p-3 rounded-xl bg-coc-yellow/5 border border-coc-yellow/20 flex gap-3 items-center">
+                <AlertTriangleIcon className="h-5 w-5 text-coc-yellow flex-shrink-0" />
+                <p className="text-xs text-gray-300">
+                    <strong className="text-coc-yellow mr-1">{t.clanBanners.alertImgTitle}:</strong>
+                    {t.clanBanners.alertImgDesc}
                 </p>
-              </div>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label
-                  htmlFor="imageUrl"
-                  className="block text-sm font-medium text-gray-300 mb-1 font-sans"
-                >
-                  {t.clanBanners.labelImgUrl} {/* [i18n] */}
-                </label>
-                <Input
-                  id="imageUrl"
-                  name="imageUrl"
-                  type="text"
-                  placeholder="https://i.imgur.com/xxxxxx.png"
-                  value={formData.imageUrl}
-                  onChange={handleChange}
-                  disabled={isSubmitting}
-                  required
-                  className="font-sans"
-                />
-              </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Left: Inputs */}
+                    <div className="space-y-5 order-2 md:order-1">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                                {t.clanBanners.labelImgUrl} <span className="text-coc-red">*</span>
+                            </label>
+                            <Input
+                                name="imageUrl"
+                                type="text"
+                                placeholder="https://i.imgur.com/example.png"
+                                value={formData.imageUrl}
+                                onChange={handleChange}
+                                disabled={isSubmitting}
+                                required
+                                className="bg-black/30 border-white/10 focus:border-coc-gold/50 text-sm"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                                {t.clanBanners.labelTitle} <span className="text-coc-red">*</span>
+                            </label>
+                            <Input
+                                name="title"
+                                type="text"
+                                placeholder="e.g. Recruiting TH15+"
+                                value={formData.title}
+                                onChange={handleChange}
+                                disabled={isSubmitting}
+                                required
+                                maxLength={50}
+                                className="bg-black/30 border-white/10 focus:border-coc-gold/50 text-sm"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                                {t.clanBanners.labelDesc} <span className="text-coc-red">*</span>
+                            </label>
+                            <Input
+                                name="description"
+                                type="text"
+                                placeholder="e.g. Active war clan, join us!"
+                                value={formData.description}
+                                onChange={handleChange}
+                                disabled={isSubmitting}
+                                required
+                                maxLength={100}
+                                className="bg-black/30 border-white/10 focus:border-coc-gold/50 text-sm"
+                            />
+                        </div>
+                    </div>
 
-              <div>
-                <label
-                  htmlFor="title"
-                  className="block text-sm font-medium text-gray-300 mb-1 font-sans"
-                >
-                  {t.clanBanners.labelTitle} {/* [i18n] */}
-                </label>
-                <Input
-                  id="title"
-                  name="title"
-                  type="text"
-                  placeholder="Rekrutmen TH 15-16 Dibuka!"
-                  value={formData.title}
-                  onChange={handleChange}
-                  disabled={isSubmitting}
-                  required
-                  maxLength={50}
-                  className="font-sans"
-                />
-              </div>
+                    {/* Right: Preview */}
+                    <div className="order-1 md:order-2">
+                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                            Banner Preview
+                        </label>
+                        <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-white/10 bg-black flex items-center justify-center group">
+                            {formData.imageUrl ? (
+                                <>
+                                    <Image 
+                                        src={formData.imageUrl} 
+                                        alt="Preview" 
+                                        fill 
+                                        className="object-cover opacity-90 transition-opacity group-hover:opacity-100"
+                                        unoptimized
+                                        onError={(e) => (e.currentTarget.style.display = 'none')}
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60" />
+                                    <div className="absolute bottom-4 left-4 right-4">
+                                        <p className="text-white font-clash text-lg truncate">{formData.title || 'Your Title Here'}</p>
+                                        <p className="text-gray-300 text-xs font-sans truncate">{formData.description || 'Description will appear here'}</p>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="text-center p-4">
+                                    <UploadIcon className="h-10 w-10 text-gray-700 mx-auto mb-2" />
+                                    <p className="text-gray-600 text-xs">Enter a valid Image URL to preview</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
 
-              <div>
-                <label
-                  htmlFor="description"
-                  className="block text-sm font-medium text-gray-300 mb-1 font-sans"
-                >
-                  {t.clanBanners.labelDesc} {/* [i18n] */}
-                </label>
-                <Input
-                  id="description"
-                  name="description"
-                  type="text"
-                  placeholder="Klan kami mencari pemain aktif untuk CWL."
-                  value={formData.description}
-                  onChange={handleChange}
-                  disabled={isSubmitting}
-                  required
-                  maxLength={100}
-                  className="font-sans"
-                />
-              </div>
-
-              <div className="pt-4 border-t border-coc-gold-dark/20 flex items-center gap-4">
-                <Button
-                  type="submit"
-                  variant="primary"
-                  disabled={isSubmitting}
-                  className="w-full sm:w-auto"
-                >
-                  {isSubmitting ? (
-                    <RefreshCwIcon className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <UploadIcon className="h-4 w-4 mr-2" />
-                  )}
-                  {isSubmitting ? t.clanBanners.btnSubmitting : t.clanBanners.btnSubmit} {/* [i18n] */}
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setShowAddForm(false)}
-                  disabled={isSubmitting}
-                >
-                  {t.clanBanners.btnCancel} {/* [i18n] */}
-                </Button>
-              </div>
+                <div className="pt-6 border-t border-white/5 flex justify-end gap-3">
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => setShowAddForm(false)}
+                        disabled={isSubmitting}
+                        className="bg-white/5 border-white/10 hover:bg-white/10 text-gray-300"
+                    >
+                        {t.clanBanners.btnCancel}
+                    </Button>
+                    <Button
+                        type="submit"
+                        variant="primary"
+                        disabled={isSubmitting}
+                        className="shadow-lg shadow-coc-gold/10 px-6"
+                    >
+                        {isSubmitting ? (
+                            <RefreshCwIcon className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                            <UploadIcon className="h-4 w-4 mr-2" />
+                        )}
+                        {isSubmitting ? t.clanBanners.btnSubmitting : t.clanBanners.btnSubmit}
+                    </Button>
+                </div>
             </form>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* --- BAGIAN DAFTAR PROMOSI --- */}
-      <div className="mt-12 pt-6 border-t border-coc-gold-dark/30">
-        <h3 className="text-xl font-clash text-coc-gold mb-4">
-          {t.clanBanners.listTitle} {/* [i18n] */}
-        </h3>
+      {/* --- PROMOTION GRID LIST (REDESIGNED) --- */}
+      <div>
         {isLoadingList ? (
-          <div className="flex justify-center items-center py-10">
-            <RefreshCwIcon className="h-6 w-6 text-coc-gold animate-spin" />
-            <p className="ml-3 text-gray-400">{t.clanBanners.loadingList}</p> {/* [i18n] */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+             {[1, 2, 3].map(i => (
+                 <div key={i} className="h-64 bg-white/5 rounded-2xl border border-white/5 animate-pulse" />
+             ))}
           </div>
         ) : promotions.length === 0 ? (
-          <p className="text-gray-500 font-sans text-center py-10">
-            {t.clanBanners.noBanners} {/* [i18n] */}
-          </p>
+          <div className="flex flex-col items-center justify-center py-16 bg-white/5 rounded-2xl border border-white/5 border-dashed">
+            <GlobeIcon className="h-12 w-12 text-gray-600 mb-3" />
+            <p className="text-gray-400 font-medium">{t.clanBanners.noBanners}</p>
+            {!showAddForm && (
+                <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    className="mt-4"
+                    onClick={() => setShowAddForm(true)}
+                >
+                    <PlusIcon className="h-4 w-4 mr-2" /> {t.clanBanners.btnAdd}
+                </Button>
+            )}
+          </div>
         ) : (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {promotions.map((promo) => (
               <div
                 key={promo.id}
-                className="flex flex-col sm:flex-row items-center gap-4 p-4 bg-coc-dark/60 rounded-lg border border-coc-gold-dark/30"
+                className="group relative flex flex-col bg-[#1a1a1a] rounded-2xl border border-white/10 overflow-hidden shadow-lg transition-all duration-300 hover:shadow-coc-gold/10 hover:border-coc-gold/30 hover:-translate-y-1"
               >
-                <Image
-                  src={promo.imageUrl}
-                  alt={promo.title}
-                  width={128}
-                  height={72}
-                  className="rounded-md object-cover w-full sm:w-32 h-auto sm:h-[72px] flex-shrink-0 border-2 border-coc-gold-dark/50"
-                  unoptimized
-                />
-                <div className="flex-grow text-center sm:text-left">
-                  <h4 className="text-lg font-clash text-white">
+                {/* Image Header */}
+                <div className="relative h-44 w-full bg-black/50 overflow-hidden">
+                    <Image
+                        src={promo.imageUrl}
+                        alt={promo.title}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-700"
+                        unoptimized
+                    />
+                    {/* Overlay Gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#1a1a1a] via-[#1a1a1a]/40 to-transparent" />
+                    
+                    {/* Top Right: Status */}
+                    <div className="absolute top-3 right-3">
+                        <span className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/60 backdrop-blur-sm border border-white/10 text-[10px] text-green-400 font-bold uppercase tracking-wider shadow-sm">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Active
+                        </span>
+                    </div>
+                </div>
+
+                {/* Card Content */}
+                <div className="flex-grow p-5 pt-2 flex flex-col relative z-10">
+                  <h4 className="text-lg font-clash text-white group-hover:text-coc-gold transition-colors truncate mb-1">
                     {promo.title}
                   </h4>
-                  <p className="text-sm text-gray-400 font-sans line-clamp-2">
+                  <p className="text-xs text-gray-400 font-sans line-clamp-2 min-h-[2.5em]">
                     {promo.description}
                   </p>
-                  <div className="flex items-center justify-center sm:justify-start gap-2 text-coc-gold mt-2">
-                    <ThumbsUpIcon className="h-4 w-4" />
-                    <span className="text-sm font-sans font-bold">
-                      {promo.totalClicks} {t.clanBanners.clicks} {/* [i18n] */}
-                    </span>
-                  </div>
-                  {/* Tampilkan rincian klik per TH */}
-                  {promo.clicksByTH &&
-                    Object.keys(promo.clicksByTH).length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-2 justify-center sm:justify-start">
-                        {Object.entries(promo.clicksByTH)
-                          .sort((a, b) => {
-                            const thA =
-                              a[0] === 'unknown' ? 0 : parseInt(a[0]);
-                            const thB =
-                              b[0] === 'unknown' ? 0 : parseInt(b[0]);
-                            return thB - thA;
-                          })
-                          .map(([th, count]) => (
-                            <span
-                              key={th}
-                              className="text-xs font-sans bg-coc-dark px-2 py-0.5 rounded-full text-gray-300 border border-coc-gold-dark/50"
-                            >
-                              TH {th}:{' '}
-                              <strong className="text-white">{count}</strong>
+                  
+                  {/* Metrics Dashboard */}
+                  <div className="mt-5 grid grid-cols-2 gap-3 bg-black/30 rounded-xl p-3 border border-white/5">
+                    {/* Clicks Metric */}
+                    <div className="flex flex-col items-center justify-center text-center">
+                        <div className="flex items-center gap-1 text-gray-500 text-[10px] uppercase font-bold tracking-wider mb-1">
+                            <ThumbsUpIcon className="h-3 w-3" /> Clicks
+                        </div>
+                        <span className="text-xl font-clash text-coc-gold">{promo.totalClicks}</span>
+                    </div>
+                    
+                    {/* Top Audience Metric */}
+                    <div className="flex flex-col items-center justify-center text-center border-l border-white/5">
+                         <div className="flex items-center gap-1 text-gray-500 text-[10px] uppercase font-bold tracking-wider mb-1">
+                            <UserIcon className="h-3 w-3" /> Top Aud.
+                        </div>
+                        {promo.clicksByTH && Object.keys(promo.clicksByTH).length > 0 ? (
+                            <span className="text-sm font-sans text-white">
+                                TH {Object.entries(promo.clicksByTH)
+                                    .sort((a, b) => b[1] - a[1])[0][0]
+                                }
                             </span>
-                          ))}
-                      </div>
-                    )}
+                        ) : (
+                            <span className="text-xs text-gray-600">-</span>
+                        )}
+                    </div>
+                  </div>
                 </div>
-                <Button
-                  variant="danger"
-                  size="sm"
-                  className="w-full sm:w-auto flex-shrink-0"
-                  onClick={() => handleDelete(promo.id)}
-                  disabled={isDeletingId === promo.id}
-                >
-                  {isDeletingId === promo.id ? (
-                    <RefreshCwIcon className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <TrashIcon className="h-4 w-4" />
-                  )}
-                  <span className="ml-2 sm:hidden lg:inline-block">{t.common.delete}</span> {/* [i18n] */}
-                </Button>
+
+                {/* Footer Action */}
+                <div className="p-4 border-t border-white/5 bg-white/[0.02] flex justify-end">
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    className="w-full bg-white/5 hover:bg-red-500/10 border-white/10 hover:border-red-500/30 text-gray-500 hover:text-red-400 transition-all text-xs"
+                    onClick={() => handleDelete(promo.id)}
+                    disabled={isDeletingId === promo.id}
+                  >
+                    {isDeletingId === promo.id ? (
+                      <RefreshCwIcon className="h-3.5 w-3.5 animate-spin mr-2" />
+                    ) : (
+                      <TrashIcon className="h-3.5 w-3.5 mr-2" />
+                    )}
+                    {t.common.delete} Promotion
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
