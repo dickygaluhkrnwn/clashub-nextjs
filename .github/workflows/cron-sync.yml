@@ -1,0 +1,25 @@
+name: Clashub Cron Sync
+
+on:
+  schedule:
+    # Jalan setiap 15 menit
+    - cron: '*/15 * * * *'
+  workflow_dispatch: # Memungkinkan trigger manual dari tab Actions
+
+jobs:
+  cron-job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger CoC Sync
+        run: |
+          curl -X GET "${{ secrets.APP_URL }}/api/cron/coc-sync?secret=${{ secrets.CRON_SECRET }}"
+      
+      - name: Trigger YouTube Sync
+        # Jalankan YouTube sync lebih jarang (misal setiap jam, dikontrol logic di endpoint atau biarkan 15 menit tapi API endpoint handle rate limit)
+        # Di sini kita panggil setiap 15 menit juga tidak masalah karena endpoint YouTube kita sudah aman rate limitnya.
+        run: |
+          curl -X GET "${{ secrets.APP_URL }}/api/youtube/sync?secret=${{ secrets.CRON_SECRET }}"
+
+      - name: Trigger Tournament Sync
+        run: |
+          curl -X GET "${{ secrets.APP_URL }}/api/tournaments/cron?secret=${{ secrets.CRON_SECRET }}"
