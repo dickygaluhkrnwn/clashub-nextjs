@@ -1,3 +1,7 @@
+// File: app/api/clan/manage/[clanId]/sync/basic/route.ts
+// Deskripsi: API Route Modular untuk sinkronisasi BASIC INFO & MEMBERS clan.
+// Update: Perbaikan tipe data berdasarkan lib/coc.types.ts (memberCount & removal capitalLeague)
+
 import { NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/server-auth';
 import {
@@ -5,9 +9,9 @@ import {
   verifyUserClanRole,
 } from '@/lib/firestore-admin/management';
 import { getManagedClanDataAdmin } from '@/lib/firestore-admin/clans';
-import { getUserProfileByPlayerTagAdmin } from '@/lib/firestore-admin/users'; // <-- [BARU] Import fungsi ini
+import { getUserProfileByPlayerTagAdmin } from '@/lib/firestore-admin/users';
 import cocApi from '@/lib/coc-api';
-import { CocClan } from '@/lib/types';
+import { CocClan, CocMember } from '@/lib/types'; // Mengimpor tipe yang sudah diverifikasi
 import { ClanRole } from '@/lib/enums';
 import { COLLECTIONS } from '@/lib/firestore-collections';
 import { adminFirestore } from '@/lib/firebase-admin';
@@ -19,6 +23,9 @@ import {
   getCwlArchivesByClanId,
 } from '@/lib/firestore-admin/archives';
 import { getAggregatedParticipationData } from '@/app/api/coc/sync-managed-clan/logic/participationAggregator';
+
+// MEMASTIKAN ROUTE SELALU DINAMIS
+export const dynamic = 'force-dynamic';
 
 export async function POST(
   request: Request,
@@ -37,7 +44,7 @@ export async function POST(
   }
 
   try {
-    // 2. Verifikasi Peran Pengguna (Keamanan)
+    // 2. Verifikasi Peran Pengguna
     const { isAuthorized } = await verifyUserClanRole(userId, clanId, [
       ClanRole.LEADER,
       ClanRole.CO_LEADER,
@@ -49,15 +56,15 @@ export async function POST(
       });
     }
 
-    // 3. Ambil Dokumen Klan
+    // 3. Ambil Dokumen Klan dari Firestore
     const clanDoc = await getManagedClanDataAdmin(clanId);
     if (!clanDoc) {
       return new NextResponse('Managed clan not found', { status: 404 });
     }
 
-    // 4. Dapatkan Clan Tag dari Firestore
+    // 4. Dapatkan Clan Tag
     const managedClanData = clanDoc;
-    const clanTag = managedClanData.tag; // <-- Kita butuh ini
+    const clanTag = managedClanData.tag;
 
     if (!clanTag) {
       return new NextResponse('Bad Request: Clan tag not configured', {
@@ -65,10 +72,13 @@ export async function POST(
       });
     }
 
-    // 5. Panggil CoC API (Hanya getClan)
+    console.log(`[Sync Basic] Starting sync for Clan: ${managedClanData.name} (${clanTag}) by User: ${userId}`);
+
+    // 5. Panggil CoC API
     const cocClanData: CocClan = await cocApi.getClanData(
       encodeURIComponent(clanTag)
     );
+
     if (!cocClanData) {
       return new NextResponse('Not Found: Clan data not found from CoC API', {
         status: 404,
@@ -77,72 +87,46 @@ export async function POST(
 
     // 6. Pisahkan data info klan dan daftar anggota
     const { memberList, ...clanInfo } = cocClanData;
-    const currentMembers = memberList || [];
+    const currentMembers: CocMember[] = memberList || [];
 
-    // --- [LOGIKA BARU] 6.a: Auto-Update Owner berdasarkan Leader CoC ---
+    // --- [LOGIKA: Auto-Update Owner] ---
     let newOwnerUid: string | null = null;
-    // CoC API mengembalikan role 'leader' untuk pemimpin klan
     const leaderMember = currentMembers.find((m) => m.role === 'leader');
 
     if (leaderMember) {
-      console.log(
-        `[Sync ${clanTag}] Leader di Game terdeteksi: ${leaderMember.name} (${leaderMember.tag})`
-      );
-
-      // Cari apakah ada User di website yang terhubung dengan Tag Leader ini
       const leaderUser = await getUserProfileByPlayerTagAdmin(leaderMember.tag);
-
       if (leaderUser) {
-        // Jika user ditemukan, cek apakah dia sudah menjadi owner
-        // leaderUser.id adalah UID dari dokumen UserProfile
         if (managedClanData.ownerUid !== leaderUser.id) {
           newOwnerUid = leaderUser.id;
           console.log(
-            `[Sync ${clanTag}] DETEKSI PERGANTIAN LEADER! Owner Lama: ${managedClanData.ownerUid} -> Owner Baru: ${newOwnerUid} (${leaderUser.inGameName})`
-          );
-        } else {
-          console.log(
-            `[Sync ${clanTag}] Owner UID valid. Tidak ada perubahan.`
+            `[Sync Basic] DETECTED LEADER CHANGE! Old: ${managedClanData.ownerUid} -> New: ${newOwnerUid} (${leaderUser.inGameName})`
           );
         }
-      } else {
-        console.log(
-          `[Sync ${clanTag}] Peringatan: Leader game (${leaderMember.name}) belum terdaftar/terverifikasi di website. Owner tidak diubah.`
-        );
       }
-    } else {
-      console.warn(
-        `[Sync ${clanTag}] Aneh: Tidak ditemukan member dengan role 'leader' di data API CoC.`
-      );
     }
-    // --- [AKHIR LOGIKA BARU] ---
 
-    // --- LANGKAH 6.5: AMBIL DATA UNTUK PARTISIPASI ---
-    console.log(
-      `[Sync ${clanTag}] Mengambil data arsip untuk kalkulasi partisipasi...`
-    );
+    // --- [LOGIKA: Partisipasi Member] ---
+    console.log(`[Sync Basic] Fetching archives for participation stats...`);
     const [warArchives, cwlArchives, roleLogs] = await Promise.all([
       getWarArchivesByClanId(clanId),
       getCwlArchivesByClanId(clanId),
       getRoleLogsByClanId(clanId),
     ]);
-    console.log(
-      `[Sync ${clanTag}] Ditemukan ${warArchives.length} arsip war, ${cwlArchives.length} musim CWL, dan ${roleLogs.length} log role.`
-    );
 
-    // --- LANGKAH 6.6: PANGGIL AGGREGATOR ---
     const enrichedMembers = getAggregatedParticipationData({
       currentMembers: currentMembers,
       warArchives: warArchives,
       cwlArchives: cwlArchives,
       roleLogs: roleLogs,
-      clanTag: clanTag, // <-- [PERBAIKAN UTAMA] Kirimkan clanTag ke aggregator
+      clanTag: clanTag,
     });
 
     // 7. Update Dokumen di Firestore
     const clanDocRef = adminFirestore
       .collection(COLLECTIONS.MANAGED_CLANS)
       .doc(clanId);
+    
+    // A. Update Cache Data API
     const cacheDocRef = clanDocRef
       .collection(COLLECTIONS.CLAN_API_CACHE)
       .doc('current');
@@ -151,21 +135,34 @@ export async function POST(
       {
         lastUpdated: FieldValue.serverTimestamp(),
         members: enrichedMembers,
+        rawClanInfo: clanInfo,
       },
       { merge: true }
     );
 
-    // Siapkan data update untuk dokumen utama Clan
-    // Kita gunakan Record<string, any> agar bisa menambahkan field dinamis
+    // B. Update Info Utama Klan
+    // PERBAIKAN: Sesuai lib/coc.types.ts
+    // - Menggunakan clanInfo.memberCount (ada di interface)
+    // - Menghapus capitalLeague karena TIDAK ada di interface CocClan
+    
     const updateData: Record<string, any> = {
       name: clanInfo.name ?? null,
       logoUrl: clanInfo.badgeUrls?.medium ?? null,
       clanLevel: clanInfo.clanLevel ?? 0,
-      memberCount: clanInfo.memberCount ?? 0,
+      memberCount: clanInfo.memberCount ?? 0, // CORRECT: Sesuai interface CocClan
+      points: clanInfo.clanPoints ?? 0,
+      versusPoints: clanInfo.clanVersusPoints ?? 0,
+      description: clanInfo.description ?? '',
+      isWarLogPublic: clanInfo.isWarLogPublic ?? false,
+      warWinStreak: clanInfo.warWinStreak ?? 0,
+      warWins: clanInfo.warWins ?? 0,
+      warTies: clanInfo.warTies ?? 0,
+      warLosses: clanInfo.warLosses ?? 0,
+      warLeague: clanInfo.warLeague?.name ?? null,
+      // capitalLeague dihapus karena tidak ada di definisi tipe CocClan saat ini
       lastSyncedBasic: FieldValue.serverTimestamp(),
     };
 
-    // [LOGIKA BARU] Tambahkan ownerUid ke updateData jika ada owner baru
     if (newOwnerUid) {
       updateData.ownerUid = newOwnerUid;
     }
@@ -173,28 +170,33 @@ export async function POST(
     await clanDocRef.update(updateData);
 
     console.log(
-      `Basic sync successful for clanId ${clanId} (Tag: ${clanTag}) by user ${userId}. Participation data recalculated.`
+      `[Sync Basic] Success for clanId ${clanId}. Updated ${enrichedMembers.length} members.`
     );
 
-    // 8. Kembalikan data yang baru disinkronkan
     return NextResponse.json({
-      message: newOwnerUid 
-        ? 'Sinkronisasi berhasil. Data kepemilikan clan (Owner) telah diperbarui otomatis.'
-        : 'Sinkronisasi info clan dan partisipasi berhasil.',
+      success: true,
+      message: newOwnerUid
+        ? 'Sinkronisasi berhasil. Owner clan telah diperbarui otomatis.'
+        : 'Sinkronisasi info dasar dan anggota berhasil.',
       data: {
-        clanInfo: clanInfo,
-        memberList: enrichedMembers,
-        ownerUpdated: !!newOwnerUid, // Flag untuk memberitahu client
+        memberCount: enrichedMembers.length,
+        ownerUpdated: !!newOwnerUid,
+        syncedAt: new Date().toISOString(),
       },
     });
+
   } catch (error) {
     console.error(
-      `Error during basic sync for clanId ${clanId} by user ${userId}:`,
+      `[Sync Basic] Error for clanId ${clanId} by user ${userId}:`,
       error
     );
-    if (error instanceof Error) {
-      return new NextResponse(error.message, { status: 500 });
-    }
-    return new NextResponse('Internal Server Error', { status: 500 });
+    
+    const errorMessage = error instanceof Error ? error.message : 'Unknown Internal Server Error';
+    const errorStatus = errorMessage.includes('Forbidden') ? 403 : 500;
+
+    return NextResponse.json({
+      success: false,
+      error: errorMessage
+    }, { status: errorStatus });
   }
 }

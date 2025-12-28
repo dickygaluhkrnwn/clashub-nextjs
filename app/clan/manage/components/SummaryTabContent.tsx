@@ -265,27 +265,38 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
     });
   };
 
+  // --- HANDLER SYNC MANUAL YANG DIOPTIMASI (SEQUENTIAL) ---
   const handleSyncManual = async () => {
     if (!isManager) {
       onAction(t.clanManage.msgOnlyManager, 'warning');
       return;
     }
     setIsSyncing(true);
+    // Tampilkan notifikasi mulai
     onAction(t.clanManage.msgStartSync.replace('{name}', clan.name), 'info');
 
     try {
+      // 1. Sync Basic Info & Members (Prioritas)
       const basicRes = await fetch(`/api/clan/manage/${clan.id}/sync/basic`, { method: 'POST' });
+      if (!basicRes.ok) throw new Error('Failed to sync basic info');
       const basicData = await basicRes.json();
 
+      // 2. Sync War Data (Current & Log) - Dijalankan berurutan agar aman
+      const warRes = await fetch(`/api/clan/manage/${clan.id}/sync/war`, { method: 'POST' });
+      if (!warRes.ok) throw new Error('Failed to sync war data');
+      
+      const logRes = await fetch(`/api/clan/manage/${clan.id}/sync/warlog`, { method: 'POST' });
+      if (!logRes.ok) throw new Error('Failed to sync war log');
+
+      // 3. Sync Raid & CWL (Sisanya) - Bisa paralel karena independen
       await Promise.all([
-        fetch(`/api/clan/manage/${clan.id}/sync/war`, { method: 'POST' }),
         fetch(`/api/clan/manage/${clan.id}/sync/raid`, { method: 'POST' }),
-        fetch(`/api/clan/manage/${clan.id}/sync/warlog`, { method: 'POST' }),
         fetch(`/api/clan/manage/${clan.id}/sync/cwl`, { method: 'POST' }),
       ]);
 
       onAction(t.clanManage.msgBackendDone, 'info');
       
+      // Update data di UI (client-side SWR mutation)
       await Promise.all([
         mutateBasic(),
         mutateWar(),
@@ -299,9 +310,11 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
         router.refresh();
       } else {
         onAction(t.clanManage.msgSyncSuccess, 'success');
+        router.refresh(); // Refresh Server Components
       }
 
     } catch (err) {
+      console.error("Sync Error:", err);
       const errorMessage = (err as Error).message || t.clanManage.msgSyncError;
       onAction(errorMessage, 'error');
     } finally {

@@ -1,36 +1,33 @@
+// File: app/api/clan/manage/[clanId]/sync/warlog/route.ts
+// Deskripsi: API Route Modular untuk sinkronisasi WAR LOG clan.
+// Menggunakan teknik MERGE untuk melengkapi data arsip perang yang sudah ada.
+
 import { NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/server-auth';
 import {
-  AdminRole,
   verifyUserClanRole,
 } from '@/lib/firestore-admin/management';
 import { getManagedClanDataAdmin } from '@/lib/firestore-admin/clans';
 import cocApi from '@/lib/coc-api';
-// --- [MODIFIKASI DUPLIKASI WAR] ---
-// Hapus 'WarArchive' dan 'AdminTimestamp' (tidak diperlukan di sini)
-// Hapus 'parseCocApiTimestamp' (logika parsing pindah ke 'mergeWarLogEntry')
 import {
   CocWarLog,
   CocWarLogEntry,
-  // WarArchive, // <-- Dihapus
   ClanRole,
-} from '@/lib/types'; // Import tipe log dan entri
+} from '@/lib/types';
 import { adminFirestore } from '@/lib/firebase-admin';
 import { COLLECTIONS } from '@/lib/firestore-collections';
 import {
   FieldValue,
-  // Timestamp as AdminTimestamp, // <-- Dihapus
 } from 'firebase-admin/firestore';
-// [FIX TIMESTAMP] Hapus helper parsing, sudah ditangani di 'archives.ts'
-// import { parseCocApiTimestamp } from '@/lib/server-utils';
 
 // Impor fungsi merge baru kita dari Langkah 2
 import { mergeWarLogEntry } from '@/lib/firestore-admin/archives';
-// --- [AKHIR MODIFIKASI] ---
+
+// MEMASTIKAN ROUTE SELALU DINAMIS
+export const dynamic = 'force-dynamic';
 
 /**
  * API route handler for POST /api/clan/manage/[clanId]/sync/warlog
- * ... (deskripsi JSDoc tidak berubah) ...
  */
 export async function POST(
   req: Request,
@@ -53,7 +50,6 @@ export async function POST(
     const userId = user.uid;
 
     // 2. Verifikasi Peran Pengguna (Keamanan)
-    // [PERBAIKAN BUG OTORISASI] Ganti string dengan Enum ClanRole
     const { isAuthorized } = await verifyUserClanRole(userId, clanId, [
       ClanRole.LEADER,
       ClanRole.CO_LEADER,
@@ -68,17 +64,14 @@ export async function POST(
     // 3. Ambil Dokumen Klan (SETELAH otorisasi)
     const clanDoc = await getManagedClanDataAdmin(clanId);
 
-    // [PERBAIKAN 1] Ganti 'clanDoc.exists()'
     if (!clanDoc) {
       return new NextResponse('Managed clan not found', { status: 404 });
     }
 
     // 4. Dapatkan Clan Tag dari Firestore
-    // [PERBAIKAN 2] Ganti 'clanDoc.data()'
     const managedClanData = clanDoc; // clanDoc SEKARANG adalah datanya
-    // [PERBAIKAN KONSISTENSI] Hapus cek 'managedClanData' yang redundan
 
-    const clanTag = managedClanData.tag; // [PERBAIKAN BUG TIPE] Gunakan .tag
+    const clanTag = managedClanData.tag;
     const clanName = managedClanData.name;
 
     if (!clanTag) {
@@ -105,9 +98,7 @@ export async function POST(
 
     // --- [MODIFIKASI DUPLIKASI WAR: LANGKAH 3] ---
     // 6. Proses dan Arsipkan War Log menggunakan Logika MERGE
-    // Hapus logika batch.set({ merge: true }) yang lama.
-    // Ganti dengan memanggil fungsi 'mergeWarLogEntry'.
-    // Fungsi ini berisi logika query fuzzy (+/- 15 detik)
+    // Fungsi ini berisi logika query fuzzy (+/- 30 detik)
     // dan akan MENG-UPDATE arsip detail ATAU MEMBUAT arsip ringkasan (fallback).
 
     let processedCount = 0;
@@ -115,17 +106,13 @@ export async function POST(
     for (const item of warLogData.items) {
       const warItem = item as CocWarLogEntry;
 
-      // --- [PERBAIKAN ERROR TS2367] ---
-      // Ganti cek 'warItem.result !== 'unknown'' dengan cek eksplisit
-      // untuk nilai yang kita inginkan. Ini menyelesaikan error TS2367
-      // terlepas dari definisi tipe data (lama atau baru).
+      // Cek eksplisit untuk hasil yang valid
       const isValidResult =
         warItem.result === 'win' ||
         warItem.result === 'lose' ||
         warItem.result === 'tie';
 
       if (isValidResult) {
-        // --- [AKHIR PERBAIKAN] ---
         // Panggil fungsi merge baru kita dari 'archives.ts'.
         // Kita 'await' setiap pemanggilan agar tidak membanjiri Firestore (lebih aman)
         await mergeWarLogEntry(clanId, clanTag, warItem);
@@ -134,30 +121,24 @@ export async function POST(
     }
     // --- [AKHIR MODIFIKASI DUPLIKASI WAR] ---
 
-    // 7. Commit batch (DIHAPUS KARENA BATCH TIDAK DIGUNAKAN)
-
     // 8. Update timestamp sinkronisasi di dokumen klan utama
-    // [PERBAIKAN 3] Ganti 'clanDoc.ref.update' dengan path absolut
     const clanDocRef = adminFirestore
       .collection(COLLECTIONS.MANAGED_CLANS)
       .doc(clanId);
 
-    // [MODIFIKASI PERBAIKAN] Kita tetap update 'lastSyncedWarLog'
-    // agar sistem tahu kita sudah *memeriksa* log.
+    // Kita tetap update 'lastSyncedWarLog' agar sistem tahu kita sudah *memeriksa* log.
     await clanDocRef.update({
       lastSyncedWarLog: FieldValue.serverTimestamp(),
     });
 
-    // [MODIFIKASI FASE 4] Ubah pesan log
     console.log(
       `[Sync WarLog - Admin] Successfully synced and merged ${processedCount} war log results for ${clanName}.`
     );
 
     // 9. Kembalikan respons sukses
-    // [MODIFIKASI FASE 4] Ubah pesan response
     return NextResponse.json({
       message: `War log successfully synced and merged for ${clanName}.`,
-      processedCount: processedCount, // <-- Kembalikan jumlah yang diproses
+      processedCount: processedCount,
     });
   } catch (error) {
     console.error(

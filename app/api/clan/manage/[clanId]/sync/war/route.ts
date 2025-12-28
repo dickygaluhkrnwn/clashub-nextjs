@@ -1,7 +1,10 @@
+// File: app/api/clan/manage/[clanId]/sync/war/route.ts
+// Deskripsi: API Route Modular untuk sinkronisasi CURRENT WAR (Live War).
+// Berfungsi mendeteksi transisi 'warEnded' dan memicu pengarsipan otomatis.
+
 import { NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/server-auth';
 import {
-  AdminRole,
   verifyUserClanRole,
 } from '@/lib/firestore-admin/management';
 import { getManagedClanDataAdmin } from '@/lib/firestore-admin/clans';
@@ -11,6 +14,9 @@ import { adminFirestore } from '@/lib/firebase-admin';
 import { COLLECTIONS } from '@/lib/firestore-collections';
 import { FieldValue } from 'firebase-admin/firestore';
 import { archiveClassicWar } from '@/lib/firestore-admin/archives';
+
+// MEMASTIKAN ROUTE SELALU DINAMIS
+export const dynamic = 'force-dynamic';
 
 /**
  * API route handler for POST /api/clan/manage/[clanId]/sync/war
@@ -70,6 +76,7 @@ export async function POST(
     );
 
     // 5. Panggil CoC API
+    // Menggunakan encodeURIComponent untuk path param, dan raw tag untuk body/logic
     const warData: CocCurrentWar | null = await cocApi.getClanCurrentWar(
       encodeURIComponent(clanTag),
       clanTag
@@ -82,7 +89,7 @@ export async function POST(
       .collection(COLLECTIONS.CLAN_API_CACHE)
       .doc('current');
 
-    // Ambil data cache SAAT INI
+    // Ambil data cache SAAT INI (untuk perbandingan state)
     const cacheDoc = await clanApiCacheRef.get();
     const cacheData = cacheDoc.data() as ClanApiCache | undefined;
     const previousWar = cacheData?.currentWar;
@@ -91,6 +98,7 @@ export async function POST(
 
     try {
       // --- LOGIKA ARSIP ---
+      // Jika perang baru saja selesai atau API mengembalikan 'warEnded'
       if (newWarState === 'warEnded') {
         if (
           previousWarState === 'inWar' ||
@@ -106,11 +114,11 @@ export async function POST(
         }
 
         // Pastikan warData tidak null dan ini perang klasik (TIDAK punya warTag)
+        // warTag biasanya ada di CWL. Kita punya endpoint terpisah untuk CWL.
         if (warData && !warData.warTag) {
-          // [PERBAIKAN UTAMA UNTUK VERCEL]
-          // Kita WAJIB menggunakan 'await' di sini.
-          // Di Vercel Serverless, background process akan mati jika respons sudah dikirim.
           console.log(`[Sync War - Admin] Archiving classic war...`);
+          
+          // Panggil fungsi arsip dari archives.ts
           await archiveClassicWar(clanId, clanTag, warData);
           
           console.log(
@@ -143,18 +151,24 @@ export async function POST(
         { merge: true }
       );
     } else {
-      // Logika untuk mempertahankan 'warEnded' di tampilan jika API tiba-tiba null
+      // Logika khusus: Jika API mengembalikan null ('notInWar'), tapi cache kita punya 'warEnded'.
+      // Kita pertahankan 'warEnded' di cache agar user masih bisa lihat hasil perang terakhir
+      // sampai perang baru ('preparation') dimulai.
       if (previousWar && previousWar.state === 'warEnded') {
         console.log(
-          `[Sync War - Admin] API is 'notInWar', but cache holds 'warEnded'. Persisting cache.`
+          `[Sync War - Admin] API is 'notInWar', but cache holds 'warEnded'. Persisting cache data for UI.`
         );
+        // Kita update timestamp saja agar user tahu kita baru cek
+        await clanApiCacheRef.update({
+            lastUpdatedWar: FieldValue.serverTimestamp(),
+        });
       } else {
         console.log(
           `[Sync War - Admin] API is 'notInWar' and cache is empty/not 'warEnded'. Clearing cache.`
         );
         await clanApiCacheRef.set(
           {
-            currentWar: null,
+            currentWar: null, // Hapus data perang
             lastUpdatedWar: FieldValue.serverTimestamp(),
           },
           { merge: true }
