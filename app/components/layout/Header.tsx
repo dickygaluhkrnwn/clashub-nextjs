@@ -13,7 +13,8 @@ import {
   TrophyIcon,
   HomeIcon,
   BookOpenIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  HelpCircleIcon // Ditambahkan untuk ikon Panduan
 } from '@/app/components/icons';
 import ThemeToggle from '@/app/components/ui/ThemeToggle';
 import LanguageSwitcher from '@/app/components/ui/LanguageSwitcher';
@@ -62,7 +63,6 @@ const UserProfileDropdown = () => {
   const { currentUser, userProfile, loading: authLoading } = useAuth();
   const [isTournamentManager, setIsTournamentManager] = useState(false);
   
-  // [BARU] Panggil hook PWA di dalam dropdown juga agar tersedia untuk mobile
   const { isInstallable, installApp } = usePWA();
 
   const handleLogout = async () => {
@@ -130,7 +130,7 @@ const UserProfileDropdown = () => {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="h-10 w-10 flex items-center justify-center rounded-full bg-black/20 border border-white/10 hover:border-coc-gold/50 transition-all overflow-hidden focus:outline-none focus:ring-2 focus:ring-coc-gold/50"
+        className={`h-10 w-10 flex items-center justify-center rounded-full bg-black/40 border transition-all overflow-hidden focus:outline-none focus:ring-2 focus:ring-coc-gold/50 ${isOpen ? 'border-coc-gold shadow-[0_0_10px_rgba(255,215,0,0.3)]' : 'border-white/10 hover:border-coc-gold/50'}`}
       >
         <img
           src={avatarSrc || '/images/placeholder-avatar.png'}
@@ -144,13 +144,15 @@ const UserProfileDropdown = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-3 w-64 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 shadow-2xl rounded-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-          <div className="p-4 border-b border-white/5 bg-black/20">
+        <div className="absolute right-0 mt-3 w-64 bg-[#121212]/95 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200 ring-1 ring-white/5">
+          {/* Header Profil dengan Efek Gradient */}
+          <div className="p-4 border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent">
              <p className="text-sm font-bold text-white truncate">
                {userProfile && 'displayName' in userProfile ? userProfile.displayName : 'User'}
              </p>
              <p className="text-xs text-gray-500 truncate">{currentUser?.email}</p>
           </div>
+          
           <ul className="p-2 space-y-1">
             <li>
               <Link
@@ -195,7 +197,7 @@ const UserProfileDropdown = () => {
               </li>
             )}
 
-            {/* [BARU] Menu Install App untuk Mobile (muncul jika belum terinstall) */}
+            {/* Menu Install App untuk Mobile */}
             {isInstallable && (
               <li>
                 <button
@@ -213,7 +215,24 @@ const UserProfileDropdown = () => {
               </li>
             )}
 
-            <div className="my-1 border-t border-white/5"></div>
+            {/* Divider Halus */}
+            <div className="my-1.5 border-t border-white/5 mx-2"></div>
+
+            {/* [BARU] Menu Panduan Aplikasi */}
+            <li>
+              <Link
+                href="/guide"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white rounded-xl transition-colors group"
+              >
+                <div className="p-1.5 rounded-lg bg-black/30 group-hover:bg-purple-500/20 text-gray-400 group-hover:text-purple-400 transition-colors">
+                    <HelpCircleIcon className="h-4 w-4" />
+                </div>
+                <span>Panduan Aplikasi</span>
+              </Link>
+            </li>
+
+            <div className="my-1.5 border-t border-white/5 mx-2"></div>
 
             <li>
               <button
@@ -233,7 +252,7 @@ const UserProfileDropdown = () => {
   );
 };
 
-// Komponen Lonceng Notifikasi (Tetap sama)
+// Komponen Lonceng Notifikasi (Tetap sama, hanya sedikit tweak style)
 const NotificationBell = () => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -274,7 +293,7 @@ const NotificationBell = () => {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="text-gray-400 hover:text-coc-gold transition-colors relative p-2 rounded-full hover:bg-white/5 focus:outline-none active:scale-95"
+        className={`relative p-2 rounded-full transition-all focus:outline-none active:scale-95 ${isOpen ? 'text-coc-gold bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
       >
         <BellIcon className="h-6 w-6" />
         {unreadCount > 0 && (
@@ -359,7 +378,7 @@ const Header = () => {
 
   return (
     <>
-      <header className="sticky top-0 z-50 bg-[#1a1a1a]/80 backdrop-blur-xl border-b border-white/5 shadow-lg h-16 md:h-[72px] transition-all duration-300">
+      <header className="sticky top-0 z-50 bg-[#121212]/80 backdrop-blur-xl border-b border-white/5 shadow-lg h-16 md:h-[72px] transition-all duration-300">
         <div className="container mx-auto flex items-center justify-between h-full px-4 md:px-8">
           
           {/* Logo Section */}
@@ -373,7 +392,7 @@ const Header = () => {
                 alt="Clashub Logo"
                 fill
                 sizes="(max-width: 768px) 32px, 40px"
-                className="object-contain drop-shadow-md"
+                className="object-contain drop-shadow-[0_0_15px_rgba(255,215,0,0.3)]"
                 priority
                 />
             </div>
@@ -391,7 +410,7 @@ const Header = () => {
                 key={item.name}
                 href={item.href}
                 className={`
-                      px-4 py-2 rounded-xl text-sm font-bold tracking-wide transition-all duration-300 flex items-center gap-2
+                      px-4 py-2 rounded-xl text-sm font-bold tracking-wide transition-all duration-300 flex items-center gap-2 relative overflow-hidden group
                       ${
                         pathname === item.href
                           ? 'text-coc-gold bg-coc-gold/10 border border-coc-gold/20 shadow-[0_0_15px_rgba(255,215,0,0.1)]'
@@ -399,8 +418,13 @@ const Header = () => {
                       }
                     `}
               >
-                <item.icon className={`h-4 w-4 ${pathname === item.href ? 'text-coc-gold' : 'text-gray-500 group-hover:text-gray-300'}`} />
+                <item.icon className={`h-4 w-4 transition-colors ${pathname === item.href ? 'text-coc-gold' : 'text-gray-500 group-hover:text-gray-300'}`} />
                 {item.name}
+                
+                {/* Efek Hover Glow Halus */}
+                {pathname !== item.href && (
+                    <span className="absolute bottom-0 left-0 w-0 h-[2px] bg-coc-gold transition-all duration-300 group-hover:w-full opacity-50"></span>
+                )}
               </Link>
             ))}
           </nav>
@@ -408,13 +432,13 @@ const Header = () => {
           {/* User Actions */}
           <div className="flex items-center gap-2 md:gap-4">
             
-            {/* [DESKTOP] Tombol Install App (PWA) - Hanya tampil di sm ke atas */}
+            {/* [DESKTOP] Tombol Install App (PWA) */}
             {isInstallable && (
                 <Button 
                     onClick={installApp} 
                     variant="ghost" 
                     size="sm" 
-                    className="hidden sm:flex items-center gap-2 bg-coc-gold/10 text-coc-gold border border-coc-gold/20 hover:bg-coc-gold/20 mr-2"
+                    className="hidden sm:flex items-center gap-2 bg-coc-gold/5 text-coc-gold border border-coc-gold/20 hover:bg-coc-gold/10 mr-2 transition-all hover:shadow-[0_0_10px_rgba(255,215,0,0.15)]"
                 >
                     <DownloadIcon className="h-4 w-4" />
                     <span className="hidden lg:inline">Install App</span>
@@ -444,7 +468,7 @@ const Header = () => {
               (currentUser ? (
                 <UserProfileDropdown />
               ) : (
-                <Button href="/auth" variant="primary" size="sm" className="min-w-[90px] shadow-lg shadow-coc-gold/10 ml-2">
+                <Button href="/auth" variant="primary" size="sm" className="min-w-[90px] shadow-lg shadow-coc-gold/10 ml-2 hover:shadow-coc-gold/20 transition-all">
                   Login
                 </Button>
               ))}

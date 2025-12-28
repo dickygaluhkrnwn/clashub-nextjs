@@ -7,7 +7,7 @@ import Link from 'next/link';
 
 // Properti dasar yang sama untuk semua varian
 type BaseButtonProps = {
-  // PERBAIKAN: Menambahkan 'danger', 'ghost', dan 'outline' ke tipe variant
+  // PERBAIKAN: Menambahkan 'danger', 'ghost', 'outline', dan 'success' ke tipe variant
   variant?:
     | 'primary'
     | 'secondary'
@@ -15,7 +15,8 @@ type BaseButtonProps = {
     | 'tertiary'
     | 'danger'
     | 'ghost'
-    | 'outline'; // [FIX] Added outline
+    | 'outline'
+    | 'success'; // [FIX] Added success variant
   size?: 'sm' | 'md' | 'lg';
   children: ReactNode;
   className?: string;
@@ -49,7 +50,7 @@ export const Button = React.forwardRef<
       variant !== 'link' && variant !== 'ghost' ? 'font-clash' : 'font-sans'
     } rounded-md transition-all duration-200 uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed select-none`;
 
-    // PERBAIKAN: Menambahkan kelas untuk variant 'danger', 'ghost', dan 'outline'
+    // PERBAIKAN: Menambahkan kelas untuk variant 'danger', 'ghost', 'outline', dan 'success'
     const variantClasses = {
       primary: 'btn-3d-gold shadow-lg hover:shadow-xl active:translate-y-0.5', // Menggunakan utility class globals.css + interaksi
       secondary: 'btn-3d-stone shadow-lg hover:shadow-xl active:translate-y-0.5',
@@ -64,9 +65,13 @@ export const Button = React.forwardRef<
       ghost:
         'bg-transparent text-gray-400 hover:text-white hover:bg-white/10 active:bg-white/20',
       
-      // [FIX] Style baru untuk outline (Glassy Border)
+      // Style baru untuk outline (Glassy Border)
       outline:
         'bg-transparent border-2 border-white/20 text-coc-gold hover:border-coc-gold hover:bg-coc-gold/10 hover:text-white shadow-sm active:scale-95',
+
+      // [FIX] Style baru untuk success (Hijau Clash) - Konsisten dengan tema CoC
+      success:
+        'bg-gradient-to-b from-coc-green to-green-800 text-white border-b-4 border-green-900 hover:from-green-500 hover:to-coc-green shadow-lg active:border-b-0 active:translate-y-1',
     };
 
     const sizeClasses = {
