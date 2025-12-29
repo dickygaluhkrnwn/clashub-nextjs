@@ -31,6 +31,10 @@ import { PlayerAchievementsCard } from './components/PlayerAchievementsCard';
 import { PlayerClanCard } from './components/PlayerClanCard';
 import { PlayerTownHallCard } from './components/PlayerTownHallCard';
 
+// [BARU] Import komponen Pet & Equipment
+import { PlayerPetsCard } from './components/PlayerPetsCard';
+import { PlayerEquipmentCard } from './components/PlayerEquipmentCard';
+
 import { ProfileTabs, ProfileTab } from './components/ProfileTabs';
 
 interface ProfileClientProps {
@@ -263,6 +267,23 @@ const ProfileClient = ({
                           isLoading={isLoadingApi}
                           error={apiError}
                         />
+
+                        {/* [BARU] Equipment & Pets - Ditempatkan setelah Heroes */}
+                        <PlayerEquipmentCard
+                          userProfile={userProfile}
+                          fullPlayerData={fullPlayer}
+                          isLoading={isLoadingApi}
+                          error={apiError}
+                        />
+
+                        <PlayerPetsCard
+                          userProfile={userProfile}
+                          fullPlayerData={fullPlayer}
+                          isLoading={isLoadingApi}
+                          error={apiError}
+                        />
+                        {/* Akhir Komponen Baru */}
+
                         <PlayerTroopsCard
                           userProfile={userProfile}
                           fullPlayerData={fullPlayer}

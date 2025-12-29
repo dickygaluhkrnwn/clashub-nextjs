@@ -9,7 +9,7 @@ import {
   CocWarMember,
   CocCurrentWar,
   CocWarAttack,
-  WarArchive // [FIX] Ditambahkan agar tidak error "Cannot find name 'WarArchive'"
+  WarArchive
 } from '@/lib/clashub.types';
 import {
   SwordsIcon,
@@ -84,6 +84,7 @@ const ActiveWarTabContent: React.FC<ActiveWarTabContentProps> = ({
   } = useManagedClanWar(clan.id);
 
   const [timeInfo, setTimeInfo] = useState({ text: 'Loading...', isEnded: true });
+  // [FIX] Optional chaining untuk warTag
   const isCwl = !!currentWar?.warTag;
 
   // --- Effect untuk update waktu tersisa ---
@@ -129,7 +130,8 @@ const ActiveWarTabContent: React.FC<ActiveWarTabContentProps> = ({
   }
 
   // --- TAMPILAN TIDAK ADA WAR ---
-  if (!currentWar || currentWar.state === 'notInWar') {
+  // [FIX] Menambahkan pengecekan struktur data (clan/opponent) untuk mencegah crash
+  if (!currentWar || currentWar.state === 'notInWar' || !currentWar.clan || !currentWar.opponent) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-8 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-sm border-dashed">
         <div className="bg-white/5 p-6 rounded-full mb-6">
@@ -147,6 +149,7 @@ const ActiveWarTabContent: React.FC<ActiveWarTabContentProps> = ({
   }
 
   // --- TAMPILAN JIKA WAR DITEMUKAN ---
+  // Pada titik ini, currentWar.clan dan currentWar.opponent dijamin ada oleh guard clause di atas
   const ourClan = currentWar.clan.tag === clan.tag ? currentWar.clan : currentWar.opponent;
   const opponentClan = currentWar.opponent.tag !== clan.tag ? currentWar.opponent : currentWar.clan;
 
@@ -170,8 +173,10 @@ const ActiveWarTabContent: React.FC<ActiveWarTabContentProps> = ({
 
   // Hitung Quick Stats
   const attacksUsed = ourClan.attacks || 0;
-  const maxAttacks = (currentWar.teamSize || ourClan.members.length) * (currentWar.attacksPerMember || (isCwl ? 1 : 2));
-  const attackPercentage = Math.round((attacksUsed / maxAttacks) * 100) || 0;
+  // [FIX] Optional chaining pada ourClan.members untuk mencegah crash jika array member kosong
+  const totalMembers = currentWar.teamSize || ourClan.members?.length || 0;
+  const maxAttacks = totalMembers * (currentWar.attacksPerMember || (isCwl ? 1 : 2));
+  const attackPercentage = maxAttacks > 0 ? Math.round((attacksUsed / maxAttacks) * 100) : 0;
 
   return (
     <div className="space-y-6 animate-fade-in pb-10">
@@ -306,13 +311,15 @@ const ActiveWarTabContent: React.FC<ActiveWarTabContentProps> = ({
          <div className="bg-[#151515] p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center">
             <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">3-Star Attacks</p>
             <p className="text-2xl font-clash text-coc-green">
-                {(ourClan.members.reduce((sum: number, m: CocWarMember) => sum + (m.attacks?.filter(a => a.stars === 3).length || 0), 0))}
+                {/* [FIX] Optional chaining pada members dan attacks */}
+                {(ourClan.members?.reduce((sum: number, m: CocWarMember) => sum + (m.attacks?.filter(a => a.stars === 3).length || 0), 0) || 0)}
             </p>
          </div>
          <div className="bg-[#151515] p-4 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center">
             <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Defended Stars</p>
             <p className="text-2xl font-clash text-coc-blue">
-                {(ourClan.members.reduce((sum: number, m: CocWarMember) => sum + (3 - (m.bestOpponentAttack?.stars || 0)), 0))}
+                {/* [FIX] Optional chaining pada members */}
+                {(ourClan.members?.reduce((sum: number, m: CocWarMember) => sum + (3 - (m.bestOpponentAttack?.stars || 0)), 0) || 0)}
             </p>
          </div>
       </div>

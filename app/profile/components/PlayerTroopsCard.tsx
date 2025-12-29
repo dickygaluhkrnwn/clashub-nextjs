@@ -4,6 +4,7 @@ import React from 'react';
 import { CocPlayer, UserProfile } from '@/lib/types';
 import { SwordsIcon } from '@/app/components/icons';
 import { useLanguage } from '@/lib/hooks/useLanguage';
+import { useGameAssets } from '@/lib/hooks/useGameAssets';
 
 interface PlayerTroopsCardProps {
   userProfile: UserProfile;
@@ -14,7 +15,7 @@ interface PlayerTroopsCardProps {
 
 /**
  * Komponen Card "Pasukan (Home Village)".
- * Desain: Glassmorphism Grid.
+ * Desain: Visual Grid dengan Dynamic Assets.
  */
 export const PlayerTroopsCard = ({
   userProfile,
@@ -23,6 +24,7 @@ export const PlayerTroopsCard = ({
   error,
 }: PlayerTroopsCardProps) => {
   const { t } = useLanguage();
+  const { getAssetUrl } = useGameAssets();
 
   // Logika Data: Live > Cache
   const troopsData = fullPlayerData?.troops ?? userProfile?.cachedTroops ?? [];
@@ -39,9 +41,9 @@ export const PlayerTroopsCard = ({
   const showLoading = isLoading && !fullPlayerData && !userProfile.cachedTroops;
 
   return (
-    <div className="bg-black/40 backdrop-blur-md border border-white/5 rounded-2xl p-6 shadow-lg relative overflow-hidden">
-      {/* Ambient Red Glow for Troops */}
-      <div className="absolute top-20 -right-20 w-40 h-40 bg-red-500/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="bg-black/40 backdrop-blur-md border border-white/5 rounded-2xl p-6 shadow-lg relative overflow-hidden group">
+      {/* Ambient Red Glow */}
+      <div className="absolute top-20 -right-20 w-40 h-40 bg-red-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-red-500/20 transition-all duration-700" />
 
       <h2 className="mb-6 flex items-center gap-2 font-clash text-lg text-white relative z-10">
         <SwordsIcon className="h-5 w-5 text-coc-gold" /> {t.profileArmy.troopsTitle}
@@ -60,9 +62,9 @@ export const PlayerTroopsCard = ({
           // Loading Skeletons
           <div className="space-y-6">
             <div className="h-6 w-32 bg-white/5 rounded animate-pulse" />
-            <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="bg-white/5 rounded-xl h-20 animate-pulse" />
+            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3">
+              {[...Array(10)].map((_, i) => (
+                <div key={i} className="aspect-square bg-white/5 rounded-xl animate-pulse" />
               ))}
             </div>
           </div>
@@ -74,18 +76,24 @@ export const PlayerTroopsCard = ({
                 <h3 className="mb-3 text-xs font-bold text-coc-gold uppercase tracking-widest border-b border-coc-gold/20 pb-2 inline-block">
                   {t.profileArmy.superTroops}
                 </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3">
                   {activeSuperTroops.map((troop) => (
                     <div
                       key={troop.name}
-                      className="bg-coc-gold/10 border border-coc-gold/30 rounded-xl p-3 flex flex-col items-center justify-center text-center shadow-[0_0_15px_rgba(255,215,0,0.1)] hover:scale-105 transition-transform duration-300"
+                      className="relative bg-coc-gold/10 border border-coc-gold/30 rounded-xl p-2 flex flex-col items-center justify-center transition-transform duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(255,215,0,0.2)] group/item"
+                      title={troop.name}
                     >
-                      <h4 className="text-xl font-bold font-clash text-coc-gold mb-1">
-                        Lv {troop.level}
-                      </h4>
-                      <p className="text-[10px] uppercase font-bold text-coc-gold/80 truncate w-full">
-                        {troop.name}
-                      </p>
+                      <div className="w-12 h-12 relative mb-1">
+                         <img 
+                            src={getAssetUrl(troop.name, 'troop')} 
+                            alt={troop.name}
+                            className="w-full h-full object-contain drop-shadow-md group-hover/item:scale-110 transition-transform"
+                            onError={(e) => e.currentTarget.style.display = 'none'}
+                         />
+                      </div>
+                      <div className="absolute -top-2 -right-2 bg-coc-gold text-black text-[10px] font-bold px-1.5 py-0.5 rounded border border-white/20 shadow-sm">
+                        Lvl {troop.level}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -98,18 +106,33 @@ export const PlayerTroopsCard = ({
                 <h3 className="mb-3 text-xs font-bold text-gray-500 uppercase tracking-widest border-b border-white/5 pb-2 inline-block">
                   {t.profileArmy.regularTroops}
                 </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3">
                   {regularTroops.map((troop) => (
                     <div
                       key={troop.name}
-                      className="bg-white/5 border border-white/5 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:bg-white/10 hover:border-red-500/30 transition-all duration-300 group"
+                      className="relative bg-white/5 border border-white/5 rounded-xl p-2 flex flex-col items-center justify-center hover:bg-white/10 hover:border-white/20 transition-all duration-300 group/item"
+                      title={troop.name}
                     >
-                      <div className="text-xl font-bold font-clash text-white mb-1 group-hover:text-coc-red transition-colors">
-                        Lv {troop.level}
+                      <div className="w-10 h-10 relative mb-1">
+                         <img 
+                            src={getAssetUrl(troop.name, 'troop')} 
+                            alt={troop.name}
+                            className="w-full h-full object-contain drop-shadow-md group-hover/item:scale-110 transition-transform filter grayscale-[0.3] group-hover/item:grayscale-0"
+                            onError={(e) => {
+                                // Fallback jika gambar rusak: Tampilkan inisial/kotak kosong
+                                e.currentTarget.style.display = 'none';
+                            }}
+                         />
                       </div>
-                      <p className="text-[10px] uppercase font-bold text-gray-400 truncate w-full group-hover:text-gray-300">
-                        {troop.name}
-                      </p>
+                      
+                      {/* Level Badge */}
+                      <div className={`absolute -top-1.5 -right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border ${
+                          troop.level === troop.maxLevel 
+                            ? 'bg-coc-gold text-black border-coc-gold' 
+                            : 'bg-black/60 text-white border-white/20'
+                      }`}>
+                        {troop.level}
+                      </div>
                     </div>
                   ))}
                 </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import AdminRoute from '@/app/components/auth/AdminRoute';
@@ -13,7 +13,10 @@ import {
   LogOutIcon,
   GlobeIcon,
   MegaphoneIcon,
-  AlertTriangleIcon // [BARU] Import AlertTriangleIcon
+  AlertTriangleIcon,
+  ChevronRightIcon,
+  UserIcon,
+  ImageIcon // [BARU] Import ImageIcon
 } from '@/app/components/icons';
 
 export default function AdminLayout({
@@ -27,7 +30,7 @@ export default function AdminLayout({
       <div className="min-h-screen bg-coc-dark text-white flex flex-col md:flex-row">
         
         {/* --- ADMIN SIDEBAR --- */}
-        <aside className="w-full md:w-64 bg-[#121212] border-b md:border-b-0 md:border-r border-white/10 flex-shrink-0">
+        <aside className="w-full md:w-64 bg-[#121212] border-b md:border-b-0 md:border-r border-white/10 flex-shrink-0 flex flex-col h-screen sticky top-0 overflow-y-auto custom-scrollbar">
           <div className="p-6 border-b border-white/10 flex items-center gap-3">
             <div className="bg-coc-red/20 p-2 rounded-lg border border-coc-red/30">
               <CogsIcon className="h-6 w-6 text-coc-red" />
@@ -38,7 +41,7 @@ export default function AdminLayout({
             </div>
           </div>
 
-          <nav className="p-4 space-y-1">
+          <nav className="p-4 space-y-1 flex-1">
             <AdminNavItem 
               href="/admin/dashboard" 
               icon={<HomeIcon className="h-5 w-5" />} 
@@ -49,6 +52,32 @@ export default function AdminLayout({
               href="/admin/clans" 
               icon={<ShieldIcon className="h-5 w-5" />} 
               label="Clan Manager" 
+            />
+
+            {/* Menu Group: Data Inspector */}
+            <CollapsibleNavGroup 
+              label="Data Inspector" 
+              icon={<CogsIcon className="h-5 w-5" />}
+            >
+               <AdminNavItem 
+                  href="/admin/debug/clan" 
+                  icon={<ShieldIcon className="h-4 w-4" />} 
+                  label="Clan Inspector" 
+                  isSubItem
+                />
+                <AdminNavItem 
+                  href="/admin/debug/user" 
+                  icon={<UserIcon className="h-4 w-4" />} 
+                  label="User Inspector" 
+                  isSubItem
+                />
+            </CollapsibleNavGroup>
+
+            {/* [BARU] Menu Asset Manager */}
+            <AdminNavItem 
+              href="/admin/assets" 
+              icon={<ImageIcon className="h-5 w-5" />} 
+              label="Asset Manager" 
             />
 
             <AdminNavItem 
@@ -67,22 +96,21 @@ export default function AdminLayout({
               label="User Management" 
             />
 
-            {/* [BARU] Menu Maintenance */}
             <AdminNavItem 
               href="/admin/maintenance" 
               icon={<AlertTriangleIcon className="h-5 w-5" />} 
               label="Maintenance Mode" 
             />
-            
-            <div className="my-4 border-t border-white/10 mx-2"></div>
-            
+          </nav>
+
+          <div className="p-4 border-t border-white/10">
             <AdminNavItem 
               href="/" 
               icon={<LogOutIcon className="h-5 w-5" />} 
               label="Kembali ke App" 
               variant="ghost"
             />
-          </nav>
+          </div>
         </aside>
 
         {/* --- MAIN CONTENT AREA --- */}
@@ -98,7 +126,7 @@ export default function AdminLayout({
 }
 
 // Helper Component untuk Link Sidebar
-const AdminNavItem = ({ href, icon, label, variant = 'default' }: { href: string; icon: React.ReactNode; label: string; variant?: 'default' | 'ghost' }) => {
+const AdminNavItem = ({ href, icon, label, variant = 'default', isSubItem = false }: { href: string; icon: React.ReactNode; label: string; variant?: 'default' | 'ghost'; isSubItem?: boolean }) => {
   const pathname = usePathname();
   const isActive = pathname === href;
 
@@ -118,7 +146,8 @@ const AdminNavItem = ({ href, icon, label, variant = 'default' }: { href: string
     <Link
       href={href}
       className={`
-        flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
+        flex items-center gap-3 rounded-xl transition-all duration-200
+        ${isSubItem ? 'px-4 py-2 text-sm' : 'px-4 py-3'}
         ${isActive 
           ? 'bg-coc-red/10 text-coc-red border border-coc-red/20 shadow-[0_0_15px_rgba(255,0,0,0.1)]' 
           : 'text-gray-400 hover:text-white hover:bg-white/5'
@@ -128,5 +157,42 @@ const AdminNavItem = ({ href, icon, label, variant = 'default' }: { href: string
       <span className={isActive ? 'text-coc-red' : 'text-gray-500'}>{icon}</span>
       <span className="font-medium">{label}</span>
     </Link>
+  );
+};
+
+// Helper Component untuk Group Menu yang Bisa Di-collapse
+const CollapsibleNavGroup = ({ label, icon, children }: { label: string, icon: React.ReactNode, children: React.ReactNode }) => {
+  const pathname = usePathname();
+  // Auto open jika salah satu anak aktif
+  const hasActiveChild = React.Children.toArray(children).some((child: any) => 
+    child.props.href === pathname
+  );
+  
+  const [isOpen, setIsOpen] = useState(hasActiveChild);
+
+  // Update open state jika path berubah dan anak jadi aktif
+  React.useEffect(() => {
+    if (hasActiveChild) setIsOpen(true);
+  }, [hasActiveChild]);
+
+  return (
+    <div className="space-y-1 my-1">
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 text-gray-400 hover:text-white hover:bg-white/5 ${hasActiveChild ? 'text-white font-medium' : ''}`}
+      >
+        <div className="flex items-center gap-3">
+          <span>{icon}</span>
+          <span>{label}</span>
+        </div>
+        <ChevronRightIcon className={`h-4 w-4 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`} />
+      </button>
+      
+      <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+        <div className="pl-4 border-l border-white/10 ml-6 space-y-1">
+          {children}
+        </div>
+      </div>
+    </div>
   );
 };

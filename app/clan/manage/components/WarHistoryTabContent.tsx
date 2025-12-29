@@ -55,11 +55,12 @@ const WarHistoryCard: React.FC<WarHistoryCardProps> = ({ war, onViewDetails, t, 
       case 'win': return t.clanWar.resultWin;
       case 'lose': return t.clanWar.resultLose;
       case 'tie': return t.clanWar.resultDraw;
-      default: return result.toUpperCase();
+      default: return result ? result.toUpperCase() : 'UNKNOWN';
     }
   };
 
-  const resultLabel = getResultLabel(war.result);
+  // [FIX] Handle case where war.result is undefined
+  const resultLabel = getResultLabel(war.result || 'unknown');
   
   let cardBorderColor = 'border-white/10';
   let resultTextColor = 'text-gray-400';
@@ -79,7 +80,8 @@ const WarHistoryCard: React.FC<WarHistoryCardProps> = ({ war, onViewDetails, t, 
      resultBgColor = 'bg-coc-gold/10';
   }
 
-  const endTimeDate = war.endTime instanceof Date ? war.endTime : new Date(war.endTime);
+  // [FIX] Validasi endTime agar tidak crash jika undefined
+  const endTimeDate = war.endTime ? (war.endTime instanceof Date ? war.endTime : new Date(war.endTime)) : new Date(0);
   const formattedDate =
     endTimeDate.getTime() === 0 || isNaN(endTimeDate.getTime())
       ? 'Invalid Date'
@@ -109,7 +111,8 @@ const WarHistoryCard: React.FC<WarHistoryCardProps> = ({ war, onViewDetails, t, 
             <div className="flex-1 text-center md:text-right">
                 <p className="text-sm md:text-base font-clash text-white truncate mb-1">Us</p>
                 <div className="flex items-center justify-center md:justify-end gap-1 text-coc-gold font-bold text-lg md:text-xl">
-                    {war.ourStars} <StarIcon className="w-4 h-4 md:w-5 md:h-5 fill-coc-gold" />
+                    {/* [FIX] Fallback nilai 0 */}
+                    {war.ourStars || 0} <StarIcon className="w-4 h-4 md:w-5 md:h-5 fill-coc-gold" />
                 </div>
                 <p className="text-xs text-gray-500 font-mono">{(war.ourDestruction || 0).toFixed(1)}%</p>
             </div>
@@ -124,7 +127,8 @@ const WarHistoryCard: React.FC<WarHistoryCardProps> = ({ war, onViewDetails, t, 
             <div className="flex-1 text-center md:text-left">
                 <p className="text-sm md:text-base font-clash text-white truncate mb-1">{war.opponentName || 'Unknown'}</p>
                 <div className="flex items-center justify-center md:justify-start gap-1 text-coc-red font-bold text-lg md:text-xl">
-                    <StarIcon className="w-4 h-4 md:w-5 md:h-5 fill-coc-red" /> {war.opponentStars}
+                    {/* [FIX] Fallback nilai 0 */}
+                    <StarIcon className="w-4 h-4 md:w-5 md:h-5 fill-coc-red" /> {war.opponentStars || 0}
                 </div>
                 <p className="text-xs text-gray-500 font-mono">{(war.opponentDestruction || 0).toFixed(1)}%</p>
             </div>
@@ -234,8 +238,9 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({
       } else if (sortKey === 'opponentName' || sortKey === 'id') {
         comparison = String(valueA).localeCompare(String(valueB));
       } else if (sortKey === 'endTime') {
-        const dateA = valueA instanceof Date ? valueA : new Date(valueA);
-        const dateB = valueB instanceof Date ? valueB : new Date(valueB);
+        // [FIX] Validasi tanggal sebelum di-sort
+        const dateA = valueA ? (valueA instanceof Date ? valueA : new Date(valueA)) : new Date(0);
+        const dateB = valueB ? (valueB instanceof Date ? valueB : new Date(valueB)) : new Date(0);
         comparison = dateA.getTime() - dateB.getTime();
       } else {
         if (valueA === undefined || valueA === null)
@@ -346,7 +351,7 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({
          </div>
 
          <div className="relative z-10 flex gap-3">
-             {/* Sort Buttons (Desktop Only for simplicity, or add mobile dropdown) */}
+             {/* Sort Buttons */}
              <div className="hidden md:flex bg-black/30 rounded-lg p-1 border border-white/5">
                 <button 
                     onClick={() => handleSort('endTime')}
@@ -365,7 +370,7 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({
              <Button 
                 onClick={handleFullRefresh} 
                 variant="secondary" 
-                size="sm"
+                size="sm" 
                 className="bg-black/40 border-white/10 hover:bg-white/10 backdrop-blur-md"
              >
                 <RefreshCwIcon className="h-4 w-4 mr-2" /> {t.clanWar.updateLog}
@@ -384,7 +389,6 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({
         ) : (
            <div className="grid grid-cols-1 gap-4">
               {mergedAndSortedHistory.map((war) => (
-                // [FIX] Menggunakan WarHistoryCard, bukan WarHistoryRow
                 <WarHistoryCard
                   key={war.id}
                   war={war}
