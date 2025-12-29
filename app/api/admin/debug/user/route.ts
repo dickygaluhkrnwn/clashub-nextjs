@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/server-auth';
 import { adminFirestore } from '@/lib/firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 import cocApi from '@/lib/coc-api';
+import { logAdminAction, AuditActionType } from '@/lib/firestore-admin/audit'; // [BARU] Import Logger
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +26,10 @@ export async function GET(request: NextRequest) {
 
     console.log(`[User Inspector] Inspecting: ${queryTerm}`);
 
+    // [BARU] Log Inspection (Optional: Gunakan casting jika tipe 'INSPECT_USER' belum ada di audit.ts)
+    // Kita gunakan console log saja untuk GET agar tidak memenuhi audit log, 
+    // atau gunakan tipe generik jika perlu.
+    
     // 3. Cari User di Firestore
     let firestoreData = null;
     let userId = null;
@@ -123,12 +129,11 @@ export async function POST(request: NextRequest) {
             league: apiData.league || null,
             clanTag: apiData.clan?.tag || null,
             clanName: apiData.clan?.name || null,
-            clanRole: apiData.role || null, // Perlu mapping role jika enum berbeda, tapi biasanya string match
+            clanRole: apiData.role || null, 
             lastVerified: FieldValue.serverTimestamp()
         });
 
         // 4. Update Cache (Opsional, tapi bagus)
-        // Kita simpan cache detail untuk performa
         await adminFirestore.collection('users').doc(userId).update({
             cachedHeroes: apiData.heroes || [],
             cachedTroops: apiData.troops || [],
@@ -136,11 +141,18 @@ export async function POST(request: NextRequest) {
             lastCacheTimestamp: FieldValue.serverTimestamp()
         });
 
+        // [BARU] Log
+        logAdminAction(
+            requester.uid,
+            requester.email || 'unknown',
+            'FORCE_SYNC_USER',
+            userId,
+            { playerTag }
+        );
+
         return NextResponse.json({ success: true, message: 'Player data force-synced successfully!' });
 
     } catch (error) {
         return NextResponse.json({ error: (error as Error).message }, { status: 500 });
     }
 }
-
-import { FieldValue } from 'firebase-admin/firestore';

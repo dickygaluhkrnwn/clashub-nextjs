@@ -13,6 +13,7 @@ interface PublicClanSearchFilterProps {
   onPublicClanTagChange: (value: string) => void;
   onSearchSubmit: (e: React.FormEvent) => void;
   isSearching: boolean;
+  searchError?: string | null; // [FIX] Added prop definition
 }
 
 export const PublicClanSearchFilter = ({
@@ -20,6 +21,7 @@ export const PublicClanSearchFilter = ({
   onPublicClanTagChange,
   onSearchSubmit,
   isSearching,
+  searchError,
 }: PublicClanSearchFilterProps) => {
   const { t } = useLanguage();
   return (
@@ -27,14 +29,18 @@ export const PublicClanSearchFilter = ({
         <form onSubmit={onSearchSubmit} className="flex flex-col sm:flex-row gap-2 w-full">
             <div className="relative flex-grow group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <span className="text-gray-500 font-bold text-lg group-focus-within:text-coc-blue transition-colors">#</span>
+                    <span className={`font-bold text-lg transition-colors ${searchError ? 'text-coc-red' : 'text-gray-500 group-focus-within:text-coc-blue'}`}>#</span>
                 </div>
                 <input
                     type="text"
                     placeholder={t.clanHub.searchTagPlaceholder}
                     value={publicClanTag}
                     onChange={(e) => onPublicClanTagChange(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-coc-blue/50 focus:ring-1 focus:ring-coc-blue/50 transition-all font-sans text-sm backdrop-blur-md shadow-inner"
+                    className={`w-full pl-10 pr-4 py-2.5 bg-black/40 border rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-1 transition-all font-sans text-sm backdrop-blur-md shadow-inner ${
+                      searchError 
+                        ? 'border-coc-red/50 focus:border-coc-red focus:ring-coc-red/50' 
+                        : 'border-white/10 focus:border-coc-blue/50 focus:ring-coc-blue/50'
+                    }`}
                 />
             </div>
             <Button
@@ -47,9 +53,16 @@ export const PublicClanSearchFilter = ({
                 <span className="ml-2 font-bold tracking-wide">{t.clanHub.searchButton}</span>
             </Button>
         </form>
-        <p className="text-[10px] text-gray-500 mt-1.5 ml-1">
-            *Masukkan tag klan tanpa tanda pagar (contoh: 2PP...)
-        </p>
+        <div className="flex justify-between items-start mt-1.5 ml-1">
+             <p className="text-[10px] text-gray-500">
+                *Masukkan tag klan tanpa tanda pagar (contoh: 2PP...)
+             </p>
+             {searchError && (
+                 <p className="text-[10px] text-coc-red font-bold animate-pulse">
+                     {searchError}
+                 </p>
+             )}
+        </div>
     </div>
   );
 };
@@ -86,7 +99,7 @@ export const PublicClansTab = ({
   // [VISUAL UPDATE] Menyesuaikan spacing agar konsisten dengan tab lain (space-y-8)
   return (
     <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Search Status & Errors */}
+      {/* Search Status & Errors (Large Display) */}
       {isSearching && (
         <div className="flex flex-col items-center justify-center py-16 px-4 bg-white/5 rounded-3xl border border-white/5 border-dashed text-center">
           <div className="p-4 rounded-full bg-coc-blue/10 border border-coc-blue/20 mb-4 animate-pulse">

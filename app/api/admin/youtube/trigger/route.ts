@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/server-auth';
 import { adminFirestore } from '@/lib/firebase-admin';
-import { GET as syncYoutubeVideo } from '../../../youtube/sync/route'; // Import fungsi GET langsung
+import { GET as syncYoutubeVideo } from '../../../youtube/sync/route'; 
+import { logAdminAction } from '@/lib/firestore-admin/audit'; // [BARU] Import Logger
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,9 +21,6 @@ export async function POST(request: NextRequest) {
     console.log(`[Admin Trigger] YouTube Sync triggered by ${user.email} (${user.uid})`);
 
     // 3. Panggil Logika Sinkronisasi
-    // Kita membuat Request tiruan (mock) yang seolah-olah memiliki Secret Key yang benar
-    // Ini cara pintar memanggil endpoint lain tanpa HTTP fetch ke localhost (yg sering error di Vercel)
-    
     const secret = process.env.CRON_SECRET || process.env.YOUTUBE_SYNC_SECRET || '';
     const mockUrl = new URL('http://localhost/api/youtube/sync');
     mockUrl.searchParams.set('secret', secret);
@@ -30,16 +28,20 @@ export async function POST(request: NextRequest) {
     const mockRequest = new NextRequest(mockUrl, {
       method: 'GET',
       headers: {
-        // Kita juga bisa inject Authorization header jika perlu
         'Authorization': `Bearer ${secret}`
       }
     });
 
-    // Panggil fungsi GET dari route youtube/sync secara langsung
     const response = await syncYoutubeVideo(mockRequest);
-    
-    // Ambil data JSON hasil eksekusi
     const data = await response.json();
+
+    // [BARU] Log
+    logAdminAction(
+        user.uid,
+        user.email || 'unknown',
+        'MANUAL_SYNC_YOUTUBE',
+        'YouTube Channel'
+    );
 
     return NextResponse.json(data, { status: response.status });
 

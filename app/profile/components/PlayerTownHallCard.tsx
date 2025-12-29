@@ -1,11 +1,11 @@
 'use client';
 
 import React from 'react';
-import Image from 'next/image';
 import { HomeIcon, StarIcon } from '@/app/components/icons';
 import { UserProfile, CocPlayer } from '@/lib/types';
-import { getThImage, formatNumber } from '@/lib/th-utils';
+import { formatNumber } from '@/lib/th-utils'; // [UPDATE] Hapus getThImage
 import { useLanguage } from '@/lib/hooks/useLanguage';
+import { useGameAssets } from '@/lib/hooks/useGameAssets'; // [BARU] Import hook assets
 
 interface PlayerTownHallCardProps {
   userProfile: UserProfile;
@@ -19,13 +19,22 @@ export const PlayerTownHallCard = ({
   isLoading,
 }: PlayerTownHallCardProps) => {
   const { t } = useLanguage();
+  const { getAssetUrl } = useGameAssets();
   
   // Logika Data
   const liveTh = fullPlayerData?.townHallLevel;
   const cachedTh = userProfile.thLevel;
   const thLevel = liveTh ?? (cachedTh && cachedTh > 0 ? cachedTh : 1);
   
-  const thImage = getThImage(thLevel);
+  // [FIX] Weapon level untuk TH12+ (biasanya ada di API).
+  // Menggunakan casting 'as any' karena properti ini belum ada di definisi tipe CocPlayer.
+  const weaponLevel = (fullPlayerData as any)?.townHallWeaponLevel; 
+
+  // [BARU] Ambil URL gambar dinamis dari Admin Database
+  // Nama aset harus sesuai dengan yang diinput di admin, misal "Town Hall 16"
+  const assetName = `Town Hall ${thLevel}`;
+  const thImageUrl = getAssetUrl(assetName, 'town-hall');
+
   const expLevel = fullPlayerData?.expLevel ?? userProfile?.expLevel ?? 0;
 
   // Loading state yang cerdas: Hanya jika tidak ada data sama sekali
@@ -48,15 +57,33 @@ export const PlayerTownHallCard = ({
       ) : (
         <div className="flex flex-col items-center gap-4 w-full z-10 flex-grow justify-center">
           {/* Gambar Town Hall */}
-          <div className="relative w-32 h-32 md:w-36 md:h-36 drop-shadow-2xl transition-transform group-hover:scale-105 duration-500 ease-out">
-            <Image
-              src={thImage}
-              alt={`Town Hall Level ${thLevel}`}
-              fill
-              className="object-contain"
-              sizes="(max-width: 768px) 144px, 144px"
-              priority
+          <div className="relative w-32 h-32 md:w-40 md:h-40 drop-shadow-2xl transition-transform group-hover:scale-105 duration-500 ease-out flex items-center justify-center">
+            {/* Menggunakan img tag standar agar support external URL dinamis (GitHub/Imgur) tanpa config */}
+            <img
+              src={thImageUrl}
+              alt={assetName}
+              className="w-full h-full object-contain drop-shadow-[0_0_25px_rgba(0,0,0,0.5)]"
+              onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  // Tampilkan fallback icon jika gambar gagal load
+                  const fallback = e.currentTarget.parentElement?.querySelector('.fallback-icon') as HTMLElement;
+                  if(fallback) fallback.style.display = 'flex';
+              }}
             />
+            
+            {/* Fallback Icon (Hidden by default) */}
+            <div className="fallback-icon absolute inset-0 hidden items-center justify-center -z-10 bg-white/5 rounded-full">
+               <HomeIcon className="w-16 h-16 text-white/10" />
+            </div>
+
+            {/* Star Rating for TH12+ weapon */}
+            {weaponLevel && weaponLevel > 0 && (
+               <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex gap-0.5 bg-black/80 px-2 py-0.5 rounded-full backdrop-blur-sm border border-white/20 shadow-lg z-20">
+                   {[...Array(weaponLevel)].map((_, i) => (
+                       <StarIcon key={i} className="w-3 h-3 md:w-4 md:h-4 fill-coc-gold text-coc-gold drop-shadow-md" />
+                   ))}
+               </div>
+            )}
           </div>
 
           {/* Grid Stats Mini */}

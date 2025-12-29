@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/server-auth';
 import { adminFirestore } from '@/lib/firebase-admin';
+import { logAdminAction } from '@/lib/firestore-admin/audit'; // [BARU] Import Logger
 
 // POST: Mengubah status admin (Promote/Demote)
 export async function POST(request: NextRequest) {
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
     const targetUserDoc = userQuery.docs[0];
     const targetUserData = targetUserDoc.data();
 
-    // Pencegahan: Admin tidak bisa mendemote dirinya sendiri lewat API ini (untuk keamanan diri sendiri)
+    // Pencegahan: Admin tidak bisa mendemote dirinya sendiri lewat API ini
     if (action === 'demote' && targetUserDoc.id === requester.uid) {
       return NextResponse.json({ error: 'You cannot demote yourself.' }, { status: 400 });
     }
@@ -52,6 +53,15 @@ export async function POST(request: NextRequest) {
     });
 
     console.log(`[Admin Role] ${requester.email} ${action}d ${targetEmail}`);
+
+    // [BARU] Log
+    logAdminAction(
+        requester.uid,
+        requester.email || 'unknown',
+        action === 'promote' ? 'PROMOTE_ADMIN' : 'DEMOTE_ADMIN',
+        targetEmail,
+        { targetUid: targetUserDoc.id }
+    );
 
     return NextResponse.json({ 
       success: true, 

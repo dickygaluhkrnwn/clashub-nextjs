@@ -35,9 +35,8 @@ export const PlayerEquipmentCard = ({
   const { getAssetUrl } = useGameAssets();
 
   // Logika Data:
-  // Cek `heroEquipment` di root object (API baru)
-  // Jika tidak ada, fallback ke `cachedHeroEquipment` (jika kita tambah nanti) atau kosong
-  // Note: Kita perlu memastikan `heroEquipment` ada di tipe CocPlayer
+  // Mengambil `heroEquipment` dari root object API (seperti contoh JSON yang Anda kirim: "Giant Gauntlet", "Spiky Ball", dll)
+  // Casting as any karena properti heroEquipment mungkin belum ada di definisi tipe CocPlayer standar
   const equipmentData = (fullPlayerData as any)?.heroEquipment ?? [];
 
   const showLoading = isLoading && !fullPlayerData;
@@ -51,7 +50,7 @@ export const PlayerEquipmentCard = ({
       <div className="absolute top-0 left-10 w-40 h-40 bg-orange-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-orange-500/20 transition-all duration-700" />
 
       <h2 className="mb-6 flex items-center gap-2 font-clash text-lg text-white relative z-10">
-        {/* [FIX] Casting ke any untuk bypass error TypeScript pada properti equipmentTitle yang belum ada di tipe */}
+        {/* Menggunakan any untuk bypass check tipe sementara pada t.profileArmy */}
         <HammerIcon className="h-5 w-5 text-coc-gold" /> {(t.profileArmy as any)?.equipmentTitle || "Hero Equipment"}
       </h2>
 
@@ -72,6 +71,7 @@ export const PlayerEquipmentCard = ({
                 title={equip.name}
               >
                 <div className="w-10 h-10 relative mb-1">
+                   {/* Menggunakan getAssetUrl yang sudah diperbarui (Stale-While-Revalidate) */}
                    <img 
                       src={getAssetUrl(equip.name, 'equipment')} 
                       alt={equip.name}
@@ -88,9 +88,6 @@ export const PlayerEquipmentCard = ({
                 }`}>
                   Lvl {equip.level}
                 </div>
-
-                {/* Common/Epic Badge (Visual Only, based on assumption or data if avail) */}
-                {/* Bisa ditambah logika jika ada data rarity */}
               </div>
             ))}
           </div>

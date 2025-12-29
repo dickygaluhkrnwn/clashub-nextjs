@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/server-auth';
 import { adminFirestore } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
+import { logAdminAction } from '@/lib/firestore-admin/audit'; // [BARU] Import Logger
 
 // POST: Reset status verifikasi user (Troubleshooting)
 export async function POST(request: NextRequest) {
@@ -40,7 +41,6 @@ export async function POST(request: NextRequest) {
     const targetUserId = targetUserDoc.id;
 
     // 4. Lakukan Hard Reset (Hapus field verifikasi & klan)
-    // Menggunakan FieldValue.delete() untuk menghapus field sepenuhnya
     await adminFirestore.collection('users').doc(targetUserId).update({
       isVerified: false,
       playerTag: FieldValue.delete(),
@@ -50,10 +50,18 @@ export async function POST(request: NextRequest) {
       clanTag: FieldValue.delete(),
       clanRole: FieldValue.delete(),
       clanName: FieldValue.delete(),
-      // Kita biarkan data lain seperti avatar, bio, discordId tetap ada
     });
 
     console.log(`[Admin Reset] User ${targetEmail} verification reset by ${requester.email}`);
+
+    // [BARU] Catat ke Audit Log
+    logAdminAction(
+      requester.uid,
+      requester.email || 'unknown',
+      'RESET_USER',
+      targetEmail,
+      { targetUserId }
+    );
 
     return NextResponse.json({ 
       success: true, 

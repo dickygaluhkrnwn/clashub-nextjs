@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/server-auth';
 import { adminFirestore } from '@/lib/firebase-admin';
+import { logAdminAction } from '@/lib/firestore-admin/audit'; // [BARU] Import Logger
 
 // Helper slugify sederhana
 const toSlug = (name: string): string => {
@@ -57,6 +58,15 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date()
     });
 
+    // [BARU] Log
+    logAdminAction(
+        admin.uid,
+        admin.email || 'unknown',
+        'UPDATE_ASSET',
+        name,
+        { type, docId, imageUrl }
+    );
+
     return NextResponse.json({ success: true, docId });
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
@@ -75,6 +85,14 @@ export async function DELETE(request: NextRequest) {
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
     await adminFirestore.collection('gameAssets').doc(id).delete();
+
+    // [BARU] Log
+    logAdminAction(
+        admin.uid,
+        admin.email || 'unknown',
+        'DELETE_ASSET',
+        id
+    );
 
     return NextResponse.json({ success: true });
   } catch (error) {

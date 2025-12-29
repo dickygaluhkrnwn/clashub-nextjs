@@ -16,7 +16,10 @@ import {
   AlertTriangleIcon,
   ChevronRightIcon,
   UserIcon,
-  ImageIcon // [BARU] Import ImageIcon
+  ImageIcon,
+  FileTextIcon,
+  BookOpenIcon,
+  StarIcon // [BARU] Import StarIcon untuk Featured Manager
 } from '@/app/components/icons';
 
 export default function AdminLayout({
@@ -49,6 +52,12 @@ export default function AdminLayout({
             />
             
             <AdminNavItem 
+              href="/admin/audit-logs" 
+              icon={<FileTextIcon className="h-5 w-5" />} 
+              label="Audit Logs" 
+            />
+
+            <AdminNavItem 
               href="/admin/clans" 
               icon={<ShieldIcon className="h-5 w-5" />} 
               label="Clan Manager" 
@@ -73,11 +82,23 @@ export default function AdminLayout({
                 />
             </CollapsibleNavGroup>
 
-            {/* [BARU] Menu Asset Manager */}
             <AdminNavItem 
               href="/admin/assets" 
               icon={<ImageIcon className="h-5 w-5" />} 
               label="Asset Manager" 
+            />
+
+            {/* [BARU] Menu Featured Manager */}
+            <AdminNavItem 
+              href="/admin/featured" 
+              icon={<StarIcon className="h-5 w-5" />} 
+              label="Featured Manager" 
+            />
+
+            <AdminNavItem 
+              href="/admin/content" 
+              icon={<BookOpenIcon className="h-5 w-5" />} 
+              label="Content Moderator" 
             />
 
             <AdminNavItem 

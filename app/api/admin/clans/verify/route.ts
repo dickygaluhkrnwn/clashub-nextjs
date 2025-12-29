@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/server-auth';
 import { adminFirestore } from '@/lib/firebase-admin';
+import { logAdminAction } from '@/lib/firestore-admin/audit'; // [BARU] Import Logger
 
 // POST: Toggle status isVerified klan
 export async function POST(request: NextRequest) {
@@ -30,6 +31,16 @@ export async function POST(request: NextRequest) {
     });
 
     console.log(`[Admin] Clan ${clanId} verification set to ${isVerified} by ${user.email}`);
+
+    // [BARU] Catat ke Audit Log
+    const actionType = isVerified ? 'VERIFY_CLAN' : 'UNVERIFY_CLAN';
+    logAdminAction(
+      user.uid, 
+      user.email || 'unknown', 
+      actionType, 
+      clanId, 
+      { isVerified }
+    );
 
     return NextResponse.json({ success: true, clanId, isVerified });
 

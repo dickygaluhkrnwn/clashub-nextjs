@@ -19,7 +19,8 @@ interface GameAsset {
   imageUrl: string;
 }
 
-const ASSET_TYPES = ['troop', 'hero', 'spell', 'pet', 'equipment', 'league'];
+// [UPDATE] Menambahkan 'town-hall' ke dalam tipe aset
+const ASSET_TYPES = ['troop', 'hero', 'spell', 'pet', 'equipment', 'town-hall', 'league'];
 
 export default function AssetManagerPage() {
   const [assets, setAssets] = useState<GameAsset[]>([]);
@@ -108,7 +109,7 @@ export default function AssetManagerPage() {
           Game Asset Manager
         </h1>
         <p className="text-gray-400">
-          Kelola gambar Troops, Heroes, dan Spells secara dinamis. Update gambar tanpa perlu deploy ulang website.
+          Kelola gambar Troops, Heroes, Spells, dan Town Hall secara dinamis. Update gambar tanpa perlu deploy ulang website.
         </p>
       </div>
 
@@ -126,7 +127,7 @@ export default function AssetManagerPage() {
                 <label className="text-xs text-gray-500 uppercase font-bold block mb-2">Nama Aset (Inggris)</label>
                 <input 
                   type="text" 
-                  placeholder="Contoh: Electro Titan"
+                  placeholder="Contoh: Town Hall 16"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   className="w-full bg-black/30 border border-white/10 rounded-xl py-2.5 px-4 text-white focus:outline-none focus:border-coc-gold/50 transition-colors"

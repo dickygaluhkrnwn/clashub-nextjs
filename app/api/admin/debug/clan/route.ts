@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     if (!tag) return NextResponse.json({ error: 'Clan Tag is required' }, { status: 400 });
 
     const formattedTag = tag.startsWith('#') ? tag : `#${tag}`;
-    console.log(`[Clan Inspector] Inspecting: ${formattedTag}`);
+    console.log(`[Clan Inspector] Inspecting: ${formattedTag} by ${user.email}`);
 
     // 3. Fetch Data Firestore (Database)
     // Cari dokumen managedClan berdasarkan tag

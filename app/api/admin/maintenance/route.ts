@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/server-auth';
 import { adminFirestore } from '@/lib/firebase-admin';
+import { logAdminAction } from '@/lib/firestore-admin/audit'; // [BARU] Import Logger
 
 // Helper verifikasi admin
 async function verifyAdmin() {
@@ -20,7 +21,6 @@ export async function GET() {
     const docSnap = await docRef.get();
 
     if (!docSnap.exists) {
-      // Default false jika dokumen belum ada
       return NextResponse.json({ maintenanceMode: false });
     }
 
@@ -53,6 +53,15 @@ export async function POST(request: NextRequest) {
     }, { merge: true });
 
     console.log(`[Admin Maintenance] Mode set to ${enabled} by ${admin.email}`);
+
+    // [BARU] Catat ke Audit Log
+    logAdminAction(
+      admin.uid,
+      admin.email || 'unknown',
+      'TOGGLE_MAINTENANCE',
+      'Global Settings',
+      { enabled }
+    );
 
     return NextResponse.json({ success: true, maintenanceMode: enabled });
 

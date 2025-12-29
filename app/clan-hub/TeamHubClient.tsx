@@ -13,6 +13,7 @@ import { ClashubTeamsTab } from './components/ClashubTeamsTab';
 import { PublicClansTab, PublicClanSearchFilter } from './components/PublicClansTab';
 import { PlayersTab } from './components/PlayersTab';
 import { TeamHubTabNavigation } from './components/TeamHubTabNavigation';
+import FeaturedSection from './components/FeaturedSection'; // [BARU] Import FeaturedSection
 
 import { ManagedClanFilters } from '@/app/components/filters/TeamHubFilter';
 import { useLanguage } from '@/lib/hooks/useLanguage';
@@ -169,6 +170,10 @@ const TeamHubClient = ({
         {/* MAIN CONTAINER */}
         <div className="container mx-auto px-4 md:px-8 pt-24 md:pt-28 relative z-10 space-y-8">
             
+            {/* [BARU] Featured Section (Spotlight) */}
+            {/* Akan menampilkan klan/pemain pilihan admin di posisi teratas */}
+            <FeaturedSection />
+
             {/* 1. CONTROL CENTER CARD (Unified Tabs & Filters) */}
             {/* Kartu ini sekarang berada di dalam flow dokumen, tidak menimpa konten */}
             <div className="animate-in fade-in slide-in-from-top-4 duration-500">
@@ -188,6 +193,7 @@ const TeamHubClient = ({
                             onPublicClanTagChange={setPublicClanTag}
                             onSearchSubmit={handlePublicClanSearch}
                             isSearching={isSearchingPublicClan}
+                            searchError={publicSearchError}
                         />
                     )}
                 </TeamHubTabNavigation>
