@@ -211,3 +211,25 @@ export const CrosshairIcon = (props: IconProps) => (
     <line x1="12" y1="22" x2="12" y2="18" />
   </svg>
 );
+
+// [BARU] Megaphone Icon untuk Announcement System
+export const MegaphoneIcon = (props: IconProps) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <path d="M3 11l3-5h8l3 5H3z" />
+    <path d="M3 11v5h8v-5" />
+    <path d="M14 11v5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-5" />
+    <path d="M8 16v4" />
+    <path d="M11 6h6" />
+    <path d="M11 3h6" />
+    <path d="M11 9h6" />
+  </svg>
+);

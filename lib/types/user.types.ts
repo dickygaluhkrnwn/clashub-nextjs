@@ -2,6 +2,8 @@
 // Deskripsi: Mendefinisikan struktur data terkait Pengguna (User), Pemain (Player), dan Ulasan.
 // [MODIFIKASI FASE 8.1]: Menambahkan field cache statistik tambahan (XP, Liga, dll).
 // [MODIFIKASI FASE 11]: Memastikan field clanBadgeUrl tetap ada.
+// [MODIFIKASI ADMIN TAHAP 1]: Menambahkan field 'isGlobalAdmin' untuk Master Admin.
+// [MODIFIKASI NOTIFIKASI 2.0]: Update interface Notification dengan tipe dan properti baru.
 
 import { ClanRole, ManagerRole, StandardMemberRole } from '../enums';
 // [MODIFIKASI FASE 8.1] Impor tipe CocLeague, CocPlayerItem, CocAchievement
@@ -15,6 +17,11 @@ export interface UserProfile {
   uid: string; // ID unik dari Firebase Auth
   email: string | null;
   displayName: string;
+
+  // --- [BARU: ADMIN DASHBOARD TAHAP 1] ---
+  // Field ini menentukan apakah user memiliki akses ke halaman /admin
+  isGlobalAdmin?: boolean; 
+  // ---------------------------------------
 
   // --- DATA VERIFIKASI COCLANS (BARU: Sprint 4.1) ---
   isVerified: boolean; // TRUE jika pemain telah memverifikasi tag mereka
@@ -117,21 +124,34 @@ export interface JoinRequest {
   timestamp: Date;
 }
 
-// --- [BARU: TAHAP 1.3] ---
+// --- [UPDATE: NOTIFIKASI 2.0] ---
 /**
  * @interface Notification
-// ... (Kode Notification tidak berubah)
+ * Struktur data notifikasi yang diperluas.
  */
 export interface Notification {
   id: string; // ID dokumen Firestore
-  userId: string; // UID pengguna yang menerima notifikasi ini
-  message: string; // Pesan yang akan ditampilkan (misal: "Lord Z menyetujui permintaan Anda...")
-  type: 'review_request' | 'join_approved' | 'generic'; // Tipe notifikasi
-  url: string; // URL tujuan saat notifikasi di-klik
+  userId: string; // UID pengguna yang menerima notifikasi ini (atau 'global' untuk pengumuman)
+  message: string; // Pesan utama
+  
+  // Tipe notifikasi diperluas untuk mencakup Announcement dan System Alert
+  type: 
+    | 'review_request' 
+    | 'join_approved' 
+    | 'generic' 
+    | 'announcement'  // [BARU] Pengumuman Global
+    | 'system_alert'  // [BARU] Peringatan Sistem (Maintenance dll)
+    | 'tournament';   // [BARU] Update Turnamen
+
+  url: string; // URL tujuan saat notifikasi di-klik (sebagai actionUrl)
   read: boolean; // Status sudah dibaca atau belum
   createdAt: Date; // Timestamp kapan notifikasi dibuat
+  
+  // [BARU] Properti Visual Tambahan
+  iconType?: 'info' | 'warning' | 'success' | 'danger'; // Menentukan warna/ikon
+  actionLabel?: string; // Label tombol aksi (jika ada)
 }
-// --- [AKHIR BARU] ---
+// --- [AKHIR UPDATE] ---
 
 // --- [BARU: Langkah 3.1 Peta Develop] ---
 /**

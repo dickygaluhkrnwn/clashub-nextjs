@@ -14,7 +14,12 @@ import {
   HomeIcon,
   BookOpenIcon,
   CheckCircleIcon,
-  HelpCircleIcon // Ditambahkan untuk ikon Panduan
+  HelpCircleIcon,
+  CogsIcon,
+  MegaphoneIcon,     // [BARU] Untuk Pengumuman
+  AlertTriangleIcon, // [BARU] Untuk System Alert
+  InfoIcon,          // [BARU] Untuk Info Generic
+  CheckIcon          // [BARU] Icon Centang untuk Mark All Read
 } from '@/app/components/icons';
 import ThemeToggle from '@/app/components/ui/ThemeToggle';
 import LanguageSwitcher from '@/app/components/ui/LanguageSwitcher';
@@ -54,7 +59,215 @@ const navItems = [
   { name: 'Knowledge Hub', href: '/knowledge-hub', icon: BookOpenIcon },
 ];
 
-// Komponen menu dropdown profil pengguna
+// --- [KOMPONEN BARU] Notification Item UI ---
+const NotificationItem = ({ notif, onClick }: { notif: Notification; onClick: () => void }) => {
+  // Helper: Tentukan Style berdasarkan Tipe
+  const getStyle = () => {
+    switch (notif.type) {
+      case 'announcement':
+        return {
+          icon: <MegaphoneIcon className="h-4 w-4 text-black" />,
+          bgIcon: 'bg-coc-gold',
+          borderHover: 'group-hover:border-coc-gold/50',
+          bgHover: 'hover:bg-coc-gold/5',
+          textTitle: 'text-coc-gold'
+        };
+      case 'system_alert':
+        return {
+          icon: <AlertTriangleIcon className="h-4 w-4 text-white" />,
+          bgIcon: 'bg-coc-red',
+          borderHover: 'group-hover:border-coc-red/50',
+          bgHover: 'hover:bg-coc-red/5',
+          textTitle: 'text-coc-red'
+        };
+      case 'tournament':
+        return {
+          icon: <TrophyIcon className="h-4 w-4 text-white" />,
+          bgIcon: 'bg-purple-500',
+          borderHover: 'group-hover:border-purple-500/50',
+          bgHover: 'hover:bg-purple-500/5',
+          textTitle: 'text-purple-400'
+        };
+      case 'join_approved':
+      case 'review_request':
+        return {
+          icon: <CheckCircleIcon className="h-4 w-4 text-white" />,
+          bgIcon: 'bg-coc-green',
+          borderHover: 'group-hover:border-coc-green/50',
+          bgHover: 'hover:bg-coc-green/5',
+          textTitle: 'text-coc-green'
+        };
+      default:
+        return {
+          icon: <InfoIcon className="h-4 w-4 text-white" />,
+          bgIcon: 'bg-coc-blue',
+          borderHover: 'group-hover:border-coc-blue/50',
+          bgHover: 'hover:bg-coc-blue/5',
+          textTitle: 'text-coc-blue'
+        };
+    }
+  };
+
+  const style = getStyle();
+  const timeString = new Date(notif.createdAt).toLocaleString('id-ID', {
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+  });
+
+  return (
+    <li>
+      <button
+        onClick={onClick}
+        className={`w-full text-left flex items-start gap-4 p-4 transition-all border-l-2 group ${
+          notif.read
+            ? 'border-transparent opacity-60 hover:opacity-100 hover:bg-white/5'
+            : `${style.borderHover} ${style.bgHover} border-transparent hover:border-l-4 bg-[#1a1a1a]`
+        }`}
+      >
+        {/* Icon Container */}
+        <div className={`flex-shrink-0 mt-1 h-8 w-8 rounded-full flex items-center justify-center shadow-lg ${style.bgIcon} ${!notif.read ? 'animate-pulse-slow' : 'grayscale opacity-70'}`}>
+          {style.icon}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          {/* Badge NEW jika belum dibaca */}
+          {!notif.read && (
+            <span className="inline-block px-1.5 py-0.5 bg-red-500 text-white text-[9px] font-bold rounded mb-1 uppercase tracking-wider">
+              New
+            </span>
+          )}
+          
+          <p className={`text-sm leading-snug mb-1.5 ${notif.read ? 'text-gray-400' : 'text-white'}`}>
+            {notif.message}
+          </p>
+          
+          <span className="text-[10px] text-gray-600 font-bold uppercase tracking-wider flex items-center gap-1">
+            {timeString}
+          </span>
+        </div>
+      </button>
+    </li>
+  );
+};
+
+// --- [UPDATE] Notification Bell ---
+const NotificationBell = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const { currentUser } = useAuth();
+  // [UPDATE] Menggunakan markAllAsRead dari hook yang baru
+  const { notifications, unreadCount, isLoading, markAsRead, markAllAsRead } = useNotifications();
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  if (!currentUser) {
+    return null;
+  }
+
+  const handleNotifClick = (notif: Notification) => {
+    if (!notif.read) {
+      markAsRead(notif.id);
+    }
+    if (notif.url) {
+      router.push(notif.url);
+    }
+    setIsOpen(false);
+  };
+
+  const handleMarkAllRead = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Mencegah dropdown tertutup
+    markAllAsRead();
+  };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`relative p-2 rounded-full transition-all focus:outline-none active:scale-95 ${isOpen ? 'text-coc-gold bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+      >
+        <BellIcon className="h-6 w-6" />
+        {unreadCount > 0 && (
+          <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-coc-red text-[10px] font-bold text-white border border-[#1a1a1a] animate-pulse">
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-3 w-[90vw] md:w-80 max-h-[60vh] md:max-h-[400px] overflow-y-auto bg-[#121212]/95 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-2xl z-50 animate-in fade-in zoom-in-95 duration-200 origin-top-right ring-1 ring-white/5 custom-scrollbar">
+          
+          {/* Header Notifikasi */}
+          <div className="p-4 border-b border-white/5 sticky top-0 bg-[#121212]/95 backdrop-blur z-20 flex justify-between items-center shadow-sm">
+            <div className="flex items-center gap-2">
+              <h4 className="font-clash text-lg text-white tracking-wide">Notifikasi</h4>
+              {unreadCount > 0 && (
+                 <span className="text-[10px] font-bold text-coc-gold bg-coc-gold/10 px-2 py-0.5 rounded-full border border-coc-gold/20 tracking-wider">
+                    {unreadCount}
+                 </span>
+              )}
+            </div>
+            
+            {/* Tombol Mark All Read */}
+            {unreadCount > 0 && (
+              <button 
+                onClick={handleMarkAllRead}
+                className="text-xs text-gray-400 hover:text-white flex items-center gap-1 bg-white/5 hover:bg-white/10 px-2 py-1 rounded-md transition-colors"
+                title="Tandai semua sudah dibaca"
+              >
+                <CheckCircleIcon className="h-3.5 w-3.5" />
+                <span>Baca Semua</span>
+              </button>
+            )}
+          </div>
+          
+          {/* State Loading */}
+          {isLoading && (
+            <div className="p-8 text-center text-gray-500 animate-pulse text-sm">
+              <div className="w-8 h-8 bg-white/10 rounded-full mx-auto mb-2"></div>
+              Memuat info terbaru...
+            </div>
+          )}
+          
+          {/* State Kosong */}
+          {!isLoading && notifications.length === 0 && (
+            <div className="p-12 text-center flex flex-col items-center gap-3 text-gray-500">
+              <div className="p-4 rounded-full bg-white/5">
+                <BellIcon className="h-8 w-8 opacity-30" />
+              </div>
+              <p className="text-sm">Tidak ada notifikasi baru</p>
+            </div>
+          )}
+          
+          {/* List Notifikasi */}
+          <ul className="divide-y divide-white/5">
+            {notifications.map((notif) => (
+              <NotificationItem 
+                key={`${notif.id}-${notif.type}`} 
+                notif={notif} 
+                onClick={() => handleNotifClick(notif)} 
+              />
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Komponen menu dropdown profil pengguna (Sama seperti sebelumnya)
 const UserProfileDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
@@ -64,6 +277,9 @@ const UserProfileDropdown = () => {
   const [isTournamentManager, setIsTournamentManager] = useState(false);
   
   const { isInstallable, installApp } = usePWA();
+
+  // Pengecekan status Global Admin
+  const isGlobalAdmin = userProfile && 'isGlobalAdmin' in userProfile ? !!userProfile.isGlobalAdmin : false;
 
   const handleLogout = async () => {
     try {
@@ -218,7 +434,7 @@ const UserProfileDropdown = () => {
             {/* Divider Halus */}
             <div className="my-1.5 border-t border-white/5 mx-2"></div>
 
-            {/* [BARU] Menu Panduan Aplikasi */}
+            {/* Menu Panduan Aplikasi */}
             <li>
               <Link
                 href="/guide"
@@ -231,6 +447,22 @@ const UserProfileDropdown = () => {
                 <span>Panduan Aplikasi</span>
               </Link>
             </li>
+
+            {/* Menu Master Admin - Hanya muncul untuk Global Admin */}
+            {isGlobalAdmin && (
+              <li>
+                <Link
+                  href="/admin/dashboard"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white rounded-xl transition-colors group"
+                >
+                  <div className="p-1.5 rounded-lg bg-black/30 group-hover:bg-coc-red/20 text-gray-400 group-hover:text-coc-red transition-colors">
+                      <CogsIcon className="h-4 w-4" />
+                  </div>
+                  <span>Master Admin</span>
+                </Link>
+              </li>
+            )}
 
             <div className="my-1.5 border-t border-white/5 mx-2"></div>
 
@@ -245,125 +477,6 @@ const UserProfileDropdown = () => {
                 <span>Keluar</span>
               </button>
             </li>
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Komponen Lonceng Notifikasi (Tetap sama, hanya sedikit tweak style)
-const NotificationBell = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
-  const { currentUser } = useAuth();
-  const { notifications, unreadCount, isLoading, markAsRead } = useNotifications();
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
-  if (!currentUser) {
-    return null;
-  }
-
-  const handleNotifClick = (notif: Notification) => {
-    if (!notif.read) {
-      markAsRead(notif.id);
-    }
-    if (notif.url) {
-      router.push(notif.url);
-    }
-    setIsOpen(false);
-  };
-
-  return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`relative p-2 rounded-full transition-all focus:outline-none active:scale-95 ${isOpen ? 'text-coc-gold bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-      >
-        <BellIcon className="h-6 w-6" />
-        {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-coc-red text-[10px] font-bold text-white border border-[#1a1a1a] animate-pulse">
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </span>
-        )}
-      </button>
-
-      {isOpen && (
-        <div className="absolute right-0 mt-3 w-[90vw] md:w-80 max-h-[60vh] md:max-h-[400px] overflow-y-auto bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 shadow-2xl rounded-2xl z-50 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
-          <div className="p-4 border-b border-white/5 sticky top-0 bg-[#1a1a1a]/95 backdrop-blur z-10 flex justify-between items-center">
-            <h4 className="font-clash text-lg text-white tracking-wide">Notifikasi</h4>
-            {unreadCount > 0 && (
-               <span className="text-[10px] font-bold text-coc-gold bg-coc-gold/10 px-2 py-0.5 rounded-full border border-coc-gold/20 tracking-wider uppercase">
-                  {unreadCount} Baru
-               </span>
-            )}
-          </div>
-          
-          {isLoading && (
-            <div className="p-8 text-center text-gray-500 animate-pulse text-sm">
-              <div className="w-8 h-8 bg-white/10 rounded-full mx-auto mb-2"></div>
-              Memuat...
-            </div>
-          )}
-          
-          {!isLoading && notifications.length === 0 && (
-            <div className="p-12 text-center flex flex-col items-center gap-3 text-gray-500">
-              <div className="p-4 rounded-full bg-white/5">
-                <BellIcon className="h-8 w-8 opacity-30" />
-              </div>
-              <p className="text-sm">Tidak ada notifikasi baru</p>
-            </div>
-          )}
-          
-          <ul className="divide-y divide-white/5">
-            {notifications.map((notif) => (
-              <li key={notif.id}>
-                <button
-                  onClick={() => handleNotifClick(notif)}
-                  className={`w-full text-left flex items-start gap-4 p-4 transition-all ${
-                    notif.read
-                      ? 'bg-transparent hover:bg-white/5 opacity-60 hover:opacity-100'
-                      : 'bg-coc-gold/5 hover:bg-coc-gold/10 border-l-2 border-coc-gold pl-[14px]'
-                  }`}
-                >
-                  <div className="flex-shrink-0 mt-1">
-                    {notif.read ? (
-                      <CheckCircleIcon className="h-4 w-4 text-gray-500" />
-                    ) : (
-                      <div className="h-2.5 w-2.5 rounded-full bg-coc-gold shadow-[0_0_8px_rgba(255,215,0,0.6)] animate-pulse"></div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm leading-snug mb-1 ${notif.read ? 'text-gray-400' : 'text-white font-medium'}`}>
-                      {notif.message}
-                    </p>
-                    <span className="text-[10px] text-gray-600 uppercase tracking-wider font-bold">
-                      {new Date(notif.createdAt).toLocaleString('id-ID', {
-                        day: 'numeric',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                  </div>
-                </button>
-              </li>
-            ))}
           </ul>
         </div>
       )}

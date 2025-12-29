@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ManagedClan, CocCurrentWar, CocRaidLog } from '@/lib/clashub.types'; // Pastikan path import tipe benar
+import { ManagedClan, CocCurrentWar, CocRaidLog } from '@/lib/clashub.types';
 import { Button } from '@/app/components/ui/Button';
 import {
   RefreshCwIcon,
@@ -43,16 +43,15 @@ interface SummaryTabContentProps {
 // ======================================================================================================
 
 interface WarStatusProps {
-  war: CocCurrentWar;
+  // [FIX] Allow null or undefined to prevent crashes on new clans
+  war: CocCurrentWar | null | undefined;
   clanTag: string;
   t: any;
 }
 
 const WarStatusDisplay: React.FC<WarStatusProps> = ({ war, clanTag, t }) => {
-  const ourClan = war.clan.tag === clanTag ? war.clan : war.opponent;
-  const enemyClan = war.opponent.tag !== clanTag ? war.opponent : war.clan;
-
-  if (!ourClan || !enemyClan || war.state === 'notInWar') {
+  // [FIX] Defensive Check: Jika war data kosong atau strukturnya tidak lengkap
+  if (!war || !war.clan || !war.opponent) {
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-[150px] text-center p-4">
         <ShieldIcon className="h-10 w-10 text-gray-600 mb-3 opacity-50" />
@@ -61,9 +60,32 @@ const WarStatusDisplay: React.FC<WarStatusProps> = ({ war, clanTag, t }) => {
     );
   }
 
+  // Cek state 'notInWar' secara eksplisit
+  if (war.state === 'notInWar') {
+    return (
+      <div className="flex flex-col items-center justify-center h-full min-h-[150px] text-center p-4">
+        <ShieldIcon className="h-10 w-10 text-gray-600 mb-3 opacity-50" />
+        <p className="text-gray-400 font-medium">{t.clanManage.warNotInActive}</p>
+      </div>
+    );
+  }
+
+  const ourClan = war.clan.tag === clanTag ? war.clan : war.opponent;
+  const enemyClan = war.opponent.tag !== clanTag ? war.opponent : war.clan;
+
+  // Defensive check lagi untuk memastikan properti clan valid
+  if (!ourClan || !enemyClan) {
+     return (
+      <div className="flex flex-col items-center justify-center h-full min-h-[150px] text-center p-4">
+        <AlertTriangleIcon className="h-10 w-10 text-yellow-600 mb-3 opacity-50" />
+        <p className="text-gray-400 font-medium">Data perang tidak lengkap.</p>
+      </div>
+    );
+  }
+
   const attacksUsed = ourClan.attacks || 0;
   const totalMembers = war.teamSize || ourClan.members?.length || 0;
-  const totalAttacks = totalMembers * (war.attacksPerMember || 1); // Fallback ke 1 jika null, biasanya 1 atau 2
+  const totalAttacks = totalMembers * (war.attacksPerMember || 1);
   const progress = totalAttacks > 0 ? (attacksUsed / totalAttacks) * 100 : 0;
 
   let stateText = '';
@@ -408,7 +430,8 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
                <RefreshCwIcon className="animate-spin h-6 w-6 text-gray-500" />
              </div>
           ) : (
-             <WarStatusDisplay war={currentWar!} clanTag={clan.tag} t={t} />
+             // [FIX] Gunakan variabel currentWar apa adanya (tanpa !)
+             <WarStatusDisplay war={currentWar} clanTag={clan.tag} t={t} />
           )}
         </div>
 

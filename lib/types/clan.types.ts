@@ -76,6 +76,9 @@ export interface ManagedClan {
   // --- [BARU: TAHAP 1.3 - Roadmap] ---
   // Snapshot dari daftar anggota, digunakan untuk deteksi join/leave
   memberList: { tag: string; name: string }[];
+
+  // --- [BARU: ADMIN MASTER FEATURE] ---
+  isVerified?: boolean; // Status verifikasi (Centang Biru) oleh Admin
 }
 
 /**

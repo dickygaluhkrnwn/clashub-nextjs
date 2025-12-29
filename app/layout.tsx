@@ -10,30 +10,30 @@ import { LanguageProvider } from "@/app/context/LanguageContext";
 import { getSessionUser, ServerUser } from "@/lib/server-auth";
 import { Analytics } from "@vercel/analytics/react";
 
+// [BARU] Import Firestore Admin & Komponen Overlay
+import { adminFirestore } from "@/lib/firebase-admin";
+import MaintenanceOverlay from "@/app/components/layout/MaintenanceOverlay";
+
 // Konfigurasi font Inter (Tetap)
 const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
 
 // --- Konfigurasi Font Clash Lokal ---
-// Font Bold sebagai font display utama
 const clashFontBold = localFont({
   src: './fonts/Clash_Bold.otf',
   display: 'swap',
-  variable: '--font-clash', // Variabel CSS utama untuk display/header
+  variable: '--font-clash',
 });
 
-// Font Regular (jika diperlukan secara spesifik)
 const clashFontRegular = localFont({
   src: './fonts/Clash_Regular.otf',
   display: 'swap',
-  variable: '--font-clash-regular', // Variabel CSS terpisah untuk Regular
+  variable: '--font-clash-regular',
 });
 // --- Akhir Konfigurasi Font Clash ---
 
-// Metadata untuk SEO
 export const metadata: Metadata = {
   title: "Clashub | E-sports Community",
   description: "Pusat Strategi & Komunitas E-sports Clash of Clans",
-  // [BARU] Konfigurasi PWA untuk iOS
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -41,18 +41,14 @@ export const metadata: Metadata = {
   },
 };
 
-// [MOBILE-FIRST] Viewport configuration yang ketat
-// maximum-scale=1 mencegah zoom otomatis saat input di-tap pada iOS
-// userScalable=false memberikan nuansa 'native app'
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#0a0a0a', // [BARU] Menyesuaikan warna bar browser dengan tema gelap
+  themeColor: '#0a0a0a',
 };
 
-// Ubah RootLayout menjadi async Server Component (Tetap)
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -60,37 +56,57 @@ export default async function RootLayout({
 }>) {
   const initialServerUser: ServerUser | null = await getSessionUser();
 
+  // --- [BARU] LOGIKA MAINTENANCE SERVER-SIDE ---
+  // Kita cek status maintenance langsung dari Firestore saat layout dirender di server.
+  // Ini lebih aman dan cepat daripada client-side fetching.
+  
+  let isMaintenance = false;
+  let isAdmin = false;
+
+  try {
+    // 1. Cek Status Global
+    const settingsDoc = await adminFirestore.collection('settings').doc('general').get();
+    if (settingsDoc.exists && settingsDoc.data()?.maintenanceMode) {
+      isMaintenance = true;
+    }
+
+    // 2. Cek Status Admin User (Bypass)
+    if (initialServerUser?.uid) {
+      const userDoc = await adminFirestore.collection('users').doc(initialServerUser.uid).get();
+      // Pastikan field isGlobalAdmin benar-benar true
+      if (userDoc.exists && userDoc.data()?.isGlobalAdmin === true) {
+        isAdmin = true;
+      }
+    }
+  } catch (error) {
+    console.error("Layout Error (Maintenance Check):", error);
+    // Jika error (misal database down), default ke normal agar tidak memblokir akses
+    isMaintenance = false;
+  }
+  // --- [AKHIR LOGIKA] ---
+
   return (
-    // Tambahkan variabel clashFontBold dan clashFontRegular ke html
     <html lang="id" className={`${inter.variable} ${clashFontBold.variable} ${clashFontRegular.variable}`}>
-      {/* [UPDATE STYLE]
-        - bg-coc-stone: Menggunakan warna dasar baru (Dark Blue-Grey)
-        - antialiased: Membuat font render lebih tajam/smooth
-        - selection:..: Custom warna highlight teks (Gold)
-      */}
       <body className={`font-sans flex flex-col min-h-screen bg-coc-stone text-white selection:bg-coc-gold/30 selection:text-coc-gold antialiased`}>
-        {/* Wrap aplikasi dengan LanguageProvider agar Context Bahasa tersedia global */}
+        
+        {/* [BARU] Overlay Maintenance Guard */}
+        {/* Komponen ini akan menutupi seluruh layar jika maintenance aktif & user bukan admin */}
+        <MaintenanceOverlay isMaintenance={isMaintenance} isAdmin={isAdmin} />
+
         <LanguageProvider>
           <AuthProvider initialServerUser={initialServerUser}>
+            {/* Header tetap di-render di balik overlay (untuk SEO/Structure), tapi tidak bisa diklik */}
             <Header />
             
-            {/* [CONTAINER UTAMA]
-              - flex-grow: Mengisi ruang kosong agar footer selalu di bawah
-              - w-full max-w-[100vw]: Mencegah overflow horizontal yang umum terjadi di mobile
-              - pb-20 md:pb-0: Memberikan padding bawah di mobile agar konten tidak tertutup MobileNav
-            */}
             <main className="flex-grow w-full max-w-[100vw] overflow-x-hidden relative pb-20 md:pb-0">
               {children}
             </main>
             
             <Footer />
-            
-            {/* Mobile Navigation Bar (Fixed Bottom) */}
             <MobileNav />
           </AuthProvider>
         </LanguageProvider>
         
-        {/* Komponen Analytics ditempatkan di sini agar mencakup seluruh aplikasi */}
         <Analytics />
       </body>
     </html>
