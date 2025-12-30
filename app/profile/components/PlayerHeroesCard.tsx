@@ -29,22 +29,27 @@ export const PlayerHeroesCard = ({
   // Logika Data
   const heroesData = fullPlayerData?.heroes ?? userProfile?.cachedHeroes ?? [];
 
-  // Filter 4 Hero utama & Urutkan
+  // [UPDATE] Filter Dinamis: Hapus hardcoded list nama hero.
+  // Cukup filter berdasarkan village 'home'.
+  // Urutan default tetap kita jaga untuk hero-hero utama, hero baru akan muncul di belakang.
   const heroes = heroesData
-    .filter(
-      (h) =>
-        h.village === 'home' &&
-        ['Barbarian King', 'Archer Queen', 'Grand Warden', 'Royal Champion', 'Minion Prince'].includes(h.name)
-    )
+    .filter((h) => h.village === 'home')
     .sort((a, b) => {
       const order = [
         'Barbarian King',
         'Archer Queen',
         'Grand Warden',
         'Royal Champion',
-        'Minion Prince'
+        'Minion Prince' // Hero baru bisa ditambahkan di sini untuk urutan, atau biarkan di akhir
       ];
-      return order.indexOf(a.name) - order.indexOf(b.name);
+      let idxA = order.indexOf(a.name);
+      let idxB = order.indexOf(b.name);
+      
+      // Jika hero tidak ada di list prioritas, taruh di belakang berdasarkan level atau nama
+      if (idxA === -1) idxA = 999;
+      if (idxB === -1) idxB = 999;
+      
+      return idxA - idxB;
     });
 
   const showLoading = isLoading && !fullPlayerData && !userProfile.cachedHeroes;
@@ -82,7 +87,7 @@ export const PlayerHeroesCard = ({
                 <div className="relative flex-shrink-0">
                     <div className="w-16 h-16 rounded-lg bg-black/30 flex items-center justify-center border border-white/10 overflow-hidden">
                        <img 
-                          src={getAssetUrl(hero.name, 'hero')} 
+                          src={getAssetUrl(hero.name)} 
                           alt={hero.name}
                           className="w-full h-full object-cover group-hover/item:scale-110 transition-transform duration-500"
                           onError={(e) => e.currentTarget.style.display = 'none'}
@@ -105,7 +110,7 @@ export const PlayerHeroesCard = ({
                                <div key={equip.name} className="relative group/equip" title={`${equip.name} (Lv ${equip.level})`}>
                                    <div className="w-7 h-7 bg-black/40 rounded border border-white/10 p-0.5">
                                        <img 
-                                          src={getAssetUrl(equip.name, 'equipment')} 
+                                          src={getAssetUrl(equip.name)} 
                                           alt={equip.name}
                                           className="w-full h-full object-contain"
                                           onError={(e) => e.currentTarget.style.display = 'none'}

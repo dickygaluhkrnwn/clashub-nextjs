@@ -32,17 +32,23 @@ export const PlayerEquipmentCard = ({
   error,
 }: PlayerEquipmentCardProps) => {
   const { t } = useLanguage();
-  const { getAssetUrl } = useGameAssets();
+  const { getAssetUrl, getAssetType } = useGameAssets(); // Gunakan getAssetType untuk filter dinamis
 
   // Logika Data:
-  // Mengambil `heroEquipment` dari root object API (seperti contoh JSON yang Anda kirim: "Giant Gauntlet", "Spiky Ball", dll)
-  // Casting as any karena properti heroEquipment mungkin belum ada di definisi tipe CocPlayer standar
-  const equipmentData = (fullPlayerData as any)?.heroEquipment ?? [];
+  // Mengambil `heroEquipment` dari root object API
+  const rawData = (fullPlayerData as any)?.heroEquipment ?? [];
+
+  // [LOGIKA BARU] Filter Dinamis berdasarkan Asset Manager
+  // Hanya tampilkan item yang di-tag sebagai 'equipment' di Admin
+  const equipment = rawData.filter((item: any) => {
+     const type = getAssetType(item.name);
+     return type === 'equipment';
+  });
 
   const showLoading = isLoading && !fullPlayerData;
 
-  // Jika tidak ada equipment (TH rendah), jangan render
-  if (!showLoading && equipmentData.length === 0) return null;
+  // Jika tidak ada equipment (TH rendah atau belum diinput di admin), jangan render
+  if (!showLoading && equipment.length === 0) return null;
 
   return (
     <div className="bg-black/40 backdrop-blur-md border border-white/5 rounded-2xl p-6 shadow-lg relative overflow-hidden group">
@@ -64,16 +70,16 @@ export const PlayerEquipmentCard = ({
           </div>
         ) : (
           <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3">
-            {equipmentData.map((equip: any) => (
+            {equipment.map((equip: any) => (
               <div
                 key={equip.name}
                 className="relative bg-orange-900/20 border border-orange-500/20 rounded-xl p-2 flex flex-col items-center justify-center transition-transform duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(249,115,22,0.2)] group/item"
                 title={equip.name}
               >
                 <div className="w-10 h-10 relative mb-1">
-                   {/* Menggunakan getAssetUrl yang sudah diperbarui (Stale-While-Revalidate) */}
+                   {/* [FIX] Menghapus argumen kedua ('equipment') agar sesuai dengan definisi getAssetUrl saat ini */}
                    <img 
-                      src={getAssetUrl(equip.name, 'equipment')} 
+                      src={getAssetUrl(equip.name)} 
                       alt={equip.name}
                       className="w-full h-full object-contain drop-shadow-md group-hover/item:scale-110 transition-transform"
                       onError={(e) => e.currentTarget.style.display = 'none'}

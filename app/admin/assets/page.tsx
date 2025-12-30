@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   PlusIcon, 
   TrashIcon, 
   SearchIcon, 
   ImageIcon, 
   RefreshCwIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  EditIcon,
+  XIcon
 } from '@/app/components/icons';
 import { Button } from '@/app/components/ui/Button';
 
@@ -19,8 +21,8 @@ interface GameAsset {
   imageUrl: string;
 }
 
-// [UPDATE] Menambahkan 'town-hall' ke dalam tipe aset
-const ASSET_TYPES = ['troop', 'hero', 'spell', 'pet', 'equipment', 'town-hall', 'league'];
+// [UPDATE] Menambahkan 'super-troop'
+const ASSET_TYPES = ['troop', 'super-troop', 'hero', 'spell', 'pet', 'equipment', 'town-hall', 'league'];
 
 export default function AssetManagerPage() {
   const [assets, setAssets] = useState<GameAsset[]>([]);
@@ -33,6 +35,9 @@ export default function AssetManagerPage() {
   const [formType, setFormType] = useState('troop');
   const [formUrl, setFormUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const formRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchAssets();
@@ -53,6 +58,21 @@ export default function AssetManagerPage() {
     }
   };
 
+  const handleEdit = (asset: GameAsset) => {
+    setFormName(asset.name);
+    setFormType(asset.type);
+    setFormUrl(asset.imageUrl);
+    setIsEditing(true);
+    formRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setFormName('');
+    setFormType('troop');
+    setFormUrl('');
+    setIsEditing(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName || !formUrl) return;
@@ -71,10 +91,9 @@ export default function AssetManagerPage() {
 
       if (!res.ok) throw new Error("Gagal menyimpan");
 
-      alert("Aset berhasil disimpan!");
-      setFormName('');
-      setFormUrl('');
-      fetchAssets(); // Refresh list
+      alert(isEditing ? "Aset berhasil diperbarui!" : "Aset berhasil disimpan!");
+      handleCancelEdit();
+      fetchAssets();
     } catch (error) {
       alert((error as Error).message);
     } finally {
@@ -87,12 +106,12 @@ export default function AssetManagerPage() {
     try {
       await fetch(`/api/admin/assets?id=${id}`, { method: 'DELETE' });
       setAssets(prev => prev.filter(a => a.id !== id));
+      if (isEditing) handleCancelEdit();
     } catch (error) {
       alert("Gagal menghapus");
     }
   };
 
-  // Filter Logic
   const filteredAssets = assets.filter(asset => {
     const matchesSearch = asset.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'all' || asset.type === filterType;
@@ -109,17 +128,25 @@ export default function AssetManagerPage() {
           Game Asset Manager
         </h1>
         <p className="text-gray-400">
-          Kelola gambar Troops, Heroes, Spells, dan Town Hall secara dinamis. Update gambar tanpa perlu deploy ulang website.
+          Kelola gambar aset game secara dinamis. Update gambar tanpa perlu deploy ulang website.
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Form Input */}
-        <div className="lg:col-span-1">
-          <div className="bg-[#1a1a1a] border border-white/10 rounded-2xl p-6 sticky top-24">
+        <div className="lg:col-span-1" ref={formRef}>
+          <div className={`border rounded-2xl p-6 sticky top-24 transition-colors ${isEditing ? 'bg-coc-blue/10 border-coc-blue/30' : 'bg-[#1a1a1a] border-white/10'}`}>
             <h3 className="text-lg font-clash text-white mb-4 flex items-center gap-2">
-              <PlusIcon className="h-5 w-5 text-coc-green" /> Tambah / Update Aset
+              {isEditing ? (
+                 <>
+                   <EditIcon className="h-5 w-5 text-coc-blue" /> Edit Aset
+                 </>
+              ) : (
+                 <>
+                   <PlusIcon className="h-5 w-5 text-coc-green" /> Tambah Aset Baru
+                 </>
+              )}
             </h3>
             
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -127,7 +154,7 @@ export default function AssetManagerPage() {
                 <label className="text-xs text-gray-500 uppercase font-bold block mb-2">Nama Aset (Inggris)</label>
                 <input 
                   type="text" 
-                  placeholder="Contoh: Town Hall 16"
+                  placeholder="Contoh: Super Barbarian"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   className="w-full bg-black/30 border border-white/10 rounded-xl py-2.5 px-4 text-white focus:outline-none focus:border-coc-gold/50 transition-colors"
@@ -158,12 +185,8 @@ export default function AssetManagerPage() {
                   className="w-full bg-black/30 border border-white/10 rounded-xl py-2.5 px-4 text-white focus:outline-none focus:border-coc-gold/50 transition-colors text-xs font-mono"
                   required
                 />
-                <p className="text-[10px] text-gray-500 mt-2">
-                  *Gunakan link langsung ke gambar (png/jpg/webp). Disarankan background transparan.
-                </p>
               </div>
 
-              {/* Preview */}
               {formUrl && (
                 <div className="bg-black/40 p-4 rounded-xl border border-white/5 flex flex-col items-center">
                   <p className="text-xs text-gray-500 mb-2">Preview:</p>
@@ -171,12 +194,26 @@ export default function AssetManagerPage() {
                 </div>
               )}
 
-              <Button 
-                disabled={isSubmitting}
-                className="w-full justify-center"
-              >
-                {isSubmitting ? <RefreshCwIcon className="animate-spin h-5 w-5" /> : 'Simpan Aset'}
-              </Button>
+              <div className="flex gap-2 pt-2">
+                <Button 
+                  disabled={isSubmitting}
+                  className="flex-1 justify-center"
+                  variant={isEditing ? 'secondary' : 'primary'}
+                >
+                  {isSubmitting ? <RefreshCwIcon className="animate-spin h-5 w-5" /> : (isEditing ? 'Update Aset' : 'Simpan Aset')}
+                </Button>
+                
+                {isEditing && (
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="px-3 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors border border-red-500/20"
+                    title="Batal Edit"
+                  >
+                    <XIcon className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
             </form>
           </div>
         </div>
@@ -230,14 +267,22 @@ export default function AssetManagerPage() {
                   {filteredAssets.map((asset) => (
                     <div key={asset.id} className="bg-black/30 border border-white/5 rounded-xl p-3 flex flex-col items-center group relative hover:border-coc-gold/30 transition-all">
                       
-                      {/* Delete Button (Hover) */}
-                      <button 
-                        onClick={() => handleDelete(asset.id)}
-                        className="absolute top-2 right-2 p-1.5 bg-red-500/20 text-red-400 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500 hover:text-white"
-                        title="Hapus"
-                      >
-                        <TrashIcon className="h-3 w-3" />
-                      </button>
+                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                        <button 
+                          onClick={() => handleEdit(asset)}
+                          className="p-1.5 bg-coc-blue/20 text-coc-blue rounded-lg hover:bg-coc-blue hover:text-white transition-colors"
+                          title="Edit"
+                        >
+                          <EditIcon className="h-3 w-3" />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(asset.id)}
+                          className="p-1.5 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500 hover:text-white transition-colors"
+                          title="Hapus"
+                        >
+                          <TrashIcon className="h-3 w-3" />
+                        </button>
+                      </div>
 
                       <div className="h-16 w-16 mb-3 flex items-center justify-center">
                         <img src={asset.imageUrl} alt={asset.name} className="max-h-full max-w-full object-contain drop-shadow-lg" />

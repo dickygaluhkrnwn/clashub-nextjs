@@ -24,11 +24,7 @@ interface PlayerPetsCardProps {
   error?: string | null;
 }
 
-const PET_NAMES = [
-  'L.A.S.S.I', 'Electro Owl', 'Mighty Yak', 'Unicorn',
-  'Diggy', 'Frosty', 'Poison Lizard', 'Phoenix', 
-  'Spirit Fox', 'Angry Jelly'
-];
+// [REMOVED] const PET_NAMES = [...] -> Dihapus karena kita pakai dynamic check
 
 export const PlayerPetsCard = ({
   userProfile,
@@ -37,17 +33,24 @@ export const PlayerPetsCard = ({
   error,
 }: PlayerPetsCardProps) => {
   const { t } = useLanguage();
-  const { getAssetUrl } = useGameAssets();
+  const { getAssetUrl, getAssetType } = useGameAssets(); // Gunakan getAssetType
 
-  // Ambil data Troops, karena Pet biasanya ada di list Troops
-  const troopsData = fullPlayerData?.troops ?? userProfile?.cachedTroops ?? [];
+  // Ambil data Troops (API CoC menggabungkan Pet di dalam array Troops/Heroes tergantung endpoint)
+  // Biasanya Pet ada di 'troops' dalam API player endpoint
+  const rawData = fullPlayerData?.troops ?? userProfile?.cachedTroops ?? [];
+  // Kita gabung juga dengan heroes jika API berubah sewaktu-waktu, tapi fokus troops dulu
+  // const allUnits = [...rawData, ...(fullPlayerData?.heroes || [])]; 
 
-  // Filter khusus Pet
-  const pets = troopsData.filter(t => PET_NAMES.includes(t.name));
+  // [LOGIKA BARU] Filter Dinamis berdasarkan Asset Manager
+  const pets = rawData.filter(item => {
+      const type = getAssetType(item.name);
+      // Masukkan ke list jika tipe di admin adalah 'pet'
+      return type === 'pet';
+  });
 
   const showLoading = isLoading && !fullPlayerData && !userProfile.cachedTroops;
 
-  // Jika tidak ada pet sama sekali (TH rendah), jangan render card ini
+  // Jika tidak ada pet sama sekali, jangan render
   if (!showLoading && pets.length === 0) return null;
 
   return (
@@ -56,7 +59,6 @@ export const PlayerPetsCard = ({
       <div className="absolute top-10 right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-emerald-500/20 transition-all duration-700" />
 
       <h2 className="mb-6 flex items-center gap-2 font-clash text-lg text-white relative z-10">
-        {/* [FIX] Casting ke any untuk bypass error TypeScript pada properti petsTitle */}
         <PawIcon className="h-5 w-5 text-coc-gold" /> {(t.profileArmy as any)?.petsTitle || "Hero Pets"}
       </h2>
 
@@ -78,7 +80,7 @@ export const PlayerPetsCard = ({
               >
                 <div className="w-12 h-12 relative mb-1">
                    <img 
-                      src={getAssetUrl(pet.name, 'pet')} 
+                      src={getAssetUrl(pet.name)} 
                       alt={pet.name}
                       className="w-full h-full object-contain drop-shadow-md group-hover/item:scale-110 transition-transform"
                       onError={(e) => e.currentTarget.style.display = 'none'}

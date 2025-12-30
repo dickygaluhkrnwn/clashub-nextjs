@@ -67,8 +67,9 @@ export const PlayerSpellsCard = ({
                 title={spell.name}
               >
                 <div className="w-10 h-10 relative mb-1">
+                   {/* [FIX] Menghapus argumen kedua ('spell') karena getAssetUrl sekarang otomatis mencari berdasarkan nama */}
                    <img 
-                      src={getAssetUrl(spell.name, 'spell')} 
+                      src={getAssetUrl(spell.name)} 
                       alt={spell.name}
                       className="w-full h-full object-contain drop-shadow-lg group-hover/item:-translate-y-1 transition-transform duration-300"
                       onError={(e) => e.currentTarget.style.display = 'none'}
@@ -76,9 +77,9 @@ export const PlayerSpellsCard = ({
                 </div>
                 
                 {/* Level Badge */}
-                <span className="absolute -bottom-2 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm backdrop-blur-sm">
-                  Lv {spell.level}
-                </span>
+                <div className="absolute -bottom-2 -right-2 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm backdrop-blur-sm">
+                  Lvl {spell.level}
+                </div>
               </div>
             ))}
           </div>

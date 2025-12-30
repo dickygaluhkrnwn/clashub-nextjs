@@ -31,9 +31,10 @@ import { PlayerAchievementsCard } from './components/PlayerAchievementsCard';
 import { PlayerClanCard } from './components/PlayerClanCard';
 import { PlayerTownHallCard } from './components/PlayerTownHallCard';
 
-// [BARU] Import komponen Pet & Equipment
+// [BARU] Import komponen Pet, Equipment, & Super Troops
 import { PlayerPetsCard } from './components/PlayerPetsCard';
 import { PlayerEquipmentCard } from './components/PlayerEquipmentCard';
+import { PlayerSuperTroopsCard } from './components/PlayerSuperTroopsCard';
 
 import { ProfileTabs, ProfileTab } from './components/ProfileTabs';
 
@@ -282,7 +283,14 @@ const ProfileClient = ({
                           isLoading={isLoadingApi}
                           error={apiError}
                         />
-                        {/* Akhir Komponen Baru */}
+                        
+                        {/* [BARU] Kartu Super Troops Aktif - Ditaruh sebelum regular troops */}
+                        <PlayerSuperTroopsCard
+                          userProfile={userProfile}
+                          fullPlayerData={fullPlayer}
+                          isLoading={isLoadingApi}
+                          error={apiError}
+                        />
 
                         <PlayerTroopsCard
                           userProfile={userProfile}
@@ -290,6 +298,7 @@ const ProfileClient = ({
                           isLoading={isLoadingApi}
                           error={apiError}
                         />
+                        
                         <PlayerSpellsCard
                           userProfile={userProfile}
                           fullPlayerData={fullPlayer}

@@ -233,3 +233,5 @@ export const MegaphoneIcon = (props: IconProps) => (
     <path d="M11 9h6" />
   </svg>
 );
+
+// [UPDATE] EditIcon dihapus karena sudah ada di ui-actions

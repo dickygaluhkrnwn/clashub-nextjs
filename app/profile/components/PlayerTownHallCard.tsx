@@ -27,13 +27,13 @@ export const PlayerTownHallCard = ({
   const thLevel = liveTh ?? (cachedTh && cachedTh > 0 ? cachedTh : 1);
   
   // [FIX] Weapon level untuk TH12+ (biasanya ada di API).
-  // Menggunakan casting 'as any' karena properti ini belum ada di definisi tipe CocPlayer.
+  // Menggunakan casting 'as any' karena properti ini mungkin belum ada di definisi tipe CocPlayer.
   const weaponLevel = (fullPlayerData as any)?.townHallWeaponLevel; 
 
   // [BARU] Ambil URL gambar dinamis dari Admin Database
   // Nama aset harus sesuai dengan yang diinput di admin, misal "Town Hall 16"
   const assetName = `Town Hall ${thLevel}`;
-  const thImageUrl = getAssetUrl(assetName, 'town-hall');
+  const thImageUrl = getAssetUrl(assetName);
 
   const expLevel = fullPlayerData?.expLevel ?? userProfile?.expLevel ?? 0;
 
