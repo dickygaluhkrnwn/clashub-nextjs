@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { CocPlayer, UserProfile } from '@/lib/types';
-import { SwordsIcon } from '@/app/components/icons';
 import { useLanguage } from '@/lib/hooks/useLanguage';
 import { useGameAssets } from '@/lib/hooks/useGameAssets';
 
@@ -38,7 +37,6 @@ export const PlayerSuperTroopsCard = ({
   const troopsData = fullPlayerData?.troops ?? userProfile?.cachedTroops ?? [];
 
   // Filter HANYA Super Troops yang AKTIF (Sedang di-boost)
-  // API CoC memberikan properti `superTroopIsActive: true` untuk troop yang sedang aktif.
   const activeSuperTroops = troopsData.filter((t) => t.superTroopIsActive);
 
   const showLoading = isLoading && !fullPlayerData && !userProfile.cachedTroops;
@@ -53,7 +51,8 @@ export const PlayerSuperTroopsCard = ({
       
       <h2 className="mb-6 flex items-center gap-2 font-clash text-lg text-white relative z-10">
         <LightningIcon className="h-5 w-5 text-coc-gold animate-pulse-slow" /> 
-        <span className="text-coc-gold text-shadow-sm">{t.profileArmy?.superTroops || "Active Super Troops"}</span>
+        {/* Menggunakan any untuk bypass check tipe sementara jika properti belum ada */}
+        <span className="text-coc-gold text-shadow-sm">{(t.profileArmy as any)?.superTroops || "Active Super Troops"}</span>
       </h2>
 
       {/* Content */}
@@ -88,9 +87,7 @@ export const PlayerSuperTroopsCard = ({
                     {troop.name}
                 </h4>
 
-                <div className="bg-coc-gold text-black text-[10px] font-bold px-2 py-0.5 rounded border border-white/20 shadow-sm mt-1">
-                  Lvl {troop.level}
-                </div>
+                {/* [REVISI] Level dihapus agar tidak membingungkan */}
               </div>
             ))}
           </div>
