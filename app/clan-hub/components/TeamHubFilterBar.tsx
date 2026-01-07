@@ -32,16 +32,20 @@ export const TeamHubFilterBar = ({
   return (
     <div className="w-full">
         {activeTab === 'clashubTeams' && (
-            <TeamHubFilter
-            filters={clanFilters}
-            onFilterChange={onClanFilterChange} 
-            />
+            <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                <TeamHubFilter
+                    filters={clanFilters}
+                    onFilterChange={onClanFilterChange} 
+                />
+            </div>
         )}
         {activeTab === 'players' && (
-            <PlayerHubFilter
-            filters={playerFilters}
-            onFilterChange={onPlayerFilterChange as any} 
-            />
+            <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                <PlayerHubFilter
+                    filters={playerFilters}
+                    onFilterChange={onPlayerFilterChange as any} 
+                />
+            </div>
         )}
     </div>
   );

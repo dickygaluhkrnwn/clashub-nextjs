@@ -10,21 +10,30 @@ type CarouselSectionProps = {
 
 const CarouselSection = ({ title, icon, children }: CarouselSectionProps) => {
   return (
-    <section className="mb-12 relative w-full">
-      {/* Background Texture dihapus agar lebih bersih (Clean UI) */}
+    <section className="mb-12 relative w-full group">
       
-      <div className="relative z-10">
-        {/* Header Section dengan Text Gold */}
-        <div className="flex items-center gap-3 mb-6 px-1">
-           <div className="text-coc-gold drop-shadow-md">
+      {/* Header Section dengan Text Gold & Glow */}
+      <div className="relative z-10 flex items-center gap-3 mb-6 px-1 pl-4 md:pl-0">
+         <div className="p-2 rounded-lg bg-coc-gold/10 border border-coc-gold/20 shadow-[0_0_15px_rgba(255,215,0,0.2)]">
+            <div className="text-coc-gold drop-shadow-md">
               {icon}
-           </div>
-           <h2 className="text-xl md:text-2xl font-clash text-coc-gold tracking-wide drop-shadow-md">
+            </div>
+         </div>
+         <h2 className="text-xl md:text-2xl font-clash font-bold text-white tracking-wide uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] flex items-center gap-2">
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
               {title}
-           </h2>
-        </div>
+            </span>
+         </h2>
+      </div>
+      
+      {/* Kontainer Carousel dengan scroll horizontal */}
+      <div className="relative">
+        {/* Left Fade Gradient */}
+        <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-[#0a0a0b] to-transparent z-20 pointer-events-none md:hidden" />
         
-        {/* Kontainer Carousel dengan scroll horizontal */}
+        {/* Right Fade Gradient */}
+        <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-[#0a0a0b] to-transparent z-20 pointer-events-none md:hidden" />
+
         <div className="
           grid 
           grid-flow-col 
@@ -32,11 +41,14 @@ const CarouselSection = ({ title, icon, children }: CarouselSectionProps) => {
           sm:auto-cols-[320px] 
           gap-6 
           overflow-x-auto 
-          pb-6
+          pb-8
           pt-2
-          custom-scrollbar
+          scrollbar-thin 
+          scrollbar-thumb-coc-gold/20 
+          scrollbar-track-transparent 
+          hover:scrollbar-thumb-coc-gold/50
           snap-x snap-mandatory
-          -mx-4 px-4 md:mx-0 md:px-0 /* Edge-to-edge scroll di mobile */
+          px-4 md:px-0 /* Edge-to-edge scroll di mobile */
         ">
           {children}
         </div>

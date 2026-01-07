@@ -4,6 +4,7 @@ import React from 'react';
 import { CocPlayer, UserProfile } from '@/lib/types';
 import { useLanguage } from '@/lib/hooks/useLanguage';
 import { useGameAssets } from '@/lib/hooks/useGameAssets';
+import { StarIcon } from '@/app/components/icons';
 
 // Ikon Paw Print (Telapak Kaki) Khusus untuk Pet
 const PawIcon = ({ className }: { className?: string }) => (
@@ -24,8 +25,6 @@ interface PlayerPetsCardProps {
   error?: string | null;
 }
 
-// [REMOVED] const PET_NAMES = [...] -> Dihapus karena kita pakai dynamic check
-
 export const PlayerPetsCard = ({
   userProfile,
   fullPlayerData,
@@ -33,18 +32,14 @@ export const PlayerPetsCard = ({
   error,
 }: PlayerPetsCardProps) => {
   const { t } = useLanguage();
-  const { getAssetUrl, getAssetType } = useGameAssets(); // Gunakan getAssetType
+  const { getAssetUrl, getAssetType } = useGameAssets(); 
 
-  // Ambil data Troops (API CoC menggabungkan Pet di dalam array Troops/Heroes tergantung endpoint)
-  // Biasanya Pet ada di 'troops' dalam API player endpoint
+  // Ambil data Troops (API CoC menggabungkan Pet di dalam array Troops)
   const rawData = fullPlayerData?.troops ?? userProfile?.cachedTroops ?? [];
-  // Kita gabung juga dengan heroes jika API berubah sewaktu-waktu, tapi fokus troops dulu
-  // const allUnits = [...rawData, ...(fullPlayerData?.heroes || [])]; 
 
-  // [LOGIKA BARU] Filter Dinamis berdasarkan Asset Manager
+  // Filter Dinamis berdasarkan Asset Manager
   const pets = rawData.filter(item => {
       const type = getAssetType(item.name);
-      // Masukkan ke list jika tipe di admin adalah 'pet'
       return type === 'pet';
   });
 
@@ -54,47 +49,68 @@ export const PlayerPetsCard = ({
   if (!showLoading && pets.length === 0) return null;
 
   return (
-    <div className="bg-black/40 backdrop-blur-md border border-white/5 rounded-2xl p-6 shadow-lg relative overflow-hidden group">
+    <div className="bg-[#15171e]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
       {/* Ambient Green Glow */}
-      <div className="absolute top-10 right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-emerald-500/20 transition-all duration-700" />
+      <div className="absolute top-10 right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-[80px] pointer-events-none group-hover:bg-emerald-500/20 transition-all duration-700" />
 
-      <h2 className="mb-6 flex items-center gap-2 font-clash text-lg text-white relative z-10">
-        <PawIcon className="h-5 w-5 text-coc-gold" /> {(t.profileArmy as any)?.petsTitle || "Hero Pets"}
+      {/* Header - White Text + Shadow */}
+      <h2 className="mb-6 flex items-center gap-3 font-clash text-lg text-white relative z-10 uppercase tracking-wider drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+        <div className="p-1.5 bg-emerald-500/10 rounded-lg border border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.3)]">
+            <PawIcon className="h-5 w-5 text-emerald-400" /> 
+        </div>
+        <span>
+            {(t.profileArmy as any)?.petsTitle || "Hero Pets"}
+        </span>
       </h2>
 
       {/* Content */}
       <div className="relative z-10">
         {showLoading ? (
-          <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
+          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="aspect-square bg-white/5 rounded-xl animate-pulse" />
+              <div key={i} className="aspect-square bg-white/5 rounded-xl animate-pulse border border-white/5" />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3">
-            {pets.map((pet) => (
+          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3">
+            {pets.map((pet) => {
+              const isMax = pet.level === pet.maxLevel;
+              
+              return (
               <div
                 key={pet.name}
-                className="relative bg-emerald-900/20 border border-emerald-500/20 rounded-xl p-2 flex flex-col items-center justify-center transition-transform duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(16,185,129,0.2)] group/item"
+                className={`relative bg-[#0f1115] border ${isMax ? 'border-emerald-400/30' : 'border-white/5'} rounded-xl p-2 flex flex-col items-center justify-center hover:bg-emerald-900/10 hover:border-emerald-500/30 hover:-translate-y-1 transition-all duration-300 group/item shadow-sm`}
                 title={pet.name}
               >
-                <div className="w-12 h-12 relative mb-1">
+                {/* Glow effect for Max Level */}
+                {isMax && <div className="absolute inset-0 bg-emerald-400/5 rounded-xl opacity-0 group-hover/item:opacity-100 transition-opacity" />}
+
+                <div className="w-12 h-12 relative mb-1 z-10">
                    <img 
                       src={getAssetUrl(pet.name)} 
                       alt={pet.name}
-                      className="w-full h-full object-contain drop-shadow-md group-hover/item:scale-110 transition-transform"
+                      className="w-full h-full object-contain drop-shadow-[0_0_10px_rgba(16,185,129,0.3)] group-hover/item:scale-110 transition-transform duration-300"
                       onError={(e) => e.currentTarget.style.display = 'none'}
                    />
                 </div>
-                <div className={`absolute -top-2 -right-2 text-[10px] font-bold px-1.5 py-0.5 rounded border shadow-sm ${
-                    pet.level === pet.maxLevel 
-                    ? 'bg-coc-gold text-black border-white/20' 
-                    : 'bg-emerald-600 text-white border-emerald-400'
+                
+                {/* Level Badge */}
+                <div className={`absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center text-[9px] font-bold px-1 rounded shadow-sm border z-20 ${
+                    isMax 
+                      ? 'bg-emerald-500 text-black border-emerald-300 shadow-emerald-500/20' 
+                      : 'bg-[#1a1a1a] text-white border-white/20'
                 }`}>
-                  Lvl {pet.level}
+                  {pet.level}
                 </div>
+
+                {/* Max Star Indicator */}
+                {isMax && (
+                    <div className="absolute -bottom-1 -right-1">
+                        <StarIcon className="w-3 h-3 text-emerald-400 fill-current drop-shadow-sm" />
+                    </div>
+                )}
               </div>
-            ))}
+            )})}
           </div>
         )}
       </div>

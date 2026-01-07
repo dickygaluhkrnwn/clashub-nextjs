@@ -13,7 +13,8 @@ import { ClashubTeamsTab } from './components/ClashubTeamsTab';
 import { PublicClansTab, PublicClanSearchFilter } from './components/PublicClansTab';
 import { PlayersTab } from './components/PlayersTab';
 import { TeamHubTabNavigation } from './components/TeamHubTabNavigation';
-import FeaturedSection from './components/FeaturedSection'; // [BARU] Import FeaturedSection
+import FeaturedSection from './components/FeaturedSection'; 
+import { TeamHubHeader } from './components/TeamHubHeader'; // [BARU] Import Header terpisah agar bersih
 
 import { ManagedClanFilters } from '@/app/components/filters/TeamHubFilter';
 import { useLanguage } from '@/lib/hooks/useLanguage';
@@ -162,21 +163,29 @@ const TeamHubClient = ({
   }, [publicClanResult, publicClanTag, publicSearchError, publicClansToShow]);
 
   return (
-    <div className="min-h-screen bg-coc-dark pb-20">
+    <div className="min-h-screen bg-[#0a0a0b] pb-20 text-white font-clash relative overflow-x-hidden">
         
-        {/* Decorative Background */}
-        <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-coc-stone-light/10 to-transparent pointer-events-none" />
+        {/* --- GLOBAL ATMOSPHERE & BACKGROUNDS --- */}
+        {/* 1. Base Dark Texture */}
+        <div className="fixed inset-0 opacity-[0.03] pointer-events-none z-0 mix-blend-overlay"
+             style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }} 
+        />
+        {/* 2. Top Spotlight (Blue for TeamHub) */}
+        <div className="fixed top-[-10%] left-1/2 -translate-x-1/2 w-[80%] h-[500px] bg-gradient-to-b from-[#1a2c4e] via-[#0f1520]/80 to-transparent blur-[120px] pointer-events-none z-0" />
+        {/* 3. Bottom Accent */}
+        <div className="fixed bottom-0 right-0 w-[500px] h-[400px] bg-coc-gold/5 blur-[150px] rounded-full pointer-events-none z-0" />
 
         {/* MAIN CONTAINER */}
-        <div className="container mx-auto px-4 md:px-8 pt-24 md:pt-28 relative z-10 space-y-8">
+        <div className="container mx-auto px-4 md:px-8 pt-6 relative z-10 space-y-12">
             
+            {/* Header Area */}
+            <TeamHubHeader />
+
             {/* [BARU] Featured Section (Spotlight) */}
-            {/* Akan menampilkan klan/pemain pilihan admin di posisi teratas */}
             <FeaturedSection />
 
             {/* 1. CONTROL CENTER CARD (Unified Tabs & Filters) */}
-            {/* Kartu ini sekarang berada di dalam flow dokumen, tidak menimpa konten */}
-            <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
                 <TeamHubTabNavigation activeTab={activeTab} onTabChange={handleTabChange}>
                     {/* Render Filter Content based on active tab */}
                     {activeTab !== 'publicClans' ? (
@@ -200,7 +209,7 @@ const TeamHubClient = ({
             </div>
 
             {/* 2. RESULTS CONTENT */}
-            <div className="animate-in fade-in duration-500 delay-150">
+            <div className="animate-in fade-in duration-700 delay-200 min-h-[500px]">
                 {activeTab === 'clashubTeams' && (
                     <ClashubTeamsTab
                         isFiltering={isFiltering}

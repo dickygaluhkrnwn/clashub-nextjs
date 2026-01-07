@@ -11,7 +11,7 @@ interface ReceivedReviewsCardProps {
 
 /**
  * Komponen Card "Ulasan Diterima".
- * Desain: Glassmorphism List dengan Quote styling.
+ * Desain: Gaming Testimonial Cards dengan gaya chat log elit.
  */
 export const ReceivedReviewsCard = ({
   playerReviews,
@@ -19,60 +19,76 @@ export const ReceivedReviewsCard = ({
   const { t } = useLanguage();
 
   return (
-    <div className="bg-black/40 backdrop-blur-md border border-white/5 rounded-2xl p-6 shadow-lg relative overflow-hidden">
+    <div className="bg-[#15171e]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
       {/* Decorative Glow */}
-      <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-0 right-0 w-64 h-64 bg-coc-gold/5 rounded-full blur-[80px] pointer-events-none group-hover:bg-coc-gold/10 transition-all duration-700" />
 
-      <h2 className="mb-6 flex items-center gap-2 font-clash text-lg text-white relative z-10">
-        <StarIcon className="h-5 w-5 text-coc-gold" /> {t.profileReviews.title}
+      {/* Header - White Text + Shadow */}
+      <h2 className="mb-6 flex items-center gap-3 font-clash text-lg text-white relative z-10 uppercase tracking-wider drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+        <div className="p-1.5 bg-coc-gold/10 rounded-lg border border-coc-gold/20 shadow-[0_0_10px_rgba(255,215,0,0.3)]">
+            <StarIcon className="h-5 w-5 text-coc-gold" /> 
+        </div>
+        <span>
+            {t.profileReviews.title}
+        </span>
       </h2>
 
       <div className="space-y-4 relative z-10">
         {playerReviews.length === 0 ? (
-          <div className="text-center py-10 bg-white/5 rounded-xl border border-white/5">
-            <StarIcon className="h-8 w-8 text-gray-600 mx-auto mb-2" />
-            <p className="text-gray-400 text-sm">
-              {t.profileReviews.empty}
-            </p>
+          <div className="text-center py-12 text-gray-500 bg-white/5 rounded-2xl border border-white/5 flex flex-col items-center justify-center gap-3">
+            <StarIcon className="w-10 h-10 opacity-20" />
+            <p className="text-sm font-medium">{t.profileReviews.empty}</p>
           </div>
         ) : (
-          <ul className="space-y-4">
+          <ul className="grid grid-cols-1 gap-4">
             {playerReviews.map((review) => (
               <li
                 key={review.id}
-                className="p-5 bg-white/5 rounded-xl border border-white/5 hover:border-coc-gold/30 hover:bg-white/10 transition-all duration-300 relative group"
+                className="relative bg-[#0f1115] border border-white/5 hover:border-coc-gold/30 hover:bg-white/5 rounded-xl p-5 transition-all duration-300 group/item overflow-hidden shadow-sm hover:shadow-md"
               >
                 {/* Quote Icon Background */}
-                <div className="absolute top-4 right-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                  <QuoteIcon className="h-8 w-8 text-white" />
+                <div className="absolute top-2 right-4 opacity-5 group-hover/item:opacity-10 transition-opacity">
+                  <QuoteIcon className="h-12 w-12 text-white transform rotate-180" />
                 </div>
 
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-coc-gold/20 flex items-center justify-center text-coc-gold">
-                      <UserIcon className="h-4 w-4" />
+                {/* Header: User & Rating */}
+                <div className="flex justify-between items-start mb-4 relative z-10">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#1a1d26] to-[#0a0a0b] border border-white/10 flex items-center justify-center shadow-inner">
+                      <UserIcon className="h-5 w-5 text-gray-400 group-hover/item:text-coc-gold transition-colors" />
                     </div>
-                    <span className="font-bold text-white font-clash tracking-wide">
-                      {review.authorName}
-                    </span>
+                    <div>
+                        <span className="font-bold text-white font-clash tracking-wide block leading-tight group-hover/item:text-coc-gold transition-colors">
+                          {review.authorName}
+                        </span>
+                        <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">
+                            Verified Reviewer
+                        </span>
+                    </div>
                   </div>
-                  <div className="flex items-center bg-coc-gold/10 px-2 py-1 rounded-lg border border-coc-gold/20">
-                    <span className="font-bold text-coc-gold mr-1">
+                  
+                  {/* Rating Badge */}
+                  <div className="flex items-center gap-1 bg-coc-gold/10 px-2.5 py-1 rounded-lg border border-coc-gold/20 shadow-[0_0_10px_rgba(255,215,0,0.1)]">
+                    <span className="font-bold text-coc-gold text-sm font-clash">
                       {review.rating.toFixed(1)}
                     </span>
-                    <StarIcon className="h-3.5 w-3.5 text-coc-gold fill-current" />
+                    <StarIcon className="h-3.5 w-3.5 text-coc-gold fill-current drop-shadow-sm" />
                   </div>
                 </div>
 
-                <p className="text-sm text-gray-300 italic leading-relaxed mb-3 pl-2 border-l-2 border-coc-gold/30">
+                {/* Comment */}
+                <p className="text-sm text-gray-300 italic leading-relaxed mb-4 pl-3 border-l-2 border-white/10 group-hover/item:border-coc-gold/50 transition-colors relative z-10">
                   "{review.comment}"
                 </p>
 
-                <div className="flex items-center justify-between text-[10px] uppercase font-bold text-gray-500 border-t border-white/5 pt-3 mt-2">
-                  <span className="bg-white/5 px-2 py-0.5 rounded">
-                    {t.profileReviews.context}: {review.reviewContext}
-                  </span>
-                  <span>
+                {/* Footer: Context & Date */}
+                <div className="flex items-center justify-between text-[10px] uppercase font-bold text-gray-500 border-t border-white/5 pt-3 mt-1 relative z-10">
+                  <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded bg-white/5 border border-white/5 text-gray-400 group-hover/item:text-gray-300 transition-colors">
+                        {t.profileReviews.context}: <span className="text-coc-blue">{review.reviewContext}</span>
+                      </span>
+                  </div>
+                  <span className="font-mono tracking-tight opacity-70">
                     {new Date(
                       (review.createdAt as any)._seconds * 1000 || 
                       review.createdAt

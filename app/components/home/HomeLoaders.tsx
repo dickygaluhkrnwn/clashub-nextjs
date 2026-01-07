@@ -5,7 +5,7 @@ import { useLanguage } from '@/lib/hooks/useLanguage';
 
 /**
  * Skeleton Loader untuk Recommended Teams
- * Menggunakan layout Grid yang konsisten dengan desain baru.
+ * Desain: Gaming Grid Skeleton with Dark Theme.
  */
 export const RecommendedTeamsLoading = () => {
   const { t } = useLanguage();
@@ -23,18 +23,18 @@ export const RecommendedTeamsLoading = () => {
         <div className="h-4 w-20 bg-white/5 rounded animate-pulse" />
       </div>
       
-      {/* Cards Scroll Container Skeleton (Matches Native Scroll Layout) */}
-      <div className="flex overflow-x-auto gap-4 pb-4 -mx-4 px-4 md:mx-0 md:px-0">
+      {/* Cards Scroll Container Skeleton */}
+      <div className="flex overflow-x-auto gap-6 pb-6 pt-2 -mx-4 px-4 md:mx-0 md:px-0">
         {[...Array(4)].map((_, i) => (
           <div 
             key={i} 
-            className="flex-shrink-0 w-[280px] md:w-[320px] h-[200px] p-5 rounded-2xl bg-gradient-to-b from-[#2a2a2a] to-[#1a1a1a] border border-white/5 relative overflow-hidden"
+            className="flex-shrink-0 w-[280px] md:w-[320px] h-[220px] p-5 rounded-2xl bg-[#15171e] border border-white/5 relative overflow-hidden flex flex-col justify-between"
           >
             {/* Shimmer Effect */}
             <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/5 to-transparent z-10" />
             
             {/* Header: Logo & Name */}
-            <div className="flex items-start gap-4 mb-5 border-b border-white/5 pb-4">
+            <div className="flex items-start gap-4 mb-4 border-b border-white/5 pb-4">
               <div className="w-16 h-16 rounded-xl bg-white/5 flex-shrink-0" />
               <div className="flex-1 space-y-2 pt-1">
                 <div className="h-5 w-3/4 rounded bg-white/10" />
@@ -57,6 +57,7 @@ export const RecommendedTeamsLoading = () => {
 
 /**
  * Skeleton Loader untuk Latest Strategies
+ * Desain: Gaming Card Skeleton.
  */
 export const LatestStrategiesLoading = () => {
   const { t } = useLanguage();
@@ -75,17 +76,17 @@ export const LatestStrategiesLoading = () => {
       </div>
 
       {/* Cards Scroll Container Skeleton */}
-      <div className="flex overflow-x-auto gap-4 pb-4 -mx-4 px-4 md:mx-0 md:px-0">
+      <div className="flex overflow-x-auto gap-6 pb-6 pt-2 -mx-4 px-4 md:mx-0 md:px-0">
         {[...Array(4)].map((_, i) => (
           <div 
             key={i} 
-            className="flex-shrink-0 w-[280px] md:w-[320px] h-[180px] p-5 rounded-2xl bg-gradient-to-br from-[#2a2a2a] to-[#1a1a1a] border border-white/5 relative overflow-hidden flex flex-col"
+            className="flex-shrink-0 w-[280px] md:w-[320px] h-[200px] p-6 rounded-2xl bg-[#15171e] border border-white/5 relative overflow-hidden flex flex-col shadow-lg"
           >
              {/* Shimmer Effect */}
              <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/5 to-transparent z-10" />
              
              {/* Content */}
-             <div className="flex-grow space-y-3">
+             <div className="flex-grow space-y-4">
                 <div className="flex gap-2 mb-2">
                     <div className="h-5 w-16 rounded bg-white/10" />
                     <div className="h-5 w-12 rounded bg-white/5" />
@@ -100,7 +101,7 @@ export const LatestStrategiesLoading = () => {
                     <div className="h-2 w-8 rounded bg-white/5" />
                     <div className="h-3 w-20 rounded bg-white/10" />
                 </div>
-                <div className="h-3 w-16 rounded bg-white/5" />
+                <div className="h-4 w-12 rounded bg-white/5" />
              </div>
           </div>
         ))}

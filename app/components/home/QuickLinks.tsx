@@ -24,10 +24,11 @@ const container: Variants = {
 
 // Konfigurasi animasi item individual
 const item: Variants = {
-  hidden: { opacity: 0, scale: 0.9 },
+  hidden: { opacity: 0, scale: 0.8, y: 20 },
   show: { 
     opacity: 1, 
-    scale: 1,
+    scale: 1, 
+    y: 0,
     transition: {
       type: "spring",
       stiffness: 200,
@@ -46,6 +47,7 @@ export default function QuickLinks() {
       icon: CoinsIcon,
       color: 'text-coc-gold',
       bg: 'bg-coc-gold/10 border-coc-gold/20',
+      shadow: 'shadow-coc-gold/10'
     },
     {
       title: t.quickLinks.cocId,
@@ -53,13 +55,15 @@ export default function QuickLinks() {
       icon: UserCircleIcon,
       color: 'text-blue-400',
       bg: 'bg-blue-400/10 border-blue-400/20',
+      shadow: 'shadow-blue-400/10'
     },
     {
       title: t.quickLinks.esports,
       href: 'https://esports.clashofclans.com/',
       icon: TrophyIcon,
-      color: 'text-coc-gold-dark',
-      bg: 'bg-yellow-600/10 border-yellow-600/20',
+      color: 'text-yellow-400',
+      bg: 'bg-yellow-400/10 border-yellow-400/20',
+      shadow: 'shadow-yellow-400/10'
     },
     {
       title: t.quickLinks.events,
@@ -67,6 +71,7 @@ export default function QuickLinks() {
       icon: CalendarCheck2Icon,
       color: 'text-coc-green',
       bg: 'bg-coc-green/10 border-coc-green/20',
+      shadow: 'shadow-coc-green/10'
     },
     {
       title: t.quickLinks.news,
@@ -74,6 +79,7 @@ export default function QuickLinks() {
       icon: BookOpenIcon,
       color: 'text-purple-400',
       bg: 'bg-purple-400/10 border-purple-400/20',
+      shadow: 'shadow-purple-400/10'
     },
     {
       title: t.quickLinks.support,
@@ -81,20 +87,23 @@ export default function QuickLinks() {
       icon: ShieldIcon,
       color: 'text-gray-400',
       bg: 'bg-gray-400/10 border-gray-400/20',
+      shadow: 'shadow-gray-400/10'
     },
   ];
 
   return (
     <section className="w-full mb-8">
-      {/* Header Disederhanakan (Sesuai gaya Strategi & Tips) */}
+      {/* Header Disederhanakan */}
       <div className="flex items-center gap-2 mb-4 mt-2 md:mt-4 px-1">
-        <h2 className="flex items-center gap-2 text-lg md:text-xl font-clash text-white tracking-wide drop-shadow-md">
-          <LinkIcon className="h-5 w-5 md:h-6 md:w-6 text-coc-gold drop-shadow-md" />
-          {t.quickLinks.title}
+        <h2 className="flex items-center gap-2 text-lg md:text-xl font-clash text-white tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] uppercase">
+           <div className="p-1.5 bg-coc-gold/10 rounded-lg border border-coc-gold/20 shadow-[0_0_10px_rgba(255,215,0,0.2)]">
+              <LinkIcon className="h-4 w-4 text-coc-gold drop-shadow-md" />
+           </div>
+           {t.quickLinks.title}
         </h2>
       </div>
 
-      {/* Grid Menu Responsive */}
+      {/* Grid Menu Responsive - Gaming Tiles */}
       <motion.div 
         variants={container}
         initial="hidden"
@@ -111,13 +120,13 @@ export default function QuickLinks() {
               href={link.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="group relative overflow-hidden rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 p-4 flex flex-col items-center justify-center gap-3 transition-all duration-300 hover:bg-white/5 hover:border-white/20 hover:shadow-[0_0_20px_rgba(0,0,0,0.4)] active:scale-95 shadow-lg"
+              className="group relative overflow-hidden rounded-2xl bg-[#15171e]/80 backdrop-blur-xl border border-white/10 p-4 flex flex-col items-center justify-center gap-3 transition-all duration-300 hover:bg-[#1a1d26] hover:border-white/20 hover:-translate-y-1 hover:shadow-xl active:scale-95"
             >
               {/* Decorative Background Glow */}
-              <div className={`absolute -top-10 -right-10 w-20 h-20 rounded-full bg-white/5 blur-2xl group-hover:bg-white/10 transition-colors duration-500`} />
+              <div className={`absolute top-[-20%] right-[-20%] w-20 h-20 rounded-full blur-[40px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${link.bg.split(' ')[0]}`} />
               
-              {/* Icon Container with specific color bg */}
-              <div className={`relative z-10 p-3 rounded-xl ${link.bg} border group-hover:scale-110 transition-transform duration-300 shadow-inner ring-1 ring-white/5`}>
+              {/* Icon Container */}
+              <div className={`relative z-10 p-3 rounded-xl ${link.bg} border transition-transform duration-300 group-hover:scale-110 shadow-lg ring-1 ring-white/5`}>
                 <IconComponent className={`h-6 w-6 md:h-7 md:w-7 ${link.color} drop-shadow-md`} />
               </div>
               

@@ -11,15 +11,15 @@ import {
   EditIcon,
   TrashIcon,
   RefreshCwIcon,
-  ThumbsUpIcon, // Menggunakan ThumbsUpIcon yang sudah ada di library ikon utama
+  ThumbsUpIcon,
   SaveIcon,
-  CheckIcon
+  CheckIcon,
+  ShareIcon
 } from '@/app/components/icons';
 import { ServerUser } from '@/lib/server-auth';
 import { useAuth } from '@/app/context/AuthContext';
 import { useLanguage } from '@/lib/hooks/useLanguage';
 
-// Definisikan props untuk komponen ini
 interface PostActionButtonsProps {
   postId: string;
   isAuthor: boolean;
@@ -29,7 +29,8 @@ interface PostActionButtonsProps {
 
 /**
  * @component PostActionButtons
- * Menangani logika like, edit, dan delete postingan dengan dukungan multibahasa.
+ * Menangani logika like, edit, dan delete postingan.
+ * Desain: Gaming Control Bar.
  */
 const PostActionButtons: React.FC<PostActionButtonsProps> = ({
   postId,
@@ -56,7 +57,6 @@ const PostActionButtons: React.FC<PostActionButtonsProps> = ({
     return likes.includes(userProfile.uid);
   }, [likes, userProfile]);
 
-  // Helper untuk menampilkan notifikasi
   const showNotification = (
     message: string,
     type: NotificationProps['type'],
@@ -64,7 +64,6 @@ const PostActionButtons: React.FC<PostActionButtonsProps> = ({
     setNotification({ message, type, onClose: () => setNotification(null) });
   };
 
-  // Handler Share Link
   const handleShare = () => {
     const url = window.location.href;
     navigator.clipboard.writeText(url);
@@ -72,7 +71,6 @@ const PostActionButtons: React.FC<PostActionButtonsProps> = ({
     setTimeout(() => setIsCopied(false), 2000);
   };
 
-  // Handler untuk menampilkan konfirmasi sebelum menghapus
   const confirmDelete = () => {
     setConfirmation({
       message: t.knowledgeHub.detail.postManagement.deleteConfirmation,
@@ -83,9 +81,8 @@ const PostActionButtons: React.FC<PostActionButtonsProps> = ({
     });
   };
 
-  // Handler penghapusan (memanggil API DELETE)
   const handleDelete = async () => {
-    setConfirmation(null); // Tutup modal konfirmasi
+    setConfirmation(null);
     setIsDeleting(true);
     showNotification(t.knowledgeHub.detail.postManagement.deleting, 'info');
 
@@ -101,7 +98,6 @@ const PostActionButtons: React.FC<PostActionButtonsProps> = ({
       }
 
       showNotification(t.knowledgeHub.detail.postManagement.deleteSuccess, 'success');
-      // Redirect ke Knowledge Hub setelah berhasil dihapus
       setTimeout(() => router.push('/knowledge-hub'), 1500);
     } catch (err) {
       const errorMessage =
@@ -111,26 +107,23 @@ const PostActionButtons: React.FC<PostActionButtonsProps> = ({
     }
   };
 
-  // Handler untuk Like/Unlike (memanggil API POST)
   const handleLike = async () => {
     if (isLiking || authLoading) return;
 
     if (!userProfile?.uid) {
-      showNotification(t.knowledgeHub.detail.postManagement.likeLoginError, 'error');
+      showNotification(t.knowledgeHub.detail.postManagement.likeLoginError, 'warning');
       return;
     }
 
     setIsLiking(true);
     const currentUid = userProfile.uid;
 
-    // 1. Optimistic Update
     if (isLiked) {
       setLikes((prev) => prev.filter((uid) => uid !== currentUid));
     } else {
       setLikes((prev) => [...prev, currentUid]);
     }
 
-    // 2. Panggil API di background
     try {
       const response = await fetch(`/api/posts/${postId}/like`, {
         method: 'POST',
@@ -142,14 +135,11 @@ const PostActionButtons: React.FC<PostActionButtonsProps> = ({
         throw new Error(result.message || t.knowledgeHub.detail.postManagement.likeError);
       }
 
-      // Sukses: Cek sinkronisasi
       const newIsLiked = !isLiked;
       if (result.newLikeStatus !== newIsLiked) {
-        // Revert jika tidak sinkron
         setLikes(initialLikes);
       }
     } catch (err) {
-      // 3. Revert state jika gagal
       setLikes(initialLikes);
       const errorMessage =
         (err as Error).message || t.knowledgeHub.detail.postManagement.likeError;
@@ -161,72 +151,67 @@ const PostActionButtons: React.FC<PostActionButtonsProps> = ({
 
   return (
     <React.Fragment>
-      {/* Notifikasi / Konfirmasi (Modal) */}
       {notification && <Notification notification={notification} />}
       {confirmation && <Notification confirmation={confirmation} />}
 
-      <div className="flex flex-wrap justify-between items-center gap-4">
+      <div className="flex flex-col sm:flex-row flex-wrap justify-between items-center gap-4 bg-[#0a0a0b]/40 p-4 rounded-2xl border border-white/5">
         
         {/* Group Kiri: Social Actions (Like & Share) */}
-        <div className="flex gap-3">
-          <Button
-            variant={isLiked ? 'primary' : 'outline'}
-            size="sm"
+        <div className="flex gap-3 w-full sm:w-auto">
+          <button
             onClick={handleLike}
-            disabled={isLiking || authLoading || !sessionUser}
-            className={`flex items-center gap-2 border transition-all duration-300 ${
+            disabled={isLiking || authLoading}
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl transition-all duration-300 font-bold tracking-wide group ${
               isLiked
-                ? 'bg-coc-gold/10 text-coc-gold border-coc-gold/30 shadow-lg shadow-coc-gold/10 hover:bg-coc-gold/20'
-                : 'text-gray-400 border-white/10 hover:text-white hover:bg-white/5'
+                ? 'bg-coc-gold text-black shadow-[0_0_20px_rgba(255,215,0,0.4)] scale-105 border border-yellow-300'
+                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/10'
             }`}
           >
             {isLiking ? (
-              <RefreshCwIcon className="h-4 w-4 animate-spin" />
+              <RefreshCwIcon className="h-5 w-5 animate-spin" />
             ) : (
               <ThumbsUpIcon
-                className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`}
+                className={`h-5 w-5 transition-transform group-hover:scale-110 ${isLiked ? 'fill-current' : ''}`}
               />
             )}
-            <span className="font-bold">{likes.length}</span> 
-            <span className="hidden sm:inline">{t.knowledgeHub.detail.meta.likes}</span>
-          </Button>
+            <span>{likes.length}</span> 
+            <span className="hidden sm:inline uppercase text-xs ml-1">{t.knowledgeHub.detail.meta.likes}</span>
+          </button>
 
-          <Button
-            variant="outline"
-            size="sm"
+          <button
             onClick={handleShare}
-            className="border-white/10 text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all hover:border-white/20 active:scale-95 font-bold"
           >
-            {isCopied ? <CheckIcon className="mr-2 h-4 w-4 text-green-400" /> : <SaveIcon className="mr-2 h-4 w-4" />}
-            {isCopied ? 'Link Copied!' : t.knowledgeHub.detail.actions.share}
-          </Button>
+            {isCopied ? <CheckIcon className="h-5 w-5 text-coc-green" /> : <ShareIcon className="h-5 w-5" />}
+            <span className="uppercase text-xs tracking-wide">{isCopied ? 'COPIED' : t.knowledgeHub.detail.actions.share}</span>
+          </button>
         </div>
 
         {/* Group Kanan: Author Actions (Edit & Delete) */}
         {isAuthor && (
-          <div className="flex gap-3">
+          <div className="flex gap-3 w-full sm:w-auto border-t sm:border-t-0 border-white/5 pt-4 sm:pt-0">
             <Button
               href={`/knowledge-hub/create?postId=${postId}`}
               variant="secondary"
               size="sm"
-              className="border-coc-blue/30 text-coc-blue hover:bg-coc-blue/10 transition-colors"
+              className="flex-1 sm:flex-none border-coc-blue/30 text-coc-blue hover:bg-coc-blue/10 transition-colors shadow-none"
             >
               <EditIcon className="mr-2 h-4 w-4" /> {t.knowledgeHub.detail.actions.edit}
             </Button>
 
             <Button
               onClick={confirmDelete}
-              variant="secondary"
+              variant="danger"
               size="sm"
               disabled={isDeleting}
-              className="bg-coc-red/10 border-coc-red/30 text-coc-red hover:bg-coc-red/20 transition-colors"
+              className="flex-1 sm:flex-none shadow-none bg-coc-red/10 border border-coc-red/30 text-coc-red hover:bg-coc-red/20"
             >
               {isDeleting ? (
                 <RefreshCwIcon className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <TrashIcon className="h-4 w-4 mr-2" />
               )}
-              {isDeleting ? t.knowledgeHub.detail.postManagement.deleting : t.knowledgeHub.detail.actions.delete}
+              {isDeleting ? 'Deleting...' : t.knowledgeHub.detail.actions.delete}
             </Button>
           </div>
         )}

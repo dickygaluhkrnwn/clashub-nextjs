@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react'; // [BARU] Import useRef
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Button } from '@/app/components/ui/Button';
 import Notification, { NotificationProps } from '@/app/components/ui/Notification';
-import { PaperPlaneIcon, RefreshCwIcon, MessageSquareIcon, Loader2Icon } from '@/app/components/icons';
+import { PaperPlaneIcon, RefreshCwIcon, MessageSquareIcon, Loader2Icon, UserCircleIcon } from '@/app/components/icons';
 import { useAuth } from '@/app/context/AuthContext';
 import { Reply } from '@/lib/clashub.types';
 import ReplyItem from './ReplyItem';
@@ -20,8 +20,8 @@ const ReplySection: React.FC<ReplySectionProps> = ({
   initialReplyCount,
 }) => {
   const { userProfile, loading: authLoading } = useAuth();
-  const { t, language } = useLanguage();
-  const textareaRef = useRef<HTMLTextAreaElement>(null); // [BARU] Ref untuk textarea
+  const { t } = useLanguage();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [replies, setReplies] = useState<Reply[]>([]);
   const [replyCount, setReplyCount] = useState(initialReplyCount);
@@ -53,16 +53,14 @@ const ReplySection: React.FC<ReplySectionProps> = ({
     fetchReplies();
   }, [postId, t.knowledgeHub.detail.messages.fetchError, t.knowledgeHub.detail.messages.serverError]); 
 
-  // [BARU] Fungsi handleReply untuk mengisi textarea dengan @username
   const handleReplyToUser = (username: string) => {
-     const mention = `@${username} `;
-     setNewReplyContent((prev) => prev + mention);
-     
-     // Scroll ke input dan focus
-     if (textareaRef.current) {
+      const mention = `@${username} `;
+      setNewReplyContent((prev) => prev + mention);
+      
+      if (textareaRef.current) {
         textareaRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
         textareaRef.current.focus();
-     }
+      }
   };
 
   const handleSubmitReply = async (e: React.FormEvent) => {
@@ -105,19 +103,21 @@ const ReplySection: React.FC<ReplySectionProps> = ({
   const renderReplyForm = () => {
     if (authLoading) {
       return (
-        <div className="bg-white/5 p-6 rounded-xl mb-8 text-center border border-white/5">
-           <Loader2Icon className="h-6 w-6 animate-spin mx-auto text-gray-500 mb-2" />
-           <p className="text-gray-500 text-sm">{t.knowledgeHub.detail.messages.loadingAuth}</p>
+        <div className="bg-white/5 p-6 rounded-xl mb-8 text-center border border-white/5 flex items-center justify-center gap-3">
+           <Loader2Icon className="h-5 w-5 animate-spin text-gray-500" />
+           <p className="text-gray-500 text-sm font-mono">{t.knowledgeHub.detail.messages.loadingAuth}</p>
         </div>
       );
     }
 
     if (!userProfile) {
       return (
-        <div className="bg-white/5 border border-white/5 p-6 rounded-xl mb-8 text-center flex flex-col items-center gap-3">
-          <p className="text-gray-400 text-sm font-sans">{t.knowledgeHub.detail.comments.loginToComment}</p>
+        <div className="bg-[#0f1115] border border-white/5 p-8 rounded-2xl mb-8 text-center flex flex-col items-center gap-4 relative overflow-hidden group">
+          <div className="absolute inset-0 bg-coc-blue/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+          <UserCircleIcon className="h-12 w-12 text-gray-600 group-hover:text-coc-blue transition-colors" />
+          <p className="text-gray-400 text-sm font-sans max-w-xs">{t.knowledgeHub.detail.comments.loginToComment}</p>
           <Link href="/auth">
-            <Button variant="secondary" size="sm" className="border-white/10 hover:bg-white/10">
+            <Button variant="primary" size="sm" className="shadow-lg shadow-coc-gold/10">
                Login / Register
             </Button>
           </Link>
@@ -126,54 +126,49 @@ const ReplySection: React.FC<ReplySectionProps> = ({
     }
 
     return (
-      <form onSubmit={handleSubmitReply} className="relative mb-8 group">
-        <textarea
-          ref={textareaRef} // [BARU] Attach ref
-          placeholder={t.knowledgeHub.detail.comments.placeholder}
-          rows={3}
-          className="w-full bg-black/20 border border-white/10 rounded-xl p-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-coc-blue/50 focus:border-coc-blue transition-all resize-none font-sans pr-14"
-          value={newReplyContent}
-          onChange={(e) => setNewReplyContent(e.target.value)}
-          disabled={isSubmitting}
-        ></textarea>
-        <button
-          type="submit"
-          disabled={isSubmitting || !newReplyContent.trim()}
-          className="absolute bottom-3 right-3 p-2 bg-coc-blue text-white rounded-lg hover:bg-coc-blue-dark disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:scale-105 active:scale-95"
-          title={t.knowledgeHub.detail.comments.submit}
-        >
-          {isSubmitting ? (
-            <RefreshCwIcon className="h-5 w-5 animate-spin" />
-          ) : (
-            <PaperPlaneIcon className="h-5 w-5" />
-          )}
-        </button>
+      <form onSubmit={handleSubmitReply} className="relative mb-10 group">
+        <div className="relative">
+          <textarea
+            ref={textareaRef}
+            placeholder={t.knowledgeHub.detail.comments.placeholder}
+            rows={3}
+            className="w-full bg-[#0a0a0b] border border-white/10 rounded-xl p-4 text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-coc-blue focus:border-coc-blue transition-all resize-none font-sans pr-16 shadow-inner"
+            value={newReplyContent}
+            onChange={(e) => setNewReplyContent(e.target.value)}
+            disabled={isSubmitting}
+          />
+          {/* Submit Button inside Textarea */}
+          <button
+            type="submit"
+            disabled={isSubmitting || !newReplyContent.trim()}
+            className="absolute bottom-3 right-3 p-2 bg-coc-blue text-white rounded-lg hover:bg-coc-blue-dark disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-coc-blue/30 active:scale-95"
+            title={t.knowledgeHub.detail.comments.submit}
+          >
+            {isSubmitting ? (
+              <RefreshCwIcon className="h-5 w-5 animate-spin" />
+            ) : (
+              <PaperPlaneIcon className="h-5 w-5" />
+            )}
+          </button>
+        </div>
       </form>
     );
   };
 
   return (
-    <div className="mt-12 pt-8 border-t border-white/10" id="comments">
+    <div className="mt-8" id="comments">
       {notification && <Notification notification={notification} />}
-
-      <div className="flex items-center gap-3 mb-6">
-         <div className="p-2 bg-coc-blue/10 rounded-lg">
-            <MessageSquareIcon className="h-6 w-6 text-coc-blue" />
-         </div>
-         <h2 className="text-2xl font-bold text-white font-clash">
-           {t.knowledgeHub.detail.comments.title} <span className="text-gray-500 text-lg font-normal ml-1">({replyCount})</span>
-         </h2>
-      </div>
 
       {renderReplyForm()}
 
       {isLoading ? (
         <div className="flex justify-center items-center h-32">
-          <Loader2Icon className="h-8 w-8 text-coc-gold animate-spin" />
+          <Loader2Icon className="h-10 w-10 text-coc-gold animate-spin opacity-50" />
         </div>
       ) : replies.length === 0 ? (
-        <div className="text-center py-10 bg-white/5 rounded-xl border border-white/5 border-dashed">
-          <p className="text-gray-400 italic font-sans">{t.knowledgeHub.detail.comments.noComments}</p>
+        <div className="text-center py-12 bg-[#0a0a0b]/40 rounded-2xl border border-white/5 border-dashed flex flex-col items-center gap-3">
+          <MessageSquareIcon className="h-10 w-10 text-gray-700" />
+          <p className="text-gray-500 italic font-sans text-sm">{t.knowledgeHub.detail.comments.noComments}</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -182,7 +177,7 @@ const ReplySection: React.FC<ReplySectionProps> = ({
                key={reply.id} 
                reply={reply} 
                postId={postId} 
-               onReply={handleReplyToUser} // [BARU] Pass handler ke child
+               onReply={handleReplyToUser} 
             />
           ))}
         </div>

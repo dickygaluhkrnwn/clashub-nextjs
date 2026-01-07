@@ -13,8 +13,8 @@ interface ProfileTabsProps {
 
 /**
  * Komponen Navigasi Tab Profil.
- * Desain: Pills / Segmented Control style (bukan border-bottom biasa).
- * Cocok untuk ditempatkan di dalam container sticky/glass.
+ * Desain: Gaming Pills dengan efek active state yang kuat (Gold Highlight).
+ * Menggunakan transisi halus dan spacing yang nyaman untuk touch target.
  */
 export const ProfileTabs = ({ activeTab, onTabChange }: ProfileTabsProps) => {
   const { t } = useLanguage();
@@ -29,23 +29,36 @@ export const ProfileTabs = ({ activeTab, onTabChange }: ProfileTabsProps) => {
   ];
 
   return (
-    <nav className="flex overflow-x-auto no-scrollbar gap-1 md:gap-2 w-full" aria-label="Profile Tabs">
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          onClick={() => onTabChange(tab.id)}
-          className={`
-            flex-shrink-0 px-4 py-2 rounded-lg text-xs md:text-sm font-clash font-medium tracking-wide uppercase transition-all duration-300
-            ${
-              activeTab === tab.id
-                ? 'bg-coc-gold text-coc-dark shadow-md shadow-coc-gold/10 scale-105'
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
-            }
-          `}
-        >
-          {tab.label}
-        </button>
-      ))}
+    <nav className="w-full overflow-x-auto no-scrollbar" aria-label="Profile Tabs">
+      <div className="flex gap-2 p-1 min-w-max">
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+          
+          return (
+            <button
+              key={tab.id}
+              onClick={() => onTabChange(tab.id)}
+              className={`
+                relative group px-5 py-2.5 rounded-xl text-xs md:text-sm font-clash font-bold tracking-wide uppercase
+                transition-all duration-300 ease-out border
+                ${
+                  isActive
+                    ? 'bg-coc-gold border-coc-gold text-coc-dark shadow-[0_0_20px_-5px_rgba(255,215,0,0.5)] scale-105'
+                    : 'bg-white/5 border-white/5 text-gray-400 hover:bg-white/10 hover:text-white hover:border-white/20'
+                }
+              `}
+            >
+              {/* Shine Effect for Active Tab */}
+              {isActive && (
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-tr from-white/0 via-white/30 to-white/0 opacity-50 pointer-events-none" />
+              )}
+              
+              {/* Label */}
+              <span className="relative z-10">{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
     </nav>
   );
 };

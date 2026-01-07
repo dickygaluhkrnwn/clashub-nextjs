@@ -44,15 +44,15 @@ const InfoCard: React.FC<{
   title: string;
   value: string;
 }> = ({ icon: Icon, title, value }) => (
-  <div className="flex items-start rounded-2xl bg-black/40 backdrop-blur-md border border-white/5 p-5 hover:border-coc-gold/30 transition-all duration-300 group">
-    <div className="mr-4 p-2 bg-white/5 rounded-full group-hover:bg-coc-gold/20 transition-colors">
-       <Icon className="h-6 w-6 flex-shrink-0 text-coc-gold" />
+  <div className="flex items-start rounded-2xl bg-[#15171e]/80 backdrop-blur-md border border-white/10 p-5 hover:border-coc-gold/30 transition-all duration-300 group shadow-lg hover:-translate-y-1">
+    <div className="mr-4 p-3 bg-[#0a0a0b] rounded-xl border border-white/5 group-hover:border-coc-gold/20 transition-colors shadow-inner">
+       <Icon className="h-6 w-6 flex-shrink-0 text-gray-400 group-hover:text-coc-gold transition-colors" />
     </div>
     <div>
-      <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1 group-hover:text-coc-gold/70 transition-colors">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1 group-hover:text-gray-400 transition-colors">
         {title}
       </p>
-      <p className="text-lg font-bold text-white leading-tight">{value}</p>
+      <p className="text-lg font-bold text-white leading-tight font-clash tracking-wide">{value}</p>
     </div>
   </div>
 );
@@ -74,7 +74,7 @@ const RegisterButtonLogic: React.FC<{
         size="lg"
         variant="secondary"
         href={`/tournament/${tournament.id}/manage`}
-        className="shadow-lg shadow-black/40 border-coc-gold/30 text-coc-gold hover:bg-coc-gold/10"
+        className="shadow-[0_0_20px_rgba(255,215,0,0.1)] border-coc-gold/30 text-coc-gold hover:bg-coc-gold/10 w-full md:w-auto font-bold tracking-wide"
       >
         <CogsIcon className="mr-2 h-5 w-5" />
         {t.tournament.detail.manageBtn}
@@ -84,7 +84,7 @@ const RegisterButtonLogic: React.FC<{
 
   if (loading) {
     return (
-      <Button size="lg" disabled className="opacity-70">
+      <Button size="lg" disabled className="opacity-70 w-full md:w-auto">
         <Loader2Icon className="mr-2 h-5 w-5 animate-spin" />
         {t.tournament.detail.loadingBtn}
       </Button>
@@ -100,7 +100,7 @@ const RegisterButtonLogic: React.FC<{
     }
 
     return (
-      <Button size="lg" variant="secondary" disabled className="bg-white/5 border-white/10 text-gray-400">
+      <Button size="lg" variant="secondary" disabled className="bg-white/5 border-white/10 text-gray-500 w-full md:w-auto cursor-not-allowed">
         {closedMessage}
       </Button>
     );
@@ -108,7 +108,7 @@ const RegisterButtonLogic: React.FC<{
 
   if (!userProfile) {
     return (
-      <Button size="lg" variant="primary" href="/auth" className="shadow-lg shadow-coc-gold/20">
+      <Button size="lg" variant="primary" href="/auth" className="shadow-[0_0_20px_rgba(255,215,0,0.3)] w-full md:w-auto font-bold tracking-wide">
         {t.tournament.detail.loginBtn}
       </Button>
     );
@@ -116,14 +116,15 @@ const RegisterButtonLogic: React.FC<{
 
   if (!userProfile.isVerified) {
     return (
-      <Button size="lg" variant="secondary" disabled className="opacity-70 cursor-not-allowed">
+      <Button size="lg" variant="secondary" disabled className="opacity-70 cursor-not-allowed w-full md:w-auto border-coc-red/30 text-coc-red bg-coc-red/10">
+        <AlertTriangleIcon className="mr-2 h-5 w-5" />
         {t.tournament.detail.verifyBtn}
       </Button>
     );
   }
 
   return (
-    <Button size="lg" variant="primary" onClick={handleRegisterClick} className="shadow-lg shadow-coc-gold/20 font-bold tracking-wide">
+    <Button size="lg" variant="primary" onClick={handleRegisterClick} className="shadow-[0_0_30px_rgba(74,222,128,0.3)] bg-gradient-to-b from-coc-green to-green-700 border-green-800 hover:from-green-500 hover:to-coc-green font-bold tracking-wide w-full md:w-auto transform hover:-translate-y-1 transition-all">
       {t.tournament.detail.registerBtn} <ChevronRightIcon className="ml-2 h-4 w-4" />
     </Button>
   );
@@ -135,33 +136,37 @@ const TeamDisplay: React.FC<{
 }> = ({ team, isWinner }) => {
   if (!team) {
     return (
-      <div className="flex items-center space-x-3 opacity-50">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 border border-white/10">
+      <div className="flex items-center space-x-3 opacity-40">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 border border-white/10">
           <span className="text-xs font-bold text-gray-500">-</span>
         </div>
-        <span className="font-mono text-sm font-semibold text-gray-500">BYE</span>
+        <span className="font-mono text-sm font-bold text-gray-500 tracking-widest">BYE</span>
       </div>
     );
   }
 
   return (
-    <div className={`flex items-center space-x-3 transition-opacity ${isWinner ? 'opacity-100' : 'opacity-80 hover:opacity-100'}`}>
-      <div className={`relative h-8 w-8 rounded-full overflow-hidden border ${isWinner ? 'border-coc-gold shadow-[0_0_10px_rgba(255,215,0,0.3)]' : 'border-white/10'}`}>
-         {/* Fallback image logic can be added here */}
+    <div className={`flex items-center space-x-4 transition-all p-2 rounded-xl ${isWinner ? 'bg-coc-gold/10 border border-coc-gold/20' : 'hover:bg-white/5 border border-transparent'}`}>
+      <div className={`relative h-10 w-10 rounded-xl overflow-hidden border-2 shadow-md ${isWinner ? 'border-coc-gold shadow-[0_0_15px_rgba(255,215,0,0.3)]' : 'border-[#1a1d26]'}`}>
+         {/* Fallback image logic */}
          <img
-           className="h-full w-full object-cover"
+           className="h-full w-full object-cover bg-[#0a0a0b]"
            src={team.originClanBadgeUrl}
            alt={`${team.teamName} badge`}
+           onError={(e) => { e.currentTarget.style.display = 'none'; }}
          />
       </div>
-      <span
-        className={`font-clash text-sm md:text-base ${
-          isWinner ? 'text-coc-gold font-bold' : 'text-gray-300 font-medium'
-        }`}
-      >
-        {team.teamName}
-      </span>
-      {isWinner && <TrophyIcon className="h-4 w-4 text-coc-gold animate-pulse" />}
+      <div className="flex-1 min-w-0">
+          <span
+            className={`font-clash text-sm md:text-base truncate block leading-tight ${
+              isWinner ? 'text-coc-gold font-bold' : 'text-gray-200 font-medium'
+            }`}
+          >
+            {team.teamName}
+          </span>
+          {isWinner && <p className="text-[9px] text-coc-gold/70 uppercase font-bold tracking-wider">Winner</p>}
+      </div>
+      {isWinner && <TrophyIcon className="h-5 w-5 text-coc-gold animate-bounce drop-shadow-md" />}
     </div>
   );
 };
@@ -181,28 +186,30 @@ const MatchCard: React.FC<{
   
   if (status === 'completed' || status === 'reported') {
     statusText = t.tournament.cardStatusCompleted; 
-    statusColor = 'text-green-400 bg-green-400/10 border-green-400/20';
+    statusColor = 'text-coc-green bg-coc-green/10 border-coc-green/20';
   } else if (status === 'live') {
     statusText = t.tournament.cardStatusOngoing;
-    statusColor = 'text-red-400 bg-red-400/10 border-red-400/20 animate-pulse';
+    statusColor = 'text-coc-red bg-coc-red/10 border-coc-red/20 animate-pulse';
   } else if (status === 'scheduled' && match.scheduledTime) {
     const scheduleDate = new Date(match.scheduledTime);
     if (!isNaN(scheduleDate.getTime())) {
       statusText = format(scheduleDate, 'dd/MM HH:mm');
-      statusColor = 'text-blue-400 bg-blue-400/10 border-blue-400/20';
+      statusColor = 'text-coc-blue bg-coc-blue/10 border-coc-blue/20';
     } else {
       statusText = t.tournament.detail.matchScheduled;
-      statusColor = 'text-blue-400 bg-blue-400/10 border-blue-400/20';
+      statusColor = 'text-coc-blue bg-coc-blue/10 border-coc-blue/20';
     }
   }
 
   return (
     <Link
       href={`/tournament/${tournamentId}/match/${match.id}`}
-      className="block rounded-xl border border-white/5 bg-black/20 backdrop-blur-sm p-4 transition-all hover:-translate-y-1 hover:border-coc-gold/30 hover:bg-black/40 hover:shadow-lg group"
+      className="block rounded-2xl border border-white/5 bg-[#0f1115] p-5 transition-all hover:-translate-y-1 hover:border-coc-gold/30 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)] group relative overflow-hidden"
     >
+      <div className="absolute top-0 left-0 w-1 h-full bg-white/5 group-hover:bg-coc-gold transition-colors" />
+      
       <div className="mb-4 flex items-center justify-between">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 group-hover:text-coc-gold transition-colors">
           MATCH #{matchId}
         </span>
         <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${statusColor}`}>
@@ -210,13 +217,13 @@ const MatchCard: React.FC<{
         </span>
       </div>
       
-      <div className="space-y-4">
+      <div className="space-y-3 relative z-10">
         <TeamDisplay team={team1} isWinner={isTeam1Winner} />
 
-        <div className="flex items-center pl-4 opacity-50">
-          <div className="h-px w-full bg-white/10" />
-          <span className="mx-2 text-xs font-bold text-gray-600">VS</span>
-          <div className="h-px w-full bg-white/10" />
+        <div className="flex items-center pl-4 py-1 opacity-40">
+          <div className="h-px w-full bg-white/20" />
+          <span className="mx-3 text-[10px] font-bold text-gray-400 font-mono">VS</span>
+          <div className="h-px w-full bg-white/20" />
         </div>
 
         <TeamDisplay team={team2} isWinner={isTeam2Winner} />
@@ -245,28 +252,38 @@ const BracketColumn: React.FC<{
 
   return (
     <div className="w-full">
-      <h3 className="mb-6 font-clash text-2xl font-bold text-white flex items-center gap-3 border-b border-white/10 pb-4">
-         <SwordsIcon className="h-6 w-6 text-coc-gold" /> {title}
-      </h3>
-      <div className="space-y-8 relative">
-        {/* Connector Line Logic could be added here for visualization */}
-        {Object.entries(groupedMatches).map(([round, roundMatches]) => (
-          <div key={round} className="relative">
-            <h4 className="mb-4 text-xs font-bold uppercase tracking-widest text-coc-gold/70 pl-2 border-l-2 border-coc-gold/30">
-              {t.tournament.detail.roundPrefix} {round}
-            </h4>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {roundMatches.map((match) => (
-                <MatchCard
-                  key={match.id}
-                  match={match}
-                  tournamentId={tournamentId}
-                  t={t}
-                />
-              ))}
-            </div>
+      <h3 className="mb-8 font-clash text-2xl font-bold text-white flex items-center gap-3 border-b border-white/10 pb-4 uppercase tracking-wider">
+          <div className="p-2 bg-coc-gold/10 rounded-lg border border-coc-gold/20">
+             <SwordsIcon className="h-6 w-6 text-coc-gold" />
           </div>
-        ))}
+          {title}
+      </h3>
+      
+      {/* Scrollable Container for Rounds */}
+      <div className="overflow-x-auto pb-6 -mx-4 px-4 md:mx-0 md:px-0">
+          <div className="flex gap-8 min-w-max">
+            {Object.entries(groupedMatches).map(([round, roundMatches]) => (
+              <div key={round} className="w-[300px] flex-shrink-0">
+                <div className="mb-6 flex items-center gap-2">
+                    <span className="h-px w-8 bg-coc-gold/50" />
+                    <h4 className="text-xs font-bold uppercase tracking-widest text-coc-gold">
+                      {t.tournament.detail.roundPrefix} {round}
+                    </h4>
+                    <span className="h-px flex-1 bg-white/10" />
+                </div>
+                <div className="flex flex-col gap-4">
+                  {roundMatches.map((match) => (
+                    <MatchCard
+                      key={match.id}
+                      match={match}
+                      tournamentId={tournamentId}
+                      t={t}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
       </div>
     </div>
   );
@@ -281,9 +298,9 @@ const BracketDisplay: React.FC<{
 }> = ({ tournamentId, matches, isLoading, error, t }) => {
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-black/20 p-16 text-center">
-        <Loader2Icon className="h-12 w-12 animate-spin text-coc-gold mb-4" />
-        <p className="text-lg text-gray-400 font-clash tracking-wide">
+      <div className="flex flex-col items-center justify-center rounded-3xl border border-white/5 bg-[#15171e]/50 p-20 text-center animate-pulse">
+        <Loader2Icon className="h-16 w-16 animate-spin text-coc-gold mb-6 opacity-50" />
+        <p className="text-xl text-white font-clash tracking-widest uppercase">
           {t.tournament.detail.bracketLoading}
         </p>
       </div>
@@ -292,22 +309,24 @@ const BracketDisplay: React.FC<{
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-dashed border-red-500/30 bg-red-900/10 p-12 text-center">
-        <AlertTriangleIcon className="h-10 w-10 text-red-500 mx-auto mb-3" />
-        <p className="text-lg font-bold text-red-400">{t.tournament.detail.bracketError}</p>
-        <p className="text-sm text-red-300/70 mt-1">{error}</p>
+      <div className="rounded-3xl border border-red-500/20 bg-red-900/10 p-16 text-center">
+        <AlertTriangleIcon className="h-16 w-16 text-coc-red mx-auto mb-6 opacity-80" />
+        <p className="text-xl font-bold text-white font-clash mb-2">{t.tournament.detail.bracketError}</p>
+        <p className="text-sm text-gray-400 font-mono">{error}</p>
       </div>
     );
   }
 
   if (matches.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 p-16 text-center">
-        <TrophyIcon className="h-12 w-12 text-gray-600 mx-auto mb-4 opacity-50" />
-        <p className="text-lg text-gray-400 font-clash">
+      <div className="rounded-3xl border border-white/5 bg-[#15171e]/50 p-20 text-center flex flex-col items-center">
+        <div className="p-6 bg-[#0a0a0b] rounded-full border border-white/5 mb-6 shadow-inner">
+           <TrophyIcon className="h-16 w-16 text-gray-600 opacity-30" />
+        </div>
+        <p className="text-2xl text-white font-clash font-bold tracking-wide mb-2">
           {t.tournament.detail.bracketEmpty}
         </p>
-        <p className="text-sm text-gray-500 mt-2">
+        <p className="text-sm text-gray-500 max-w-md mx-auto leading-relaxed">
           {t.tournament.detail.bracketEmptyDesc}
         </p>
       </div>
@@ -318,7 +337,10 @@ const BracketDisplay: React.FC<{
   const lowerBracketMatches = matches.filter((m) => m.bracket === 'lower');
 
   return (
-    <section className="space-y-12 rounded-3xl border border-white/5 bg-black/40 backdrop-blur-md p-6 md:p-10 shadow-2xl">
+    <section className="space-y-12 rounded-3xl border border-white/10 bg-[#15171e]/90 backdrop-blur-xl p-6 md:p-10 shadow-2xl relative overflow-hidden">
+      {/* Decorative BG */}
+      <div className="absolute top-0 right-0 w-full h-1 bg-gradient-to-r from-coc-gold via-coc-red to-transparent opacity-30" />
+      
       <BracketColumn
         title={t.tournament.detail.bracketUpper}
         matches={upperBracketMatches}
@@ -327,7 +349,7 @@ const BracketDisplay: React.FC<{
       />
       {lowerBracketMatches.length > 0 && (
         <>
-          <div className="border-t border-white/10" />
+          <div className="border-t border-white/5" />
           <BracketColumn
             title={t.tournament.detail.bracketLower}
             matches={lowerBracketMatches}
@@ -388,13 +410,13 @@ const TournamentDetailClient: React.FC<TournamentDetailClientProps> = ({
 
   const getStatusClasses = () => {
     switch (tournament.status) {
-      case 'registration_open': return 'bg-green-500/10 text-green-400 border-green-500/30';
-      case 'scheduled': return 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30';
-      case 'registration_closed': return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30';
-      case 'ongoing': return 'bg-blue-500/10 text-blue-400 border-blue-500/30 animate-pulse';
-      case 'completed': return 'bg-purple-500/10 text-purple-400 border-purple-500/30';
-      case 'cancelled': return 'bg-red-500/10 text-red-400 border-red-500/30';
-      default: return 'bg-gray-500/10 text-gray-400 border-gray-500/30';
+      case 'registration_open': return 'bg-coc-green/20 text-coc-green border-coc-green/40 shadow-[0_0_15px_rgba(74,222,128,0.3)]';
+      case 'scheduled': return 'bg-coc-blue/20 text-coc-blue border-coc-blue/40';
+      case 'registration_closed': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40';
+      case 'ongoing': return 'bg-coc-red/20 text-coc-red border-coc-red/40 animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.3)]';
+      case 'completed': return 'bg-purple-500/20 text-purple-400 border-purple-500/40';
+      case 'cancelled': return 'bg-gray-500/20 text-gray-400 border-gray-500/40';
+      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/40';
     }
   };
 
@@ -409,121 +431,137 @@ const TournamentDetailClient: React.FC<TournamentDetailClientProps> = ({
   };
 
   return (
-    <div className="relative min-h-screen text-white font-clash">
+    <div className="relative min-h-screen bg-[#0a0a0b] text-white font-clash overflow-x-hidden pb-20">
       {/* Background Ambience */}
-      <div className="fixed top-0 left-0 w-full h-[500px] bg-gradient-to-b from-coc-blue/10 via-transparent to-transparent pointer-events-none z-0" />
-      <div className="fixed top-20 right-0 w-[300px] h-[300px] bg-coc-gold/5 blur-[100px] rounded-full pointer-events-none z-0" />
+      <div className="fixed top-0 left-0 w-full h-[600px] bg-gradient-to-b from-coc-blue/10 via-transparent to-transparent pointer-events-none z-0" />
+      <div className="fixed top-20 right-0 w-[400px] h-[400px] bg-coc-gold/5 blur-[120px] pointer-events-none z-0" />
 
-      <div className="relative z-10 space-y-10 pb-20">
+      <div className="relative z-10 space-y-12">
         
         {/* 1. Hero Section (Banner & Header) */}
         <section className="relative">
-           {/* Banner Image with Overlay */}
-           <div className="relative mb-8 h-56 w-full overflow-hidden rounded-3xl border border-white/10 shadow-2xl md:h-80 lg:h-96 group">
-             <img
-               src={tournament.bannerUrl}
-               alt={`Banner ${tournament.title}`}
-               className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-             />
-             <div className="absolute inset-0 bg-gradient-to-t from-coc-dark via-coc-dark/50 to-transparent" />
-             
-             {/* Floating Badge on Banner */}
-             <div className="absolute top-6 right-6">
-                <span className={`px-4 py-2 rounded-full border text-xs font-bold uppercase tracking-widest backdrop-blur-md shadow-lg ${getStatusClasses()}`}>
-                   {formatStatusText(tournament.status)}
-                </span>
-             </div>
-           </div>
+            {/* Banner Image with Overlay */}
+            <div className="relative h-[400px] md:h-[500px] w-full overflow-hidden border-b-4 border-coc-gold/50 shadow-2xl group">
+              <img
+                src={tournament.bannerUrl}
+                alt={`Banner ${tournament.title}`}
+                className="absolute inset-0 h-full w-full object-cover transition-transform duration-[10s] ease-out group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0b] via-[#0a0a0b]/60 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0b] via-transparent to-transparent opacity-80" />
+              
+              {/* Content Overlay */}
+              <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 pb-16">
+                  <div className="container mx-auto px-4 md:px-8">
+                      {/* Status Badge */}
+                      <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-xs font-bold uppercase tracking-widest backdrop-blur-md shadow-lg mb-6 ${getStatusClasses()}`}>
+                        <TrophyIcon className="h-4 w-4 fill-current" />
+                        {formatStatusText(tournament.status)}
+                      </span>
 
-           {/* Title & Action */}
-           <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end px-2">
-             <div className="flex-1 space-y-2">
-               <h1 className="text-4xl font-bold leading-tight text-white md:text-5xl lg:text-6xl drop-shadow-xl">
-                 {tournament.title}
-               </h1>
-               <div className="flex items-center gap-2 text-coc-gold font-medium">
-                  <UserIcon className="h-5 w-5" /> 
-                  <span className="text-gray-300">Organized by</span> {tournament.organizerName}
-               </div>
-             </div>
-             <div className="flex-shrink-0 w-full md:w-auto">
-               <RegisterButtonLogic tournament={tournament} t={t} />
-             </div>
-           </div>
+                      <div className="flex flex-col lg:flex-row items-start lg:items-end justify-between gap-8">
+                          <div className="max-w-3xl space-y-4">
+                              <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-none text-white drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)] tracking-tight">
+                                {tournament.title}
+                              </h1>
+                              
+                              <div className="flex items-center gap-3 text-sm md:text-base font-sans font-medium">
+                                <div className="flex items-center gap-2 bg-[#0a0a0b]/60 backdrop-blur px-4 py-2 rounded-full border border-white/10 text-gray-300">
+                                   <UserIcon className="h-4 w-4 text-coc-gold" /> 
+                                   <span>Organized by <span className="text-white font-bold">{tournament.organizerName}</span></span>
+                                </div>
+                              </div>
+                          </div>
+
+                          <div className="w-full lg:w-auto flex-shrink-0">
+                              <RegisterButtonLogic tournament={tournament} t={t} />
+                          </div>
+                      </div>
+                  </div>
+              </div>
+            </div>
         </section>
 
-        {/* 2. Info Grid (Stats) */}
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <InfoCard
-            icon={TrophyIcon}
-            title={t.tournament.cardPrize}
-            value={tournament.prizePool}
-          />
-          <InfoCard
-            icon={ClockIcon}
-            title={t.tournament.detail.infoStarts}
-            value={`${formattedDate} WIB`}
-          />
-          <InfoCard
-            icon={UsersIcon}
-            title={t.tournament.detail.infoFormat}
-            value={`${tournament.format} (${tournament.teamSize}v${tournament.teamSize})`}
-          />
-          <InfoCard
-            icon={ShieldIcon}
-            title={t.tournament.detail.infoTh}
-            value={formatThRequirement(tournament.thRequirement)}
-          />
-          <InfoCard
-            icon={UsersIcon}
-            title={t.tournament.detail.infoParticipants}
-            value={`${tournament.participantCountCurrent} / ${tournament.participantCount}`}
-          />
-           {/* Combined Reg Dates for cleaner look */}
-          <InfoCard
-            icon={ClockIcon}
-            title="Registration"
-            value={`${regStartDate} - ${regEndDate}`}
-          />
-        </section>
+        <div className="container mx-auto px-4 md:px-8 max-w-7xl space-y-12 -mt-10 relative z-20">
+            {/* 2. Info Grid (Stats) - Floating Cards */}
+            <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 animate-in fade-in slide-in-from-bottom-8 duration-700">
+              <InfoCard
+                icon={TrophyIcon}
+                title={t.tournament.cardPrize}
+                value={tournament.prizePool}
+              />
+              <InfoCard
+                icon={ClockIcon}
+                title={t.tournament.detail.infoStarts}
+                value={`${formattedDate} WIB`}
+              />
+              <InfoCard
+                icon={UsersIcon}
+                title={t.tournament.detail.infoFormat}
+                value={`${tournament.format} (${tournament.teamSize}v${tournament.teamSize})`}
+              />
+              <InfoCard
+                icon={ShieldIcon}
+                title={t.tournament.detail.infoTh}
+                value={formatThRequirement(tournament.thRequirement)}
+              />
+              <InfoCard
+                icon={UsersIcon}
+                title={t.tournament.detail.infoParticipants}
+                value={`${tournament.participantCountCurrent} / ${tournament.participantCount}`}
+              />
+               {/* Combined Reg Dates for cleaner look */}
+              <InfoCard
+                icon={ClockIcon}
+                title="Registration"
+                value={`${regStartDate} - ${regEndDate}`}
+              />
+            </section>
 
-        {/* 3. Detail Content (Desc & Rules) */}
-        <section className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          {/* Deskripsi */}
-          <div className="lg:col-span-2 space-y-6">
-             <div className="rounded-3xl border border-white/5 bg-black/40 backdrop-blur-md p-8 shadow-xl">
-               <h2 className="mb-6 font-clash text-2xl font-bold text-white flex items-center gap-3 border-b border-white/10 pb-4">
-                  <BookOpenIcon className="h-6 w-6 text-coc-blue" />
-                  {t.tournament.detail.descTitle}
-               </h2>
-               <div className="prose prose-invert max-w-none text-gray-300 font-sans leading-relaxed">
-                 <p className="whitespace-pre-line">{tournament.description}</p>
-               </div>
-             </div>
-          </div>
+            {/* 3. Detail Content (Desc & Rules) */}
+            <section className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+              {/* Deskripsi */}
+              <div className="lg:col-span-2 space-y-6">
+                  <div className="rounded-3xl border border-white/10 bg-[#15171e]/90 backdrop-blur-xl p-8 shadow-2xl relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-coc-blue" />
+                    <h2 className="mb-6 font-clash text-2xl font-bold text-white flex items-center gap-3 border-b border-white/10 pb-4 uppercase tracking-wide">
+                      <div className="p-2 bg-coc-blue/10 rounded-lg border border-coc-blue/20">
+                          <BookOpenIcon className="h-6 w-6 text-coc-blue" />
+                      </div>
+                      {t.tournament.detail.descTitle}
+                    </h2>
+                    <div className="prose prose-invert max-w-none text-gray-300 font-sans leading-relaxed tracking-wide">
+                      <p className="whitespace-pre-line">{tournament.description}</p>
+                    </div>
+                  </div>
+              </div>
 
-          {/* Aturan */}
-          <div className="lg:col-span-1 space-y-6">
-             <div className="rounded-3xl border border-white/5 bg-white/5 backdrop-blur-md p-8 shadow-xl h-full">
-               <h2 className="mb-6 font-clash text-2xl font-bold text-white flex items-center gap-3 border-b border-white/10 pb-4">
-                  <ShieldIcon className="h-6 w-6 text-coc-red" />
-                  {t.tournament.detail.rulesTitle}
-               </h2>
-               <div className="prose prose-invert max-w-none text-gray-400 font-sans text-sm">
-                 <p className="whitespace-pre-wrap">{tournament.rules}</p>
-               </div>
-             </div>
-          </div>
-        </section>
+              {/* Aturan */}
+              <div className="lg:col-span-1 space-y-6">
+                  <div className="rounded-3xl border border-white/10 bg-[#15171e]/90 backdrop-blur-xl p-8 shadow-2xl h-full relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-coc-red" />
+                    <h2 className="mb-6 font-clash text-2xl font-bold text-white flex items-center gap-3 border-b border-white/10 pb-4 uppercase tracking-wide">
+                      <div className="p-2 bg-coc-red/10 rounded-lg border border-coc-red/20">
+                         <ShieldIcon className="h-6 w-6 text-coc-red" />
+                      </div>
+                      {t.tournament.detail.rulesTitle}
+                    </h2>
+                    <div className="prose prose-invert max-w-none text-gray-400 font-sans text-sm leading-relaxed">
+                      <p className="whitespace-pre-wrap">{tournament.rules}</p>
+                    </div>
+                  </div>
+              </div>
+            </section>
 
-        {/* 4. Bracket Display */}
-        <BracketDisplay
-          tournamentId={tournament.id}
-          matches={matches}
-          isLoading={isLoadingBracket}
-          error={fetchError}
-          t={t}
-        />
+            {/* 4. Bracket Display */}
+            <BracketDisplay
+              tournamentId={tournament.id}
+              matches={matches}
+              isLoading={isLoadingBracket}
+              error={fetchError}
+              t={t}
+            />
+        </div>
       </div>
     </div>
   );

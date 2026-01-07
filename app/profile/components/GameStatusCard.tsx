@@ -26,19 +26,18 @@ interface GameStatusCardProps {
 
 /**
  * Komponen Card "Statistik Musim".
- * Desain: Glassmorphism dengan Grid Layout modern untuk statistik.
+ * Desain: Gaming Dashboard dengan Grid modern.
  */
 export const GameStatusCard = ({
   userProfile,
   isVerified,
   isClanManager,
   fullPlayerData,
-  isLoading = false, // [FIX] Default value untuk mencegah undefined
+  isLoading = false,
   error,
 }: GameStatusCardProps) => {
   const { t } = useLanguage();
 
-  // --- 1. Logika Data ---
   const trophies = fullPlayerData?.trophies ?? userProfile.trophies;
   
   const warStars =
@@ -51,8 +50,6 @@ export const GameStatusCard = ({
   const defenseWins = fullPlayerData?.defenseWins ?? userProfile?.defenseWins ?? null;
   const bbTrophies = fullPlayerData?.builderBaseTrophies ?? userProfile?.builderBaseTrophies ?? null;
 
-  // --- 2. Loading States ---
-  // isLoading sekarang pasti boolean karena default value di atas
   const showTrophiesLoading = isLoading && !fullPlayerData && !userProfile.trophies;
   const showWarStarsLoading = isLoading && !fullPlayerData && !userProfile.cachedAchievements;
   const showStatsLoading = isLoading && !fullPlayerData && !userProfile.attackWins;
@@ -64,127 +61,143 @@ export const GameStatusCard = ({
     value, 
     label, 
     isLoading, 
-    colorClass = "text-white" 
+    colorClass = "text-white",
+    bgGradient = "from-[#1e232e] to-[#15171e]"
   }: { 
     icon: React.ReactNode; 
     value: string | number | null; 
     label: string; 
     isLoading: boolean;
     colorClass?: string;
+    bgGradient?: string;
   }) => (
-    <div className="bg-white/5 border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center text-center hover:bg-white/10 transition-colors group">
-      <div className="mb-2 p-2 rounded-full bg-white/5 group-hover:scale-110 transition-transform duration-300">
+    <div className={`bg-gradient-to-b ${bgGradient} border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center text-center relative group overflow-hidden transition-all duration-300 hover:border-white/20 hover:-translate-y-0.5`}>
+      <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors duration-300" />
+      
+      <div className="mb-2 p-2.5 rounded-full bg-black/30 shadow-inner group-hover:scale-110 transition-transform duration-300 border border-white/5">
         {icon}
       </div>
-      <h4 className={`text-2xl font-bold font-clash ${colorClass}`}>
+      
+      <h4 className={`text-xl md:text-2xl font-bold font-clash ${colorClass} drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] z-10`}>
         {isLoading ? (
-          <span className="inline-block w-8 h-6 bg-white/10 rounded animate-pulse" />
+          <div className="h-6 w-12 bg-white/10 rounded animate-pulse" />
         ) : (
           value !== null ? formatNumber(Number(value)) : '-'
         )}
       </h4>
-      <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mt-1">
+      
+      {/* REVISI LABEL: text-gray-300 (sangat terang) + Drop Shadow agar terbaca jelas */}
+      <p className="text-[9px] md:text-[10px] uppercase tracking-widest text-gray-300 font-bold mt-1 z-10 drop-shadow-md">
         {label}
       </p>
     </div>
   );
 
   return (
-    <div className="bg-black/40 backdrop-blur-md border border-white/5 rounded-2xl p-6 shadow-lg relative overflow-hidden">
-      {/* Decorative Background */}
-      <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-coc-gold/5 rounded-full blur-3xl pointer-events-none" />
-
-      <h2 className="mb-6 flex items-center gap-2 font-clash text-lg text-white relative z-10">
-        <BarChart2Icon className="h-5 w-5 text-coc-gold" /> {t.profileCards.seasonStats}
+    <div className="bg-[#15171e]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+      {/* Header - REVISI TOTAL: Putih Solid dengan Shadow Kuat */}
+      <h2 className="mb-6 flex items-center gap-3 font-clash text-lg text-white relative z-10 uppercase tracking-wider drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+        <div className="p-1.5 bg-coc-gold/10 rounded-lg border border-coc-gold/20 shadow-[0_0_15px_rgba(255,215,0,0.2)]">
+            <BarChart2Icon className="h-5 w-5 text-coc-gold" /> 
+        </div>
+        <span>
+            {t.profileCards.seasonStats}
+        </span>
       </h2>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-200 rounded-xl text-sm text-center">
-          <p className="font-bold mb-1">{t.profileCards.fetchErrorTitle}</p>
-          <p className="opacity-80">{error}</p>
+        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-200 rounded-xl text-sm text-center flex items-center justify-center gap-2">
+          <InfoIcon className="h-4 w-4" />
+          <span>{error}</span>
         </div>
       )}
 
       {/* Grid Utama */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 relative z-10">
         
-        {/* 1. Liga */}
-        <div className="bg-white/5 border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center text-center hover:bg-white/10 transition-colors col-span-2 md:col-span-1">
+        {/* 1. Liga Card (Special Style) */}
+        <div className="bg-gradient-to-br from-[#2a303c] to-[#1a1d26] border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center text-center col-span-2 md:col-span-1 shadow-lg relative overflow-hidden group">
+          {/* Ambient light for league */}
+          <div className="absolute top-0 right-0 w-20 h-20 bg-coc-blue/10 rounded-full blur-2xl -mr-10 -mt-10" />
+          
           {showLeagueLoading ? (
-            <div className="h-10 w-10 bg-white/10 rounded-full animate-pulse mb-2" />
+            <div className="h-14 w-14 bg-white/10 rounded-full animate-pulse mb-2" />
           ) : league?.iconUrls?.tiny ? (
-            <div className="relative h-12 w-12 mb-1 drop-shadow-lg">
+            <div className="relative h-16 w-16 mb-2 drop-shadow-[0_0_15px_rgba(0,0,0,0.6)] group-hover:scale-110 transition-transform duration-300">
               <Image
                 src={league.iconUrls.tiny}
                 alt={league.name}
                 fill
                 className="object-contain"
-                sizes="48px"
+                sizes="64px"
               />
             </div>
           ) : (
-            <div className="h-10 w-10 rounded-full bg-gray-700/50 flex items-center justify-center mb-2">
-              <span className="text-xs text-gray-400">N/A</span>
+            <div className="h-16 w-16 rounded-full bg-black/40 flex items-center justify-center mb-2 border border-white/5">
+              <span className="text-xs text-gray-500 font-bold">UNRANKED</span>
             </div>
           )}
-          <p className="text-sm font-bold text-coc-gold truncate max-w-full px-2">
+          
+          <p className="text-sm font-bold text-white truncate max-w-full px-2 z-10 drop-shadow-md">
             {showLeagueLoading ? t.profileCards.loading : league?.name || t.profileCards.unranked}
           </p>
-          <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mt-0.5">
+          {/* REVISI LABEL */}
+          <p className="text-[10px] uppercase tracking-widest text-gray-300 font-bold mt-0.5 z-10 drop-shadow-md">
             League
           </p>
         </div>
 
         {/* 2. Trofi Home */}
         <StatItem 
-          icon={<TrophyIcon className="h-5 w-5 text-yellow-400" />}
+          icon={<TrophyIcon className="h-5 w-5 text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.5)]" />}
           value={trophies}
           label={t.profileCards.homeTrophies}
-          isLoading={!!showTrophiesLoading} // [FIX] Double bang ensures boolean
+          isLoading={!!showTrophiesLoading} 
           colorClass="text-yellow-400"
         />
 
         {/* 3. Trofi Builder */}
         <StatItem 
-          icon={<TrophyIcon className="h-5 w-5 text-blue-400" />}
+          icon={<TrophyIcon className="h-5 w-5 text-blue-400 drop-shadow-[0_0_8px_rgba(96,165,250,0.5)]" />}
           value={bbTrophies}
           label={t.profileCards.builderTrophies}
-          isLoading={!!showStatsLoading} // [FIX] Double bang ensures boolean
+          isLoading={!!showStatsLoading} 
           colorClass="text-blue-400"
         />
 
         {/* 4. Menang Serangan */}
         <StatItem 
-          icon={<SwordsIcon className="h-5 w-5 text-coc-red" />}
+          icon={<SwordsIcon className="h-5 w-5 text-coc-red drop-shadow-[0_0_5px_rgba(248,113,113,0.5)]" />}
           value={attackWins}
           label={t.profileCards.attackWins}
-          isLoading={!!showStatsLoading} // [FIX] Double bang ensures boolean
+          isLoading={!!showStatsLoading} 
         />
 
         {/* 5. Menang Bertahan */}
         <StatItem 
-          icon={<ShieldIcon className="h-5 w-5 text-coc-green" />}
+          icon={<ShieldIcon className="h-5 w-5 text-coc-green drop-shadow-[0_0_5px_rgba(74,222,128,0.5)]" />}
           value={defenseWins}
           label={t.profileCards.defenseWins}
-          isLoading={!!showStatsLoading} // [FIX] Double bang ensures boolean
+          isLoading={!!showStatsLoading} 
         />
 
         {/* 6. Bintang War */}
         <StatItem 
-          icon={<StarIcon className="h-5 w-5 text-coc-gold" />}
+          icon={<StarIcon className="h-5 w-5 text-coc-gold drop-shadow-[0_0_8px_rgba(255,215,0,0.6)]" />}
           value={warStars}
           label={t.profileCards.warStars}
-          isLoading={!!showWarStarsLoading} // [FIX] Double bang ensures boolean
+          isLoading={!!showWarStarsLoading} 
           colorClass="text-coc-gold"
+          bgGradient="from-[#2a2510] to-[#1a180d]" // Special dark gold theme for war stars
         />
       </div>
 
-      {/* Footer Info */}
+      {/* Footer Info - REVISI: text-gray-400 */}
       {isClanManager && isVerified && (
-        <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-center md:justify-start gap-2 text-xs text-gray-500">
-          <InfoIcon className="h-3.5 w-3.5" />
+        <div className="mt-6 pt-3 border-t border-white/5 flex items-center justify-end gap-2 text-[10px] text-gray-400 font-mono uppercase tracking-tight">
+          <InfoIcon className="h-3 w-3 opacity-50" />
           <span>
-            Updated: {userProfile.lastVerified ? new Date(userProfile.lastVerified).toLocaleDateString('id-ID') : '-'}
+            Last Sync: {userProfile.lastVerified ? new Date(userProfile.lastVerified).toLocaleDateString('id-ID') : 'N/A'}
           </span>
         </div>
       )}

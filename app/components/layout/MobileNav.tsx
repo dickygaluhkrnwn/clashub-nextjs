@@ -44,15 +44,13 @@ export default function MobileNav() {
   const pathname = usePathname();
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
-      {/* Container Utama:
-        - Glassmorphism effect (backdrop-blur)
-        - Border atas transparan
-        - Padding safe-area untuk iPhone modern
-        - Gradient background halus untuk kedalaman
-      */}
-      <div className="bg-[#1a1a1a]/90 backdrop-blur-xl border-t border-white/10 pb-[env(safe-area-inset-bottom)] shadow-2xl">
-        <nav className="flex items-center justify-around h-16 px-2 relative">
+    <div className="fixed bottom-4 left-4 right-4 z-50 md:hidden">
+      {/* Container Utama: Floating Glass Dock */}
+      <div className="bg-[#15171e]/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] overflow-hidden">
+        {/* Top Highlight Line */}
+        <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-50" />
+        
+        <nav className="flex items-center justify-around h-16 px-1 relative">
           {navItems.map((item) => {
             const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
             
@@ -66,7 +64,7 @@ export default function MobileNav() {
                 {isActive && (
                   <motion.div
                     layoutId="mobile-nav-indicator"
-                    className="absolute inset-0 bg-gradient-to-t from-coc-gold/10 via-transparent to-transparent rounded-lg"
+                    className="absolute inset-x-2 bottom-0 top-0 bg-gradient-to-t from-coc-gold/10 to-transparent rounded-xl"
                     initial={false}
                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   />
@@ -78,7 +76,7 @@ export default function MobileNav() {
                     className={`h-6 w-6 transition-all duration-300 ${
                       isActive 
                         ? 'text-coc-gold drop-shadow-[0_0_8px_rgba(255,215,0,0.6)] scale-110' 
-                        : 'text-gray-400 group-hover:text-gray-200'
+                        : 'text-gray-500 group-hover:text-gray-300'
                     }`} 
                   />
                   

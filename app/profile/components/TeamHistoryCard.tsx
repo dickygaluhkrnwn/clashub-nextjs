@@ -12,7 +12,7 @@ interface TeamHistoryCardProps {
 
 /**
  * Komponen Card "Riwayat Tim".
- * Desain: Timeline List Glassmorphism.
+ * Desain: Timeline List Glassmorphism dengan Gaming Aesthetics.
  */
 export const TeamHistoryCard = ({ clanHistory }: TeamHistoryCardProps) => {
   const { t } = useLanguage();
@@ -26,44 +26,55 @@ export const TeamHistoryCard = ({ clanHistory }: TeamHistoryCardProps) => {
     }
   };
 
-  const getActionColor = (action: string) => {
+  const getActionStyle = (action: string) => {
     switch (action) {
-      case 'join': return 'text-coc-green bg-coc-green/10 border-coc-green/20';
-      case 'leave': return 'text-orange-400 bg-orange-400/10 border-orange-400/20';
-      case 'kicked': return 'text-coc-red bg-coc-red/10 border-coc-red/20';
-      default: return 'text-gray-400 bg-gray-400/10 border-gray-400/20';
+      case 'join': return 'bg-coc-green/10 text-coc-green border-coc-green/30 shadow-[0_0_10px_rgba(74,222,128,0.2)]';
+      case 'leave': return 'bg-orange-500/10 text-orange-400 border-orange-500/30 shadow-[0_0_10px_rgba(249,115,22,0.2)]';
+      case 'kicked': return 'bg-coc-red/10 text-coc-red border-coc-red/30 shadow-[0_0_10px_rgba(239,68,68,0.2)]';
+      default: return 'bg-white/5 text-gray-400 border-white/10';
     }
   };
 
-  return (
-    <div className="bg-black/40 backdrop-blur-md border border-white/5 rounded-2xl p-6 shadow-lg relative overflow-hidden">
-      {/* Decorative Glow */}
-      <div className="absolute top-0 right-0 w-32 h-32 bg-coc-green/5 rounded-full blur-3xl pointer-events-none" />
+  const getTimelineDotColor = (action: string) => {
+      switch (action) {
+        case 'join': return 'bg-coc-green shadow-[0_0_8px_rgba(74,222,128,0.8)]';
+        case 'leave': return 'bg-orange-400 shadow-[0_0_8px_rgba(249,115,22,0.8)]';
+        case 'kicked': return 'bg-coc-red shadow-[0_0_8px_rgba(239,68,68,0.8)]';
+        default: return 'bg-gray-500';
+      }
+  };
 
-      <h2 className="mb-6 flex items-center gap-2 font-clash text-lg text-white relative z-10">
-        <ShieldIcon className="h-5 w-5 text-coc-gold" /> {t.profileHistory.title}
+  return (
+    <div className="bg-[#15171e]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
+      {/* Decorative Glow */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-coc-green/5 rounded-full blur-[80px] pointer-events-none group-hover:bg-coc-green/10 transition-all duration-700" />
+
+      {/* Header - White Text + Shadow */}
+      <h2 className="mb-6 flex items-center gap-3 font-clash text-lg text-white relative z-10 uppercase tracking-wider drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+        <div className="p-1.5 bg-coc-green/10 rounded-lg border border-coc-green/20 shadow-[0_0_10px_rgba(74,222,128,0.3)]">
+            <ShieldIcon className="h-5 w-5 text-coc-green" /> 
+        </div>
+        <span>
+            {t.profileHistory.title}
+        </span>
       </h2>
 
       <div className="space-y-4 relative z-10">
         {clanHistory.length === 0 ? (
-          <div className="text-center py-10 bg-white/5 rounded-xl border border-white/5">
-            <ShieldIcon className="h-8 w-8 text-gray-600 mx-auto mb-2" />
-            <p className="text-gray-400 text-sm">
-              {t.profileHistory.empty}
-            </p>
+          <div className="text-center py-12 text-gray-500 bg-white/5 rounded-2xl border border-white/5 flex flex-col items-center justify-center gap-3">
+            <ShieldIcon className="w-10 h-10 opacity-20" />
+            <p className="text-sm font-medium">{t.profileHistory.empty}</p>
           </div>
         ) : (
-          <div className="relative border-l border-white/10 ml-3 space-y-6 py-2">
+          <div className="relative border-l-2 border-white/5 ml-3 space-y-6 py-2">
             {clanHistory.map((entry) => (
-              <div key={entry.id} className="relative pl-6 group">
-                {/* Timeline Dot */}
-                <div className={`absolute -left-1.5 top-1.5 w-3 h-3 rounded-full border-2 border-coc-dark ${
-                   entry.action === 'join' ? 'bg-coc-green' : entry.action === 'kicked' ? 'bg-coc-red' : 'bg-orange-400'
-                }`} />
+              <div key={entry.id} className="relative pl-8 group/item">
+                {/* Timeline Dot with Glow */}
+                <div className={`absolute -left-[7px] top-1.5 w-3.5 h-3.5 rounded-full border-2 border-[#15171e] z-10 transition-colors ${getTimelineDotColor(entry.action)}`} />
                 
-                <div className="bg-white/5 border border-white/5 rounded-xl p-4 hover:bg-white/10 transition-colors group-hover:border-white/10">
-                  <div className="flex justify-between items-start mb-1">
-                    <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider mb-2 ${getActionColor(entry.action)}`}>
+                <div className="bg-[#0f1115] border border-white/5 rounded-xl p-4 hover:bg-white/5 transition-all duration-300 hover:border-white/20 hover:shadow-lg group-hover/item:-translate-y-0.5">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2 gap-2">
+                    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${getActionStyle(entry.action)}`}>
                       {getActionIcon(entry.action)}
                       <span>
                         {entry.action === 'join'
@@ -73,7 +84,7 @@ export const TeamHistoryCard = ({ clanHistory }: TeamHistoryCardProps) => {
                           : t.profileHistory.kicked}
                       </span>
                     </div>
-                    <span className="text-[10px] text-gray-500 font-mono font-bold uppercase">
+                    <span className="text-[10px] text-gray-500 font-mono font-bold uppercase tracking-tight">
                       {entry.timestamp
                         ? new Date(
                             (entry.timestamp as any)._seconds * 1000 ||
@@ -87,11 +98,11 @@ export const TeamHistoryCard = ({ clanHistory }: TeamHistoryCardProps) => {
                     </span>
                   </div>
                   
-                  <h4 className="text-white font-clash font-semibold text-lg">
+                  <h4 className="text-white font-clash font-bold text-lg leading-tight group-hover/item:text-coc-gold transition-colors drop-shadow-sm">
                     {entry.clanName || t.profileHistory.unknownClan}
                   </h4>
                   {entry.clanTag && (
-                    <p className="text-xs font-mono text-gray-500">
+                    <p className="text-xs font-mono text-gray-500 mt-1 font-medium group-hover/item:text-gray-400 transition-colors">
                       {entry.clanTag}
                     </p>
                   )}

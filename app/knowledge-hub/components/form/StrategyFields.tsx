@@ -1,8 +1,7 @@
 'use client';
 
 import React from 'react';
-import { InfoIcon } from '@/app/components/icons';
-import { FormGroup, getInputClasses } from './PostFormGroup';
+import { InfoIcon, LinkIcon } from '@/app/components/icons';
 import { PostFormData } from './usePostForm';
 import { useLanguage } from '@/lib/hooks/useLanguage';
 
@@ -27,67 +26,78 @@ const StrategyFields: React.FC<StrategyFieldsProps> = ({
 
   const hasLinkError = !isFormValid && isStrategyPost && !formData.troopLink.trim() && !formData.videoUrl.trim();
 
+  // Gaming Input Styles (Consistent with EditProfile)
+  const inputClasses = (hasError: boolean) =>
+    `w-full rounded-xl px-4 py-3 text-white placeholder-gray-600 transition-all duration-300 font-sans
+     bg-[#0a0a0b] border border-white/10 hover:border-coc-gold/30 hover:bg-[#0f1115] focus:bg-[#13151b]
+     focus:ring-1 focus:ring-coc-gold/50 focus:border-coc-gold focus:outline-none focus:shadow-[0_0_15px_rgba(255,215,0,0.1)]
+     ${hasError ? 'border-red-500 focus:border-red-500 focus:ring-red-500/30' : ''}
+    `;
+
   return (
-    <div className="space-y-6 pt-6 border-t border-white/10 mt-6 animate-in fade-in slide-in-from-top-2">
-      <h3 className="text-lg font-clash text-coc-gold flex items-center mb-4">
-        <InfoIcon className="h-5 w-5 mr-2" /> 
-        {language === 'id' ? 'Detail Tambahan (Minimal satu wajib diisi)' : 'Strategy Details (At least one required)'}
-      </h3>
+    <div className="space-y-6 pt-8 mt-8 border-t border-white/10 animate-in fade-in slide-in-from-top-4">
+      <div className="flex items-center gap-3 mb-2">
+        <div className="p-2 bg-coc-gold/10 rounded-lg border border-coc-gold/20">
+             <InfoIcon className="h-5 w-5 text-coc-gold" />
+        </div>
+        <h3 className="text-xl font-clash font-bold text-white tracking-wide flex items-center gap-3">
+           {language === 'id' ? 'Detail Strategi' : 'Strategy Details'}
+           <span className="text-[10px] font-sans font-medium text-gray-500 normal-case bg-[#0a0a0b] px-2 py-0.5 rounded border border-white/5 uppercase tracking-wider">
+              {language === 'id' ? 'Min. 1 Wajib' : 'Min. 1 Required'}
+           </span>
+        </h3>
+      </div>
       
-      <div className="p-4 bg-white/5 rounded-xl border border-white/5 space-y-4">
+      <div className="bg-[#0f1115]/50 p-6 rounded-2xl border border-white/5 space-y-6 relative overflow-hidden group">
+        {/* Decoration */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-coc-blue/5 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/2" />
+
         {/* Troop Link */}
-        <FormGroup
-          label="Troop Link (COC API Link)"
-          htmlFor="troopLink"
-          error={
-            hasLinkError
-              ? (language === 'id' ? 'Wajib diisi jika tidak ada Video URL' : 'Required if no Video URL')
-              : null
-          }
-          helperText={
-            <p>
-              {language === 'id' 
-                ? 'Link untuk menyalin kombinasi pasukan langsung ke game (dimulai dengan `coc://`).'
-                : 'Link to copy army composition directly to game (starts with `coc://`).'}
-            </p>
-          }
-        >
-          <input
+        <div className="space-y-2 relative z-10">
+           <label htmlFor="troopLink" className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 group-focus-within:text-coc-gold transition-colors">
+              <LinkIcon className="h-3 w-3" />
+              Troop Link (COC API Link)
+           </label>
+           <input
             type="url"
             id="troopLink"
             value={formData.troopLink}
             onChange={handleInputChange}
-            placeholder="Contoh: coc://open-troop-link?troop=..."
-            className={getInputClasses(hasLinkError)}
+            placeholder="coc://open-troop-link?troop=..."
+            className={inputClasses(!!hasLinkError)}
           />
-        </FormGroup>
+          {hasLinkError && (
+             <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+               {language === 'id' ? 'Wajib diisi jika tidak ada Video URL' : 'Required if no Video URL'}
+             </p>
+          )}
+          <p className="text-xs text-gray-600 font-sans">
+             {language === 'id' 
+               ? 'Link untuk menyalin kombinasi pasukan langsung ke game (dimulai dengan `coc://`).'
+               : 'Link to copy army composition directly to game (starts with `coc://`).'}
+          </p>
+        </div>
         
         {/* Video URL */}
-        <FormGroup
-          label={t.knowledgeHub.form.labels.youtubeUrl}
-          htmlFor="videoUrl"
-          error={
-            hasLinkError
-              ? (language === 'id' ? 'Wajib diisi jika tidak ada Troop Link' : 'Required if no Troop Link')
-              : null
-          }
-          helperText={
-            <p>
-              {language === 'id' 
-                ? 'Link ke video YouTube yang menampilkan cara menggunakan strategi ini.'
-                : 'Link to a YouTube video showing this strategy in action.'}
-            </p>
-          }
-        >
-          <input
+        <div className="space-y-2 relative z-10">
+           <label htmlFor="videoUrl" className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 group-focus-within:text-coc-gold transition-colors">
+              <span className="text-coc-red font-bold">▶</span>
+              {t.knowledgeHub.form.labels.youtubeUrl}
+           </label>
+           <input
             type="url"
             id="videoUrl"
             value={formData.videoUrl}
             onChange={handleInputChange}
             placeholder={t.knowledgeHub.form.placeholders.youtubeUrl}
-            className={getInputClasses(hasLinkError)}
+            className={inputClasses(!!hasLinkError)}
           />
-        </FormGroup>
+          <p className="text-xs text-gray-600 font-sans">
+             {language === 'id' 
+               ? 'Link ke video YouTube yang menampilkan cara menggunakan strategi ini.'
+               : 'Link to a YouTube video showing this strategy in action.'}
+          </p>
+        </div>
       </div>
     </div>
   );

@@ -9,7 +9,8 @@ import { TournamentFormData, FormErrors } from './types';
 import { 
   TrophyIcon, 
   SaveIcon, 
-  RefreshCwIcon 
+  RefreshCwIcon, 
+  EditIcon
 } from '@/app/components/icons';
 
 // Impor komponen-komponen UI
@@ -239,104 +240,109 @@ const CreateTournamentClient: React.FC<CreateTournamentClientProps> = ({
   };
 
   return (
-    <div className="relative min-h-screen">
+    <div className="min-h-screen bg-[#0a0a0b] text-white font-clash relative overflow-x-hidden pb-20">
       {/* Background Ambience */}
-      <div className="fixed top-0 left-0 w-full h-[500px] bg-gradient-to-b from-coc-blue/10 via-transparent to-transparent pointer-events-none z-0" />
+      <div className="fixed top-0 left-0 w-full h-[500px] bg-gradient-to-b from-coc-blue/5 via-transparent to-transparent pointer-events-none z-0" />
       <div className="fixed top-20 right-0 w-[300px] h-[300px] bg-coc-gold/5 blur-[100px] rounded-full pointer-events-none z-0" />
 
       {notification && <Notification notification={notification} />}
 
-      {/* Main Content */}
-      <div className="relative z-10 max-w-4xl mx-auto">
+      <main className="container mx-auto p-4 md:p-8 mt-6 relative z-10 max-w-4xl">
         
-        {/* Header - Bersih Tanpa Tombol Back */}
-        <header className="mb-8 flex items-center justify-center text-center">
-           <div>
-              <h1 className="text-3xl md:text-4xl font-clash text-white flex items-center justify-center gap-3">
-                 <TrophyIcon className="h-8 w-8 text-coc-gold" />
-                 {/* [FIX] Gunakan tc.pageTitle yang sesuai dengan interface */}
-                 {tc.pageTitle}
-              </h1>
-              <p className="text-gray-400 mt-1 font-sans">
-                 {tc.pageDesc}
-              </p>
-           </div>
+        {/* Header */}
+        <header className="mb-10 text-center md:text-left">
+             <div className="inline-flex items-center gap-3 mb-2 px-4 py-1.5 rounded-full bg-coc-gold/10 border border-coc-gold/20 text-coc-gold text-xs font-bold uppercase tracking-widest shadow-sm">
+                <EditIcon className="h-4 w-4" />
+                New Tournament
+             </div>
+             <h1 className="text-3xl md:text-5xl font-bold text-white uppercase tracking-wide drop-shadow-md mt-4">
+                {tc.pageTitle}
+             </h1>
+             <p className="text-gray-400 text-sm md:text-base font-sans mt-2 max-w-2xl leading-relaxed">
+                {tc.pageDesc}
+             </p>
         </header>
 
         {/* Form Container */}
         <form
           onSubmit={handleSubmit}
-          className="bg-black/40 backdrop-blur-md border border-white/5 rounded-3xl p-6 md:p-10 shadow-2xl space-y-10"
+          className="bg-[#15171e]/90 backdrop-blur-xl border border-white/10 rounded-3xl p-1 shadow-2xl relative overflow-hidden"
           noValidate
         >
+          {/* Top Accent Line */}
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-coc-gold via-coc-blue to-coc-gold opacity-50" />
           
-          {/* Section 1: Basic Info */}
-          <div className="space-y-6">
-             <BasicInfoSection
-                formData={formData}
-                errors={errors}
-                handleChange={handleChange}
-                isLoading={isLoading}
-             />
-          </div>
+          <div className="bg-[#0a0a0b]/50 rounded-[22px] p-6 md:p-10 space-y-12">
+            {/* Section 1: Basic Info */}
+            <div className="space-y-6">
+               <BasicInfoSection
+                 formData={formData}
+                 errors={errors}
+                 handleChange={handleChange}
+                 isLoading={isLoading}
+               />
+            </div>
 
-          <div className="border-t border-white/10" />
+            {/* Divider */}
+            <div className="border-t border-white/5" />
 
-          {/* Section 2: Format & Dates */}
-          <div className="space-y-6">
-             <FormatDatesSection
-                formData={formData}
-                errors={errors}
-                handleChange={handleChange}
-                isLoading={isLoading}
-             />
-          </div>
+            {/* Section 2: Format & Dates */}
+            <div className="space-y-6">
+               <FormatDatesSection
+                 formData={formData}
+                 errors={errors}
+                 handleChange={handleChange}
+                 isLoading={isLoading}
+               />
+            </div>
 
-          <div className="border-t border-white/10" />
+            {/* Divider */}
+            <div className="border-t border-white/5" />
 
-          {/* Section 3: TH Requirements */}
-          <div className="space-y-6">
-             <ThRequirementsSection
-                formData={formData}
-                errors={errors}
-                handleChange={handleChange}
-                handleMixedThChange={handleMixedThChange}
-                isLoading={isLoading}
-             />
-          </div>
+            {/* Section 3: TH Requirements */}
+            <div className="space-y-6">
+               <ThRequirementsSection
+                 formData={formData}
+                 errors={errors}
+                 handleChange={handleChange}
+                 handleMixedThChange={handleMixedThChange}
+                 isLoading={isLoading}
+               />
+            </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-col-reverse sm:flex-row justify-end gap-4 pt-4 border-t border-white/10">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => router.back()}
-              disabled={isLoading}
-              className="border-white/10 hover:bg-white/5"
-            >
-              {t.common.cancel}
-            </Button>
-            <Button 
-              type="submit" 
-              variant="primary" 
-              disabled={isLoading}
-              className="shadow-lg shadow-coc-gold/10"
-            >
-              {isLoading ? (
-                 <>
-                   <RefreshCwIcon className="h-5 w-5 mr-2 animate-spin" />
-                   {tc.btnSubmitting}
-                 </>
-              ) : (
-                 <>
-                   <SaveIcon className="h-5 w-5 mr-2" />
-                   {language === 'id' ? 'Terbitkan' : 'Publish'}
-                 </>
-              )}
-            </Button>
+            {/* Action Buttons */}
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-4 pt-6 border-t border-white/10 sticky bottom-0 bg-[#0a0a0b]/95 backdrop-blur-lg p-4 -mx-6 md:-mx-10 -mb-6 md:-mb-10 sm:bg-transparent sm:static sm:p-0 sm:mx-0 sm:mb-0 z-20">
+               <Button
+                 type="button"
+                 variant="outline"
+                 onClick={() => router.back()}
+                 disabled={isLoading}
+                 className="w-full sm:w-auto border-white/10 hover:bg-white/5 hover:text-white px-8"
+               >
+                 {t.common.cancel}
+               </Button>
+               <Button 
+                 type="submit" 
+                 variant="primary" 
+                 disabled={isLoading}
+                 className="w-full sm:w-auto shadow-[0_0_20px_rgba(255,215,0,0.2)] hover:shadow-[0_0_30px_rgba(255,215,0,0.4)] px-8 font-bold tracking-widest"
+               >
+                 {isLoading ? (
+                    <>
+                      <RefreshCwIcon className="h-5 w-5 mr-2 animate-spin" />
+                      {tc.btnSubmitting}
+                    </>
+                 ) : (
+                    <>
+                      <SaveIcon className="h-5 w-5 mr-2" />
+                      {language === 'id' ? 'Terbitkan' : 'Publish'}
+                    </>
+                 )}
+               </Button>
+            </div>
           </div>
         </form>
-      </div>
+      </main>
     </div>
   );
 };

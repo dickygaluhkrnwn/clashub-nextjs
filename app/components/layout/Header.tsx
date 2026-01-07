@@ -16,10 +16,10 @@ import {
   CheckCircleIcon,
   HelpCircleIcon,
   CogsIcon,
-  MegaphoneIcon,     // [BARU] Untuk Pengumuman
-  AlertTriangleIcon, // [BARU] Untuk System Alert
-  InfoIcon,          // [BARU] Untuk Info Generic
-  CheckIcon          // [BARU] Icon Centang untuk Mark All Read
+  MegaphoneIcon,
+  AlertTriangleIcon,
+  InfoIcon,
+  CheckIcon
 } from '@/app/components/icons';
 import ThemeToggle from '@/app/components/ui/ThemeToggle';
 import LanguageSwitcher from '@/app/components/ui/LanguageSwitcher';
@@ -131,16 +131,16 @@ const NotificationItem = ({ notif, onClick }: { notif: Notification; onClick: ()
         <div className="flex-1 min-w-0">
           {/* Badge NEW jika belum dibaca */}
           {!notif.read && (
-            <span className="inline-block px-1.5 py-0.5 bg-red-500 text-white text-[9px] font-bold rounded mb-1 uppercase tracking-wider">
+            <span className="inline-block px-1.5 py-0.5 bg-red-500 text-white text-[9px] font-bold rounded mb-1 uppercase tracking-wider shadow-sm">
               New
             </span>
           )}
           
-          <p className={`text-sm leading-snug mb-1.5 ${notif.read ? 'text-gray-400' : 'text-white'}`}>
+          <p className={`text-sm leading-snug mb-1.5 font-sans ${notif.read ? 'text-gray-400' : 'text-white'}`}>
             {notif.message}
           </p>
           
-          <span className="text-[10px] text-gray-600 font-bold uppercase tracking-wider flex items-center gap-1">
+          <span className="text-[10px] text-gray-600 font-bold uppercase tracking-wider flex items-center gap-1 font-mono">
             {timeString}
           </span>
         </div>
@@ -196,26 +196,26 @@ const NotificationBell = () => {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`relative p-2 rounded-full transition-all focus:outline-none active:scale-95 ${isOpen ? 'text-coc-gold bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+        className={`relative p-2 rounded-full transition-all focus:outline-none active:scale-95 ${isOpen ? 'text-coc-gold bg-white/5 ring-1 ring-coc-gold/20' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
       >
         <BellIcon className="h-6 w-6" />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-coc-red text-[10px] font-bold text-white border border-[#1a1a1a] animate-pulse">
+          <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-coc-red text-[10px] font-bold text-white border border-[#1a1a1a] animate-pulse shadow-sm">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-3 w-[90vw] md:w-80 max-h-[60vh] md:max-h-[400px] overflow-y-auto bg-[#121212]/95 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-2xl z-50 animate-in fade-in zoom-in-95 duration-200 origin-top-right ring-1 ring-white/5 custom-scrollbar">
+        <div className="absolute right-0 mt-3 w-[90vw] md:w-80 max-h-[60vh] md:max-h-[400px] overflow-y-auto bg-[#121212]/95 backdrop-blur-2xl border border-white/10 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.8)] rounded-2xl z-50 animate-in fade-in zoom-in-95 duration-200 origin-top-right ring-1 ring-white/5 custom-scrollbar">
           
           {/* Header Notifikasi */}
           <div className="p-4 border-b border-white/5 sticky top-0 bg-[#121212]/95 backdrop-blur z-20 flex justify-between items-center shadow-sm">
             <div className="flex items-center gap-2">
-              <h4 className="font-clash text-lg text-white tracking-wide">Notifikasi</h4>
+              <h4 className="font-clash text-lg text-white tracking-wide uppercase">Notifikasi</h4>
               {unreadCount > 0 && (
-                 <span className="text-[10px] font-bold text-coc-gold bg-coc-gold/10 px-2 py-0.5 rounded-full border border-coc-gold/20 tracking-wider">
-                    {unreadCount}
+                 <span className="text-[10px] font-bold text-coc-gold bg-coc-gold/10 px-2 py-0.5 rounded-full border border-coc-gold/20 tracking-wider shadow-[0_0_10px_rgba(255,215,0,0.1)]">
+                    {unreadCount} NEW
                  </span>
               )}
             </div>
@@ -224,11 +224,11 @@ const NotificationBell = () => {
             {unreadCount > 0 && (
               <button 
                 onClick={handleMarkAllRead}
-                className="text-xs text-gray-400 hover:text-white flex items-center gap-1 bg-white/5 hover:bg-white/10 px-2 py-1 rounded-md transition-colors"
+                className="text-xs text-gray-400 hover:text-white flex items-center gap-1 bg-white/5 hover:bg-white/10 px-2 py-1 rounded-md transition-colors border border-white/5 hover:border-white/10"
                 title="Tandai semua sudah dibaca"
               >
                 <CheckCircleIcon className="h-3.5 w-3.5" />
-                <span>Baca Semua</span>
+                <span className="font-bold tracking-tight">MARK ALL</span>
               </button>
             )}
           </div>
@@ -236,7 +236,7 @@ const NotificationBell = () => {
           {/* State Loading */}
           {isLoading && (
             <div className="p-8 text-center text-gray-500 animate-pulse text-sm">
-              <div className="w-8 h-8 bg-white/10 rounded-full mx-auto mb-2"></div>
+              <div className="w-8 h-8 bg-white/10 rounded-full mx-auto mb-2 border border-white/5"></div>
               Memuat info terbaru...
             </div>
           )}
@@ -244,10 +244,10 @@ const NotificationBell = () => {
           {/* State Kosong */}
           {!isLoading && notifications.length === 0 && (
             <div className="p-12 text-center flex flex-col items-center gap-3 text-gray-500">
-              <div className="p-4 rounded-full bg-white/5">
+              <div className="p-4 rounded-full bg-white/5 border border-white/5">
                 <BellIcon className="h-8 w-8 opacity-30" />
               </div>
-              <p className="text-sm">Tidak ada notifikasi baru</p>
+              <p className="text-sm font-medium">Tidak ada notifikasi baru</p>
             </div>
           )}
           
@@ -267,7 +267,7 @@ const NotificationBell = () => {
   );
 };
 
-// Komponen menu dropdown profil pengguna (Sama seperti sebelumnya)
+// Komponen menu dropdown profil pengguna
 const UserProfileDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
@@ -346,12 +346,12 @@ const UserProfileDropdown = () => {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`h-10 w-10 flex items-center justify-center rounded-full bg-black/40 border transition-all overflow-hidden focus:outline-none focus:ring-2 focus:ring-coc-gold/50 ${isOpen ? 'border-coc-gold shadow-[0_0_10px_rgba(255,215,0,0.3)]' : 'border-white/10 hover:border-coc-gold/50'}`}
+        className={`h-10 w-10 flex items-center justify-center rounded-full bg-black/40 border transition-all overflow-hidden focus:outline-none active:scale-95 ${isOpen ? 'border-coc-gold shadow-[0_0_15px_rgba(255,215,0,0.4)] ring-2 ring-coc-gold/20' : 'border-white/10 hover:border-coc-gold/50'}`}
       >
         <img
           src={avatarSrc || '/images/placeholder-avatar.png'}
           alt="User Avatar"
-          className="h-full w-full object-cover"
+          className="h-full w-full object-cover bg-[#0a0a0b]"
           onError={(e) => {
             e.currentTarget.onerror = null;
             e.currentTarget.src = '/images/placeholder-avatar.png';
@@ -360,13 +360,14 @@ const UserProfileDropdown = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-3 w-64 bg-[#121212]/95 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200 ring-1 ring-white/5">
+        <div className="absolute right-0 mt-3 w-64 bg-[#121212]/95 backdrop-blur-2xl border border-white/10 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.8)] rounded-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200 ring-1 ring-white/5">
           {/* Header Profil dengan Efek Gradient */}
-          <div className="p-4 border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent">
-             <p className="text-sm font-bold text-white truncate">
+          <div className="p-4 border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent relative overflow-hidden">
+             <div className="absolute inset-0 bg-coc-gold/5 blur-xl pointer-events-none" />
+             <p className="text-sm font-bold text-white truncate font-clash tracking-wide relative z-10">
                {userProfile && 'displayName' in userProfile ? userProfile.displayName : 'User'}
              </p>
-             <p className="text-xs text-gray-500 truncate">{currentUser?.email}</p>
+             <p className="text-xs text-gray-500 truncate font-mono mt-0.5 relative z-10">{currentUser?.email}</p>
           </div>
           
           <ul className="p-2 space-y-1">
@@ -374,12 +375,12 @@ const UserProfileDropdown = () => {
               <Link
                 href="/profile"
                 onClick={() => setIsOpen(false)}
-                className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white rounded-xl transition-colors group"
+                className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white rounded-xl transition-colors group border border-transparent hover:border-white/5"
               >
-                <div className="p-1.5 rounded-lg bg-black/30 group-hover:bg-coc-gold/20 text-gray-400 group-hover:text-coc-gold transition-colors">
+                <div className="p-1.5 rounded-lg bg-black/30 group-hover:bg-coc-gold/20 text-gray-400 group-hover:text-coc-gold transition-colors shadow-inner">
                     <UserCircleIcon className="h-4 w-4" />
                 </div>
-                <span>Profil Saya</span>
+                <span className="font-medium">Profil Saya</span>
               </Link>
             </li>
 
@@ -388,12 +389,12 @@ const UserProfileDropdown = () => {
                 <Link
                   href="/clan/manage"
                   onClick={() => setIsOpen(false)}
-                  className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white rounded-xl transition-colors group"
+                  className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white rounded-xl transition-colors group border border-transparent hover:border-white/5"
                 >
-                  <div className="p-1.5 rounded-lg bg-black/30 group-hover:bg-coc-blue/20 text-gray-400 group-hover:text-coc-blue transition-colors">
+                  <div className="p-1.5 rounded-lg bg-black/30 group-hover:bg-coc-blue/20 text-gray-400 group-hover:text-coc-blue transition-colors shadow-inner">
                     <ShieldIcon className="h-4 w-4" />
                   </div>
-                  <span>Klan Saya</span>
+                  <span className="font-medium">Klan Saya</span>
                 </Link>
               </li>
             )}
@@ -403,12 +404,12 @@ const UserProfileDropdown = () => {
                 <Link
                   href="/my-tournaments"
                   onClick={() => setIsOpen(false)}
-                  className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white rounded-xl transition-colors group"
+                  className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white rounded-xl transition-colors group border border-transparent hover:border-white/5"
                 >
-                  <div className="p-1.5 rounded-lg bg-black/30 group-hover:bg-coc-gold/20 text-gray-400 group-hover:text-coc-gold transition-colors">
+                  <div className="p-1.5 rounded-lg bg-black/30 group-hover:bg-coc-gold/20 text-gray-400 group-hover:text-coc-gold transition-colors shadow-inner">
                     <TrophyIcon className="h-4 w-4" />
                   </div>
-                  <span>Manajemen Turnamen</span>
+                  <span className="font-medium">Manajemen Turnamen</span>
                 </Link>
               </li>
             )}
@@ -421,12 +422,12 @@ const UserProfileDropdown = () => {
                     installApp();
                     setIsOpen(false);
                   }}
-                  className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-coc-gold hover:bg-white/5 hover:text-white rounded-xl transition-colors group"
+                  className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-coc-gold hover:bg-white/5 hover:text-white rounded-xl transition-colors group border border-transparent hover:border-white/5"
                 >
-                  <div className="p-1.5 rounded-lg bg-black/30 group-hover:bg-coc-gold/20 text-coc-gold/80 group-hover:text-coc-gold transition-colors">
+                  <div className="p-1.5 rounded-lg bg-black/30 group-hover:bg-coc-gold/20 text-coc-gold/80 group-hover:text-coc-gold transition-colors shadow-inner">
                     <DownloadIcon className="h-4 w-4" />
                   </div>
-                  <span>Install App</span>
+                  <span className="font-bold">Install App</span>
                 </button>
               </li>
             )}
@@ -439,12 +440,12 @@ const UserProfileDropdown = () => {
               <Link
                 href="/guide"
                 onClick={() => setIsOpen(false)}
-                className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white rounded-xl transition-colors group"
+                className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white rounded-xl transition-colors group border border-transparent hover:border-white/5"
               >
-                <div className="p-1.5 rounded-lg bg-black/30 group-hover:bg-purple-500/20 text-gray-400 group-hover:text-purple-400 transition-colors">
+                <div className="p-1.5 rounded-lg bg-black/30 group-hover:bg-purple-500/20 text-gray-400 group-hover:text-purple-400 transition-colors shadow-inner">
                     <HelpCircleIcon className="h-4 w-4" />
                 </div>
-                <span>Panduan Aplikasi</span>
+                <span className="font-medium">Panduan Aplikasi</span>
               </Link>
             </li>
 
@@ -454,12 +455,12 @@ const UserProfileDropdown = () => {
                 <Link
                   href="/admin/dashboard"
                   onClick={() => setIsOpen(false)}
-                  className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white rounded-xl transition-colors group"
+                  className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white rounded-xl transition-colors group border border-transparent hover:border-white/5"
                 >
-                  <div className="p-1.5 rounded-lg bg-black/30 group-hover:bg-coc-red/20 text-gray-400 group-hover:text-coc-red transition-colors">
+                  <div className="p-1.5 rounded-lg bg-black/30 group-hover:bg-coc-red/20 text-gray-400 group-hover:text-coc-red transition-colors shadow-inner">
                       <CogsIcon className="h-4 w-4" />
                   </div>
-                  <span>Master Admin</span>
+                  <span className="font-medium text-coc-red group-hover:text-white">Master Admin</span>
                 </Link>
               </li>
             )}
@@ -469,12 +470,12 @@ const UserProfileDropdown = () => {
             <li>
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-red-400 hover:bg-coc-red/10 hover:text-red-300 rounded-xl transition-colors group"
+                className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-red-400 hover:bg-coc-red/10 hover:text-red-300 rounded-xl transition-colors group border border-transparent hover:border-coc-red/20"
               >
-                <div className="p-1.5 rounded-lg bg-black/30 group-hover:bg-coc-red/20 text-gray-400 group-hover:text-coc-red transition-colors">
+                <div className="p-1.5 rounded-lg bg-black/30 group-hover:bg-coc-red/20 text-gray-400 group-hover:text-coc-red transition-colors shadow-inner">
                     <LogOutIcon className="h-4 w-4" />
                 </div>
-                <span>Keluar</span>
+                <span className="font-bold">Keluar</span>
               </button>
             </li>
           </ul>
@@ -491,26 +492,30 @@ const Header = () => {
 
   return (
     <>
-      <header className="sticky top-0 z-50 bg-[#121212]/80 backdrop-blur-xl border-b border-white/5 shadow-lg h-16 md:h-[72px] transition-all duration-300">
+      <header className="sticky top-0 z-50 bg-[#0f1115]/90 backdrop-blur-xl border-b border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.5)] h-16 md:h-[72px] transition-all duration-300">
+        {/* Top Highlight Line */}
+        <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-50" />
+        
         <div className="container mx-auto flex items-center justify-between h-full px-4 md:px-8">
           
           {/* Logo Section */}
           <Link
             href="/"
-            className="flex items-center gap-3 z-20 group"
+            className="flex items-center gap-3 z-20 group relative"
           >
-            <div className="relative h-8 w-8 md:h-10 md:w-10 transition-transform group-hover:scale-110 duration-300">
+            <div className="absolute inset-0 bg-coc-gold/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-full" />
+            <div className="relative h-8 w-8 md:h-10 md:w-10 transition-transform group-hover:scale-110 duration-300 drop-shadow-md">
                 <Image
                 src="/images/logoClashub.png"
                 alt="Clashub Logo"
                 fill
                 sizes="(max-width: 768px) 32px, 40px"
-                className="object-contain drop-shadow-[0_0_15px_rgba(255,215,0,0.3)]"
+                className="object-contain"
                 priority
                 />
             </div>
             <span
-              className="font-clash text-xl md:text-2xl text-white tracking-wide group-hover:text-coc-gold transition-colors duration-300"
+              className="font-clash text-xl md:text-2xl text-white tracking-wide group-hover:text-coc-gold transition-colors duration-300 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
             >
               CLASHUB
             </span>
@@ -527,16 +532,16 @@ const Header = () => {
                       ${
                         pathname === item.href
                           ? 'text-coc-gold bg-coc-gold/10 border border-coc-gold/20 shadow-[0_0_15px_rgba(255,215,0,0.1)]'
-                          : 'text-gray-400 hover:text-white hover:bg-white/5'
+                          : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10'
                       }
                     `}
               >
-                <item.icon className={`h-4 w-4 transition-colors ${pathname === item.href ? 'text-coc-gold' : 'text-gray-500 group-hover:text-gray-300'}`} />
+                <item.icon className={`h-4 w-4 transition-colors ${pathname === item.href ? 'text-coc-gold' : 'text-gray-500 group-hover:text-white'}`} />
                 {item.name}
                 
                 {/* Efek Hover Glow Halus */}
                 {pathname !== item.href && (
-                    <span className="absolute bottom-0 left-0 w-0 h-[2px] bg-coc-gold transition-all duration-300 group-hover:w-full opacity-50"></span>
+                    <span className="absolute bottom-0 left-0 w-0 h-[2px] bg-coc-gold transition-all duration-300 group-hover:w-full opacity-50 shadow-[0_0_10px_currentColor]"></span>
                 )}
               </Link>
             ))}
@@ -551,11 +556,11 @@ const Header = () => {
                     onClick={installApp} 
                     variant="ghost" 
                     size="sm" 
-                    className="hidden sm:flex items-center gap-2 bg-coc-gold/5 text-coc-gold border border-coc-gold/20 hover:bg-coc-gold/10 mr-2 transition-all hover:shadow-[0_0_10px_rgba(255,215,0,0.15)]"
+                    className="hidden sm:flex items-center gap-2 bg-coc-gold/5 text-coc-gold border border-coc-gold/20 hover:bg-coc-gold/10 mr-2 transition-all hover:shadow-[0_0_10px_rgba(255,215,0,0.15)] font-bold tracking-wide rounded-xl"
                 >
                     <DownloadIcon className="h-4 w-4" />
-                    <span className="hidden lg:inline">Install App</span>
-                    <span className="lg:hidden">Install</span>
+                    <span className="hidden lg:inline">INSTALL APP</span>
+                    <span className="lg:hidden">INSTALL</span>
                 </Button>
             )}
 
@@ -567,7 +572,7 @@ const Header = () => {
 
             {/* Notification & Search */}
             <div className="flex items-center gap-1 md:gap-2">
-                <button className="p-2 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-white/5 focus:outline-none">
+                <button className="p-2 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-white/5 focus:outline-none active:scale-95 border border-transparent hover:border-white/10">
                   <SearchIcon className="h-5 w-5" />
                 </button>
                 <NotificationBell />
@@ -581,13 +586,13 @@ const Header = () => {
               (currentUser ? (
                 <UserProfileDropdown />
               ) : (
-                <Button href="/auth" variant="primary" size="sm" className="min-w-[90px] shadow-lg shadow-coc-gold/10 ml-2 hover:shadow-coc-gold/20 transition-all">
-                  Login
+                <Button href="/auth" variant="primary" size="sm" className="min-w-[100px] shadow-lg shadow-coc-gold/10 ml-2 hover:shadow-coc-gold/30 transition-all font-bold tracking-wider">
+                  LOGIN
                 </Button>
               ))}
             
             {authLoading && (
-              <div className="h-9 w-9 rounded-full bg-white/5 animate-pulse ring-1 ring-white/10 ml-2"></div>
+              <div className="h-10 w-10 rounded-full bg-white/5 animate-pulse ring-1 ring-white/10 ml-2 border border-white/5"></div>
             )}
           </div>
         </div>

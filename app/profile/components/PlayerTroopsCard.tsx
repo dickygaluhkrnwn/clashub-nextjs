@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { CocPlayer, UserProfile } from '@/lib/types';
-import { SwordsIcon } from '@/app/components/icons';
+import { SwordsIcon, StarIcon } from '@/app/components/icons';
 import { useLanguage } from '@/lib/hooks/useLanguage';
 import { useGameAssets } from '@/lib/hooks/useGameAssets';
 
@@ -13,6 +13,10 @@ interface PlayerTroopsCardProps {
   error?: string | null;
 }
 
+/**
+ * Komponen Card "Pasukan Reguler".
+ * Desain: Gaming Grid dengan kartu unit individual.
+ */
 export const PlayerTroopsCard = ({
   userProfile,
   fullPlayerData,
@@ -24,28 +28,12 @@ export const PlayerTroopsCard = ({
 
   const troopsData = fullPlayerData?.troops ?? userProfile?.cachedTroops ?? [];
 
-  // Filter 1: Hanya Home Village
-  // Filter 2: BUKAN Pet
-  // Filter 3: BUKAN Super Troop Aktif (Karena sudah ada card sendiri)
-  // Filter 4: BUKAN Super Troop Unlockable (biasanya kita sembunyikan dari regular list agar tidak penuh, kecuali mau ditampilkan)
-  // Tapi untuk amannya, kita tampilkan semua NON-Aktif Super Troops sebagai "Regular"
-  // Atau lebih baik lagi: Hanya tampilkan pasukan REGULER (bukan varian super)
-  // Nama pasukan super biasanya ada "Super".
-  // API CoC memisahkan "Barbarian" dan "Super Barbarian".
-  
+  // Filter Logic:
   const regularTroops = troopsData.filter((t) => {
      const type = getAssetType(t.name);
      const isPet = type === 'pet';
      const isSuperActive = t.superTroopIsActive;
      
-     // Kita exclude Pet dan Super Troop yang SEDANG AKTIF (karena masuk card atas)
-     // Super Troop yang TIDAK aktif tetap masuk sini? Atau kita filter semua "Super"?
-     // Biasanya user ingin melihat list troop biasa di sini.
-     // Kita filter yang namanya mengandung "Super " atau "Ice Hound" dsb jika kita mau strict,
-     // tapi logic sederhana: exclude Pet & Active Super.
-     
-     // UPDATE: Mari kita filter "Super" troops agar card Regular benar-benar bersih.
-     // Kita asumsikan nama aset super troop diawali "Super" atau tipe di admin 'super-troop'
      const isSuperType = type === 'super-troop' || t.name.startsWith('Super ') || t.name === 'Ice Hound' || t.name === 'Rocket Balloon' || t.name === 'Inferno Dragon';
 
      return t.village === 'home' && !isPet && !isSuperActive && !isSuperType;
@@ -54,11 +42,18 @@ export const PlayerTroopsCard = ({
   const showLoading = isLoading && !fullPlayerData && !userProfile.cachedTroops;
 
   return (
-    <div className="bg-black/40 backdrop-blur-md border border-white/5 rounded-2xl p-6 shadow-lg relative overflow-hidden group">
-      <div className="absolute top-20 -right-20 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-blue-500/20 transition-all duration-700" />
+    <div className="bg-[#15171e]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
+      {/* Decorative Background */}
+      <div className="absolute top-20 -right-20 w-64 h-64 bg-coc-red/5 rounded-full blur-[80px] pointer-events-none group-hover:bg-coc-red/10 transition-all duration-700" />
 
-      <h2 className="mb-6 flex items-center gap-2 font-clash text-lg text-white relative z-10">
-        <SwordsIcon className="h-5 w-5 text-coc-gold" /> {t.profileArmy.troopsTitle}
+      {/* Header - FIXED: White Text with Shadow */}
+      <h2 className="mb-6 flex items-center gap-3 font-clash text-lg text-white relative z-10 uppercase tracking-wider drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+        <div className="p-1.5 bg-coc-red/10 rounded-lg border border-coc-red/20 shadow-[0_0_10px_rgba(248,113,113,0.3)]">
+            <SwordsIcon className="h-5 w-5 text-coc-red" /> 
+        </div>
+        <span>
+            {t.profileArmy.troopsTitle}
+        </span>
       </h2>
 
       {error && !isLoading && (
@@ -70,9 +65,9 @@ export const PlayerTroopsCard = ({
       <div className="relative z-10 space-y-8">
         {showLoading ? (
           <div className="space-y-6">
-            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3">
-              {[...Array(10)].map((_, i) => (
-                <div key={i} className="aspect-square bg-white/5 rounded-xl animate-pulse" />
+            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3">
+              {[...Array(16)].map((_, i) => (
+                <div key={i} className="aspect-square bg-white/5 rounded-xl animate-pulse border border-white/5" />
               ))}
             </div>
           </div>
@@ -80,37 +75,52 @@ export const PlayerTroopsCard = ({
           <>
             {/* Regular Troops Grid */}
             {regularTroops.length > 0 ? (
-              <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3">
-                  {regularTroops.map((troop) => (
+              <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3">
+                  {regularTroops.map((troop) => {
+                    const isMax = troop.level === troop.maxLevel;
+                    
+                    return (
                     <div
                       key={troop.name}
-                      className="relative bg-white/5 border border-white/5 rounded-xl p-2 flex flex-col items-center justify-center hover:bg-white/10 hover:border-white/20 transition-all duration-300 group/item"
+                      className={`relative bg-[#0f1115] border ${isMax ? 'border-coc-gold/30' : 'border-white/5'} rounded-xl p-2 flex flex-col items-center justify-center hover:bg-white/5 hover:border-white/20 hover:-translate-y-1 transition-all duration-300 group/item shadow-sm`}
                       title={troop.name}
                     >
-                      <div className="w-10 h-10 relative mb-1">
-                         <img 
+                      {/* Glow effect for Max Level */}
+                      {isMax && <div className="absolute inset-0 bg-coc-gold/5 rounded-xl opacity-0 group-hover/item:opacity-100 transition-opacity" />}
+
+                      <div className="w-12 h-12 relative mb-1 z-10">
+                          <img 
                             src={getAssetUrl(troop.name)} 
                             alt={troop.name}
-                            className="w-full h-full object-contain drop-shadow-md group-hover/item:scale-110 transition-transform filter grayscale-[0.3] group-hover/item:grayscale-0"
+                            className="w-full h-full object-contain drop-shadow-md group-hover/item:scale-110 transition-transform duration-300"
                             onError={(e) => {
                                 e.currentTarget.style.display = 'none';
                             }}
-                         />
+                          />
                       </div>
                       
-                      <div className={`absolute -top-1.5 -right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border ${
-                          troop.level === troop.maxLevel 
-                            ? 'bg-coc-gold text-black border-coc-gold' 
-                            : 'bg-black/60 text-white border-white/20'
+                      {/* Level Badge */}
+                      <div className={`absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center text-[9px] font-bold px-1 rounded shadow-sm border z-20 ${
+                          isMax 
+                            ? 'bg-coc-gold text-black border-yellow-200 shadow-coc-gold/20' 
+                            : 'bg-[#1a1a1a] text-white border-white/20'
                       }`}>
                         {troop.level}
                       </div>
+
+                      {/* Max Star Indicator */}
+                      {isMax && (
+                          <div className="absolute -bottom-1 -right-1">
+                              <StarIcon className="w-3 h-3 text-coc-gold fill-current drop-shadow-sm" />
+                          </div>
+                      )}
                     </div>
-                  ))}
+                  )})}
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500 bg-white/5 rounded-xl border border-white/5">
-                <p className="text-sm">{t.profileArmy.troopsEmpty}</p>
+              <div className="text-center py-12 text-gray-500 bg-white/5 rounded-2xl border border-white/5 flex flex-col items-center justify-center gap-3">
+                <SwordsIcon className="w-10 h-10 opacity-20" />
+                <p className="text-sm font-medium">{t.profileArmy.troopsEmpty}</p>
               </div>
             )}
           </>

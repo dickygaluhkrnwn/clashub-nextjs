@@ -46,38 +46,49 @@ export const Button = React.forwardRef<
     ref
   ) => {
     // Menambahkan font-clash ke kelas dasar, kecuali untuk varian 'link' dan 'ghost'
-    const baseClasses = `inline-block ${
+    const baseClasses = `inline-flex items-center justify-center ${
       variant !== 'link' && variant !== 'ghost' ? 'font-clash' : 'font-sans'
-    } rounded-md transition-all duration-200 uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed select-none`;
+    } rounded-xl transition-all duration-200 uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed select-none active:scale-[0.98]`;
 
     // PERBAIKAN: Menambahkan kelas untuk variant 'danger', 'ghost', 'outline', dan 'success'
     const variantClasses = {
-      primary: 'btn-3d-gold shadow-lg hover:shadow-xl active:translate-y-0.5', // Menggunakan utility class globals.css + interaksi
-      secondary: 'btn-3d-stone shadow-lg hover:shadow-xl active:translate-y-0.5',
-      tertiary: 'btn-3d-silver shadow-lg hover:shadow-xl active:translate-y-0.5', // Pastikan btn-3d-silver ada atau gunakan fallback
-      link: 'btn-link font-bold text-coc-gold hover:text-white underline-offset-4 hover:underline',
+      // Primary (Gold/Yellow - Main Action)
+      primary: 
+        'bg-gradient-to-b from-coc-gold to-yellow-600 text-black border-b-4 border-yellow-800 hover:brightness-110 shadow-lg active:border-b-0 active:translate-y-1', 
       
-      // Style baru untuk danger (Merah Clash)
+      // Secondary (Dark/Stone - Alternative Action)
+      secondary: 
+        'bg-gradient-to-b from-[#2a2a2a] to-[#1a1a1a] text-white border-b-4 border-black hover:bg-[#333] shadow-lg active:border-b-0 active:translate-y-1 border border-white/10',
+      
+      // Tertiary (Silver/Metal - Neutral Action)
+      tertiary: 
+        'bg-gradient-to-b from-gray-300 to-gray-500 text-gray-900 border-b-4 border-gray-700 hover:brightness-110 shadow-lg active:border-b-0 active:translate-y-1', 
+      
+      // Link (Text Only)
+      link: 
+        'bg-transparent text-coc-gold hover:text-white underline-offset-4 hover:underline p-0 h-auto',
+      
+      // Danger (Red - Destructive Action)
       danger:
         'bg-gradient-to-b from-coc-red to-red-800 text-white border-b-4 border-red-900 hover:from-red-500 hover:to-coc-red shadow-lg active:border-b-0 active:translate-y-1',
       
-      // Style baru untuk ghost (Transparan tapi tactile)
+      // Ghost (Transparent - Subtle Action)
       ghost:
-        'bg-transparent text-gray-400 hover:text-white hover:bg-white/10 active:bg-white/20',
+        'bg-transparent text-gray-400 hover:text-white hover:bg-white/10 active:bg-white/20 border border-transparent',
       
-      // Style baru untuk outline (Glassy Border)
+      // Outline (Glassy Border - Secondary Action)
       outline:
-        'bg-transparent border-2 border-white/20 text-coc-gold hover:border-coc-gold hover:bg-coc-gold/10 hover:text-white shadow-sm active:scale-95',
+        'bg-transparent border-2 border-white/20 text-coc-gold hover:border-coc-gold hover:bg-coc-gold/10 hover:text-white shadow-sm active:scale-95 backdrop-blur-sm',
 
-      // [FIX] Style baru untuk success (Hijau Clash) - Konsisten dengan tema CoC
+      // Success (Green - Positive Action)
       success:
         'bg-gradient-to-b from-coc-green to-green-800 text-white border-b-4 border-green-900 hover:from-green-500 hover:to-coc-green shadow-lg active:border-b-0 active:translate-y-1',
     };
 
     const sizeClasses = {
-      sm: 'px-3 py-1.5 text-[10px] md:text-xs font-bold',
-      md: 'px-5 py-2.5 text-xs md:text-sm font-bold',
-      lg: 'px-8 py-3 text-sm md:text-base font-bold',
+      sm: 'px-3 py-1.5 text-[10px] md:text-xs font-bold min-h-[32px]',
+      md: 'px-5 py-2.5 text-xs md:text-sm font-bold min-h-[44px]',
+      lg: 'px-8 py-3 text-sm md:text-base font-bold min-h-[52px]',
     };
 
     // Gabungkan semua kelas yang relevan

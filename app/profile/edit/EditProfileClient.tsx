@@ -112,7 +112,7 @@ const sanitizeDataForFirestore = (
   return cleanData;
 };
 
-// Reusable Input Wrapper
+// Reusable Input Wrapper with Gaming Style
 const FormGroup: React.FC<{
   children: ReactNode;
   label: string;
@@ -120,21 +120,25 @@ const FormGroup: React.FC<{
   error?: string | null;
   disabled?: boolean;
 }> = ({ children, label, htmlFor, error, disabled = false }) => (
-  <div className="space-y-1.5">
+  <div className="space-y-2">
     <label
       htmlFor={htmlFor}
-      className={`block text-xs font-bold uppercase tracking-wider ${
-        disabled ? 'text-gray-500' : 'text-coc-gold'
+      className={`block text-[10px] font-bold uppercase tracking-widest ${
+        disabled ? 'text-gray-600' : 'text-gray-400 group-focus-within:text-coc-gold transition-colors'
       }`}
     >
       {label}{' '}
-      {disabled && <span className="text-coc-red/70 normal-case">(Terkunci)</span>}
+      {disabled && <span className="text-red-500/50 normal-case ml-1">(Locked)</span>}
     </label>
-    {children}
+    <div className="relative group">
+        {children}
+        {/* Glow effect on focus (handled by peer/focus-within logic if possible, or just hover) */}
+    </div>
     {error && (
-      <p id={`${htmlFor}-error`} className="text-xs text-red-400 mt-1 flex items-center gap-1">
-        <AlertTriangleIcon className="h-3 w-3" /> {error}
-      </p>
+      <div id={`${htmlFor}-error`} className="flex items-center gap-1.5 text-xs text-red-400 mt-1 bg-red-500/5 p-1.5 rounded-lg border border-red-500/10">
+        <AlertTriangleIcon className="h-3.5 w-3.5 flex-shrink-0" /> 
+        <span>{error}</span>
+      </div>
     )}
   </div>
 );
@@ -315,82 +319,103 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
     }
   };
 
-  // Glass Input Styles
+  // Gaming Input Styles (Darker & Sharper)
   const inputClasses = (hasError: boolean, disabled: boolean = false) =>
-    `w-full rounded-xl px-4 py-3 text-white placeholder-gray-500 transition-all duration-200 font-sans
+    `w-full rounded-xl px-4 py-3 text-white placeholder-gray-600 transition-all duration-300 font-sans
      ${disabled 
-        ? 'bg-white/5 border border-white/5 text-gray-500 cursor-not-allowed' 
-        : 'bg-black/20 border border-white/10 hover:border-coc-gold/50 focus:bg-black/40'
+       ? 'bg-[#0f1115] border border-white/5 text-gray-500 cursor-not-allowed opacity-70' 
+       : 'bg-[#0a0a0b] border border-white/10 hover:border-coc-gold/30 hover:bg-[#0f1115] focus:bg-[#13151b]'
      }
-     focus:ring-2 focus:ring-coc-gold/50 focus:border-coc-gold focus:outline-none
+     focus:ring-1 focus:ring-coc-gold/50 focus:border-coc-gold focus:outline-none focus:shadow-[0_0_15px_rgba(255,215,0,0.1)]
      ${hasError ? 'border-red-500 focus:border-red-500 focus:ring-red-500/30' : ''}
     `;
 
   return (
-    <div className="min-h-screen bg-coc-dark text-white font-clash relative overflow-x-hidden pb-20">
+    <div className="min-h-screen bg-[#0a0a0b] text-white font-clash relative overflow-x-hidden pb-20">
       {/* Background Ambient Glows */}
-      <div className="fixed top-0 left-0 w-full h-[500px] bg-gradient-to-b from-coc-blue/10 via-transparent to-transparent pointer-events-none z-0" />
-      <div className="fixed top-20 right-0 w-[300px] h-[300px] bg-coc-gold/5 blur-[100px] rounded-full pointer-events-none z-0" />
+      <div className="fixed top-0 left-0 w-full h-[500px] bg-gradient-to-b from-coc-blue/5 via-transparent to-transparent pointer-events-none z-0" />
+      <div className="fixed top-[-100px] right-[-100px] w-[500px] h-[500px] bg-coc-gold/5 blur-[120px] rounded-full pointer-events-none z-0" />
 
       {notification && <Notification notification={notification} />}
 
-      <main className="container mx-auto p-4 md:p-8 mt-4 relative z-10">
-        <div className="max-w-4xl mx-auto">
+      <main className="container mx-auto p-4 md:p-8 mt-6 relative z-10">
+        <div className="max-w-5xl mx-auto">
           {/* Header */}
-          <header className="mb-8 flex items-center gap-4">
-            <Button href="/profile" variant="ghost" className="text-gray-400 hover:text-white">
+          <header className="mb-10 flex items-center gap-6">
+            <Button href="/profile" variant="ghost" className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-white/5">
               <ArrowLeftIcon className="h-6 w-6" />
             </Button>
-            <div>
-              <h1 className="text-3xl font-bold text-white flex items-center gap-2">
-                Edit E-Sports CV <EditIcon className="h-6 w-6 text-coc-gold" />
+            <div className="flex-1">
+              <h1 className="text-3xl md:text-4xl font-bold text-white flex items-center gap-3 uppercase tracking-wide drop-shadow-md">
+                <span className="bg-clip-text text-transparent bg-gradient-to-r from-coc-gold to-yellow-200">
+                    Edit Profile
+                </span>
+                <div className="px-2 py-1 bg-coc-gold/10 rounded-lg border border-coc-gold/20">
+                    <EditIcon className="h-5 w-5 text-coc-gold" />
+                </div>
               </h1>
-              <p className="text-gray-400 text-sm font-sans mt-1">Perbarui data diri dan preferensi bermain Anda.</p>
+              <p className="text-gray-500 text-sm font-sans mt-2 tracking-wide uppercase">Customize your identity & preferences</p>
             </div>
           </header>
 
-          <form onSubmit={handleSubmit} className="bg-black/40 backdrop-blur-md border border-white/5 rounded-3xl p-6 md:p-10 shadow-2xl space-y-12">
+          <form onSubmit={handleSubmit} className="space-y-8">
             
-            {/* 1. Verification Section */}
-            <section className="space-y-6">
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  <ShieldIcon className="h-6 w-6 text-coc-gold" /> Verifikasi Akun
+            {/* 1. Account Verification Module (Panel Keamanan) */}
+            <section className="bg-[#15171e]/90 backdrop-blur-xl border border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden group">
+              <div className="absolute top-0 left-0 w-1 h-full bg-coc-blue" />
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-coc-blue to-transparent opacity-50" />
+              
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-white flex items-center gap-3 uppercase tracking-wider">
+                  <div className="p-2 bg-coc-blue/10 rounded-lg border border-coc-blue/20">
+                      <ShieldIcon className="h-5 w-5 text-coc-blue" />
+                  </div>
+                  Account Verification
                 </h2>
                 {isVerified && (
-                  <span className="px-3 py-1 bg-coc-green/10 text-coc-green rounded-full text-xs font-bold border border-coc-green/20 flex items-center gap-1">
-                    <CheckIcon className="h-3 w-3" /> VERIFIED
-                  </span>
+                  <div className="px-4 py-1.5 bg-coc-green/10 text-coc-green rounded-xl text-xs font-bold border border-coc-green/30 flex items-center gap-2 shadow-[0_0_10px_rgba(74,222,128,0.2)]">
+                    <CheckIcon className="h-4 w-4 stroke-[3px]" /> VERIFIED
+                  </div>
                 )}
               </div>
 
-              <div className={`p-6 rounded-2xl transition-colors ${
-                isVerified ? 'bg-coc-green/5 border border-coc-green/20' : 'bg-white/5 border border-white/10'
+              <div className={`p-6 rounded-2xl transition-all duration-500 relative overflow-hidden ${
+                isVerified 
+                    ? 'bg-gradient-to-br from-coc-green/5 to-[#0a0a0b] border border-coc-green/20' 
+                    : 'bg-[#0a0a0b] border border-white/10 border-dashed'
               }`}>
                 {isVerified ? (
-                  <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-coc-green/20 flex items-center justify-center text-coc-green">
-                        <CheckIcon className="h-6 w-6" />
+                  <div className="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
+                    <div className="flex items-center gap-5">
+                      <div className="w-16 h-16 rounded-2xl bg-[#0f1115] border border-coc-green/30 flex items-center justify-center text-coc-green shadow-lg">
+                        <CheckIcon className="h-8 w-8" />
                       </div>
                       <div>
-                        <p className="text-sm text-gray-400 font-sans">Terhubung sebagai:</p>
-                        <p className="text-lg font-bold text-white">{initialProfile.inGameName} <span className="text-coc-green font-mono text-sm ml-1">({initialProfile.playerTag})</span></p>
+                        <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mb-1">Linked Account</p>
+                        <p className="text-2xl font-bold text-white font-clash">{initialProfile.inGameName}</p>
+                        <p className="text-coc-green font-mono text-sm font-bold tracking-wider">{initialProfile.playerTag}</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-xs text-gray-500 font-sans">
-                        Terakhir dicek: {initialProfile.lastVerified ? new Date(initialProfile.lastVerified).toLocaleDateString('id-ID') : '-'}
+                    <div className="text-right bg-[#0f1115] px-4 py-2 rounded-xl border border-white/5">
+                      <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-0.5">Last Sync</p>
+                      <p className="text-xs text-gray-300 font-mono">
+                        {initialProfile.lastVerified ? new Date(initialProfile.lastVerified).toLocaleDateString('id-ID') : '-'}
                       </p>
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    <p className="text-sm text-gray-300 font-sans leading-relaxed">
-                      Masukkan Player Tag dan API Token dari pengaturan game Clash of Clans untuk memverifikasi akun Anda. Ini akan membuka fitur manajemen klan dan menampilkan statistik real-time.
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-                      <div className="md:col-span-2">
+                  <div className="space-y-6 relative z-10">
+                    <div className="flex items-start gap-4">
+                        <div className="p-3 bg-coc-gold/10 rounded-full border border-coc-gold/20 flex-shrink-0 animate-pulse-slow">
+                            <InfoIcon className="h-6 w-6 text-coc-gold" />
+                        </div>
+                        <p className="text-sm text-gray-300 font-sans leading-relaxed max-w-2xl">
+                          Hubungkan akun Clash of Clans Anda menggunakan <strong>Player Tag</strong> dan <strong>API Token</strong> untuk membuka fitur eksklusif, manajemen klan, dan sinkronisasi statistik otomatis.
+                        </p>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end bg-[#13151b] p-4 rounded-xl border border-white/5">
+                      <div className="md:col-span-5">
                         <FormGroup label="Player Tag" htmlFor="playerTagVerification" error={errors.verifyTag}>
                           <input
                             id="playerTagVerification"
@@ -402,7 +427,7 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
                           />
                         </FormGroup>
                       </div>
-                      <div className="md:col-span-2">
+                      <div className="md:col-span-5">
                         <FormGroup label="API Token" htmlFor="apiTokenVerification" error={errors.verifyToken}>
                           <input
                             id="apiTokenVerification"
@@ -414,15 +439,15 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
                           />
                         </FormGroup>
                       </div>
-                      <div className="md:col-span-1">
+                      <div className="md:col-span-2">
                         <Button
                           type="button"
                           variant="primary"
                           onClick={handleVerificationSubmit}
-                          className="w-full h-[46px] shadow-lg shadow-coc-gold/10"
+                          className="w-full h-[48px] shadow-[0_0_15px_rgba(255,215,0,0.15)] font-bold tracking-wide"
                           disabled={isVerifying}
                         >
-                          {isVerifying ? <RefreshCwIcon className="h-5 w-5 animate-spin" /> : 'Verifikasi'}
+                          {isVerifying ? <RefreshCwIcon className="h-5 w-5 animate-spin" /> : 'CONNECT'}
                         </Button>
                       </div>
                     </div>
@@ -431,11 +456,14 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
               </div>
             </section>
 
-            {/* 2. Avatar Selection */}
-            <section className="space-y-6">
-              <div className="border-b border-white/10 pb-4">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  <UserCircleIcon className="h-6 w-6 text-coc-gold" /> Pilih Avatar
+            {/* 2. Avatar Selection (Grid Panel) */}
+            <section className="bg-[#15171e]/90 backdrop-blur-xl border border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl overflow-hidden">
+              <div className="border-b border-white/10 pb-6 mb-6">
+                <h2 className="text-xl font-bold text-white flex items-center gap-3 uppercase tracking-wider">
+                  <div className="p-2 bg-coc-red/10 rounded-lg border border-coc-red/20">
+                      <UserCircleIcon className="h-5 w-5 text-coc-red" /> 
+                  </div>
+                  Select Avatar
                 </h2>
               </div>
               <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-4">
@@ -444,22 +472,22 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
                     key={url}
                     type="button"
                     onClick={() => setFormData((prev) => ({ ...prev, avatarUrl: url }))}
-                    className={`relative aspect-square rounded-2xl overflow-hidden transition-all duration-300 group ${
+                    className={`relative aspect-square rounded-2xl overflow-hidden transition-all duration-300 group/avatar ${
                       formData.avatarUrl === url
-                        ? 'ring-2 ring-coc-gold shadow-[0_0_20px_rgba(255,215,0,0.3)] scale-105 z-10'
-                        : 'opacity-70 hover:opacity-100 hover:scale-105'
+                        ? 'ring-2 ring-coc-gold shadow-[0_0_20px_rgba(255,215,0,0.4)] scale-105 z-10 grayscale-0'
+                        : 'opacity-60 hover:opacity-100 hover:scale-105 grayscale hover:grayscale-0 border border-white/5 hover:border-white/20'
                     }`}
                   >
                     <Image
                       src={url}
                       alt="Avatar"
                       fill
-                      className="object-cover"
+                      className="object-cover bg-[#0a0a0b]"
                     />
                     {formData.avatarUrl === url && (
-                      <div className="absolute inset-0 bg-coc-gold/20 flex items-center justify-center">
-                        <div className="bg-coc-gold rounded-full p-1 shadow-lg">
-                          <CheckIcon className="h-3 w-3 text-black" />
+                      <div className="absolute inset-0 bg-coc-gold/10 flex items-center justify-center backdrop-blur-[1px]">
+                        <div className="bg-coc-gold text-black rounded-full p-1.5 shadow-lg">
+                          <CheckIcon className="h-3.5 w-3.5 stroke-[3px]" />
                         </div>
                       </div>
                     )}
@@ -468,22 +496,28 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
               </div>
             </section>
 
-            {/* 3. Detail CV */}
-            <section className="space-y-6">
-              <div className="border-b border-white/10 pb-4">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  <InfoIcon className="h-6 w-6 text-coc-gold" /> Informasi Dasar
+            {/* 3. Detail CV (Form Panel) */}
+            <section className="bg-[#15171e]/90 backdrop-blur-xl border border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-1 h-full bg-gray-600" />
+              
+              <div className="border-b border-white/10 pb-6 mb-6">
+                <h2 className="text-xl font-bold text-white flex items-center gap-3 uppercase tracking-wider">
+                  <div className="p-2 bg-gray-700/20 rounded-lg border border-gray-600/30">
+                      <InfoIcon className="h-5 w-5 text-gray-300" />
+                  </div>
+                  Basic Info
                 </h2>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormGroup label="Nama Tampilan" htmlFor="displayName" error={errors.displayName}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                <FormGroup label="Display Name" htmlFor="displayName" error={errors.displayName}>
                   <input
                     id="displayName"
                     value={formData.displayName}
                     onChange={handleInputChange}
                     className={inputClasses(!!errors.displayName)}
                     required
+                    placeholder="Nama panggilan..."
                   />
                 </FormGroup>
 
@@ -494,7 +528,7 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
                     onChange={handleInputChange}
                     className={inputClasses(!!errors.playerTag, isVerified)}
                     disabled={isVerified}
-                    placeholder={isVerified ? "Dikelola otomatis" : "#P20C8Y9L"}
+                    placeholder={isVerified ? "Managed automatically" : "#P20C8Y9L"}
                   />
                 </FormGroup>
 
@@ -506,28 +540,28 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
                     className={inputClasses(!!errors.thLevel, isVerified)}
                     disabled={isVerified}
                   >
-                    <option value="">-- Pilih Level --</option>
+                    <option value="" className="text-gray-500">-- Select Level --</option>
                     {AVAILABLE_TH_LEVELS_DESC.map((th) => (
-                      <option key={th} value={th} className="bg-coc-dark text-white">Town Hall {th}</option>
+                      <option key={th} value={th} className="bg-[#0a0a0b] text-white">Town Hall {th}</option>
                     ))}
                   </select>
                 </FormGroup>
 
-                <FormGroup label="Role / Gaya Main" htmlFor="playStyle">
+                <FormGroup label="Play Style / Role" htmlFor="playStyle">
                   <select
                     id="playStyle"
                     value={formData.playStyle || ''}
                     onChange={handleInputChange}
                     className={inputClasses(false)}
                   >
-                    <option value="">-- Pilih Role --</option>
+                    <option value="" className="text-gray-500">-- Select Role --</option>
                     {PLAY_STYLE_OPTIONS.map((role) => (
-                      <option key={role} value={role} className="bg-coc-dark text-white">{role}</option>
+                      <option key={role} value={role} className="bg-[#0a0a0b] text-white">{role}</option>
                     ))}
                   </select>
                 </FormGroup>
 
-                <FormGroup label="Discord ID (Opsional)" htmlFor="discordId">
+                <FormGroup label="Discord ID (Optional)" htmlFor="discordId">
                   <input
                     id="discordId"
                     value={formData.discordId || ''}
@@ -537,7 +571,7 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
                   />
                 </FormGroup>
 
-                <FormGroup label="Link Website (Opsional)" htmlFor="website">
+                <FormGroup label="Website Link (Optional)" htmlFor="website">
                   <input
                     type="url"
                     id="website"
@@ -549,19 +583,19 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
                 </FormGroup>
                 
                 <div className="md:col-span-2">
-                   <FormGroup label="Jam Aktif (Opsional)" htmlFor="activeHours">
+                   <FormGroup label="Active Hours (Optional)" htmlFor="activeHours">
                     <input
                       id="activeHours"
                       value={formData.activeHours || ''}
                       onChange={handleInputChange}
-                      placeholder="Contoh: 19:00 - 22:00 WIB"
+                      placeholder="e.g. 19:00 - 22:00 WIB"
                       className={inputClasses(false)}
                     />
                   </FormGroup>
                 </div>
 
                 <div className="md:col-span-2">
-                  <FormGroup label="Bio Singkat (Max 500)" htmlFor="bio">
+                  <FormGroup label="Short Bio (Max 500)" htmlFor="bio">
                     <textarea
                       id="bio"
                       value={formData.bio || ''}
@@ -577,18 +611,18 @@ const EditProfileClient = ({ initialProfile }: EditProfileClientProps) => {
             </section>
 
             {/* Action Buttons */}
-            <div className="flex flex-col-reverse sm:flex-row justify-end gap-4 pt-6 border-t border-white/10">
-              <Button href="/profile" variant="outline" className="w-full sm:w-auto border-white/10 hover:bg-white/5">
-                Batal
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-4 pt-6 border-t border-white/10 sticky bottom-0 bg-[#0a0a0b]/90 backdrop-blur-md p-4 rounded-xl z-50">
+              <Button href="/profile" variant="outline" className="w-full sm:w-auto border-white/10 hover:bg-white/5 hover:text-white px-8">
+                CANCEL
               </Button>
               <Button
                 type="submit"
                 variant="primary"
-                className="w-full sm:w-auto shadow-lg shadow-coc-gold/20"
+                className="w-full sm:w-auto shadow-[0_0_20px_rgba(255,215,0,0.2)] hover:shadow-[0_0_30px_rgba(255,215,0,0.4)] px-8 font-bold tracking-wide"
                 disabled={isSaving}
               >
                 {isSaving ? <RefreshCwIcon className="h-5 w-5 mr-2 animate-spin" /> : <SaveIcon className="h-5 w-5 mr-2" />}
-                {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
+                {isSaving ? 'SAVING...' : 'SAVE CHANGES'}
               </Button>
             </div>
 

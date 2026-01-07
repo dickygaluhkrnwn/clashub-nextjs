@@ -4,6 +4,7 @@ import { PostCard } from "@/app/components/cards";
 import { BookOpenIcon } from "@/app/components/icons";
 import { FirestoreDocument, Post } from "@/lib/types";
 import { useLanguage } from "@/lib/hooks/useLanguage";
+import Link from 'next/link';
 
 interface LatestStrategiesProps {
   posts: FirestoreDocument<Post>[];
@@ -59,14 +60,20 @@ export default function LatestStrategies({ posts }: LatestStrategiesProps) {
   // Jika tidak ada postingan
   if (!posts || posts.length === 0) {
     return (
-      <section className="mb-8">
-        <div className="flex items-center gap-2 mb-4 px-1">
-          <h2 className="flex items-center gap-2 text-lg md:text-xl font-clash text-white tracking-wide drop-shadow-md">
-            <BookOpenIcon className="h-5 w-5 md:h-6 md:w-6 text-coc-gold drop-shadow-md" />
-            {t.home?.latestStrategies || "Strategi & Tips"}
-          </h2>
+      <section className="mb-12 relative w-full">
+        <div className="relative z-10 flex items-center gap-3 mb-6 px-1 pl-4 md:pl-0">
+           <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
+              <div className="text-purple-400 drop-shadow-md">
+                <BookOpenIcon className="h-6 w-6" />
+              </div>
+           </div>
+           <h2 className="text-xl md:text-2xl font-clash font-bold text-white tracking-wide uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+              {t.home?.latestStrategies || "Strategi & Tips"}
+           </h2>
         </div>
-        <div className="w-full p-8 rounded-2xl bg-black/20 border border-white/5 text-center backdrop-blur-sm">
+
+        <div className="w-full p-8 rounded-2xl bg-[#15171e]/80 border border-white/5 text-center backdrop-blur-sm flex flex-col items-center justify-center gap-4">
+          <BookOpenIcon className="h-12 w-12 text-gray-600 opacity-50" />
           <p className="text-gray-400 text-sm">Belum ada strategi terbaru yang dipublikasikan.</p>
         </div>
       </section>
@@ -74,49 +81,56 @@ export default function LatestStrategies({ posts }: LatestStrategiesProps) {
   }
 
   return (
-    <section className="animate-fade-in mb-8">
-      {/* Header Section - Style Konsisten dengan QuickLinks */}
-      <div className="flex items-center justify-between mb-4 px-1">
-        <h2 className="flex items-center gap-2 text-lg md:text-xl font-clash text-white tracking-wide drop-shadow-md">
-          <BookOpenIcon className="h-5 w-5 md:h-6 md:w-6 text-coc-gold drop-shadow-md" />
-          {t.home?.latestStrategies || "Strategi & Tips"}
-        </h2>
-        <a href="/knowledge-hub" className="text-xs text-coc-gold hover:text-white transition-colors font-bold uppercase tracking-wider">
-          {t.common?.viewAll || "Lihat Semua"}
-        </a>
+    <section className="mb-12 relative w-full group">
+      {/* Header Section */}
+      <div className="relative z-10 flex items-center justify-between gap-3 mb-6 px-1 pl-4 md:pl-0">
+         <div className="flex items-center gap-3">
+             <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
+                <BookOpenIcon className="h-6 w-6 text-purple-400 drop-shadow-md" />
+             </div>
+             <h2 className="text-xl md:text-2xl font-clash font-bold text-white tracking-wide uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                {t.home?.latestStrategies || "Strategi & Tips"}
+             </h2>
+         </div>
+         
+         <Link 
+            href="/knowledge-hub" 
+            className="text-xs text-coc-gold hover:text-white transition-colors font-bold uppercase tracking-wider flex items-center gap-1 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg border border-white/5 hover:border-white/20"
+         >
+            {t.common?.viewAll || "Lihat Semua"} <span className="text-[10px] ml-1">▶</span>
+         </Link>
       </div>
 
-      {/* [SCROLL CONTAINER]
-        Menggunakan teknik negative margin (-mx-4) agar konten menyentuh tepi layar di mobile.
-      */}
-      <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 -mx-4 px-4 md:mx-0 md:px-0 md:scrollbar-thin custom-scrollbar">
-        {posts.map((post, index) => {
-          const stats = formatPostStats(
-            post.likes?.length || 0,
-            post.createdAt
-          );
-          const thCategory = findThTag(post.tags);
+      {/* Scroll Container */}
+      <div className="relative">
+        {/* [REVISI] Shadow/Fade Edges dihapus agar tampilan mobile lebih bersih */}
+        
+        <div className="flex overflow-x-auto snap-x snap-mandatory gap-6 pb-8 pt-2 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-thin scrollbar-thumb-coc-gold/20 scrollbar-track-transparent hover:scrollbar-thumb-coc-gold/50">
+          {posts.map((post, index) => {
+            const stats = formatPostStats(
+              post.likes?.length || 0,
+              post.createdAt
+            );
+            const thCategory = findThTag(post.tags);
 
-          return (
-            <div 
-              key={post.id} 
-              className="snap-center shrink-0 w-[280px] md:w-[320px] first:pl-0 last:pr-4"
-              // Stagger effect: item muncul berurutan dengan delay
-              style={{ animationDelay: `${index * 100}ms` }} 
-            >
-              <div className="h-full transition-all duration-300 hover:-translate-y-1 hover:shadow-lg rounded-2xl">
-                <PostCard
-                  title={post.title}
-                  category={thCategory}
-                  tag={post.category}
-                  stats={stats}
-                  author={post.authorName || "ClashHub User"}
-                  href={`/knowledge-hub/${post.id}`}
-                />
+            return (
+              <div 
+                key={post.id} 
+                className="snap-center shrink-0 w-[280px] md:w-[320px] h-[240px]"
+                style={{ animationDelay: `${index * 100}ms` }} 
+              >
+                 <PostCard
+                    title={post.title}
+                    category={thCategory}
+                    tag={post.category}
+                    stats={stats}
+                    author={post.authorName || "ClashHub User"}
+                    href={`/knowledge-hub/${post.id}`}
+                  />
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </section>
   );

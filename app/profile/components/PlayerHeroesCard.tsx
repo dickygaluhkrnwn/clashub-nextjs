@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { CocPlayer, UserProfile } from '@/lib/types';
-import { ShieldIcon } from '@/app/components/icons'; 
+import { ShieldIcon, StarIcon } from '@/app/components/icons'; 
 import { useLanguage } from '@/lib/hooks/useLanguage';
 import { useGameAssets } from '@/lib/hooks/useGameAssets';
 
@@ -15,7 +15,7 @@ interface PlayerHeroesCardProps {
 
 /**
  * Komponen Card "Hero (Home Village)".
- * Desain: Hero Cards dengan Equipment.
+ * Desain: Hero Cards Mewah dengan fokus pada Equipment dan Level.
  */
 export const PlayerHeroesCard = ({
   userProfile,
@@ -29,9 +29,7 @@ export const PlayerHeroesCard = ({
   // Logika Data
   const heroesData = fullPlayerData?.heroes ?? userProfile?.cachedHeroes ?? [];
 
-  // [UPDATE] Filter Dinamis: Hapus hardcoded list nama hero.
-  // Cukup filter berdasarkan village 'home'.
-  // Urutan default tetap kita jaga untuk hero-hero utama, hero baru akan muncul di belakang.
+  // Filter & Sort Hero
   const heroes = heroesData
     .filter((h) => h.village === 'home')
     .sort((a, b) => {
@@ -40,12 +38,11 @@ export const PlayerHeroesCard = ({
         'Archer Queen',
         'Grand Warden',
         'Royal Champion',
-        'Minion Prince' // Hero baru bisa ditambahkan di sini untuk urutan, atau biarkan di akhir
+        'Minion Prince' 
       ];
       let idxA = order.indexOf(a.name);
       let idxB = order.indexOf(b.name);
       
-      // Jika hero tidak ada di list prioritas, taruh di belakang berdasarkan level atau nama
       if (idxA === -1) idxA = 999;
       if (idxB === -1) idxB = 999;
       
@@ -54,13 +51,28 @@ export const PlayerHeroesCard = ({
 
   const showLoading = isLoading && !fullPlayerData && !userProfile.cachedHeroes;
 
-  return (
-    <div className="bg-black/40 backdrop-blur-md border border-white/5 rounded-2xl p-6 shadow-lg relative overflow-hidden group">
-      {/* Ambient Blue/Purple Glow */}
-      <div className="absolute top-0 left-0 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-purple-500/20 transition-all duration-700" />
+  // Helper function untuk menentukan warna tema hero
+  const getHeroTheme = (name: string) => {
+    if (name.includes('King')) return 'from-orange-500/20 to-yellow-600/5 border-orange-500/30 text-orange-400';
+    if (name.includes('Queen')) return 'from-purple-500/20 to-pink-600/5 border-purple-500/30 text-purple-400';
+    if (name.includes('Warden')) return 'from-cyan-500/20 to-blue-600/5 border-cyan-500/30 text-cyan-400';
+    if (name.includes('Champion')) return 'from-yellow-600/20 to-red-600/5 border-yellow-600/30 text-yellow-500';
+    return 'from-gray-700/20 to-gray-900/5 border-gray-600/30 text-gray-400'; // Default
+  };
 
-      <h2 className="mb-6 flex items-center gap-2 font-clash text-lg text-white relative z-10">
-        <ShieldIcon className="h-5 w-5 text-coc-gold" /> {t.profileArmy.heroTitle}
+  return (
+    <div className="bg-[#15171e]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
+      {/* Decorative Header Background */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/5 rounded-full blur-[80px] pointer-events-none" />
+
+      {/* Header - FIXED: White Text with Shadow */}
+      <h2 className="mb-6 flex items-center gap-3 font-clash text-lg text-white relative z-10 uppercase tracking-wider drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+        <div className="p-1.5 bg-coc-blue/10 rounded-lg border border-coc-blue/20 shadow-[0_0_10px_rgba(59,130,246,0.3)]">
+             <ShieldIcon className="h-5 w-5 text-coc-blue" /> 
+        </div>
+        <span>
+            {t.profileArmy.heroTitle}
+        </span>
       </h2>
 
       {error && !isLoading && (
@@ -71,68 +83,95 @@ export const PlayerHeroesCard = ({
 
       <div className="relative z-10">
         {showLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="bg-white/5 rounded-xl h-32 animate-pulse" />
+              <div key={i} className="bg-white/5 rounded-2xl h-48 animate-pulse border border-white/5" />
             ))}
           </div>
         ) : heroes.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {heroes.map((hero) => (
-              <div
-                key={hero.name}
-                className="bg-white/5 border border-white/5 rounded-xl p-4 flex items-center gap-4 hover:bg-white/10 hover:border-purple-500/30 transition-all duration-300 group/item"
-              >
-                {/* Hero Image & Level Badge */}
-                <div className="relative flex-shrink-0">
-                    <div className="w-16 h-16 rounded-lg bg-black/30 flex items-center justify-center border border-white/10 overflow-hidden">
-                       <img 
-                          src={getAssetUrl(hero.name)} 
-                          alt={hero.name}
-                          className="w-full h-full object-cover group-hover/item:scale-110 transition-transform duration-500"
-                          onError={(e) => e.currentTarget.style.display = 'none'}
-                       />
-                    </div>
-                    <div className="absolute -bottom-2 -right-2 bg-purple-600 text-white text-[10px] font-bold w-6 h-6 flex items-center justify-center rounded-full border-2 border-[#1a1a1a] shadow-md z-10">
-                        {hero.level}
-                    </div>
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4 lg:gap-6">
+            {heroes.map((hero) => {
+               const themeClass = getHeroTheme(hero.name);
+               const isMax = hero.level === hero.maxLevel;
 
-                <div className="flex-1 min-w-0">
-                   <h4 className="text-sm font-bold font-clash text-white truncate">
-                      {hero.name}
-                   </h4>
-                   
-                   {/* Equipment Row */}
-                   {hero.equipment && hero.equipment.length > 0 ? (
-                       <div className="flex gap-1.5 mt-2 overflow-x-auto no-scrollbar">
-                           {hero.equipment.map((equip) => (
-                               <div key={equip.name} className="relative group/equip" title={`${equip.name} (Lv ${equip.level})`}>
-                                   <div className="w-7 h-7 bg-black/40 rounded border border-white/10 p-0.5">
-                                       <img 
-                                          src={getAssetUrl(equip.name)} 
-                                          alt={equip.name}
-                                          className="w-full h-full object-contain"
-                                          onError={(e) => e.currentTarget.style.display = 'none'}
-                                       />
-                                   </div>
-                                   {/* Equipment Level dot */}
-                                   <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full border border-black flex items-center justify-center">
-                                       <span className="text-[6px] text-white font-bold">{equip.level}</span>
-                                   </div>
-                               </div>
-                           ))}
-                       </div>
-                   ) : (
-                       <p className="text-[10px] text-gray-500 mt-1 italic">No equipment</p>
-                   )}
+               return (
+                <div
+                  key={hero.name}
+                  className={`bg-gradient-to-br ${themeClass.split(' ')[0]} ${themeClass.split(' ')[1]} border ${themeClass.split(' ')[2]} rounded-2xl p-4 flex flex-col sm:flex-row items-center gap-5 hover:bg-opacity-50 transition-all duration-300 group/card relative overflow-hidden`}
+                >
+                  {/* Background Shine on Hover */}
+                  <div className="absolute inset-0 bg-white/0 group-hover/card:bg-white/5 transition-colors duration-500" />
+                  
+                  {/* --- Hero Image Section --- */}
+                  <div className="relative flex-shrink-0">
+                      {/* Frame Container */}
+                      <div className="w-24 h-24 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center relative overflow-hidden shadow-inner">
+                          <div className={`absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-10`} />
+                          <img 
+                            src={getAssetUrl(hero.name)} 
+                            alt={hero.name}
+                            className="w-[110%] h-[110%] object-cover object-top group-hover/card:scale-110 transition-transform duration-500 z-0"
+                            onError={(e) => e.currentTarget.style.display = 'none'}
+                          />
+                      </div>
+
+                      {/* Level Badge (Diamond Shape) */}
+                      <div className={`absolute -bottom-3 -right-3 z-20 w-10 h-10 flex items-center justify-center rotate-45 border-2 shadow-lg ${isMax ? 'bg-coc-gold border-yellow-200' : 'bg-[#1a1a1a] border-white/20'}`}>
+                          <div className="-rotate-45 flex flex-col items-center justify-center">
+                              <span className={`text-xs font-bold font-clash leading-none ${isMax ? 'text-black' : 'text-white'}`}>{hero.level}</span>
+                              {isMax && <StarIcon className="w-2 h-2 text-black fill-current mt-[1px]" />}
+                          </div>
+                      </div>
+                  </div>
+
+                  {/* --- Info & Equipment Section --- */}
+                  <div className="flex-1 w-full sm:w-auto text-center sm:text-left z-10">
+                      <h4 className={`text-lg font-bold font-clash uppercase tracking-wide truncate ${themeClass.split(' ').pop()} drop-shadow-md`}>
+                        {hero.name}
+                      </h4>
+                      
+                      {/* Equipment List */}
+                      {hero.equipment && hero.equipment.length > 0 ? (
+                          <div className="mt-3">
+                              <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1.5 ml-0.5">Active Equipment</p>
+                              <div className="flex flex-wrap justify-center sm:justify-start gap-2">
+                                  {hero.equipment.map((equip) => (
+                                      <div key={equip.name} className="relative group/equip">
+                                          <div className={`w-10 h-10 bg-[#0f1115] rounded-lg border border-white/10 p-1 flex items-center justify-center transition-transform hover:scale-110 hover:border-white/30 shadow-md`}>
+                                              <img 
+                                                  src={getAssetUrl(equip.name)} 
+                                                  alt={equip.name}
+                                                  className="w-full h-full object-contain filter drop-shadow-sm"
+                                                  onError={(e) => e.currentTarget.style.display = 'none'}
+                                              />
+                                          </div>
+                                          {/* Equipment Level Pill */}
+                                          <div className="absolute -top-1.5 -right-1.5 bg-[#1a1a1a] text-[9px] text-white font-bold px-1.5 py-0.5 rounded-full border border-white/20 shadow-sm">
+                                              Lv{equip.level}
+                                          </div>
+                                          
+                                          {/* Tooltip */}
+                                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover/equip:opacity-100 transition-opacity pointer-events-none z-30 border border-white/10">
+                                              {equip.name}
+                                          </div>
+                                      </div>
+                                  ))}
+                              </div>
+                          </div>
+                      ) : (
+                          <div className="mt-3 py-2 px-3 bg-black/20 rounded-lg border border-white/5 inline-block">
+                              <p className="text-[10px] text-gray-500 italic">No equipment active</p>
+                          </div>
+                      )}
+                  </div>
                 </div>
-              </div>
-            ))}
+               );
+            })}
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500 bg-white/5 rounded-xl border border-white/5">
-            <p className="text-sm">{t.profileArmy.heroEmpty}</p>
+          <div className="text-center py-12 text-gray-500 bg-white/5 rounded-2xl border border-white/5 flex flex-col items-center justify-center gap-3">
+            <ShieldIcon className="w-12 h-12 opacity-20" />
+            <p className="text-sm font-medium">{t.profileArmy.heroEmpty}</p>
           </div>
         )}
       </div>

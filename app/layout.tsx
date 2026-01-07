@@ -10,7 +10,7 @@ import { LanguageProvider } from "@/app/context/LanguageContext";
 import { getSessionUser, ServerUser } from "@/lib/server-auth";
 import { Analytics } from "@vercel/analytics/react";
 
-// [BARU] Import Firestore Admin & Komponen Overlay
+// Import Firestore Admin & Komponen Overlay
 import { adminFirestore } from "@/lib/firebase-admin";
 import MaintenanceOverlay from "@/app/components/layout/MaintenanceOverlay";
 
@@ -34,6 +34,7 @@ const clashFontRegular = localFont({
 export const metadata: Metadata = {
   title: "Clashub | E-sports Community",
   description: "Pusat Strategi & Komunitas E-sports Clash of Clans",
+  manifest: '/manifest.json', // Pastikan manifest ada untuk PWA
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -46,7 +47,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#0a0a0a',
+  themeColor: '#0a0a0b', // Update theme color to match new dark background
 };
 
 export default async function RootLayout({
@@ -56,10 +57,7 @@ export default async function RootLayout({
 }>) {
   const initialServerUser: ServerUser | null = await getSessionUser();
 
-  // --- [BARU] LOGIKA MAINTENANCE SERVER-SIDE ---
-  // Kita cek status maintenance langsung dari Firestore saat layout dirender di server.
-  // Ini lebih aman dan cepat daripada client-side fetching.
-  
+  // --- LOGIKA MAINTENANCE SERVER-SIDE ---
   let isMaintenance = false;
   let isAdmin = false;
 
@@ -86,19 +84,26 @@ export default async function RootLayout({
   // --- [AKHIR LOGIKA] ---
 
   return (
-    <html lang="id" className={`${inter.variable} ${clashFontBold.variable} ${clashFontRegular.variable}`}>
-      <body className={`font-sans flex flex-col min-h-screen bg-coc-stone text-white selection:bg-coc-gold/30 selection:text-coc-gold antialiased`}>
+    <html lang="id" className={`${inter.variable} ${clashFontBold.variable} ${clashFontRegular.variable} dark`}>
+      <body className={`font-sans flex flex-col min-h-screen bg-[#0a0a0b] text-white selection:bg-coc-gold/30 selection:text-coc-gold antialiased overflow-x-hidden`}>
         
-        {/* [BARU] Overlay Maintenance Guard */}
-        {/* Komponen ini akan menutupi seluruh layar jika maintenance aktif & user bukan admin */}
+        {/* Global Ambient Texture (Optional - adds subtle noise/grain) */}
+        <div 
+          className="fixed inset-0 pointer-events-none opacity-[0.03] z-0 mix-blend-overlay"
+          style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}
+        />
+
+        {/* Global Background Glow (Very subtle at bottom) */}
+        <div className="fixed bottom-0 left-0 w-full h-[500px] bg-gradient-to-t from-coc-blue/5 via-transparent to-transparent pointer-events-none z-0" />
+
+        {/* Overlay Maintenance Guard */}
         <MaintenanceOverlay isMaintenance={isMaintenance} isAdmin={isAdmin} />
 
         <LanguageProvider>
           <AuthProvider initialServerUser={initialServerUser}>
-            {/* Header tetap di-render di balik overlay (untuk SEO/Structure), tapi tidak bisa diklik */}
             <Header />
             
-            <main className="flex-grow w-full max-w-[100vw] overflow-x-hidden relative pb-20 md:pb-0">
+            <main className="flex-grow w-full max-w-[100vw] relative pb-20 md:pb-0 z-10">
               {children}
             </main>
             

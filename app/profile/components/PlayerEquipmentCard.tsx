@@ -4,6 +4,7 @@ import React from 'react';
 import { CocPlayer, UserProfile } from '@/lib/types';
 import { useLanguage } from '@/lib/hooks/useLanguage';
 import { useGameAssets } from '@/lib/hooks/useGameAssets';
+import { StarIcon } from '@/app/components/icons';
 
 // Ikon Palu (Blacksmith) Khusus Equipment
 const HammerIcon = ({ className }: { className?: string }) => (
@@ -32,70 +33,135 @@ export const PlayerEquipmentCard = ({
   error,
 }: PlayerEquipmentCardProps) => {
   const { t } = useLanguage();
-  const { getAssetUrl, getAssetType } = useGameAssets(); // Gunakan getAssetType untuk filter dinamis
+  const { getAssetUrl, getAssetType } = useGameAssets();
 
-  // Logika Data:
-  // Mengambil `heroEquipment` dari root object API
+  // Logika Data: Mengambil `heroEquipment` dari root object API
   const rawData = (fullPlayerData as any)?.heroEquipment ?? [];
 
-  // [LOGIKA BARU] Filter Dinamis berdasarkan Asset Manager
-  // Hanya tampilkan item yang di-tag sebagai 'equipment' di Admin
+  // Filter Dinamis
   const equipment = rawData.filter((item: any) => {
-     const type = getAssetType(item.name);
-     return type === 'equipment';
+      const type = getAssetType(item.name);
+      return type === 'equipment';
   });
 
   const showLoading = isLoading && !fullPlayerData;
 
-  // Jika tidak ada equipment (TH rendah atau belum diinput di admin), jangan render
-  if (!showLoading && equipment.length === 0) return null;
+  // --- LOGIC GROUPING BY HERO ---
+  // Helper sederhana untuk menebak hero berdasarkan nama equipment
+  const getHeroForEquipment = (equipName: string): string => {
+      const name = equipName.toLowerCase();
+      if (name.includes('barbarian') || name.includes('king') || name.includes('gauntlet') || name.includes('earthquake') || name.includes('vampstache') || name.includes('spiky') || name.includes('rage vial')) return 'Barbarian King';
+      if (name.includes('archer') || name.includes('queen') || name.includes('arrow') || name.includes('invisibility') || name.includes('healer') || name.includes('frozen') || name.includes('clone')) return 'Archer Queen';
+      if (name.includes('warden') || name.includes('tome') || name.includes('gem') || name.includes('aura') || name.includes('fireball')) return 'Grand Warden';
+      if (name.includes('royal') || name.includes('champion') || name.includes('spear') || name.includes('shield') || name.includes('vial') || name.includes('rocket') || name.includes('haste')) return 'Royal Champion';
+      if (name.includes('minion') || name.includes('prince') || name.includes('henchman')) return 'Minion Prince';
+      return 'Others';
+  };
+
+  // Grouping equipment
+  const groupedEquipment: Record<string, any[]> = {};
+  const heroOrder = ['Barbarian King', 'Archer Queen', 'Grand Warden', 'Royal Champion', 'Minion Prince', 'Others'];
+
+  equipment.forEach((item: any) => {
+      const hero = getHeroForEquipment(item.name);
+      if (!groupedEquipment[hero]) groupedEquipment[hero] = [];
+      groupedEquipment[hero].push(item);
+  });
+
+  // Jika tidak ada equipment sama sekali, kita tetap render container kosong/loading agar tidak hilang misterius
+  if (!showLoading && equipment.length === 0) {
+      // Opsi: Return null jika benar-benar ingin hide, atau return message "No Equipment Found"
+      // return null; 
+      // Kita render message empty state agar user tau fitur ini ada tapi datanya kosong
+  }
 
   return (
-    <div className="bg-black/40 backdrop-blur-md border border-white/5 rounded-2xl p-6 shadow-lg relative overflow-hidden group">
-      {/* Ambient Orange Glow (Blacksmith theme) */}
-      <div className="absolute top-0 left-10 w-40 h-40 bg-orange-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-orange-500/20 transition-all duration-700" />
+    <div className="bg-[#15171e]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
+      {/* Ambient Orange/Blacksmith Glow */}
+      <div className="absolute top-0 left-10 w-40 h-40 bg-orange-500/10 rounded-full blur-[80px] pointer-events-none group-hover:bg-orange-500/20 transition-all duration-700" />
 
-      <h2 className="mb-6 flex items-center gap-2 font-clash text-lg text-white relative z-10">
-        {/* Menggunakan any untuk bypass check tipe sementara pada t.profileArmy */}
-        <HammerIcon className="h-5 w-5 text-coc-gold" /> {(t.profileArmy as any)?.equipmentTitle || "Hero Equipment"}
+      {/* Header - White Text + Shadow */}
+      <h2 className="mb-6 flex items-center gap-3 font-clash text-lg text-white relative z-10 uppercase tracking-wider drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+        <div className="p-1.5 bg-orange-500/10 rounded-lg border border-orange-500/20 shadow-[0_0_10px_rgba(249,115,22,0.3)]">
+            <HammerIcon className="h-5 w-5 text-orange-400" /> 
+        </div>
+        <span>
+            {(t.profileArmy as any)?.equipmentTitle || "Hero Equipment"}
+        </span>
       </h2>
 
       {/* Content */}
-      <div className="relative z-10">
+      <div className="relative z-10 space-y-6">
         {showLoading ? (
-          <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
+          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="aspect-square bg-white/5 rounded-xl animate-pulse" />
+              <div key={i} className="aspect-square bg-white/5 rounded-xl animate-pulse border border-white/5" />
             ))}
           </div>
+        ) : equipment.length > 0 ? (
+          <div className="space-y-6">
+             {heroOrder.map((heroName) => {
+                 const heroEquips = groupedEquipment[heroName];
+                 if (!heroEquips || heroEquips.length === 0) return null;
+
+                 return (
+                     <div key={heroName} className="space-y-3">
+                         {/* Hero Subheader */}
+                         <div className="flex items-center gap-2 px-1">
+                             <div className="h-4 w-1 bg-orange-500 rounded-full" />
+                             <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400">{heroName}</h3>
+                         </div>
+
+                         {/* Equipment Grid */}
+                         <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3">
+                            {heroEquips.map((equip: any) => {
+                                const isMax = equip.level === equip.maxLevel;
+                                return (
+                                    <div
+                                        key={equip.name}
+                                        className={`relative bg-[#0f1115] border ${isMax ? 'border-orange-400/30' : 'border-white/5'} rounded-xl p-2 flex flex-col items-center justify-center hover:bg-orange-900/10 hover:border-orange-500/30 hover:-translate-y-1 transition-all duration-300 group/item shadow-sm`}
+                                        title={equip.name}
+                                    >
+                                        {/* Glow effect for Max Level */}
+                                        {isMax && <div className="absolute inset-0 bg-orange-400/5 rounded-xl opacity-0 group-hover/item:opacity-100 transition-opacity" />}
+
+                                        <div className="w-12 h-12 relative mb-1 z-10">
+                                            <img 
+                                                src={getAssetUrl(equip.name)} 
+                                                alt={equip.name}
+                                                className="w-full h-full object-contain drop-shadow-[0_0_10px_rgba(249,115,22,0.3)] group-hover/item:scale-110 transition-transform duration-300"
+                                                onError={(e) => e.currentTarget.style.display = 'none'}
+                                            />
+                                        </div>
+                                        
+                                        {/* Level Badge */}
+                                        <div className={`absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center text-[9px] font-bold px-1 rounded shadow-sm border z-20 ${
+                                            isMax 
+                                            ? 'bg-orange-500 text-black border-orange-300 shadow-orange-500/20' 
+                                            : 'bg-[#1a1a1a] text-white border-white/20'
+                                        }`}>
+                                            {equip.level}
+                                        </div>
+
+                                        {/* Max Star Indicator */}
+                                        {isMax && (
+                                            <div className="absolute -bottom-1 -right-1">
+                                                <StarIcon className="w-3 h-3 text-orange-400 fill-current drop-shadow-sm" />
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                         </div>
+                     </div>
+                 );
+             })}
+          </div>
         ) : (
-          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3">
-            {equipment.map((equip: any) => (
-              <div
-                key={equip.name}
-                className="relative bg-orange-900/20 border border-orange-500/20 rounded-xl p-2 flex flex-col items-center justify-center transition-transform duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(249,115,22,0.2)] group/item"
-                title={equip.name}
-              >
-                <div className="w-10 h-10 relative mb-1">
-                   {/* [FIX] Menghapus argumen kedua ('equipment') agar sesuai dengan definisi getAssetUrl saat ini */}
-                   <img 
-                      src={getAssetUrl(equip.name)} 
-                      alt={equip.name}
-                      className="w-full h-full object-contain drop-shadow-md group-hover/item:scale-110 transition-transform"
-                      onError={(e) => e.currentTarget.style.display = 'none'}
-                   />
-                </div>
-                
-                {/* Level Badge */}
-                <div className={`absolute -top-2 -right-2 text-[9px] font-bold px-1.5 py-0.5 rounded border shadow-sm ${
-                    equip.level === equip.maxLevel 
-                    ? 'bg-coc-gold text-black border-white/20' 
-                    : 'bg-orange-600 text-white border-orange-400'
-                }`}>
-                  Lvl {equip.level}
-                </div>
-              </div>
-            ))}
+          <div className="text-center py-12 text-gray-500 bg-white/5 rounded-2xl border border-white/5 flex flex-col items-center justify-center gap-3">
+            <HammerIcon className="w-10 h-10 opacity-20" />
+            <p className="text-sm font-medium">No Equipment Data Available</p>
+            <p className="text-xs opacity-60">Make sure to sync your latest player data.</p>
           </div>
         )}
       </div>

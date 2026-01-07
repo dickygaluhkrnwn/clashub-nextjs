@@ -1,6 +1,6 @@
 'use client';
 
-// [MODIFIKASI FASE 2]: Structure & Layout Overhaul (Glass-Stone)
+// [PHASE 1]: Foundation & Layout Overhaul (Gaming Atmosphere)
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/context/AuthContext';
@@ -31,7 +31,7 @@ import { PlayerAchievementsCard } from './components/PlayerAchievementsCard';
 import { PlayerClanCard } from './components/PlayerClanCard';
 import { PlayerTownHallCard } from './components/PlayerTownHallCard';
 
-// [BARU] Import komponen Pet, Equipment, & Super Troops
+// Import komponen Pet, Equipment, & Super Troops
 import { PlayerPetsCard } from './components/PlayerPetsCard';
 import { PlayerEquipmentCard } from './components/PlayerEquipmentCard';
 import { PlayerSuperTroopsCard } from './components/PlayerSuperTroopsCard';
@@ -156,7 +156,7 @@ const ProfileClient = ({
     fetchFullPlayerData(encodeURIComponent(tagToFetch));
   }, [userProfile?.playerTag, userProfile?.lastCacheTimestamp, t, userProfile?.isVerified]);
 
-  // --- 4. Render Layout (Glass-Stone) ---
+  // --- 4. Render Layout (Gaming Atmosphere) ---
   if (currentUser && userProfile) {
     const isClanManager =
       userProfile?.clanRole === 'leader' || userProfile?.clanRole === 'coLeader';
@@ -178,25 +178,42 @@ const ProfileClient = ({
       playerReviewsCount > 0 ? totalRating / playerReviewsCount : 0.0;
 
     return (
-      <div className="min-h-screen bg-coc-dark text-white font-clash relative overflow-x-hidden">
-        {/* Ambient Background Glows */}
-        <div className="fixed top-0 left-0 w-full h-[500px] bg-gradient-to-b from-coc-blue/10 via-transparent to-transparent pointer-events-none z-0" />
-        <div className="fixed top-20 right-0 w-[300px] h-[300px] bg-coc-gold/5 blur-[100px] rounded-full pointer-events-none z-0" />
+      <div className="min-h-screen bg-[#0a0a0b] text-white font-clash relative overflow-x-hidden selection:bg-coc-gold/30">
+        {/* --- GLOBAL ATMOSPHERE & BACKGROUNDS --- */}
+        
+        {/* 1. Base Dark Texture (Noise/Grain Simulation using CSS) */}
+        <div className="fixed inset-0 opacity-[0.03] pointer-events-none z-0 mix-blend-overlay"
+             style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }} 
+        />
 
-        {/* Main Content Container */}
-        <main className="relative z-10 max-w-7xl mx-auto p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8 mt-4 md:mt-8">
+        {/* 2. Primary Spotlight (Top Center - Blue/Magical) */}
+        <div className="fixed top-[-10%] left-1/2 -translate-x-1/2 w-[80%] h-[600px] bg-gradient-to-b from-[#1a2c4e] via-[#0f1520]/80 to-transparent blur-[120px] pointer-events-none z-0" />
+
+        {/* 3. Secondary Accent Glow (Top Right - Gold/Legendary) */}
+        <div className="fixed top-[5%] right-[-5%] w-[400px] h-[400px] bg-coc-gold/5 blur-[150px] rounded-full pointer-events-none z-0" />
+
+        {/* 4. Bottom Depth (Dark Fade) */}
+        <div className="fixed bottom-0 left-0 w-full h-[300px] bg-gradient-to-t from-black via-[#0a0a0b] to-transparent pointer-events-none z-0" />
+
+
+        {/* --- MAIN CONTENT CONTAINER --- */}
+        <main className="relative z-10 max-w-7xl 2xl:max-w-[1400px] mx-auto p-4 md:p-6 lg:p-8 space-y-8 mt-6">
+          
           {/* Header Section */}
-          <ProfileHeader
-            isVerified={isVerified}
-            inGameName={userProfile.inGameName}
-            displayName={userProfile.displayName}
-            cocProfileUrl={cocProfileUrl}
-          />
+          <div className="relative">
+            <ProfileHeader
+              isVerified={isVerified}
+              inGameName={userProfile.inGameName}
+              displayName={userProfile.displayName}
+              cocProfileUrl={cocProfileUrl}
+            />
+          </div>
 
           {/* Responsive Grid Layout */}
-          <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
-            {/* Left Sidebar (Desktop: 3 cols, Mobile: Full) */}
-            <aside className="lg:col-span-3 space-y-6 h-fit lg:sticky lg:top-24">
+          <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+            
+            {/* Left Sidebar (Desktop: 3 cols, Sticky) */}
+            <aside className="lg:col-span-3 lg:sticky lg:top-24 space-y-6 z-20">
               <ProfileSidebar
                 userProfile={userProfile}
                 isVerified={isVerified}
@@ -208,18 +225,21 @@ const ProfileClient = ({
               />
             </aside>
 
-            {/* Right Main Content (Desktop: 9 cols, Mobile: Full) */}
+            {/* Right Main Content (Desktop: 9 cols) */}
             <div className="lg:col-span-9 space-y-6">
-              {/* Navigation Tabs */}
-              <div className="bg-black/20 backdrop-blur-md border border-white/5 rounded-xl p-1.5 sticky top-20 z-40 md:static">
-                <ProfileTabs activeTab={activeTab} onTabChange={setActiveTab} />
+              
+              {/* Navigation Tabs - Glass Control Panel */}
+              <div className="sticky top-[72px] md:top-24 z-30 transition-all duration-300">
+                <div className="bg-[#13151b]/80 backdrop-blur-xl border border-white/10 rounded-2xl p-1.5 shadow-lg shadow-black/50 ring-1 ring-white/5">
+                  <ProfileTabs activeTab={activeTab} onTabChange={setActiveTab} />
+                </div>
               </div>
 
               {/* Tab Panels */}
-              <div className="min-h-[400px]">
+              <div className="min-h-[500px]">
                 {/* [TAB 1] SUMMARY */}
                 {activeTab === 'summary' && (
-                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                       <PlayerClanCard
                         userProfile={userProfile}
@@ -252,14 +272,14 @@ const ProfileClient = ({
 
                 {/* [TAB 2] REPUTATION */}
                 {activeTab === 'reputation' && (
-                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <ReceivedReviewsCard playerReviews={playerReviews} />
                   </div>
                 )}
 
                 {/* [TAB 3] ARMY */}
                 {activeTab === 'army' && (
-                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     {isVerified ? (
                       <>
                         <PlayerHeroesCard
@@ -269,7 +289,7 @@ const ProfileClient = ({
                           error={apiError}
                         />
 
-                        {/* [BARU] Equipment & Pets - Ditempatkan setelah Heroes */}
+                        {/* Equipment & Pets */}
                         <PlayerEquipmentCard
                           userProfile={userProfile}
                           fullPlayerData={fullPlayer}
@@ -284,7 +304,7 @@ const ProfileClient = ({
                           error={apiError}
                         />
                         
-                        {/* [BARU] Kartu Super Troops Aktif - Ditaruh sebelum regular troops */}
+                        {/* Super Troops Active */}
                         <PlayerSuperTroopsCard
                           userProfile={userProfile}
                           fullPlayerData={fullPlayer}
@@ -292,6 +312,7 @@ const ProfileClient = ({
                           error={apiError}
                         />
 
+                        {/* Main Troops */}
                         <PlayerTroopsCard
                           userProfile={userProfile}
                           fullPlayerData={fullPlayer}
@@ -299,6 +320,7 @@ const ProfileClient = ({
                           error={apiError}
                         />
                         
+                        {/* Spells */}
                         <PlayerSpellsCard
                           userProfile={userProfile}
                           fullPlayerData={fullPlayer}
@@ -307,8 +329,16 @@ const ProfileClient = ({
                         />
                       </>
                     ) : (
-                      <div className="bg-black/20 backdrop-blur-md border border-white/5 rounded-xl p-8 text-center">
-                        <p className="text-gray-400">{t.profile.connectTagDesc}</p>
+                      <div className="bg-[#1a1d26]/60 backdrop-blur-md border border-white/5 rounded-2xl p-12 text-center shadow-inner">
+                        <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          </svg>
+                        </div>
+                        <h3 className="text-xl font-bold text-white mb-2">{t.profile.connectTagDesc}</h3>
+                        <p className="text-gray-400 max-w-md mx-auto">
+                          Hubungkan Player Tag Anda untuk melihat statistik pasukan lengkap secara real-time.
+                        </p>
                       </div>
                     )}
                   </div>
@@ -316,7 +346,7 @@ const ProfileClient = ({
 
                 {/* [TAB 4] ACHIEVEMENTS */}
                 {activeTab === 'achievements' && (
-                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     {isVerified ? (
                       <PlayerAchievementsCard
                         userProfile={userProfile}
@@ -325,7 +355,7 @@ const ProfileClient = ({
                         error={apiError}
                       />
                     ) : (
-                      <div className="bg-black/20 backdrop-blur-md border border-white/5 rounded-xl p-8 text-center">
+                      <div className="bg-[#1a1d26]/60 backdrop-blur-md border border-white/5 rounded-2xl p-12 text-center shadow-inner">
                         <p className="text-gray-400">
                           {t.profile.connectTagAchievements}
                         </p>
@@ -336,14 +366,14 @@ const ProfileClient = ({
 
                 {/* [TAB 5] HISTORY */}
                 {activeTab === 'history' && (
-                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <TeamHistoryCard clanHistory={clanHistory} />
                   </div>
                 )}
 
                 {/* [TAB 6] POSTS */}
                 {activeTab === 'posts' && (
-                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <RecentActivityCard
                       recentPosts={recentPosts}
                       userProfile={userProfile}

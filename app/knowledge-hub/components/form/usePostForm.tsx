@@ -19,6 +19,7 @@ export interface PostFormData {
   baseLinkUrl: string;
 }
 
+// Remove 'Semua Diskusi' from options if it exists in POST_CATEGORIES
 export const CATEGORY_OPTIONS: PostCategory[] = POST_CATEGORIES.filter(
   (c) => c !== 'Semua Diskusi'
 ) as PostCategory[];
