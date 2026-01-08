@@ -4,7 +4,7 @@ import React from 'react';
 import { Player } from '@/lib/types';
 import { PlayerCard } from '@/app/components/cards';
 import { Button } from '@/app/components/ui/Button';
-import { Loader2Icon, UserIcon } from '@/app/components/icons';
+import { Loader2Icon, UserIcon, SearchIcon } from '@/app/components/icons';
 import { useLanguage } from '@/lib/hooks/useLanguage';
 
 interface PlayersTabProps {
@@ -34,7 +34,7 @@ export const PlayersTab = ({
         <div className="p-4 rounded-full bg-coc-green/10 border border-coc-green/20 animate-pulse">
             <Loader2Icon className="h-10 w-10 text-coc-green animate-spin" />
         </div>
-        <h2 className="text-lg font-clash text-gray-400 tracking-wide animate-pulse">{t.common.filtering}</h2>
+        <h2 className="text-lg font-clash text-gray-400 tracking-wide animate-pulse uppercase">{t.common.filtering}</h2>
       </div>
     );
   }
@@ -43,7 +43,7 @@ export const PlayersTab = ({
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between border-b border-white/5 pb-4">
         <h2 className="text-xl md:text-2xl font-clash text-white flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-coc-green/10 border border-coc-green/20">
+            <div className="p-2 rounded-lg bg-coc-green/10 border border-coc-green/20 shadow-[0_0_15px_rgba(74,222,128,0.2)]">
                 <UserIcon className="w-6 h-6 text-coc-green" />
             </div>
             <span className="tracking-wide">{t.clanHub.playersFound.replace('{count}', filteredPlayers.length.toString())}</span>
@@ -51,14 +51,14 @@ export const PlayersTab = ({
       </div>
 
       {playersToShow.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 px-4 bg-white/5 rounded-3xl border border-white/5 border-dashed text-center">
-          <div className="p-6 rounded-full bg-white/5 mb-6">
-            <UserIcon className="h-16 w-16 text-gray-500 opacity-50" />
+        <div className="flex flex-col items-center justify-center py-24 px-4 bg-[#15171e]/50 rounded-3xl border border-white/5 border-dashed text-center">
+          <div className="p-6 rounded-full bg-[#0a0a0b] border border-white/5 mb-6 shadow-inner">
+            <SearchIcon className="h-16 w-16 text-gray-600 opacity-50" />
           </div>
-          <h3 className="text-xl font-clash text-white mb-2 tracking-wide">
+          <h3 className="text-xl font-clash text-white mb-2 tracking-wide uppercase">
             {t.clanHub.noPlayersMatch}
           </h3>
-          <p className="text-sm text-gray-400 max-w-md mx-auto leading-relaxed">
+          <p className="text-sm text-gray-400 max-w-md mx-auto leading-relaxed font-sans">
             Coba sesuaikan filter pencarian Anda untuk menemukan pemain yang sesuai.
           </p>
         </div>

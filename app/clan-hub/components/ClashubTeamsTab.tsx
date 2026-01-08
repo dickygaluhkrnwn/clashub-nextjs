@@ -30,7 +30,7 @@ export const ClashubTeamsTab = ({
         <div className="p-4 rounded-full bg-coc-gold/10 border border-coc-gold/20 animate-pulse">
             <Loader2Icon className="h-10 w-10 text-coc-gold animate-spin" />
         </div>
-        <h2 className="text-lg font-clash text-gray-400 tracking-wide animate-pulse">{t.common.filtering}</h2>
+        <h2 className="text-lg font-clash text-gray-400 tracking-wide animate-pulse uppercase">{t.common.filtering}</h2>
       </div>
     );
   }
@@ -39,23 +39,25 @@ export const ClashubTeamsTab = ({
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between border-b border-white/5 pb-4">
         <h2 className="text-xl md:text-2xl font-clash text-white flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-coc-gold/10 border border-coc-gold/20">
+          <div className="p-2 rounded-lg bg-coc-gold/10 border border-coc-gold/20 shadow-[0_0_15px_rgba(255,215,0,0.2)]">
             <ShieldIcon className="w-6 h-6 text-coc-gold" />
           </div>
-          <span className="tracking-wide">{t.clanHub.teamsFound.replace('{count}', filteredClans.length.toString())}</span>
+          <span className="tracking-wide">
+             {t.clanHub.teamsFound.replace('{count}', filteredClans.length.toString())}
+          </span>
         </h2>
       </div>
 
       {clansToShow.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 px-4 bg-white/5 rounded-3xl border border-white/5 border-dashed text-center">
-          <div className="p-6 rounded-full bg-white/5 mb-6">
-            <ShieldIcon className="h-16 w-16 text-gray-500 opacity-50" />
+        <div className="flex flex-col items-center justify-center py-24 px-4 bg-[#15171e]/50 rounded-3xl border border-white/5 border-dashed text-center">
+          <div className="p-6 rounded-full bg-[#0a0a0b] border border-white/5 mb-6 shadow-inner">
+            <ShieldIcon className="h-16 w-16 text-gray-600 opacity-50" />
           </div>
-          <h3 className="text-xl font-clash text-white mb-2 tracking-wide">
+          <h3 className="text-xl font-clash text-white mb-2 tracking-wide uppercase">
             {t.clanHub.noTeamsMatch}
           </h3>
-          <p className="text-sm text-gray-400 max-w-md mx-auto leading-relaxed">
-            Coba sesuaikan filter pencarian Anda untuk menemukan hasil yang lebih relevan.
+          <p className="text-sm text-gray-400 max-w-md mx-auto leading-relaxed font-sans">
+            Coba sesuaikan filter pencarian Anda untuk menemukan hasil yang lebih relevan atau reset filter untuk melihat semua tim.
           </p>
         </div>
       ) : (

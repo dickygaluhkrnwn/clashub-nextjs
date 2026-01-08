@@ -28,8 +28,7 @@ export const PublicClanCard = ({ clan }: PublicClanCardProps) => {
                     alt={`${clan.name} Badge`}
                     className="w-full h-full object-contain drop-shadow-md group-hover:scale-110 transition-transform duration-300"
                     onError={(e) => {
-                    e.currentTarget.onerror = null;
-                    e.currentTarget.src = '/images/clan-badge-placeholder.png';
+                    e.currentTarget.style.display = 'none';
                     }}
                 />
              </div>
