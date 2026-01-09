@@ -29,47 +29,47 @@ const TopPerformersCard: React.FC<TopPerformersCardProps> = ({
   };
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl border backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${className}`}>
+    <div className={`relative overflow-hidden rounded-2xl border backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-lg group ${className}`}>
       {/* Background Glow Effect */}
-      <div className="absolute -top-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-2xl pointer-events-none" />
+      <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-3xl pointer-events-none group-hover:bg-white/20 transition-colors" />
       
       <div className="p-5 flex flex-col h-full justify-between relative z-10">
         <div>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-clash uppercase tracking-wider opacity-90">{title}</h3>
-            <div className="p-2 rounded-full bg-white/10 backdrop-blur-sm shadow-inner">
+            <div className="p-2.5 rounded-xl bg-white/10 backdrop-blur-sm shadow-inner border border-white/5 group-hover:scale-110 transition-transform duration-300">
               {icon}
             </div>
           </div>
           
           {isPlayerList && players && players.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-3 min-h-[80px]">
               {players.slice(0, 3).map((player, index) => (
-                <div key={player.tag} className="flex items-center text-sm group cursor-default">
-                  <span className="flex items-center justify-center w-5 h-5 mr-3 text-xs font-bold rounded bg-black/20 text-white/70 group-hover:bg-black/40 transition-colors">
+                <div key={player.tag} className="flex items-center text-sm group/item cursor-default hover:bg-white/5 p-1 rounded-lg transition-colors -mx-1">
+                  <span className="flex items-center justify-center w-5 h-5 mr-3 text-[10px] font-bold font-mono rounded bg-black/30 text-white/80 border border-white/5 group-hover/item:bg-black/50 transition-colors">
                     {index + 1}
                   </span>
-                  <span className="truncate font-medium flex-1">{player.name}</span>
+                  <span className="truncate font-medium flex-1 text-white/90 font-clash tracking-wide">{player.name}</span>
                   
                   {/* Indikator Naik/Turun */}
-                  {(title.includes('Promosi') || title.includes('Promotion')) && (
+                  {(title.toLowerCase().includes('promosi') || title.toLowerCase().includes('promotion')) && (
                     <ArrowUpIcon className="h-3 w-3 text-coc-green ml-1 opacity-80" />
                   )}
-                  {(title.includes('Demosi') || title.includes('Demotion')) && (
+                  {(title.toLowerCase().includes('demosi') || title.toLowerCase().includes('demotion')) && (
                     <ArrowDownIcon className="h-3 w-3 text-coc-red ml-1 opacity-80" />
                   )}
                 </div>
               ))}
               
               {players.length > 3 && (
-                <p className="text-xs text-white/50 mt-2 pl-8 font-medium">
+                <p className="text-[10px] text-white/40 mt-2 pl-9 font-mono uppercase tracking-widest">
                   +{players.length - 3} {t.common.remaining.toLowerCase()}...
                 </p>
               )}
             </div>
           ) : (
-            <div className="mt-2">
-              <p className="text-3xl font-clash tracking-tight truncate" title={String(value)}>
+            <div className="mt-2 min-h-[80px] flex flex-col justify-center">
+              <p className="text-4xl font-clash tracking-tight truncate drop-shadow-sm text-white" title={String(value)}>
                 {formatValue(value)}
               </p>
             </div>
@@ -77,7 +77,7 @@ const TopPerformersCard: React.FC<TopPerformersCardProps> = ({
         </div>
 
         <div className="mt-4 pt-3 border-t border-white/10">
-          <p className="text-xs font-medium opacity-70 font-sans leading-relaxed">
+          <p className="text-[10px] font-medium opacity-60 font-mono uppercase tracking-wider leading-relaxed">
             {description}
           </p>
         </div>

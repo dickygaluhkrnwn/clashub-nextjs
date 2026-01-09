@@ -19,9 +19,11 @@ import {
   XIcon,
   GlobeIcon,
   BarChart2Icon,
-  UserIcon
+  UserIcon,
+  TrendingUpIcon
 } from '@/app/components/icons';
 import { NotificationProps } from '@/app/components/ui/Notification';
+// Pastikan PromotionAnalytics di-import (file ini belum kita ubah sesuai instruksi)
 import PromotionAnalytics from './PromotionAnalytics';
 import { useLanguage } from '@/lib/hooks/useLanguage';
 
@@ -151,20 +153,26 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
   };
 
   return (
-    <div className="space-y-8 animate-fade-in pb-10">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-10">
       
       {/* --- HEADER BANNER --- */}
-      <div className="bg-gradient-to-r from-coc-gold/10 to-transparent p-6 rounded-2xl border border-coc-gold/20 relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#15171e]/40 p-6 rounded-2xl border border-white/5 relative overflow-hidden ring-1 ring-white/5">
         <div className="absolute top-0 right-0 w-64 h-64 bg-coc-gold/10 rounded-full blur-[80px] pointer-events-none -translate-y-1/2 translate-x-1/2" />
         
         <div className="relative z-10">
-            <h2 className="text-2xl font-clash text-white tracking-wide flex items-center gap-2">
-                <GlobeIcon className="h-6 w-6 text-coc-gold" />
-                {t.clanBanners.tabTitle}
-            </h2>
-            <p className="text-gray-400 text-sm mt-1 max-w-xl">
-                {t.clanBanners.tabDesc}
-            </p>
+            <div className="flex items-center gap-3 mb-1">
+                <div className="p-2.5 bg-coc-gold/10 rounded-xl border border-coc-gold/20 shadow-[0_0_15px_rgba(255,215,0,0.1)]">
+                    <GlobeIcon className="h-6 w-6 text-coc-gold" />
+                </div>
+                <div>
+                    <h2 className="text-2xl font-clash text-white tracking-wide">
+                        {t.clanBanners.tabTitle}
+                    </h2>
+                    <p className="text-gray-400 text-sm mt-0.5 max-w-xl font-sans">
+                        {t.clanBanners.tabDesc}
+                    </p>
+                </div>
+            </div>
         </div>
 
         <div className="relative z-10">
@@ -183,14 +191,15 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
       </div>
 
       {/* --- ANALYTICS SECTION --- */}
+      {/* [PENTING] Memanggil PromotionAnalytics (sesuai instruksi, file ini belum diedit) */}
       <PromotionAnalytics promotions={promotions} />
 
       {/* --- DIVIDER & TITLE --- */}
       <div className="flex items-center justify-between border-b border-white/5 pb-4">
         <div className="flex items-center gap-2">
            <BarChart2Icon className="h-5 w-5 text-gray-400" />
-           <h3 className="text-lg font-clash text-white">
-               {t.clanBanners.listTitle} <span className="text-gray-500 font-sans ml-2 text-sm">({promotions.length})</span>
+           <h3 className="text-lg font-clash text-white tracking-wide">
+               {t.clanBanners.listTitle} <span className="text-gray-500 font-mono ml-2 text-sm bg-white/5 px-2 py-0.5 rounded">({promotions.length})</span>
            </h3>
         </div>
         {isLoadingList && <RefreshCwIcon className="h-4 w-4 text-coc-gold animate-spin" />}
@@ -198,7 +207,7 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
 
       {/* --- FORM SECTION (Panel) --- */}
       {showAddForm && (
-        <div className="bg-[#151515] border border-coc-gold/30 rounded-2xl p-6 md:p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative animate-in slide-in-from-top-4 mb-8">
+        <div className="bg-[#15171e]/80 border border-coc-gold/30 rounded-2xl p-6 md:p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative animate-in slide-in-from-top-4 mb-8 backdrop-blur-xl">
             <div className="absolute -top-px left-8 right-8 h-px bg-gradient-to-r from-transparent via-coc-gold/50 to-transparent" />
             
             <div className="flex justify-between items-start mb-6">
@@ -215,17 +224,17 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
                     variant="ghost"
                     size="sm"
                     onClick={() => setShowAddForm(false)}
-                    className="text-gray-400 hover:text-white hover:bg-white/5"
+                    className="text-gray-400 hover:text-white hover:bg-white/5 rounded-full h-8 w-8 p-0"
                 >
                     <XIcon className="h-5 w-5" />
                 </Button>
             </div>
 
             {/* Imgur Warning */}
-            <div className="mb-6 p-3 rounded-xl bg-coc-yellow/5 border border-coc-yellow/20 flex gap-3 items-center">
+            <div className="mb-6 p-4 rounded-xl bg-coc-yellow/5 border border-coc-yellow/20 flex gap-3 items-center">
                 <AlertTriangleIcon className="h-5 w-5 text-coc-yellow flex-shrink-0" />
-                <p className="text-xs text-gray-300">
-                    <strong className="text-coc-yellow mr-1">{t.clanBanners.alertImgTitle}:</strong>
+                <p className="text-xs text-gray-300 leading-relaxed">
+                    <strong className="text-coc-yellow mr-1 block mb-0.5">{t.clanBanners.alertImgTitle}:</strong>
                     {t.clanBanners.alertImgDesc}
                 </p>
             </div>
@@ -235,7 +244,7 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
                     {/* Left: Inputs */}
                     <div className="space-y-5 order-2 md:order-1">
                         <div>
-                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
                                 {t.clanBanners.labelImgUrl} <span className="text-coc-red">*</span>
                             </label>
                             <Input
@@ -246,11 +255,11 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
                                 onChange={handleChange}
                                 disabled={isSubmitting}
                                 required
-                                className="bg-black/30 border-white/10 focus:border-coc-gold/50 text-sm"
+                                className="bg-black/30 border-white/10 focus:border-coc-gold/50 text-sm h-11"
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
                                 {t.clanBanners.labelTitle} <span className="text-coc-red">*</span>
                             </label>
                             <Input
@@ -262,11 +271,11 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
                                 disabled={isSubmitting}
                                 required
                                 maxLength={50}
-                                className="bg-black/30 border-white/10 focus:border-coc-gold/50 text-sm"
+                                className="bg-black/30 border-white/10 focus:border-coc-gold/50 text-sm h-11"
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
                                 {t.clanBanners.labelDesc} <span className="text-coc-red">*</span>
                             </label>
                             <Input
@@ -278,17 +287,17 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
                                 disabled={isSubmitting}
                                 required
                                 maxLength={100}
-                                className="bg-black/30 border-white/10 focus:border-coc-gold/50 text-sm"
+                                className="bg-black/30 border-white/10 focus:border-coc-gold/50 text-sm h-11"
                             />
                         </div>
                     </div>
 
                     {/* Right: Preview */}
                     <div className="order-1 md:order-2">
-                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
                             Banner Preview
                         </label>
-                        <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-white/10 bg-black flex items-center justify-center group">
+                        <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-white/10 bg-black flex items-center justify-center group shadow-lg">
                             {formData.imageUrl ? (
                                 <>
                                     <Image 
@@ -299,16 +308,19 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
                                         unoptimized
                                         onError={(e) => (e.currentTarget.style.display = 'none')}
                                     />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60" />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-80" />
                                     <div className="absolute bottom-4 left-4 right-4">
-                                        <p className="text-white font-clash text-lg truncate">{formData.title || 'Your Title Here'}</p>
-                                        <p className="text-gray-300 text-xs font-sans truncate">{formData.description || 'Description will appear here'}</p>
+                                        <p className="text-white font-clash text-xl truncate tracking-wide">{formData.title || 'Your Title Here'}</p>
+                                        <p className="text-gray-300 text-sm font-sans truncate mt-1">{formData.description || 'Description will appear here'}</p>
+                                    </div>
+                                    <div className="absolute top-3 right-3">
+                                        <span className="bg-coc-gold text-black text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">PREVIEW</span>
                                     </div>
                                 </>
                             ) : (
                                 <div className="text-center p-4">
                                     <UploadIcon className="h-10 w-10 text-gray-700 mx-auto mb-2" />
-                                    <p className="text-gray-600 text-xs">Enter a valid Image URL to preview</p>
+                                    <p className="text-gray-600 text-xs font-mono">Enter a valid Image URL</p>
                                 </div>
                             )}
                         </div>
@@ -343,7 +355,7 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
         </div>
       )}
 
-      {/* --- PROMOTION GRID LIST (REDESIGNED) --- */}
+      {/* --- PROMOTION GRID LIST --- */}
       <div>
         {isLoadingList ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -352,14 +364,14 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
              ))}
           </div>
         ) : promotions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 bg-white/5 rounded-2xl border border-white/5 border-dashed">
-            <GlobeIcon className="h-12 w-12 text-gray-600 mb-3" />
-            <p className="text-gray-400 font-medium">{t.clanBanners.noBanners}</p>
+          <div className="flex flex-col items-center justify-center py-20 bg-white/5 rounded-2xl border border-white/5 border-dashed">
+            <GlobeIcon className="h-16 w-16 text-gray-700 mb-4 opacity-50" />
+            <p className="text-gray-400 font-clash text-lg mb-1">{t.clanBanners.noBanners}</p>
+            <p className="text-gray-500 text-sm mb-6">Create a promotion to attract new members.</p>
             {!showAddForm && (
                 <Button 
                     variant="secondary" 
-                    size="sm" 
-                    className="mt-4"
+                    className="border-white/10 bg-white/5 hover:bg-white/10"
                     onClick={() => setShowAddForm(true)}
                 >
                     <PlusIcon className="h-4 w-4 mr-2" /> {t.clanBanners.btnAdd}
@@ -398,7 +410,7 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
                   <h4 className="text-lg font-clash text-white group-hover:text-coc-gold transition-colors truncate mb-1">
                     {promo.title}
                   </h4>
-                  <p className="text-xs text-gray-400 font-sans line-clamp-2 min-h-[2.5em]">
+                  <p className="text-xs text-gray-400 font-sans line-clamp-2 min-h-[2.5em] leading-relaxed">
                     {promo.description}
                   </p>
                   
@@ -409,7 +421,7 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
                         <div className="flex items-center gap-1 text-gray-500 text-[10px] uppercase font-bold tracking-wider mb-1">
                             <ThumbsUpIcon className="h-3 w-3" /> Clicks
                         </div>
-                        <span className="text-xl font-clash text-coc-gold">{promo.totalClicks}</span>
+                        <span className="text-xl font-clash text-white">{promo.totalClicks}</span>
                     </div>
                     
                     {/* Top Audience Metric */}
@@ -418,7 +430,7 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
                             <UserIcon className="h-3 w-3" /> Top Aud.
                         </div>
                         {promo.clicksByTH && Object.keys(promo.clicksByTH).length > 0 ? (
-                            <span className="text-sm font-sans text-white">
+                            <span className="text-sm font-sans text-white font-bold">
                                 TH {Object.entries(promo.clicksByTH)
                                     .sort((a, b) => b[1] - a[1])[0][0]
                                 }
@@ -431,11 +443,15 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
                 </div>
 
                 {/* Footer Action */}
-                <div className="p-4 border-t border-white/5 bg-white/[0.02] flex justify-end">
+                <div className="p-4 border-t border-white/5 bg-white/[0.02] flex justify-between items-center">
+                  <div className="flex items-center gap-1 text-[10px] text-gray-600 font-mono">
+                      <TrendingUpIcon className="h-3 w-3" />
+                      Analytics Ready
+                  </div>
                   <Button
-                    variant="danger"
+                    variant="ghost"
                     size="sm"
-                    className="w-full bg-white/5 hover:bg-red-500/10 border-white/10 hover:border-red-500/30 text-gray-500 hover:text-red-400 transition-all text-xs"
+                    className="text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors h-8 px-3"
                     onClick={() => handleDelete(promo.id)}
                     disabled={isDeletingId === promo.id}
                   >
@@ -444,7 +460,7 @@ const PromotionTabContent: React.FC<PromotionTabContentProps> = ({
                     ) : (
                       <TrashIcon className="h-3.5 w-3.5 mr-2" />
                     )}
-                    {t.common.delete} Promotion
+                    {t.common.delete}
                   </Button>
                 </div>
               </div>

@@ -10,7 +10,6 @@ import {
   InfoIcon,
   TrophyIcon,
   UserIcon,
-  XIcon,
   GlobeIcon,
   RefreshCwIcon,
   MailOpenIcon,
@@ -21,7 +20,6 @@ import {
   CoinsIcon,
   LogOutIcon,
   IconSparkle,
-  MenuIcon
 } from '@/app/components/icons';
 import Notification, {
   NotificationProps,
@@ -198,24 +196,28 @@ const ManageClanClient = ({
     }
   };
 
-  // --- TAMPILAN ERROR / AKSES DITOLAK ---
+  // --- TAMPILAN ERROR / AKSES DITOLAK (Styled) ---
   if (serverError) {
     return (
-      <main className="min-h-screen bg-coc-dark flex items-center justify-center p-4">
+      <main className="min-h-screen bg-[#0a0a0b] flex items-center justify-center p-4 relative overflow-hidden">
+        {/* Ambient Background */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-coc-red/5 blur-[120px] rounded-full pointer-events-none" />
+        
         <Notification notification={notification ?? undefined} />
-        <div className="max-w-lg w-full bg-black/30 backdrop-blur-xl border border-coc-red/30 rounded-xl p-8 text-center shadow-2xl">
-          <div className="bg-coc-red/20 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 border border-coc-red/50">
+        
+        <div className="max-w-lg w-full bg-[#15171e]/80 backdrop-blur-xl border border-coc-red/20 rounded-2xl p-8 text-center shadow-2xl relative z-10">
+          <div className="bg-coc-red/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 border border-coc-red/30 shadow-[0_0_20px_rgba(255,0,0,0.2)]">
             <AlertTriangleIcon className="h-10 w-10 text-coc-red" />
           </div>
-          <h2 className="text-2xl text-white font-clash mb-4">
+          <h2 className="text-2xl text-white font-clash tracking-wide mb-4">
             {t.clanManage.accessDenied}
           </h2>
-          <p className="text-gray-300 mb-6 font-sans leading-relaxed">
+          <p className="text-gray-400 mb-8 font-sans leading-relaxed">
             {serverError}
           </p>
           
-          <div className="space-y-3">
-              <Button href="/profile" variant="primary" className="w-full justify-center">
+          <div className="space-y-4">
+              <Button href="/profile" variant="primary" className="w-full justify-center py-3 text-base shadow-lg shadow-coc-blue/20">
                 {t.clanManage.backToProfile}
               </Button>
               
@@ -224,9 +226,9 @@ const ManageClanClient = ({
                   <button 
                     onClick={handleForceUnlink}
                     disabled={isLeaving}
-                    className="text-xs text-red-400 hover:text-red-300 underline underline-offset-4 decoration-red-500/30 hover:decoration-red-500 transition-all"
+                    className="text-xs text-red-400 hover:text-red-300 underline underline-offset-4 decoration-red-500/30 hover:decoration-red-500 transition-all font-mono"
                   >
-                    {isLeaving ? "Memproses..." : "Data Rusak? Klik untuk Paksa Keluar (Force Unlink)"}
+                    {isLeaving ? "SYSTEM PURGE IN PROGRESS..." : "Data Corrupted? FORCE UNLINK"}
                   </button>
               )}
           </div>
@@ -235,13 +237,16 @@ const ManageClanClient = ({
     );
   }
 
-  // --- LOADING STATE ---
+  // --- LOADING STATE (Styled) ---
   if (!clan || !profile) {
     return (
-      <main className="min-h-screen bg-coc-dark flex flex-col items-center justify-center p-4">
-        <RefreshCwIcon className="h-12 w-12 text-coc-gold animate-spin mb-4" />
-        <p className="text-lg font-clash text-white tracking-wide">{t.clanManage.loadingUserData}</p>
-        <p className="text-sm text-gray-500 font-sans mt-2">
+      <main className="min-h-screen bg-[#0a0a0b] flex flex-col items-center justify-center p-4">
+        <div className="relative">
+            <div className="absolute inset-0 bg-coc-gold/20 blur-xl rounded-full animate-pulse"></div>
+            <RefreshCwIcon className="h-14 w-14 text-coc-gold animate-spin relative z-10" />
+        </div>
+        <p className="text-xl font-clash text-white tracking-widest mt-8 animate-pulse">{t.clanManage.loadingUserData}</p>
+        <p className="text-sm text-gray-500 font-mono mt-2">
           {t.clanManage.reloginNote}
         </p>
       </main>
@@ -258,14 +263,14 @@ const ManageClanClient = ({
         <button
           onClick={() => setActiveTab(tabName)}
           className={`
-            flex items-center px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200
+            flex items-center px-4 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-300
             ${isActive 
-              ? 'bg-coc-gold text-black shadow-lg shadow-coc-gold/20 scale-105' 
-              : 'bg-white/5 text-gray-400 border border-white/5 hover:bg-white/10 hover:text-white'
+              ? 'bg-coc-gold text-black shadow-[0_0_15px_rgba(255,215,0,0.3)] translate-y-[-2px]' 
+              : 'bg-[#15171e]/80 text-gray-400 border border-white/5 hover:bg-white/10 hover:text-white backdrop-blur-md'
             }
           `}
         >
-          <span className={`mr-2 ${isActive ? 'text-black' : 'text-gray-400'}`}>
+          <span className={`mr-2 transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}>
              {React.cloneElement(icon as React.ReactElement, { className: "w-4 h-4" })}
           </span>
           {label}
@@ -278,22 +283,22 @@ const ManageClanClient = ({
       <button
         onClick={() => setActiveTab(tabName)}
         className={`
-          w-full flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group relative overflow-hidden
+          w-full flex items-center px-4 py-3.5 text-sm font-medium rounded-xl transition-all duration-300 group relative overflow-hidden
           ${isActive
-            ? 'bg-coc-gold/10 text-coc-gold border border-coc-gold/20 shadow-[0_0_15px_rgba(255,215,0,0.1)]'
-            : 'text-gray-400 hover:bg-white/5 hover:text-white border border-transparent'
+            ? 'bg-gradient-to-r from-coc-gold/20 to-transparent text-coc-gold border border-coc-gold/20 shadow-[inset_0_0_20px_rgba(255,215,0,0.05)]'
+            : 'text-gray-400 hover:bg-white/5 hover:text-white border border-transparent hover:border-white/5'
           }
         `}
       >
         {/* Active Indicator Bar */}
         {isActive && (
-          <div className="absolute left-0 top-0 bottom-0 w-1 bg-coc-gold rounded-r-full" />
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 bg-coc-gold rounded-r-full shadow-[0_0_10px_#FFD700]" />
         )}
         
-        <span className={`flex-shrink-0 mr-3 transition-colors ${isActive ? 'text-coc-gold' : 'text-gray-500 group-hover:text-gray-300'}`}>
+        <span className={`flex-shrink-0 mr-3 transition-colors duration-300 ${isActive ? 'text-coc-gold' : 'text-gray-500 group-hover:text-gray-300'}`}>
           {React.cloneElement(icon as React.ReactElement, { className: "w-5 h-5" })}
         </span>
-        <span className="truncate">{label}</span>
+        <span className="truncate font-sans tracking-wide">{label}</span>
       </button>
     );
   };
@@ -308,7 +313,7 @@ const ManageClanClient = ({
     if (!isManager && forbiddenTabs.includes(activeTab)) {
       return (
         <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-8 bg-coc-red/5 border border-coc-red/20 rounded-2xl backdrop-blur-sm">
-          <div className="bg-coc-red/10 p-4 rounded-full mb-4">
+          <div className="bg-coc-red/10 p-4 rounded-full mb-4 shadow-[0_0_20px_rgba(255,0,0,0.2)]">
             <AlertTriangleIcon className="h-12 w-12 text-coc-red" />
           </div>
           <h3 className="text-xl font-clash text-white mb-2">{t.clanManage.tabAccessDenied}</h3>
@@ -358,7 +363,11 @@ const ManageClanClient = ({
   if (!mounted) return null;
 
   return (
-    <main className="min-h-screen bg-coc-dark text-white selection:bg-coc-gold/30 pb-20">
+    <main className="min-h-screen bg-[#0a0a0b] text-white selection:bg-coc-gold/30 pb-20 relative overflow-x-hidden">
+      {/* --- GLOBAL AMBIENT GLOW --- */}
+      <div className="fixed top-0 left-0 w-full h-[500px] bg-coc-blue/5 blur-[120px] -z-10 pointer-events-none" />
+      <div className="fixed bottom-0 right-0 w-[500px] h-[500px] bg-coc-gold/5 blur-[150px] -z-10 pointer-events-none" />
+
       <Notification notification={notification ?? undefined} />
 
       <div className="container mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-10">
@@ -371,7 +380,7 @@ const ManageClanClient = ({
         <div className="flex flex-col lg:flex-row gap-8">
           
           {/* --- MOBILE NAVIGATION (Unified Control) --- */}
-          <div className="lg:hidden sticky top-[72px] z-30 -mx-4 px-4 bg-coc-dark/80 backdrop-blur-lg border-b border-white/5 py-3 overflow-x-auto no-scrollbar mask-gradient-right">
+          <div className="lg:hidden sticky top-[72px] z-30 -mx-4 px-4 bg-[#0a0a0b]/80 backdrop-blur-xl border-b border-white/10 py-3 overflow-x-auto no-scrollbar mask-gradient-right shadow-lg">
             <div className="flex gap-3 min-w-max">
               {visibleTabs.map((tab) => (
                 <MenuButton key={tab.tabName} {...tab} mobile />
@@ -381,9 +390,9 @@ const ManageClanClient = ({
 
           {/* --- DESKTOP SIDEBAR --- */}
           <aside className="hidden lg:block w-72 flex-shrink-0">
-            <div className="sticky top-24 bg-black/20 backdrop-blur-xl border border-white/5 rounded-2xl p-4 shadow-xl">
+            <div className="sticky top-24 bg-[#15171e]/60 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-xl ring-1 ring-white/5">
               <div className="space-y-1">
-                <p className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                <p className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-widest font-mono mb-2">
                   Main Menu
                 </p>
                 {visibleTabs.filter(t => !MANAGER_TABS.includes(t)).map((tab) => (
@@ -392,8 +401,8 @@ const ManageClanClient = ({
               </div>
 
               {isManager && (
-                <div className="mt-6 space-y-1">
-                  <p className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                <div className="mt-8 space-y-1">
+                  <p className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-widest font-mono mb-2">
                     Management
                   </p>
                   {visibleTabs.filter(t => MANAGER_TABS.some(m => m.tabName === t.tabName)).map((tab) => (
@@ -402,7 +411,7 @@ const ManageClanClient = ({
                 </div>
               )}
 
-              <div className="my-4 border-t border-white/5 mx-2"></div>
+              <div className="my-6 border-t border-white/10 mx-2"></div>
 
               <div className="space-y-1">
                 <Button
@@ -428,10 +437,12 @@ const ManageClanClient = ({
             </div>
           </aside>
 
-          {/* --- CONTENT AREA --- */}
+          {/* --- CONTENT AREA (Glassmorphism 2.0) --- */}
           <section className="flex-grow min-w-0">
-            <div className="bg-black/20 backdrop-blur-md border border-white/5 rounded-2xl p-4 md:p-6 lg:p-8 min-h-[600px] shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-96 h-96 bg-coc-gold/5 rounded-full blur-[100px] -z-10 pointer-events-none transform translate-x-1/2 -translate-y-1/2"></div>
+            <div className="bg-[#15171e]/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-6 lg:p-8 min-h-[600px] shadow-2xl relative overflow-hidden ring-1 ring-white/5">
+              {/* Internal Glow Effect */}
+              <div className="absolute -top-24 -right-24 w-96 h-96 bg-coc-blue/10 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
+              
               {renderContent()}
             </div>
           </section>
@@ -439,26 +450,30 @@ const ManageClanClient = ({
         </div>
       </div>
 
-      {/* --- LEAVE MODAL --- */}
+      {/* --- LEAVE MODAL (Styled) --- */}
       {isLeaveModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-[#1a1a1a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden relative">
-            <div className="p-6 text-center">
-              <div className="w-16 h-16 bg-coc-red/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-coc-red/30">
+          <div className="w-full max-w-md bg-[#15171e] border border-white/10 rounded-2xl shadow-2xl overflow-hidden relative ring-1 ring-white/5">
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-coc-red to-transparent opacity-50"></div>
+            <div className="p-8 text-center">
+              <div className="w-16 h-16 bg-coc-red/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-coc-red/20 shadow-[0_0_15px_rgba(255,0,0,0.1)]">
                 <LogOutIcon className="h-8 w-8 text-coc-red" />
               </div>
-              <h3 className="text-xl font-clash text-white mb-2">
+              <h3 className="text-2xl font-clash text-white mb-2 tracking-wide">
                 {t.clanManage.leaveTitle}
               </h3>
-              <p className="text-gray-400 text-sm mb-6 leading-relaxed">
+              <p className="text-gray-400 text-sm mb-8 leading-relaxed font-sans">
                 {t.clanManage.leaveConfirm} <span className="text-white font-semibold">{clan.name}</span>?
                 <br />
-                <span className="text-coc-red/80 mt-2 block">{t.clanManage.leaveImportant}</span>
+                <span className="text-coc-red/90 mt-3 block font-medium bg-coc-red/5 p-2 rounded-lg border border-coc-red/10">
+                    <AlertTriangleIcon className="inline w-4 h-4 mr-1 -mt-0.5" />
+                    {t.clanManage.leaveImportant}
+                </span>
               </p>
-              <div className="flex gap-3">
+              <div className="flex gap-4">
                 <Button
                   variant="secondary"
-                  className="flex-1"
+                  className="flex-1 py-3"
                   onClick={() => setIsLeaveModalOpen(false)}
                   disabled={isLeaving}
                 >
@@ -466,7 +481,7 @@ const ManageClanClient = ({
                 </Button>
                 <Button
                   variant="danger"
-                  className="flex-1"
+                  className="flex-1 py-3 shadow-lg shadow-coc-red/20"
                   onClick={handleConfirmLeave}
                   disabled={isLeaving}
                 >
@@ -483,13 +498,13 @@ const ManageClanClient = ({
         <>
           <button
             onClick={() => setIsAiModalOpen(true)}
-            className="fixed z-40 bottom-6 right-6 h-14 w-14 rounded-full bg-gradient-to-br from-coc-gold to-orange-500 text-black shadow-lg shadow-orange-500/20 flex items-center justify-center transition-transform hover:scale-110 active:scale-95 group"
+            className="fixed z-40 bottom-6 right-6 h-14 w-14 rounded-full bg-gradient-to-br from-coc-gold to-orange-500 text-black shadow-[0_0_25px_rgba(255,165,0,0.4)] flex items-center justify-center transition-all hover:scale-110 active:scale-95 group border border-white/20"
             aria-label="Gemini Assistant"
           >
             <IconSparkle className="h-7 w-7 transition-transform group-hover:rotate-12" />
             <span className="absolute -top-1 -right-1 flex h-3 w-3">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-white shadow-sm"></span>
             </span>
           </button>
           

@@ -17,7 +17,6 @@ import {
   ArrowDownIcon,
   Loader2Icon,
   AlertTriangleIcon,
-  StarIcon
 } from '@/app/components/icons';
 import { Button } from '@/app/components/ui/Button';
 import { useLanguage } from '@/lib/hooks/useLanguage';
@@ -71,67 +70,69 @@ const RaidMemberTable: React.FC<{ members: CocRaidMember[] | undefined | null, t
 
   // Top 3 Badge Colors
   const getRankBadge = (index: number) => {
-    if (index === 0) return "bg-coc-gold text-black border-coc-gold";
-    if (index === 1) return "bg-gray-300 text-black border-gray-400";
-    if (index === 2) return "bg-orange-700 text-white border-orange-800";
+    if (index === 0) return "bg-coc-gold text-black border-coc-gold shadow-[0_0_10px_#FFD700]";
+    if (index === 1) return "bg-gray-300 text-black border-gray-400 shadow-[0_0_10px_#D1D5DB]";
+    if (index === 2) return "bg-orange-700 text-white border-orange-800 shadow-[0_0_10px_#C2410C]";
     return "bg-white/5 text-gray-400 border-white/10";
   };
 
   return (
-    <div className="overflow-hidden rounded-xl border border-white/10 bg-[#151515] mt-4">
+    <div className="overflow-hidden rounded-xl border border-white/10 bg-[#15171e]/40 mt-4 backdrop-blur-md">
       {/* Mobile View (Cards) */}
-      <div className="md:hidden space-y-2 p-2">
+      <div className="md:hidden space-y-2 p-3">
          {sortedMembers.slice(0, 10).map((member, index) => (
-             <div key={member.tag || index} className="p-3 bg-white/5 rounded-lg border border-white/5 flex items-center justify-between">
+             <div key={member.tag || index} className="p-3 bg-white/5 rounded-lg border border-white/5 flex items-center justify-between hover:bg-white/10 transition-colors">
                  <div className="flex items-center gap-3">
-                     <div className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold border ${getRankBadge(index)}`}>
+                     <div className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold border ${getRankBadge(index)}`}>
                          {index + 1}
                      </div>
                      <div>
-                         <p className="text-sm font-medium text-white">{member.name}</p>
-                         <p className="text-xs text-gray-500">{member.attacks} Atk</p>
+                         <p className="text-sm font-clash text-white tracking-wide">{member.name}</p>
+                         <p className="text-[10px] text-gray-500 font-mono flex items-center gap-1">
+                            <SwordsIcon className="w-3 h-3" /> {member.attacks} Atk
+                         </p>
                      </div>
                  </div>
                  <div className="text-right">
                      <p className="text-coc-gold font-mono font-bold text-sm">{formatNumber(member.capitalResourcesLooted)}</p>
-                     <p className="text-[10px] text-gray-500 uppercase">Loot</p>
+                     <p className="text-[9px] text-gray-500 uppercase tracking-widest">Loot</p>
                  </div>
              </div>
          ))}
          {sortedMembers.length > 10 && (
-             <p className="text-center text-xs text-gray-500 pt-2">And {sortedMembers.length - 10} more...</p>
+             <p className="text-center text-xs text-gray-500 pt-2 font-mono">And {sortedMembers.length - 10} more...</p>
          )}
       </div>
 
       {/* Desktop View (Table) */}
       <div className="hidden md:block overflow-x-auto">
         <table className="min-w-full text-xs">
-            <thead className="bg-black/40 text-gray-400 font-clash uppercase tracking-wider">
+            <thead className="bg-[#0a0a0b]/80 backdrop-blur-sm text-gray-400 font-clash uppercase tracking-widest border-b border-white/5">
             <tr>
-                <th className="px-4 py-3 text-center w-12">#</th>
-                <th className="px-4 py-3 text-left">{t.clanRaid.colPlayer}</th>
-                <th className="px-4 py-3 text-center">{t.clanRaid.colAttacks}</th>
-                <th className="px-4 py-3 text-right">{t.clanRaid.colLoot}</th>
-                <th className="px-4 py-3 text-right">Contribution</th>
+                <th className="px-6 py-4 text-center w-16">#</th>
+                <th className="px-6 py-4 text-left">{t.clanRaid.colPlayer}</th>
+                <th className="px-6 py-4 text-center">{t.clanRaid.colAttacks}</th>
+                <th className="px-6 py-4 text-right">{t.clanRaid.colLoot}</th>
+                <th className="px-6 py-4 text-right w-40">Contribution</th>
             </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-white/5 bg-[#15171e]/20">
             {sortedMembers.map((member, index) => {
                 const maxLoot = sortedMembers[0]?.capitalResourcesLooted || 1;
                 const percent = ((member.capitalResourcesLooted || 0) / maxLoot) * 100;
                 
                 return (
                 <tr key={member.tag || index} className="hover:bg-white/5 transition-colors group">
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-6 py-3 text-center">
                         <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold border ${getRankBadge(index)}`}>
                             {index + 1}
                         </span>
                     </td>
-                    <td className="px-4 py-3 font-medium text-white">
-                        {member.name || 'Unknown'}
-                        {index === 0 && <span className="ml-2 text-[10px] bg-coc-gold/20 text-coc-gold px-1.5 py-0.5 rounded border border-coc-gold/30">MVP</span>}
+                    <td className="px-6 py-3 font-medium text-white group-hover:text-coc-gold transition-colors">
+                        <span className="font-clash tracking-wide">{member.name || 'Unknown'}</span>
+                        {index === 0 && <span className="ml-2 text-[9px] bg-coc-gold/20 text-coc-gold px-1.5 py-0.5 rounded border border-coc-gold/30 uppercase font-bold tracking-wider shadow-[0_0_10px_rgba(255,215,0,0.2)]">MVP</span>}
                     </td>
-                    <td className="px-4 py-3 text-center text-gray-300">
+                    <td className="px-6 py-3 text-center text-gray-300 font-mono">
                         <span className={member.attacks === ((member.attackLimit ?? 0) + (member.bonusAttackLimit ?? 0)) ? 'text-coc-green font-bold' : 'text-gray-400'}>
                             {member.attacks ?? 0}
                         </span>
@@ -140,12 +141,12 @@ const RaidMemberTable: React.FC<{ members: CocRaidMember[] | undefined | null, t
                             {(member.attackLimit ?? 0) + (member.bonusAttackLimit ?? 0)}
                         </span>
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-coc-gold font-bold">
+                    <td className="px-6 py-3 text-right font-mono text-coc-gold font-bold text-sm tracking-wide">
                         {formatNumber(member.capitalResourcesLooted)}
                     </td>
-                    <td className="px-4 py-3 text-right w-32">
+                    <td className="px-6 py-3 text-right">
                         <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                            <div className="h-full bg-coc-gold" style={{ width: `${percent}%` }} />
+                            <div className="h-full bg-coc-gold shadow-[0_0_8px_#FFD700]" style={{ width: `${percent}%` }} />
                         </div>
                     </td>
                 </tr>
@@ -163,11 +164,11 @@ const CurrentRaidSummary: React.FC<{ raid: CocRaidLog | null | undefined, t: any
   if (!raid) {
     return (
       <div className="flex flex-col items-center justify-center p-12 bg-white/5 border border-white/10 rounded-3xl backdrop-blur-sm border-dashed">
-        <div className="bg-black/30 p-4 rounded-full mb-4">
-            <CoinsIcon className="h-12 w-12 text-gray-600" />
+        <div className="bg-[#15171e] p-4 rounded-full mb-4 shadow-lg border border-white/5">
+            <CoinsIcon className="h-12 w-12 text-gray-600 opacity-50" />
         </div>
-        <p className="text-gray-400 font-clash text-lg mb-1">{t.clanRaid.noData}</p>
-        <p className="text-xs text-gray-500">{t.clanRaid.noDataDesc}</p>
+        <p className="text-gray-400 font-clash text-lg mb-1 tracking-wide">{t.clanRaid.noData}</p>
+        <p className="text-xs text-gray-500 font-mono">{t.clanRaid.noDataDesc}</p>
       </div>
     );
   }
@@ -177,17 +178,17 @@ const CurrentRaidSummary: React.FC<{ raid: CocRaidLog | null | undefined, t: any
   const formattedDate = formatDate(raid.endTime, locale, false);
 
   return (
-    <div className="bg-gradient-to-br from-[#2a1a3a] to-[#151515] rounded-3xl p-1 border border-purple-500/20 shadow-2xl relative overflow-hidden group">
+    <div className="bg-gradient-to-br from-[#2a1a3a] to-[#151515] rounded-3xl p-[1px] border border-purple-500/20 shadow-2xl relative overflow-hidden group">
       {/* Decorative Background */}
       <div className="absolute inset-0 bg-[url('/images/stone-texture.png')] opacity-5 mix-blend-overlay pointer-events-none" />
       <div className={`absolute top-0 right-0 w-80 h-80 ${isOngoing ? 'bg-green-500/10' : 'bg-purple-500/10'} rounded-full blur-[100px] pointer-events-none -translate-y-1/2 translate-x-1/2`} />
       
-      <div className="bg-[#151515]/80 backdrop-blur-md rounded-[20px] p-6 md:p-8 h-full">
+      <div className="bg-[#151515]/90 backdrop-blur-xl rounded-[22px] p-6 md:p-8 h-full relative z-10">
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 border-b border-white/5 pb-6">
             <div>
                 <div className="flex items-center gap-3 mb-1">
-                    <div className={`p-2 rounded-xl border ${isOngoing ? 'bg-green-500/20 border-green-500/30' : 'bg-purple-500/20 border-purple-500/30'}`}>
+                    <div className={`p-2.5 rounded-xl border shadow-lg ${isOngoing ? 'bg-green-500/10 border-green-500/20 shadow-green-500/10' : 'bg-purple-500/10 border-purple-500/20 shadow-purple-500/10'}`}>
                         <CoinsIcon className={`h-6 w-6 ${isOngoing ? 'text-green-400' : 'text-purple-400'}`} />
                     </div>
                     <h3 className="text-2xl font-clash text-white tracking-wide">
@@ -195,7 +196,7 @@ const CurrentRaidSummary: React.FC<{ raid: CocRaidLog | null | undefined, t: any
                     </h3>
                 </div>
                 <p className="text-sm text-gray-400 font-mono flex items-center gap-2 ml-1">
-                    <ClockIcon className="h-3 w-3" />
+                    <ClockIcon className="h-3 w-3 opacity-70" />
                     {formattedDate}
                 </p>
             </div>
@@ -211,33 +212,33 @@ const CurrentRaidSummary: React.FC<{ raid: CocRaidLog | null | undefined, t: any
         {/* Main Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
             {/* Total Loot */}
-            <div className="bg-gradient-to-b from-white/10 to-transparent p-[1px] rounded-2xl">
-                <div className="bg-[#1a1a1a] p-5 rounded-2xl h-full flex flex-col items-center text-center">
+            <div className="bg-gradient-to-b from-white/5 to-transparent p-[1px] rounded-2xl group/card">
+                <div className="bg-[#0a0a0b]/60 p-5 rounded-2xl h-full flex flex-col items-center text-center border border-white/5 group-hover/card:border-coc-gold/20 transition-colors">
                     <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-2">{t.clanRaid.labelTotalLoot}</p>
-                    <div className="flex items-center gap-2 mb-1">
-                        <CoinsIcon className="h-5 w-5 text-coc-gold" />
-                        <span className="text-2xl md:text-3xl font-clash text-white">{formatNumber(raid.capitalTotalLoot)}</span>
+                    <div className="flex items-center gap-2 mb-2">
+                        <CoinsIcon className="h-5 w-5 text-coc-gold drop-shadow-md" />
+                        <span className="text-2xl md:text-3xl font-clash text-white tracking-wide">{formatNumber(raid.capitalTotalLoot)}</span>
                     </div>
-                    <span className="text-[10px] text-coc-gold bg-coc-gold/10 px-2 py-0.5 rounded border border-coc-gold/20">Capital Gold</span>
+                    <span className="text-[9px] text-coc-gold bg-coc-gold/10 px-2 py-0.5 rounded border border-coc-gold/20 uppercase font-bold tracking-wider">Capital Gold</span>
                 </div>
             </div>
 
             {/* Medals */}
-            <div className="bg-gradient-to-b from-white/10 to-transparent p-[1px] rounded-2xl">
-                <div className="bg-[#1a1a1a] p-5 rounded-2xl h-full flex flex-col items-center text-center">
+            <div className="bg-gradient-to-b from-white/5 to-transparent p-[1px] rounded-2xl group/card">
+                <div className="bg-[#0a0a0b]/60 p-5 rounded-2xl h-full flex flex-col items-center text-center border border-white/5 group-hover/card:border-purple-500/20 transition-colors">
                     <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-2">{t.clanRaid.labelMedals}</p>
-                    <div className="flex items-center gap-2 mb-1">
-                        <TrophyIcon className="h-5 w-5 text-purple-400" />
-                        <span className="text-2xl md:text-3xl font-clash text-white">
+                    <div className="flex items-center gap-2 mb-2">
+                        <TrophyIcon className="h-5 w-5 text-purple-400 drop-shadow-md" />
+                        <span className="text-2xl md:text-3xl font-clash text-white tracking-wide">
                             {formatNumber((raid.offensiveReward || 0) + (raid.defensiveReward || 0))}
                         </span>
                     </div>
-                    <span className="text-[10px] text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">Raid Medals</span>
+                    <span className="text-[9px] text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20 uppercase font-bold tracking-wider">Raid Medals</span>
                 </div>
             </div>
 
             {/* Attacks */}
-            <div className="bg-[#0f0f0f] p-5 rounded-2xl border border-white/5 flex flex-col items-center text-center justify-center">
+            <div className="bg-[#0a0a0b]/60 p-5 rounded-2xl border border-white/5 flex flex-col items-center text-center justify-center hover:border-white/10 transition-colors">
                 <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-2">{t.clanRaid.labelTotalAttacks}</p>
                 <div className="flex items-center gap-2">
                     <SwordsIcon className="h-5 w-5 text-gray-400" />
@@ -246,7 +247,7 @@ const CurrentRaidSummary: React.FC<{ raid: CocRaidLog | null | undefined, t: any
             </div>
 
             {/* Destroyed */}
-            <div className="bg-[#0f0f0f] p-5 rounded-2xl border border-white/5 flex flex-col items-center text-center justify-center">
+            <div className="bg-[#0a0a0b]/60 p-5 rounded-2xl border border-white/5 flex flex-col items-center text-center justify-center hover:border-white/10 transition-colors">
                 <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-2">{t.clanRaid.labelEnemyDistricts}</p>
                 <div className="flex items-center gap-2">
                     <ShieldIcon className="h-5 w-5 text-coc-red" />
@@ -256,11 +257,11 @@ const CurrentRaidSummary: React.FC<{ raid: CocRaidLog | null | undefined, t: any
         </div>
 
         {/* Member Table Expander */}
-        <div className="border-t border-white/5 pt-4">
+        <div className="border-t border-white/5 pt-6">
              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+                <h4 className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2 font-mono">
                     <UserIcon className="h-4 w-4 text-coc-gold" />
-                    {t.clanRaid.labelParticipants} <span className="text-xs text-gray-600 bg-black/30 px-1.5 py-0.5 rounded">{raid.members?.length || 0}</span>
+                    {t.clanRaid.labelParticipants} <span className="text-xs text-coc-gold bg-coc-gold/10 px-2 py-0.5 rounded border border-coc-gold/20">{raid.members?.length || 0}</span>
                 </h4>
              </div>
              <RaidMemberTable members={raid.members} t={t} />
@@ -339,7 +340,7 @@ const RaidTabContent: React.FC<RaidTabContentProps> = ({ clan }) => {
   };
 
   const getHeaderClasses = (key: RaidSortKey, align: 'left' | 'center' | 'right') =>
-    `py-4 px-6 text-${align} text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer transition-colors hover:text-white select-none ${
+    `py-4 px-6 text-${align} text-xs font-bold text-gray-500 uppercase tracking-widest cursor-pointer transition-colors hover:text-white select-none ${
       sort.key === key ? 'text-coc-gold' : ''
     }`;
 
@@ -348,19 +349,24 @@ const RaidTabContent: React.FC<RaidTabContentProps> = ({ clan }) => {
   if (isLoading) {
     return (
       <div className="flex flex-col justify-center items-center h-[400px]">
-        <Loader2Icon className="h-10 w-10 text-coc-gold animate-spin mb-4" />
-        <p className="text-gray-400 font-medium animate-pulse">{t.common.loading}</p>
+        <div className="relative">
+            <div className="absolute inset-0 bg-purple-500/20 blur-xl rounded-full animate-pulse"></div>
+            <Loader2Icon className="h-10 w-10 text-purple-400 animate-spin relative z-10" />
+        </div>
+        <p className="text-gray-400 font-medium animate-pulse mt-4 font-mono tracking-widest">{t.common.loading}</p>
       </div>
     );
   }
   
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[300px] text-center p-8 bg-coc-red/5 border border-coc-red/20 rounded-2xl backdrop-blur-sm">
-        <AlertTriangleIcon className="h-12 w-12 text-coc-red mb-3" />
+      <div className="flex flex-col items-center justify-center min-h-[300px] text-center p-8 bg-coc-red/5 border border-coc-red/20 rounded-2xl backdrop-blur-sm shadow-[inset_0_0_20px_rgba(220,38,38,0.1)]">
+        <div className="bg-coc-red/10 p-4 rounded-full mb-4 shadow-[0_0_15px_rgba(255,0,0,0.2)]">
+            <AlertTriangleIcon className="h-10 w-10 text-coc-red" />
+        </div>
         <p className="text-xl font-clash text-white mb-2">{t.common.error}</p>
-        <p className="text-sm text-gray-400 font-sans mt-1 max-w-md mx-auto mb-4">{error.message}</p>
-        <Button onClick={handleRefreshClick} variant="secondary" size="sm">
+        <p className="text-sm text-gray-400 font-sans mt-1 max-w-md mx-auto mb-6">{error.message}</p>
+        <Button onClick={handleRefreshClick} variant="secondary" size="sm" className="bg-white/5 hover:bg-white/10 border-white/10">
           <RefreshCwIcon className='h-4 w-4 mr-2' /> {t.clanManage.reloadCache}
         </Button>
       </div>
@@ -371,20 +377,20 @@ const RaidTabContent: React.FC<RaidTabContentProps> = ({ clan }) => {
     <div className="space-y-10 animate-fade-in pb-10">
       
       {/* --- HEADER BANNER --- */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gradient-to-r from-purple-900/20 to-transparent p-8 rounded-3xl border border-purple-500/20 relative overflow-hidden">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gradient-to-r from-purple-900/20 to-transparent p-8 rounded-3xl border border-purple-500/20 relative overflow-hidden ring-1 ring-white/5">
         <div className="absolute top-0 right-0 w-80 h-80 bg-purple-600/10 rounded-full blur-[100px] pointer-events-none -translate-y-1/2 translate-x-1/2" />
         
         <div className="relative z-10">
             <div className="flex items-center gap-4 mb-2">
-                <div className="p-3 bg-purple-500/20 rounded-2xl border border-purple-500/30 shadow-[0_0_20px_rgba(168,85,247,0.2)]">
+                <div className="p-3 bg-purple-500/10 rounded-2xl border border-purple-500/30 shadow-[0_0_20px_rgba(168,85,247,0.2)] backdrop-blur-sm">
                     <CoinsIcon className="h-8 w-8 text-purple-300" />
                 </div>
                 <div>
                     <h2 className="text-3xl font-clash text-white tracking-wide">
                         {t.clanRaid.tabTitle}
                     </h2>
-                    <p className="text-purple-200/60 font-sans text-sm">
-                        Track your Clan Capital weekends performance.
+                    <p className="text-purple-200/60 font-mono text-xs uppercase tracking-widest mt-1">
+                        Track your Clan Capital weekends performance
                     </p>
                 </div>
             </div>
@@ -392,8 +398,8 @@ const RaidTabContent: React.FC<RaidTabContentProps> = ({ clan }) => {
 
         <div className="relative z-10 flex items-center gap-3">
             <div className="hidden md:block text-right mr-2">
-                <p className="text-xs text-gray-500 uppercase tracking-widest font-bold">Last Update</p>
-                <p className="text-sm text-white font-mono">
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Last Update</p>
+                <p className="text-sm text-white font-mono bg-black/30 px-2 py-0.5 rounded border border-white/5 inline-block mt-1">
                     {currentRaid ? new Date().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : '-'}
                 </p>
             </div>
@@ -401,7 +407,7 @@ const RaidTabContent: React.FC<RaidTabContentProps> = ({ clan }) => {
                 variant="secondary"
                 onClick={handleRefreshClick}
                 disabled={isLoading}
-                className="bg-black/40 border-white/10 hover:bg-white/10 backdrop-blur-md h-12 px-6"
+                className="bg-black/40 border-white/10 hover:bg-white/10 backdrop-blur-md h-12 px-6 shadow-lg"
             >
                 <RefreshCwIcon className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
             </Button>
@@ -415,7 +421,7 @@ const RaidTabContent: React.FC<RaidTabContentProps> = ({ clan }) => {
 
       {/* --- RAID HISTORY SECTION --- */}
       <section>
-        <div className="flex items-center gap-3 mb-6 px-2 border-l-4 border-purple-500 pl-4">
+        <div className="flex items-center gap-3 mb-6 px-2 border-l-4 border-purple-500 pl-4 py-1">
             <ClockIcon className="h-6 w-6 text-purple-400" />
             <h3 className="text-2xl font-clash text-white tracking-wide">
                 {t.clanRaid.historyTitle}
@@ -423,92 +429,101 @@ const RaidTabContent: React.FC<RaidTabContentProps> = ({ clan }) => {
         </div>
         
         {!sortedArchives || sortedArchives.length === 0 ? (
-          <div className="text-center py-16 bg-white/5 rounded-3xl border border-white/5 border-dashed">
-            <CoinsIcon className="h-16 w-16 text-gray-700 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg font-clash">{t.clanRaid.noHistory}</p>
+          <div className="text-center py-20 bg-white/5 rounded-3xl border border-white/5 border-dashed">
+            <div className="bg-[#15171e] p-4 rounded-full inline-block mb-4 border border-white/5 shadow-lg">
+                <CoinsIcon className="h-12 w-12 text-gray-700 opacity-50" />
+            </div>
+            <p className="text-gray-500 text-xl font-clash tracking-wide">{t.clanRaid.noHistory}</p>
           </div>
         ) : (
-          <div className="bg-[#151515] rounded-3xl border border-white/10 overflow-hidden shadow-2xl">
-            <table className="min-w-full text-sm">
-              <thead className="bg-black/40 border-b border-white/5">
-                <tr>
-                  <th className={getHeaderClasses('endTime', 'left') + ' pl-8'} onClick={() => handleSort('endTime')}>
-                    <div className="flex items-center gap-2">
-                        {t.clanRaid.statusEnded} {getSortIcon('endTime')}
-                    </div>
-                  </th>
-                  <th className={getHeaderClasses('capitalTotalLoot', 'right')} onClick={() => handleSort('capitalTotalLoot')}>
-                    <div className="flex items-center justify-end gap-2">
-                        {t.clanRaid.colLoot} {getSortIcon('capitalTotalLoot')}
-                    </div>
-                  </th>
-                  <th className={getHeaderClasses('totalAttacks', 'center')} onClick={() => handleSort('totalAttacks')}>
-                    <div className="flex items-center justify-center gap-2">
-                        Attacks {getSortIcon('totalAttacks')}
-                    </div>
-                  </th>
-                  <th className="py-4 px-6 text-center w-16"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {sortedArchives.map(raid => (
-                  <React.Fragment key={raid.id}>
-                    <tr
-                      className={`transition-all cursor-pointer group ${selectedArchiveId === raid.id ? 'bg-purple-500/5' : 'hover:bg-white/[0.02]'}`}
-                      onClick={() => toggleArchiveDetails(raid.id)}
-                    >
-                      <td className="py-5 px-8 font-medium text-white/90 group-hover:text-white">
-                        {formatDate(raid.endTime, locale, false)}
-                      </td>
-                      <td className="py-5 px-6 text-right font-mono text-coc-gold text-base tracking-wide">
-                        {formatNumber(raid.capitalTotalLoot)}
-                      </td>
-                      <td className="py-5 px-6 text-center text-gray-400">
-                        {formatNumber(raid.totalAttacks)}
-                      </td>
-                      <td className="py-5 px-6 text-center">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${selectedArchiveId === raid.id ? 'bg-purple-500/20 text-purple-400' : 'bg-white/5 text-gray-500 group-hover:bg-white/10'}`}>
-                            {selectedArchiveId === raid.id ? (
-                            <ChevronUpIcon className="w-4 h-4" />
-                            ) : (
-                            <ChevronDownIcon className="w-4 h-4" />
-                            )}
+          <div className="bg-[#15171e]/60 backdrop-blur-md rounded-3xl border border-white/10 overflow-hidden shadow-2xl ring-1 ring-white/5">
+            <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                <thead className="bg-[#0a0a0b]/80 border-b border-white/5 backdrop-blur-sm">
+                    <tr>
+                    <th className={getHeaderClasses('endTime', 'left') + ' pl-8'} onClick={() => handleSort('endTime')}>
+                        <div className="flex items-center gap-2">
+                            {t.clanRaid.statusEnded} {getSortIcon('endTime')}
                         </div>
-                      </td>
+                    </th>
+                    <th className={getHeaderClasses('capitalTotalLoot', 'right')} onClick={() => handleSort('capitalTotalLoot')}>
+                        <div className="flex items-center justify-end gap-2">
+                            {t.clanRaid.colLoot} {getSortIcon('capitalTotalLoot')}
+                        </div>
+                    </th>
+                    <th className={getHeaderClasses('totalAttacks', 'center')} onClick={() => handleSort('totalAttacks')}>
+                        <div className="flex items-center justify-center gap-2">
+                            Attacks {getSortIcon('totalAttacks')}
+                        </div>
+                    </th>
+                    <th className="py-4 px-6 text-center w-16"></th>
                     </tr>
-                    
-                    {/* Expanded Detail */}
-                    {selectedArchiveId === raid.id && (
-                      <tr className="bg-[#0f0f0f] shadow-inner border-y border-purple-500/10">
-                        <td colSpan={4} className="p-0">
-                            <div className="p-6 md:p-8 animate-in slide-in-from-top-4 duration-300">
-                                <div className="flex flex-col md:flex-row justify-between gap-6 mb-6">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-coc-gold/10 rounded-lg border border-coc-gold/20">
-                                            <UserIcon className="h-5 w-5 text-coc-gold" />
-                                        </div>
-                                        <h4 className="text-lg font-bold text-white uppercase tracking-wider">
-                                            Raid Performance
-                                        </h4>
-                                    </div>
-                                    <div className="flex gap-4 text-xs text-gray-400 font-mono">
-                                        <span className="px-3 py-1 bg-white/5 rounded border border-white/5">
-                                            Loot: {formatNumber(raid.capitalTotalLoot)}
-                                        </span>
-                                        <span className="px-3 py-1 bg-white/5 rounded border border-white/5">
-                                            Districts: {formatNumber(raid.enemyDistrictsDestroyed)}
-                                        </span>
-                                    </div>
-                                </div>
-                                <RaidMemberTable members={raid.members} t={t} />
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                    {sortedArchives.map(raid => (
+                    <React.Fragment key={raid.id}>
+                        <tr
+                        className={`transition-all cursor-pointer group ${selectedArchiveId === raid.id ? 'bg-purple-500/5' : 'hover:bg-white/[0.02]'}`}
+                        onClick={() => toggleArchiveDetails(raid.id)}
+                        >
+                        <td className="py-5 px-8 font-medium text-white/90 group-hover:text-white font-mono">
+                            {formatDate(raid.endTime, locale, false)}
+                        </td>
+                        <td className="py-5 px-6 text-right font-mono text-coc-gold text-base tracking-wide font-bold">
+                            {formatNumber(raid.capitalTotalLoot)}
+                        </td>
+                        <td className="py-5 px-6 text-center text-gray-400 font-mono">
+                            {formatNumber(raid.totalAttacks)}
+                        </td>
+                        <td className="py-5 px-6 text-center">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${selectedArchiveId === raid.id ? 'bg-purple-500/20 text-purple-400 shadow-[0_0_10px_rgba(168,85,247,0.2)]' : 'bg-white/5 text-gray-500 group-hover:bg-white/10 group-hover:text-white'}`}>
+                                {selectedArchiveId === raid.id ? (
+                                <ChevronUpIcon className="w-4 h-4" />
+                                ) : (
+                                <ChevronDownIcon className="w-4 h-4" />
+                                )}
                             </div>
                         </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                ))}
-              </tbody>
-            </table>
+                        </tr>
+                        
+                        {/* Expanded Detail */}
+                        {selectedArchiveId === raid.id && (
+                        <tr className="bg-[#0a0a0b]/40 shadow-inner border-y border-purple-500/10">
+                            <td colSpan={4} className="p-0">
+                                <div className="p-6 md:p-8 animate-in slide-in-from-top-4 duration-300">
+                                    <div className="flex flex-col md:flex-row justify-between gap-6 mb-6 pb-6 border-b border-white/5">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2.5 bg-coc-gold/10 rounded-xl border border-coc-gold/20 shadow-[0_0_15px_rgba(255,215,0,0.1)]">
+                                                <UserIcon className="h-5 w-5 text-coc-gold" />
+                                            </div>
+                                            <div>
+                                                <h4 className="text-lg font-bold text-white uppercase tracking-wider font-clash">
+                                                    Raid Performance
+                                                </h4>
+                                                <p className="text-[10px] text-gray-500 font-mono mt-0.5">Detailed breakdown by member</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-4 text-xs text-gray-400 font-mono">
+                                            <div className="px-4 py-2 bg-black/40 rounded-xl border border-white/5 flex flex-col items-center min-w-[100px]">
+                                                <span className="text-[9px] uppercase tracking-widest mb-1 text-gray-500">Total Loot</span>
+                                                <span className="text-coc-gold font-bold">{formatNumber(raid.capitalTotalLoot)}</span>
+                                            </div>
+                                            <div className="px-4 py-2 bg-black/40 rounded-xl border border-white/5 flex flex-col items-center min-w-[100px]">
+                                                <span className="text-[9px] uppercase tracking-widest mb-1 text-gray-500">Districts</span>
+                                                <span className="text-coc-red font-bold">{formatNumber(raid.enemyDistrictsDestroyed)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <RaidMemberTable members={raid.members} t={t} />
+                                </div>
+                            </td>
+                        </tr>
+                        )}
+                    </React.Fragment>
+                    ))}
+                </tbody>
+                </table>
+            </div>
           </div>
         )}
       </section>

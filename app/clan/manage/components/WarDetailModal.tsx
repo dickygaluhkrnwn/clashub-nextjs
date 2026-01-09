@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { createPortal } from 'react-dom'; // [PERBAIKAN UTAMA] Import Portal
+import { createPortal } from 'react-dom';
 import {
   XIcon,
   StarIcon,
@@ -50,13 +50,13 @@ const DestructionBar = ({ percentage, colorClass }: { percentage: number, colorC
 const AttackDetailItem = ({ attack, defenderName, thLevel, t }: { attack: CocWarAttack, defenderName: string, thLevel: number, t: any }) => {
     const isThreeStar = attack.stars === 3;
     return (
-        <div className="flex items-center justify-between p-2 rounded bg-black/40 border border-white/5 text-xs mb-1 last:mb-0">
+        <div className="flex items-center justify-between p-2 rounded bg-black/40 border border-white/5 text-xs mb-1 last:mb-0 hover:bg-black/60 transition-colors">
             <div className="flex items-center gap-2">
                 <div className="relative">
                     <Image src={getThImage(thLevel)} width={20} height={20} alt="TH" className="opacity-90" />
                 </div>
                 <div className="flex flex-col">
-                    <span className="text-gray-300 font-bold truncate max-w-[80px]">{defenderName}</span>
+                    <span className="text-gray-300 font-bold truncate max-w-[100px]">{defenderName}</span>
                     <span className="text-[9px] text-gray-500">{t.clanWar.colDestruction}: {attack.destructionPercentage}%</span>
                 </div>
             </div>
@@ -122,7 +122,7 @@ const WarMapNode: React.FC<WarMapNodeProps> = ({ member, isMyClan, opponentRoste
         <div className={`absolute top-1/2 w-4 h-[2px] bg-white/10 ${isMyClan ? '-right-4' : '-left-4'} hidden md:block`} />
 
         <div className={`
-            relative overflow-hidden rounded-xl border-2 shadow-xl bg-[#151515] cursor-pointer
+            relative overflow-hidden rounded-xl border-2 shadow-xl bg-[#151515] cursor-pointer transition-colors
             ${isThreeStarred 
                 ? 'border-coc-red/40 shadow-coc-red/10 grayscale-[0.3]' 
                 : isFresh 
@@ -216,8 +216,8 @@ const WarMapNode: React.FC<WarMapNodeProps> = ({ member, isMyClan, opponentRoste
                                 key={idx} 
                                 attack={atk} 
                                 defenderName={defender?.name || 'Unknown'} 
-                                thLevel={defender?.townhallLevel || 0}
-                                t={t}
+                                thLevel={defender?.townhallLevel || 0} 
+                                t={t} 
                             />
                         );
                     })}
@@ -381,7 +381,7 @@ const WarDetailModal: React.FC<WarDetailModalProps> = ({
                                 member={member} 
                                 isMyClan={true} 
                                 opponentRoster={opponentMembersMap} 
-                                t={t}
+                                t={t} 
                             />
                         ))}
                     </div>
@@ -399,7 +399,7 @@ const WarDetailModal: React.FC<WarDetailModalProps> = ({
                                 member={member} 
                                 isMyClan={false} 
                                 opponentRoster={ourMembersMap} 
-                                t={t}
+                                t={t} 
                             />
                         ))}
                     </div>

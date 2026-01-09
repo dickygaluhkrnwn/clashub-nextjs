@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { User } from 'firebase/auth';
 import {
@@ -16,6 +17,8 @@ import {
   Loader2Icon,
   CheckIcon,
   CrownIcon,
+  UsersIcon,
+  SaveIcon
 } from '@/app/components/icons';
 import { NotificationProps } from '@/app/components/ui/Notification';
 import AlertDialog from '@/app/components/ui/AlertDialog';
@@ -52,6 +55,13 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
 
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [alertInfo, setAlertInfo] = useState({ title: '', message: '' });
+
+  // Add mounted state for portal
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -155,9 +165,9 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
+  const modalContent = (
     <>
       <AlertDialog
         isOpen={isAlertOpen}
@@ -169,22 +179,37 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
         message={alertInfo.message}
       />
 
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
-        <div className="relative w-full max-w-lg bg-[#1a1a1a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-          <form onSubmit={handleSubmit} className="flex flex-col h-full">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 font-sans">
+        {/* Backdrop */}
+        <div 
+            className="absolute inset-0 bg-black/90 backdrop-blur-md transition-opacity animate-in fade-in duration-300" 
+            onClick={onClose} 
+        />
+
+        {/* Modal Container */}
+        <div className="relative w-full max-w-lg bg-[#15171e] border border-white/10 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col max-h-[calc(100vh-40px)] animate-in zoom-in-95 duration-300 overflow-hidden ring-1 ring-white/5">
+            
+          <div className="absolute top-0 right-0 w-64 h-64 bg-coc-blue/5 rounded-full blur-[80px] pointer-events-none -translate-y-1/2 translate-x-1/2" />
+
+          <form onSubmit={handleSubmit} className="flex flex-col h-full relative z-10">
             {/* Header Modal */}
-            <div className="flex justify-between items-center p-5 border-b border-white/5 bg-white/[0.02]">
-              <h3 className="text-xl font-clash text-white flex items-center gap-3">
-                <div className="p-2 bg-coc-gold/10 rounded-lg border border-coc-gold/20">
-                    <EditIcon className="h-5 w-5 text-coc-gold" />
-                </div>
-                Edit Tim E-Sports
-              </h3>
+            <div className="flex-shrink-0 flex justify-between items-center p-6 border-b border-white/5 bg-white/[0.02]">
+              <div className="flex items-center gap-4">
+                 <div className="p-3 bg-coc-blue/10 rounded-2xl border border-coc-blue/20 shadow-lg shadow-coc-blue/5">
+                    <EditIcon className="h-6 w-6 text-coc-blue" />
+                 </div>
+                 <div>
+                    <h3 className="text-xl font-clash text-white tracking-wide">
+                        Edit Tim
+                    </h3>
+                    <p className="text-xs text-gray-500 font-mono mt-1">Update team details</p>
+                 </div>
+              </div>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="text-gray-400 hover:text-white"
+                className="text-gray-400 hover:text-white rounded-full h-10 w-10 p-0"
                 onClick={onClose}
                 disabled={isSubmitting}
               >
@@ -193,11 +218,11 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
             </div>
 
             {/* Body Modal (Scrollable) */}
-            <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-grow">
+            <div className="flex-grow overflow-y-auto custom-scrollbar p-6 space-y-8">
               
               {/* Input Nama Tim */}
-              <div className="space-y-2">
-                <label htmlFor="teamName" className="block text-sm font-bold text-gray-300">
+              <div className="space-y-3">
+                <label htmlFor="teamName" className="block text-sm font-bold text-gray-300 uppercase tracking-wider">
                   Nama Tim
                 </label>
                 <input
@@ -206,26 +231,29 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
                   value={teamName}
                   onChange={(e) => setTeamName(e.target.value)}
                   placeholder="Misal: Tim Elit War"
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-coc-gold/50 transition-colors"
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-5 py-4 text-white placeholder-gray-600 focus:outline-none focus:border-coc-blue/50 focus:ring-1 focus:ring-coc-blue/50 transition-all font-clash tracking-wide text-lg"
                   disabled={isSubmitting}
                 />
               </div>
 
               {/* Pemilih Anggota */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="flex justify-between items-end">
-                    <label className="block text-sm font-bold text-gray-300">
+                    <label className="block text-sm font-bold text-gray-300 uppercase tracking-wider">
                     Pilih Anggota ({selectedUids.length}/5)
                     </label>
-                    <span className="text-xs text-coc-gold/70">Max 5</span>
+                    <span className={`text-xs font-bold px-2 py-1 rounded border ${selectedUids.length === 5 ? 'bg-coc-green/10 text-coc-green border-coc-green/20' : 'bg-white/5 text-gray-500 border-white/10'}`}>
+                        {selectedUids.length}/5 Selected
+                    </span>
                 </div>
                 <p className="text-xs text-gray-500 mb-2">
-                  Pilih 5 anggota terverifikasi. Anggota di tim lain dinonaktifkan.
+                  Anggota di tim lain akan dinonaktifkan.
                 </p>
                 
-                <div className="bg-black/20 border border-white/5 rounded-xl overflow-hidden max-h-[250px] overflow-y-auto custom-scrollbar">
+                <div className="bg-[#0a0a0b]/60 border border-white/5 rounded-2xl overflow-hidden max-h-[300px] overflow-y-auto custom-scrollbar shadow-inner">
                   {availableMembers.length === 0 ? (
-                    <div className="p-8 text-center">
+                    <div className="p-10 text-center flex flex-col items-center">
+                        <UsersIcon className="h-10 w-10 text-gray-700 mb-3" />
                         <p className="text-gray-500 text-sm">Tidak ada anggota terverifikasi.</p>
                     </div>
                   ) : (
@@ -241,33 +269,35 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
                             key={member.uid}
                             onClick={() => handleMemberToggle(member.uid)}
                             disabled={isDisabled}
-                            className={`w-full flex items-center justify-between p-3 transition-all ${
-                                isSelected ? 'bg-coc-gold/10' : 'hover:bg-white/5'
-                            } ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                            className={`w-full flex items-center justify-between p-4 transition-all ${
+                                isSelected ? 'bg-coc-blue/10' : 'hover:bg-white/5'
+                            } ${isDisabled ? 'opacity-40 cursor-not-allowed grayscale' : 'cursor-pointer'}`}
                             >
-                            <div className="flex items-center gap-3">
-                                <div className="relative">
+                            <div className="flex items-center gap-4">
+                                <div className="relative flex-shrink-0">
                                     <Image 
                                         src={getThImage(member.thLevel)} 
                                         alt={`TH${member.thLevel}`} 
-                                        width={32} 
-                                        height={32} 
+                                        width={40} 
+                                        height={40} 
                                         className="drop-shadow-md"
                                     />
-                                    <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-[#1a1a1a] flex items-center justify-center ${isSelected ? 'bg-coc-gold' : 'bg-gray-600'}`}>
-                                        {isSelected && <CheckIcon className="w-2.5 h-2.5 text-black" />}
-                                    </div>
+                                    {isSelected && (
+                                        <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-coc-blue flex items-center justify-center border-2 border-[#15171e] shadow-md">
+                                            <CheckIcon className="w-3 h-3 text-white stroke-[3]" />
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="text-left">
-                                    <p className={`text-sm font-medium ${isSelected ? 'text-white' : 'text-gray-300'}`}>
+                                <div className="text-left min-w-0">
+                                    <p className={`text-sm font-bold font-clash tracking-wide ${isSelected ? 'text-coc-blue' : 'text-gray-200'}`}>
                                         {member.displayName}
                                     </p>
-                                    <p className="text-[10px] text-gray-500 font-mono">TH {member.thLevel}</p>
+                                    <p className="text-xs text-gray-500 font-mono">TH {member.thLevel}</p>
                                 </div>
                             </div>
                             
                             {isInOtherTeam && !isSelected && (
-                                <span className="text-[10px] text-red-400 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">
+                                <span className="text-[10px] text-red-400 bg-red-500/10 px-2 py-1 rounded border border-red-500/20 font-bold uppercase tracking-wider">
                                     In Team
                                 </span>
                             )}
@@ -279,9 +309,9 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
                 </div>
               </div>
 
-              {/* Pemilih Leader Tim */}
-              <div className="space-y-2">
-                <label htmlFor="teamLeader" className="block text-sm font-bold text-gray-300 flex items-center gap-2">
+              {/* Leader Selection */}
+              <div className="space-y-3">
+                <label htmlFor="teamLeader" className="block text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
                   <CrownIcon className="h-4 w-4 text-coc-gold" />
                   Pilih Leader Tim
                 </label>
@@ -290,7 +320,7 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
                     id="teamLeader"
                     value={selectedLeaderUid}
                     onChange={(e) => setSelectedLeaderUid(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white appearance-none focus:outline-none focus:border-coc-gold/50 cursor-pointer disabled:opacity-50"
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white appearance-none focus:outline-none focus:border-coc-blue/50 cursor-pointer disabled:opacity-50 font-sans"
                     disabled={isSubmitting || selectedUids.length !== 5}
                     >
                     <option value="" disabled>
@@ -304,12 +334,15 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
                         </option>
                     ))}
                     </select>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
+                        <UsersIcon className="h-4 w-4" />
+                    </div>
                 </div>
               </div>
             </div>
 
             {/* Footer Modal */}
-            <div className="p-5 border-t border-white/5 bg-white/[0.02] flex justify-end gap-3">
+            <div className="flex-shrink-0 p-6 border-t border-white/5 bg-white/[0.02] flex justify-end gap-3">
               <Button
                 type="button"
                 variant="secondary"
@@ -328,14 +361,14 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
                   selectedUids.length !== 5 ||
                   selectedLeaderUid === ''
                 }
-                className="shadow-lg shadow-coc-gold/10"
+                className="shadow-lg shadow-coc-blue/10 px-8 font-bold tracking-wide bg-coc-blue hover:bg-coc-blue/80 border-coc-blue/50 text-white"
               >
                 {isSubmitting ? (
                   <Loader2Icon className="h-4 w-4 animate-spin mr-2" />
                 ) : (
-                  <CheckIcon className="h-4 w-4 mr-2" />
+                  <SaveIcon className="h-4 w-4 mr-2" />
                 )}
-                {isSubmitting ? 'Memperbarui...' : 'Simpan Perubahan'}
+                {isSubmitting ? 'Menyimpan...' : 'Simpan Perubahan'}
               </Button>
             </div>
           </form>
@@ -343,6 +376,8 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
       </div>
     </>
   );
+
+  return createPortal(modalContent, document.body);
 };
 
 export default EditTeamModal;

@@ -108,25 +108,21 @@ const ClanManagementPage = async () => {
     // Jika profile gagal diambil, set ke object kosong untuk menghindari error render di client
     if (!userProfile) {
       // Buat UserProfile 'kosong' palsu jika terjadi error parah
-      // Ini lebih aman daripada mengirim 'null' jika 'ManageClanClient' tidak menanganinya
       userProfile = {
         uid: sessionUser.uid,
         email: sessionUser.email || '',
         displayName: sessionUser.displayName || 'Error User',
-        // Properti 'avatarUrl' opsional (?), jadi bisa diabaikan
         isVerified: false,
         clanId: null,
-        playerTag: '', // Sesuai tipe 'string' (wajib)
-        role: undefined, // Sesuai tipe '?' (opsional)
-        thLevel: 0, // FIX BARU: Menambahkan properti 'thLevel' (wajib)
-        trophies: 0, // FIX BARU: Menambahkan properti 'trophies' (wajib)
-        // Properti opsional lain (inGameName, clanTag, clanRole, dll.) bisa diabaikan
+        playerTag: '',
+        role: undefined,
+        thLevel: 0,
+        trophies: 0,
       };
     }
   }
 
   // 5. Serialisasi data minimal sebelum dikirim ke Client Component
-  // (Mengkonversi objek Date menjadi string ISO)
   const finalProfile = userProfile ? serializeDates(userProfile) : null;
   const finalClanData = clanData ? serializeDates(clanData) : null;
 
@@ -141,4 +137,3 @@ const ClanManagementPage = async () => {
 };
 
 export default ClanManagementPage;
-

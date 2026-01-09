@@ -20,7 +20,8 @@ import {
   TrophyIcon,
   ShieldIcon,
   SwordsIcon,
-  ArrowRightIcon
+  ArrowRightIcon,
+  CalendarIcon
 } from '@/app/components/icons';
 import { Button } from '@/app/components/ui/Button';
 import WarDetailModal from './WarDetailModal';
@@ -62,22 +63,26 @@ const WarHistoryCard: React.FC<WarHistoryCardProps> = ({ war, onViewDetails, t, 
   // [FIX] Handle case where war.result is undefined
   const resultLabel = getResultLabel(war.result || 'unknown');
   
-  let cardBorderColor = 'border-white/10';
+  let cardBorderClass = 'border-l-4 border-l-gray-500 border-white/5';
   let resultTextColor = 'text-gray-400';
   let resultBgColor = 'bg-gray-500/10';
+  let glowColor = 'from-gray-500/5';
 
   if (war.result === 'win') {
-    cardBorderColor = 'border-coc-green/30 hover:border-coc-green/50';
+    cardBorderClass = 'border-l-4 border-l-coc-green border-white/5';
     resultTextColor = 'text-coc-green';
     resultBgColor = 'bg-coc-green/10';
+    glowColor = 'from-coc-green/10';
   } else if (war.result === 'lose') {
-    cardBorderColor = 'border-coc-red/30 hover:border-coc-red/50';
+    cardBorderClass = 'border-l-4 border-l-coc-red border-white/5';
     resultTextColor = 'text-coc-red';
     resultBgColor = 'bg-coc-red/10';
+    glowColor = 'from-coc-red/10';
   } else if (war.result === 'tie') {
-     cardBorderColor = 'border-coc-gold/30 hover:border-coc-gold/50';
+     cardBorderClass = 'border-l-4 border-l-coc-gold border-white/5';
      resultTextColor = 'text-coc-gold';
      resultBgColor = 'bg-coc-gold/10';
+     glowColor = 'from-coc-gold/10';
   }
 
   // [FIX] Validasi endTime agar tidak crash jika undefined
@@ -95,67 +100,69 @@ const WarHistoryCard: React.FC<WarHistoryCardProps> = ({ war, onViewDetails, t, 
 
   return (
     <div 
-        className={`group relative flex flex-col md:flex-row items-center gap-4 p-5 rounded-2xl border bg-[#1a1a1a] transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${cardBorderColor}`}
+        className={`group relative flex flex-col md:flex-row items-stretch gap-4 p-0 rounded-xl bg-[#15171e]/60 backdrop-blur-md transition-all duration-300 hover:shadow-lg overflow-hidden border-y border-r border-white/5 ${cardBorderClass}`}
     >
-        {/* Result Badge (Mobile: Top Right, Desktop: Left) */}
-        <div className={`absolute top-4 right-4 md:static md:w-24 flex-shrink-0 flex flex-col items-center justify-center`}>
-            <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${resultBgColor} ${resultTextColor} ${cardBorderColor}`}>
+        {/* Glow Effect Background */}
+        <div className={`absolute inset-0 bg-gradient-to-r ${glowColor} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`} />
+
+        {/* Date & Result Column */}
+        <div className="flex flex-row md:flex-col items-center justify-between md:justify-center p-4 md:w-32 md:bg-black/20 md:border-r border-white/5 shrink-0 relative z-10">
+            <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${resultBgColor} ${resultTextColor} border-current shadow-sm`}>
                 {resultLabel}
             </span>
-            <span className="text-[10px] text-gray-500 mt-1 font-mono hidden md:block">{formattedDate}</span>
+            <div className="flex items-center gap-1.5 mt-0 md:mt-2 text-[10px] text-gray-500 font-mono">
+                <CalendarIcon className="w-3 h-3 opacity-70" />
+                <span>{formattedDate}</span>
+            </div>
         </div>
 
-        {/* VS Info */}
-        <div className="flex-grow w-full md:w-auto flex items-center justify-between gap-4 md:gap-8">
-            {/* Us */}
-            <div className="flex-1 text-center md:text-right">
-                <p className="text-sm md:text-base font-clash text-white truncate mb-1">Us</p>
-                <div className="flex items-center justify-center md:justify-end gap-1 text-coc-gold font-bold text-lg md:text-xl">
-                    {/* [FIX] Fallback nilai 0 */}
-                    {war.ourStars || 0} <StarIcon className="w-4 h-4 md:w-5 md:h-5 fill-coc-gold" />
+        {/* Match Info */}
+        <div className="flex-grow p-4 md:py-4 md:px-6 relative z-10 flex flex-col justify-center">
+            <div className="flex items-center justify-between gap-4 md:gap-12">
+                {/* Us */}
+                <div className="flex-1 text-right">
+                    <p className="text-sm md:text-lg font-clash text-white truncate drop-shadow-sm">Us</p>
+                    <div className="flex items-center justify-end gap-1.5 mt-1">
+                        <span className="text-coc-gold font-bold text-lg md:text-2xl font-mono">{war.ourStars || 0}</span>
+                        <StarIcon className="w-4 h-4 md:w-5 md:h-5 fill-coc-gold text-coc-gold drop-shadow-md" />
+                    </div>
+                    <p className="text-[10px] md:text-xs text-gray-500 font-mono">{(war.ourDestruction || 0).toFixed(1)}%</p>
                 </div>
-                <p className="text-xs text-gray-500 font-mono">{(war.ourDestruction || 0).toFixed(1)}%</p>
-            </div>
 
-            {/* VS Icon */}
-            <div className="flex flex-col items-center justify-center shrink-0 px-2">
-                <span className="text-xl font-clash text-gray-600 italic">VS</span>
-                <span className="text-[10px] text-gray-500 uppercase tracking-widest mt-1">{war.teamSize}v{war.teamSize}</span>
-            </div>
-
-            {/* Enemy */}
-            <div className="flex-1 text-center md:text-left">
-                <p className="text-sm md:text-base font-clash text-white truncate mb-1">{war.opponentName || 'Unknown'}</p>
-                <div className="flex items-center justify-center md:justify-start gap-1 text-coc-red font-bold text-lg md:text-xl">
-                    {/* [FIX] Fallback nilai 0 */}
-                    <StarIcon className="w-4 h-4 md:w-5 md:h-5 fill-coc-red" /> {war.opponentStars || 0}
+                {/* VS */}
+                <div className="flex flex-col items-center justify-center shrink-0">
+                    <SwordsIcon className="w-6 h-6 md:w-8 md:h-8 text-gray-600 group-hover:text-white transition-colors duration-300" />
+                    <span className="text-[9px] md:text-[10px] text-gray-600 font-bold uppercase tracking-widest mt-1 bg-black/40 px-2 py-0.5 rounded-full border border-white/5">
+                        {war.teamSize}v{war.teamSize}
+                    </span>
                 </div>
-                <p className="text-xs text-gray-500 font-mono">{(war.opponentDestruction || 0).toFixed(1)}%</p>
+
+                {/* Enemy */}
+                <div className="flex-1 text-left">
+                    <p className="text-sm md:text-lg font-clash text-white truncate drop-shadow-sm">{war.opponentName || 'Unknown'}</p>
+                    <div className="flex items-center justify-start gap-1.5 mt-1">
+                        <StarIcon className="w-4 h-4 md:w-5 md:h-5 fill-coc-red text-coc-red drop-shadow-md" />
+                        <span className="text-coc-red font-bold text-lg md:text-2xl font-mono">{war.opponentStars || 0}</span>
+                    </div>
+                    <p className="text-[10px] md:text-xs text-gray-500 font-mono">{(war.opponentDestruction || 0).toFixed(1)}%</p>
+                </div>
             </div>
         </div>
 
-        {/* Action Button */}
-        <div className="w-full md:w-auto flex justify-center md:justify-end mt-2 md:mt-0">
-            <Button
-                variant="secondary"
-                size="sm"
-                disabled={!hasDetails}
-                onClick={hasDetails ? () => onViewDetails(war.id) : undefined}
-                className={`w-full md:w-auto bg-white/5 border border-white/10 hover:bg-white/10 ${!hasDetails ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-                {hasDetails ? (
-                    <>
-                        {t.clanWar.viewDetails} <ArrowRightIcon className="w-4 h-4 ml-2" />
-                    </>
-                ) : (
-                    <span className="text-gray-500 italic text-xs">No Details</span>
-                )}
-            </Button>
-        </div>
-        
-        {/* Date for Mobile (Bottom Center) */}
-        <div className="md:hidden text-[10px] text-gray-600 font-mono mt-2">
-            {formattedDate}
+        {/* Action Button Area */}
+        <div className="p-4 md:w-40 flex items-center justify-center md:border-l border-white/5 relative z-10 bg-black/10">
+            {hasDetails ? (
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onViewDetails(war.id)}
+                    className="w-full text-xs font-medium text-gray-400 hover:text-white hover:bg-white/10 border border-transparent hover:border-white/10 transition-all group/btn"
+                >
+                    Details <ArrowRightIcon className="w-3 h-3 ml-2 group-hover/btn:translate-x-1 transition-transform" />
+                </Button>
+            ) : (
+                <span className="text-gray-600 text-[10px] italic cursor-not-allowed">No Details</span>
+            )}
         </div>
     </div>
   );
@@ -306,8 +313,11 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({
   if (isLoading) {
     return (
       <div className="flex flex-col justify-center items-center h-[400px]">
-        <Loader2Icon className="h-10 w-10 text-coc-gold animate-spin mb-4" />
-        <p className="text-gray-400 font-medium animate-pulse">{t.common.loading}</p>
+        <div className="relative">
+            <div className="absolute inset-0 bg-coc-gold/20 blur-xl rounded-full animate-pulse"></div>
+            <Loader2Icon className="h-10 w-10 text-coc-gold animate-spin relative z-10" />
+        </div>
+        <p className="text-gray-400 font-medium animate-pulse mt-4 font-mono">{t.common.loading}</p>
         <p className="text-xs text-gray-600 mt-2">{t.clanManage.msgReloading}</p>
       </div>
     );
@@ -316,13 +326,15 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({
   if (isError) {
     const errorMessage = (isErrorWarLog || isErrorArchives)?.message;
     return (
-      <div className="flex flex-col items-center justify-center min-h-[300px] text-center p-8 bg-coc-red/5 border border-coc-red/20 rounded-2xl backdrop-blur-sm">
-        <AlertTriangleIcon className="h-12 w-12 text-coc-red mb-3" />
+      <div className="flex flex-col items-center justify-center min-h-[300px] text-center p-8 bg-coc-red/5 border border-coc-red/20 rounded-2xl backdrop-blur-sm shadow-[inset_0_0_20px_rgba(220,38,38,0.1)]">
+        <div className="bg-coc-red/10 p-4 rounded-full mb-4 shadow-[0_0_15px_rgba(255,0,0,0.2)]">
+            <AlertTriangleIcon className="h-10 w-10 text-coc-red" />
+        </div>
         <p className="text-xl font-clash text-white mb-2">{t.common.error}</p>
-        <p className="text-sm text-gray-400 font-sans mt-1 max-w-md mx-auto mb-4">
+        <p className="text-sm text-gray-400 font-sans mt-1 max-w-md mx-auto mb-6">
           {errorMessage || t.common.error}
         </p>
-        <Button onClick={handleFullRefresh} variant="secondary" size="sm">
+        <Button onClick={handleFullRefresh} variant="secondary" size="sm" className="bg-white/5 hover:bg-white/10 border-white/10">
           <RefreshCwIcon className="h-4 w-4 mr-2" /> {t.clanManage.reloadCache}
         </Button>
       </div>
@@ -330,38 +342,40 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({
   }
 
   return (
-    <div className="space-y-8 animate-fade-in pb-10">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-10">
       
       {/* --- HEADER --- */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gradient-to-r from-coc-red/10 to-transparent p-6 rounded-2xl border border-coc-red/20 relative overflow-hidden">
-         <div className="absolute top-0 right-0 w-64 h-64 bg-coc-red/10 rounded-full blur-[80px] pointer-events-none -translate-y-1/2 translate-x-1/2" />
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#15171e]/40 p-6 rounded-2xl border border-white/5 relative overflow-hidden ring-1 ring-white/5">
+         <div className="absolute top-0 right-0 w-64 h-64 bg-coc-red/5 rounded-full blur-[80px] pointer-events-none -translate-y-1/2 translate-x-1/2" />
          
          <div className="relative z-10">
             <div className="flex items-center gap-3 mb-1">
-                <div className="p-2 bg-coc-red/20 rounded-lg border border-coc-red/30">
+                <div className="p-2.5 bg-coc-red/10 rounded-xl border border-coc-red/20 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
                     <BookOpenIcon className="h-6 w-6 text-coc-red" />
                 </div>
-                <h2 className="text-2xl font-clash text-white tracking-wide">
-                    {t.clanWar.tabTitleHistory}
-                </h2>
+                <div>
+                    <h2 className="text-2xl font-clash text-white tracking-wide">
+                        {t.clanWar.tabTitleHistory}
+                    </h2>
+                    <p className="text-gray-500 text-xs uppercase tracking-widest font-mono">
+                        Archive of past Classic Wars
+                    </p>
+                </div>
             </div>
-            <p className="text-gray-400 text-sm ml-1 max-w-lg">
-                Archive of past Classic Wars.
-            </p>
          </div>
 
          <div className="relative z-10 flex gap-3">
              {/* Sort Buttons */}
-             <div className="hidden md:flex bg-black/30 rounded-lg p-1 border border-white/5">
+             <div className="hidden md:flex bg-[#0a0a0b] rounded-lg p-1 border border-white/5 shadow-inner">
                 <button 
                     onClick={() => handleSort('endTime')}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${sort.key === 'endTime' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                    className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${sort.key === 'endTime' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
                 >
                     Date {getSortIcon('endTime')}
                 </button>
                 <button 
                     onClick={() => handleSort('result')}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${sort.key === 'result' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                    className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${sort.key === 'result' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
                 >
                     Result {getSortIcon('result')}
                 </button>
@@ -369,9 +383,9 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({
 
              <Button 
                 onClick={handleFullRefresh} 
-                variant="secondary" 
+                variant="ghost" 
                 size="sm" 
-                className="bg-black/40 border-white/10 hover:bg-white/10 backdrop-blur-md"
+                className="bg-black/20 border-white/10 hover:bg-white/10 backdrop-blur-md text-gray-400 hover:text-white"
              >
                 <RefreshCwIcon className="h-4 w-4 mr-2" /> {t.clanWar.updateLog}
              </Button>
@@ -381,13 +395,13 @@ const WarHistoryTabContent: React.FC<WarHistoryTabContentProps> = ({
       {/* --- CONTENT LIST --- */}
       <div className="space-y-4">
         {!mergedAndSortedHistory || mergedAndSortedHistory.length === 0 ? (
-           <div className="text-center py-16 bg-white/5 rounded-2xl border border-white/5 border-dashed">
-             <ShieldIcon className="h-12 w-12 text-gray-600 mx-auto mb-3" />
-             <p className="text-gray-400 font-clash text-lg">{t.clanWar.noWarHistory}</p>
-             <p className="text-gray-500 text-sm mt-1">Data will appear after synchronization.</p>
+           <div className="flex flex-col items-center justify-center py-20 bg-white/5 rounded-2xl border border-white/5 border-dashed">
+             <ShieldIcon className="h-16 w-16 text-gray-600 mb-4 opacity-50" />
+             <p className="text-gray-400 font-clash text-xl tracking-wide">{t.clanWar.noWarHistory}</p>
+             <p className="text-gray-600 text-sm mt-2 font-mono">Data will appear after synchronization.</p>
            </div>
         ) : (
-           <div className="grid grid-cols-1 gap-4">
+           <div className="grid grid-cols-1 gap-3">
               {mergedAndSortedHistory.map((war) => (
                 <WarHistoryCard
                   key={war.id}

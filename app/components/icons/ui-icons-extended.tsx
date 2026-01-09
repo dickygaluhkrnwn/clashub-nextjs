@@ -234,4 +234,46 @@ export const MegaphoneIcon = (props: IconProps) => (
   </svg>
 );
 
-// [UPDATE] EditIcon dihapus karena sudah ada di ui-actions
+// [BARU] HashIcon untuk Clan Tag
+export const HashIcon = (props: IconProps) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <line x1="4" y1="9" x2="20" y2="9" />
+    <line x1="4" y1="15" x2="20" y2="15" />
+    <line x1="10" y1="3" x2="8" y2="21" />
+    <line x1="16" y1="3" x2="14" y2="21" />
+  </svg>
+);
+
+// --- NEW ICONS FOR ANALYTICS & PROMOTIONS ---
+
+// Hapus BarChart2Icon karena sudah ada di ui-general
+// Hapus PieChartIcon karena sudah ada di ui-general
+
+export const TrendingUpIcon = (props: IconProps) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+    <polyline points="17 6 23 6 23 12"></polyline>
+  </svg>
+);
+
+// Hapus UploadIcon karena sudah ada di ui-actions
+// Hapus PlusIcon karena sudah ada di ui-actions
+// Hapus ThumbsUpIcon karena sudah ada di ui-actions

@@ -137,27 +137,27 @@ const WarStatusDisplay: React.FC<WarStatusProps> = ({ war, clanTag, t }) => {
       {/* VS Section */}
       <div className="flex items-center justify-between gap-2 mb-4 relative">
         {/* Our Clan */}
-        <div className="flex-1 text-center bg-black/20 rounded-lg p-2 border border-coc-green/20">
+        <div className="flex-1 text-center bg-black/20 rounded-lg p-2 border border-coc-green/20 shadow-[0_0_15px_rgba(74,222,128,0.05)]">
           <p className="text-xs text-coc-green font-bold truncate mb-1">{ourClan.name}</p>
           <div className="flex items-center justify-center gap-1">
             <StarIcon className="h-4 w-4 text-coc-gold" />
             <span className="text-lg font-clash text-white">{ourClan.stars}</span>
           </div>
-          <p className="text-[10px] text-gray-400 mt-1">
+          <p className="text-[10px] text-gray-400 mt-1 font-mono">
             {ourClan.destructionPercentage.toFixed(1)}%
           </p>
         </div>
 
-        <div className="font-clash text-coc-gold text-lg px-1 italic">VS</div>
+        <div className="font-clash text-white/20 text-lg px-1 italic">VS</div>
 
         {/* Enemy Clan */}
-        <div className="flex-1 text-center bg-black/20 rounded-lg p-2 border border-coc-red/20">
+        <div className="flex-1 text-center bg-black/20 rounded-lg p-2 border border-coc-red/20 shadow-[0_0_15px_rgba(248,113,113,0.05)]">
           <p className="text-xs text-coc-red font-bold truncate mb-1">{enemyClan.name}</p>
           <div className="flex items-center justify-center gap-1">
             <StarIcon className="h-4 w-4 text-coc-gold" />
             <span className="text-lg font-clash text-white">{enemyClan.stars}</span>
           </div>
-          <p className="text-[10px] text-gray-400 mt-1">
+          <p className="text-[10px] text-gray-400 mt-1 font-mono">
             {enemyClan.destructionPercentage.toFixed(1)}%
           </p>
         </div>
@@ -165,13 +165,13 @@ const WarStatusDisplay: React.FC<WarStatusProps> = ({ war, clanTag, t }) => {
 
       {/* Attack Progress */}
       <div className="mb-4">
-        <div className="flex justify-between text-xs text-gray-400 mb-1">
+        <div className="flex justify-between text-xs text-gray-400 mb-1 font-mono">
           <span>{t.clanManage.attacks}</span>
           <span>{attacksUsed} / {totalAttacks}</span>
         </div>
-        <div className="w-full bg-black/40 rounded-full h-2 overflow-hidden border border-white/5">
+        <div className="w-full bg-black/40 rounded-full h-1.5 overflow-hidden border border-white/5">
           <div 
-            className="bg-coc-gold h-full rounded-full transition-all duration-1000 ease-out" 
+            className="bg-coc-gold h-full rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_#FFD700]" 
             style={{ width: `${progress}%` }} 
           />
         </div>
@@ -181,7 +181,7 @@ const WarStatusDisplay: React.FC<WarStatusProps> = ({ war, clanTag, t }) => {
         href="/clan/manage?tab=active-war"
         variant="outline"
         size="sm"
-        className="w-full text-xs"
+        className="w-full text-xs hover:bg-white/5 border-white/10"
       >
         {t.clanManage.viewWarDetails} <ArrowRightIcon className="w-3 h-3 ml-2" />
       </Button>
@@ -210,26 +210,26 @@ const RaidSummaryDisplay: React.FC<RaidSummaryProps> = ({ raid, t, locale }) => 
           <CoinsIcon className="h-4 w-4 text-purple-400" />
           Raid Weekend
         </h4>
-        <span className="text-xs text-gray-400 bg-white/5 px-2 py-0.5 rounded">
+        <span className="text-[10px] font-mono text-gray-400 bg-white/5 px-2 py-0.5 rounded border border-white/5">
           {startDate} - {endDate}
         </span>
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-4">
-        <div className="bg-black/20 p-3 rounded-xl border border-white/5 text-center">
-          <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">{t.clanManage.raidTotalLoot}</p>
-          <p className="text-lg font-clash text-coc-gold">{formatNumber(raid.capitalTotalLoot)}</p>
+        <div className="bg-[#0a0a0b]/40 p-3 rounded-xl border border-white/5 text-center group-hover:border-white/10 transition-colors">
+          <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">{t.clanManage.raidTotalLoot}</p>
+          <p className="text-lg font-clash text-coc-gold drop-shadow-sm">{formatNumber(raid.capitalTotalLoot)}</p>
         </div>
-        <div className="bg-black/20 p-3 rounded-xl border border-white/5 text-center">
-          <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">{t.clanManage.raidMedals}</p>
-          <p className="text-lg font-clash text-purple-400">~{formatNumber(raid.offensiveReward || 0)}</p>
+        <div className="bg-[#0a0a0b]/40 p-3 rounded-xl border border-white/5 text-center group-hover:border-white/10 transition-colors">
+          <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">{t.clanManage.raidMedals}</p>
+          <p className="text-lg font-clash text-purple-400 drop-shadow-sm">~{formatNumber(raid.offensiveReward || 0)}</p>
         </div>
-        <div className="bg-black/20 p-3 rounded-xl border border-white/5 text-center">
-          <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">{t.clanManage.raidAttacks}</p>
+        <div className="bg-[#0a0a0b]/40 p-3 rounded-xl border border-white/5 text-center group-hover:border-white/10 transition-colors">
+          <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">{t.clanManage.raidAttacks}</p>
           <p className="text-lg font-clash text-white">{raid.totalAttacks}</p>
         </div>
-        <div className="bg-black/20 p-3 rounded-xl border border-white/5 text-center">
-          <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">{t.clanManage.raidDestroyed}</p>
+        <div className="bg-[#0a0a0b]/40 p-3 rounded-xl border border-white/5 text-center group-hover:border-white/10 transition-colors">
+          <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">{t.clanManage.raidDestroyed}</p>
           <p className="text-lg font-clash text-coc-red">{raid.enemyDistrictsDestroyed || 0}</p>
         </div>
       </div>
@@ -238,7 +238,7 @@ const RaidSummaryDisplay: React.FC<RaidSummaryProps> = ({ raid, t, locale }) => 
         href="/clan/manage?tab=raid"
         variant="outline"
         size="sm"
-        className="w-full text-xs"
+        className="w-full text-xs hover:bg-white/5 border-white/10"
       >
         {t.clanManage.viewRaidHistory} <ArrowRightIcon className="w-3 h-3 ml-2" />
       </Button>
@@ -367,13 +367,13 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
   const looterValue = (topRaidLooterData?.value as number) || 0;
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-8 animate-in fade-in duration-500">
       
       {/* --- DASHBOARD GRID UTAMA --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         
         {/* Card 1: Sync & Control Center */}
-        <div className="bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-md rounded-2xl border border-white/10 p-6 shadow-xl flex flex-col justify-between">
+        <div className="bg-[#15171e]/60 backdrop-blur-md rounded-2xl border border-white/5 p-6 shadow-xl flex flex-col justify-between group hover:border-white/10 transition-colors">
           <div>
             <h3 className="text-lg font-clash text-white border-b border-white/5 pb-3 mb-3 flex items-center gap-2">
               <ClockIcon className="h-5 w-5 text-coc-gold" /> 
@@ -382,8 +382,8 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
             <p className="text-sm text-gray-400 mb-4 leading-relaxed">
               {t.clanManage.syncControlDesc}
               <br />
-              <span className="text-white/60 text-xs mt-1 block">
-                {t.clanPublicProfile.lastUpdated}: {lastSyncTime}
+              <span className="text-white/60 text-xs mt-2 block font-mono">
+                {t.clanPublicProfile.lastUpdated}: <span className="text-coc-blue">{lastSyncTime}</span>
               </span>
             </p>
           </div>
@@ -394,7 +394,7 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
                 onClick={handleSyncManual}
                 variant={isCacheStale ? 'primary' : 'secondary'}
                 disabled={isSyncing}
-                className="w-full justify-center"
+                className="w-full justify-center shadow-lg shadow-black/20"
               >
                 <RefreshCwIcon className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
                 {isSyncing ? t.clanManage.syncing : isCacheStale ? t.clanManage.syncManualStale : t.clanManage.syncManualNow}
@@ -411,15 +411,15 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
               </Button>
             )}
             
-            <div className="text-[10px] text-gray-600 bg-black/20 p-2 rounded text-center border border-white/5 font-mono">
+            <div className="text-[10px] text-gray-600 bg-black/20 p-2 rounded text-center border border-white/5 font-mono select-all">
               ID: {clan.id}
             </div>
           </div>
         </div>
 
         {/* Card 2: War Status */}
-        <div className="bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-md rounded-2xl border border-white/10 p-6 shadow-xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-coc-red/10 rounded-full blur-[50px] -z-10 group-hover:bg-coc-red/20 transition-all duration-500 pointer-events-none" />
+        <div className="bg-[#15171e]/60 backdrop-blur-md rounded-2xl border border-white/5 p-6 shadow-xl relative overflow-hidden group hover:border-white/10 transition-colors">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-coc-red/10 rounded-full blur-[60px] -z-10 group-hover:bg-coc-red/20 transition-all duration-500 pointer-events-none" />
           
           <h3 className="text-lg font-clash text-white border-b border-white/5 pb-3 mb-3 flex items-center gap-2">
             <SwordsIcon className="h-5 w-5 text-coc-red" /> {t.clanManage.activeWarTitle}
@@ -436,8 +436,8 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
         </div>
 
         {/* Card 3: Raid Summary */}
-        <div className="bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-md rounded-2xl border border-white/10 p-6 shadow-xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-[50px] -z-10 group-hover:bg-purple-500/20 transition-all duration-500 pointer-events-none" />
+        <div className="bg-[#15171e]/60 backdrop-blur-md rounded-2xl border border-white/5 p-6 shadow-xl relative overflow-hidden group hover:border-white/10 transition-colors">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-[60px] -z-10 group-hover:bg-purple-500/20 transition-all duration-500 pointer-events-none" />
 
           <h3 className="text-lg font-clash text-white border-b border-white/5 pb-3 mb-3 flex items-center gap-2">
             <HomeIcon className="h-5 w-5 text-purple-400" /> {t.clanManage.raidTitle}
@@ -453,7 +453,7 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
             <div className="flex flex-col items-center justify-center h-full text-center py-4">
               <HomeIcon className="h-10 w-10 text-gray-600 mb-3 opacity-50" />
               <p className="text-sm text-gray-400 mb-4">{t.clanManage.raidNoData}</p>
-              <Button href="/clan/manage?tab=raid" variant="secondary" size="sm">
+              <Button href="/clan/manage?tab=raid" variant="secondary" size="sm" className="border-white/10 bg-white/5 hover:bg-white/10">
                 {t.clanManage.viewRaidArchive}
               </Button>
             </div>
@@ -464,8 +464,8 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
 
       {/* --- SECTION 2: TOP PERFORMERS --- */}
       <div>
-        <h2 className="text-2xl font-clash text-white mb-6 flex items-center gap-3">
-          <div className="p-2 bg-coc-gold/10 rounded-lg border border-coc-gold/20">
+        <h2 className="text-2xl font-clash text-white mb-6 flex items-center gap-3 pl-1">
+          <div className="p-2 bg-coc-gold/10 rounded-lg border border-coc-gold/20 shadow-[0_0_15px_rgba(255,215,0,0.1)]">
             <TrophyIcon className="h-6 w-6 text-coc-gold" />
           </div>
           {t.clanManage.performanceTitle}
@@ -474,7 +474,7 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
         {isLoadingBasic ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[1, 2, 3, 4].map(i => (
-              <div key={i} className="h-48 bg-white/5 rounded-2xl animate-pulse" />
+              <div key={i} className="h-48 bg-white/5 rounded-2xl animate-pulse border border-white/5" />
             ))}
           </div>
         ) : topPerformers ? (
@@ -484,7 +484,7 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
             <TopPerformersCard
               title={t.clanManage.promotionsTitle}
               icon={<ArrowUpIcon className="h-5 w-5 text-coc-green" />}
-              className="bg-coc-green/5 border-coc-green/20 text-white hover:border-coc-green/40"
+              className="bg-coc-green/5 border-coc-green/20 text-white hover:border-coc-green/40 hover:shadow-[0_0_20px_rgba(74,222,128,0.1)]"
               value={promotions.length}
               description={t.clanManage.promotionsDesc.replace('{count}', PROMOTION_LIMIT.toString())}
               isPlayerList={true}
@@ -495,7 +495,7 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
             <TopPerformersCard
               title={t.clanManage.demotionsTitle}
               icon={<ArrowDownIcon className="h-5 w-5 text-coc-red" />}
-              className="bg-coc-red/5 border-coc-red/20 text-white hover:border-coc-red/40"
+              className="bg-coc-red/5 border-coc-red/20 text-white hover:border-coc-red/40 hover:shadow-[0_0_20px_rgba(248,113,113,0.1)]"
               value={demotions.length}
               description={t.clanManage.demotionsDesc.replace('{count}', DEMOTION_LIMIT.toString())}
               isPlayerList={true}
@@ -506,7 +506,7 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
             <TopPerformersCard
               title={t.clanManage.topDonator}
               icon={<CoinsIcon className="h-5 w-5 text-coc-gold" />}
-              className="bg-coc-gold/5 border-coc-gold/20 text-white hover:border-coc-gold/40"
+              className="bg-coc-gold/5 border-coc-gold/20 text-white hover:border-coc-gold/40 hover:shadow-[0_0_20px_rgba(255,215,0,0.1)]"
               value={topDonatorData?.name || 'N/A'}
               description={`${t.clanManage.totalDonations}: ${formatNumber(donatorValue)}`}
               isPlayerList={false}
@@ -517,7 +517,7 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
             <TopPerformersCard
               title={t.clanManage.topLooter}
               icon={<HomeIcon className="h-5 w-5 text-coc-blue" />}
-              className="bg-coc-blue/5 border-coc-blue/20 text-white hover:border-coc-blue/40"
+              className="bg-coc-blue/5 border-coc-blue/20 text-white hover:border-coc-blue/40 hover:shadow-[0_0_20px_rgba(59,130,246,0.1)]"
               value={topRaidLooterData?.name || 'N/A'}
               description={`${t.clanManage.totalLoot}: ${formatNumber(looterValue)}`}
               isPlayerList={false}
@@ -525,9 +525,10 @@ const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
             />
           </div>
         ) : (
-          <div className="text-center p-10 bg-white/5 rounded-2xl border border-white/5 border-dashed">
-            <AlertTriangleIcon className="h-10 w-10 text-gray-500 mx-auto mb-3" />
-            <p className="text-gray-400">{t.clanManage.noPerformanceData}</p>
+          <div className="text-center p-12 bg-white/5 rounded-2xl border border-white/5 border-dashed">
+            <AlertTriangleIcon className="h-12 w-12 text-gray-500 mx-auto mb-4 opacity-50" />
+            <p className="text-gray-400 font-clash tracking-wide text-lg">{t.clanManage.noPerformanceData}</p>
+            <p className="text-sm text-gray-500 mt-2">Data will be available after the next synchronization.</p>
           </div>
         )}
       </div>

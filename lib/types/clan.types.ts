@@ -79,6 +79,13 @@ export interface ManagedClan {
 
   // --- [BARU: ADMIN MASTER FEATURE] ---
   isVerified?: boolean; // Status verifikasi (Centang Biru) oleh Admin
+
+  // --- [FIX UI HEADER] Field tambahan dari CoC API yang disimpan untuk UI ---
+  badgeUrls?: CocIconUrls;
+  warLeague?: {
+    id: number;
+    name: string;
+  };
 }
 
 /**

@@ -62,8 +62,11 @@ const CwlHistoryTabContent: React.FC<CwlHistoryTabContentProps> = ({ clan }) => 
   if (isLoading) {
     return (
       <div className="flex flex-col justify-center items-center min-h-[400px]">
-        <Loader2Icon className="h-10 w-10 text-coc-gold animate-spin mb-4" />
-        <p className="text-gray-400 font-medium animate-pulse">{t.common.loading}</p>
+        <div className="relative">
+            <div className="absolute inset-0 bg-coc-blue/20 blur-xl rounded-full animate-pulse"></div>
+            <Loader2Icon className="h-10 w-10 text-coc-blue animate-spin relative z-10" />
+        </div>
+        <p className="text-gray-400 font-medium animate-pulse mt-4 font-mono tracking-wider">{t.common.loading}</p>
       </div>
     );
   }
@@ -71,8 +74,8 @@ const CwlHistoryTabContent: React.FC<CwlHistoryTabContentProps> = ({ clan }) => 
   // --- TAMPILAN ERROR ---
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[300px] text-center p-8 bg-coc-red/5 border border-coc-red/20 rounded-2xl backdrop-blur-sm">
-        <div className="bg-coc-red/10 p-4 rounded-full mb-4">
+      <div className="flex flex-col items-center justify-center min-h-[300px] text-center p-8 bg-coc-red/5 border border-coc-red/20 rounded-2xl backdrop-blur-sm shadow-[inset_0_0_20px_rgba(220,38,38,0.1)]">
+        <div className="bg-coc-red/10 p-4 rounded-full mb-4 shadow-[0_0_15px_rgba(255,0,0,0.2)]">
             <AlertTriangleIcon className="h-10 w-10 text-coc-red" />
         </div>
         <p className="text-xl font-clash text-white mb-2">{t.common.error}</p>
@@ -84,6 +87,7 @@ const CwlHistoryTabContent: React.FC<CwlHistoryTabContentProps> = ({ clan }) => 
           variant="secondary"
           size="sm"
           disabled={isSyncing}
+          className="bg-white/5 hover:bg-white/10 border-white/10"
         >
           {isSyncing ? (
             <Loader2Icon className="h-4 w-4 mr-2 animate-spin" />
@@ -100,12 +104,12 @@ const CwlHistoryTabContent: React.FC<CwlHistoryTabContentProps> = ({ clan }) => 
   if (!cwlData || cwlData.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-8 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-sm border-dashed">
-        <div className="bg-white/5 p-6 rounded-full mb-6 relative group">
-            <div className="absolute inset-0 bg-coc-gold/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <CalendarCheck2Icon className="h-16 w-16 text-coc-gold/50 relative z-10" />
+        <div className="bg-[#15171e] p-6 rounded-full mb-6 relative group border border-white/5 shadow-xl">
+            <div className="absolute inset-0 bg-coc-gold/10 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <CalendarCheck2Icon className="h-16 w-16 text-coc-gold/50 relative z-10 group-hover:text-coc-gold transition-colors" />
         </div>
-        <h2 className="text-2xl font-clash text-white mb-2">{t.clanCwl.noCwlHistory}</h2>
-        <p className="text-gray-400 max-w-md mb-8 leading-relaxed">
+        <h2 className="text-2xl font-clash text-white mb-2 tracking-wide">{t.clanCwl.noCwlHistory}</h2>
+        <p className="text-gray-400 max-w-md mb-8 leading-relaxed font-sans">
           {t.common.noData}
         </p>
         <Button
@@ -127,33 +131,35 @@ const CwlHistoryTabContent: React.FC<CwlHistoryTabContentProps> = ({ clan }) => 
 
   // --- TAMPILAN UTAMA ---
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-10">
       
       {/* Header CWL */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gradient-to-r from-coc-blue/10 to-transparent p-6 rounded-2xl border border-coc-blue/20 relative overflow-hidden">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#15171e]/40 p-6 rounded-2xl border border-white/5 relative overflow-hidden ring-1 ring-white/5">
         <div className="absolute top-0 right-0 w-64 h-64 bg-coc-blue/10 rounded-full blur-[80px] pointer-events-none -translate-y-1/2 translate-x-1/2" />
         
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-1">
-            <div className="p-2 bg-coc-blue/20 rounded-lg border border-coc-blue/30">
+            <div className="p-2.5 bg-coc-blue/10 rounded-xl border border-coc-blue/20 shadow-[0_0_15px_rgba(59,130,246,0.2)]">
                 <TrophyIcon className="h-6 w-6 text-coc-blue" />
             </div>
-            <h2 className="text-2xl font-clash text-white tracking-wide">
-                {t.clanCwl.tabTitle}
-            </h2>
+            <div>
+                <h2 className="text-2xl font-clash text-white tracking-wide">
+                    {t.clanCwl.tabTitle}
+                </h2>
+                <p className="text-coc-blue/80 font-medium text-xs font-mono uppercase tracking-widest ml-0.5">
+                    {cwlData.length} {t.clanCwl.seasonHeader} Archived
+                </p>
+            </div>
           </div>
-          <p className="text-coc-blue/80 font-medium text-sm ml-1">
-            {cwlData.length} {t.clanCwl.seasonHeader} Archived
-          </p>
         </div>
 
         <div className="relative z-10">
             <Button 
                 onClick={handleFullRefresh} 
                 variant="secondary" 
-                size="sm"
+                size="sm" 
                 disabled={isSyncing}
-                className="bg-black/40 border-white/10 hover:bg-white/10 backdrop-blur-md shadow-lg"
+                className="bg-black/20 border-white/10 hover:bg-white/10 backdrop-blur-md shadow-lg"
             >
                 {isSyncing ? (
                 <Loader2Icon className="h-4 w-4 mr-2 animate-spin text-coc-blue" />
